@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Auto Volume/Chapter Uploader
 // @namespace    http://tampermonkey.net/
-// @version      1.2.8.1
+// @version      1.2.8.2
 // @description  Tự động hóa quá trình thêm/bổ sung chương trên wiki và web hồng
 // @author       QuocBao
 // @icon         data:image/x-icon;base64,AAABAAEAQEAAAAEAIAAoQgAAFgAAACgAAABAAAAAgAAAAAEAIAAAAAAAAEAAAAAAAAAAAAAAAAAAAAAAAADaxiYA2sYmAdrGJnPaxibZ2sYm+9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJvzaxibf2sYmgNrGJgbaxiYA2sYmAtrGJpzaxib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axiaw2sYmCNrGJm3axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJn/axibd2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axibl2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axiT/2cUg/9jDG//Ywxr/2MMZ/9jDGf/Ywxr/2cQd/9rFIv/axiX/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJf/axSL/2cQd/9jDGv/Ywxn/2MMZ/9jDGf/Ywxv/2cQe/9rFI//axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2cUi/9jDGv/Ywxr/28cp/+DORf/l12X/6dx6/+vgh//r4If/6Nt1/+PTVv/dyjT/2cQe/9jDGf/ZxB//2sYm/9rGJv/axib/2sYm/9rGJv/axiT/2cQd/9jDGf/ZxSD/3cs3/+PUWv/o3Hf/6+CH/+vgh//q3oH/5tls/+HRT//cyC7/2cQc/9jDGf/ZxSD/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/ZxSD/2MMa/93LN//n2nL/8eqt//n23P/+/vr//////////////////////////////////Prs//Xvw//r4In/4M9G/9nEHf/ZxB3/2sYm/9rGJP/Ywxr/2sYm/+LTVf/t45L/9vHI//377v//////////////////////////////////////+/jk//PtuP/p3n//381B/9nEHP/ZxB7/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJf/Ywxj/3sw7/+/moP/9++7///////////////////////////////////////////////////////////////////////7++f/z7bf/4dFN/9jCF//axiX/6d16//j01f////////////////////////////////////////////////////////////////////////////799f/y67L/4M9I/9jDGP/axiT/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYn/9nFIf/ZxR//6d19//z77P/////////////////////////////////////////////////////////////////////////////////////////////++//w56T/9/LN//////////////////////////////////////////////////////////////////////////////////////////////////799v/s4Yr/2sYj/9nEH//axif/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYn/9nEH//byCz/8+yz//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////Xww//dyzj/2cQc/9rGJ//axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYn/9nEHv/cyS//9/LN//////////////////////////////////////////////////389P/7+OT/+PXX//n12P/8+un////9///////////////////////////////////////////////////////////////////////////////9//z66//59tz/+PTV//r33//8++7/////////////////////////////////////////////////+vji/+HQSf/Zwxv/2sYn/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9nFIP/cyS//9/LN///////////////////////////////////////59tv/7eOS/+PUWv/ezDv/3Mgt/9rGJf/axib/3Mkx/+DQSf/p3Xr/9vHI//////////////////////////////////////////////////799f/z7LX/6Ntz/+DQSf/cyTL/28co/9rGJP/bxyr/3co1/+LSUP/r34X/9/PQ///////////////////////////////////////7+ej/385C/9nEHf/axif/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJP/ZxR//9O68//////////////////////////////////r44v/o23X/28co/9jCGP/ZxBz/2cUh/9rGI//axiX/2sYk/9rFI//ZxB//2MMY/9nFIP/k1V//9vLL/////////////////////////////v76/+/mnv/fzT//2MMb/9jDGf/ZxB//2sUj/9rGJP/axiX/2sYk/9rFIv/ZxB7/2MMY/9rFIv/l1mP/+fXX//////////////////////////////////n12P/byCv/2sUi/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/Ywxj/6t6B//////////////////////////////////Pstv/cyjL/2MMX/9rGJP/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axiX/2MMa/9rFIv/r4Ib//fvv////////////+fXY/+LSUf/Ywxf/2cUf/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axiX/2MMZ/9vIKf/w6KX/////////////////////////////////8emr/9jDGv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/ZxSD/380///788/////////////////////////////Hpqf/ZxB7/2cUg/9rGJ//axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axSH/2MMX//bwxf//////9e/A/9zJLf/Zwxv/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axSL/2MMa/+zhiv/////////////////////////////////m2Gf/2cQa/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2MMa//Hpqf////////////////////////////PstP/ZxB7/2sUi/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2MMZ/+3jkv//////9fDE/9rGJv/ZxR//2sYn/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJP/Ywxf/7uSW////////////////////////////+vfh/9vIKv/axiP/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sUh/97MO//+/fX///////////////////////r44f/cyS7/2cUg/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2cQc/+PTVf////7/+/jj/93KMv/ZxB7/2sYn/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYj/9nFHv/178H////////////////////////////p3Xv/2MMZ/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9jDGv/o3Hf////////////////////////////n2m//2MMY/9rGJ//axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYl/9rFIv/388///////+TWYP/Ywxn/2sYn/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/ZxB7/381A//388///////////////////////+PTS/9rFIv/axiX/2sYm/9rGJv/axib/2sYm/9rGJv/ZxBv/8+y2///////////////////////59tv/2sYm/9rGJP/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axSP/2cUh/9rFIv/axiX/2sYm/9nEG//m12b///////Pstf/Ywxr/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sUj/9nFIf/ZxSL/2sYl/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9jDF//u5Zr//////////////////////////P/gz0j/2cUf/9rGJv/axib/2sYm/9rGJv/axiT/3Mgs//v45P//////////////////////7eKR/9jDGP/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rFI//Ywxv/3Mkv/97MPv/dyzf/2cQf/9nEHv/ZxB3/9e/C///////h0U7/2cQd/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axiP/2MMa/9zILv/ezD7/3cs4/9nEH//ZxB7/2sYn/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/ZxSD/381A//799v//////////////////////6d5+/9jDGf/axib/2sYm/9rGJv/axib/2cQe/+HRTv////7//////////////////////+LSU//ZxB3/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rFIv/bxyj/7uSW//v45P/+/fb//fvv//Tuu//fzkL/3co0///++//38sv/2cQe/9rGJf/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axSL/28cn/+3jlP/7+OP//v32//378P/07r3/4dBK/9nEHP/axif/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9nEHf/28MX///////////////////////Lrs//ZxBv/2sYm/9rGJv/axib/2sYm/9jDGv/o23b///////////////////////z67P/cyjL/2sYj/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJf/axSD/8+23////////////////////////////+/nl/+3jk///////6t5+/9jDGf/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axiX/2cUg//PstP////////////////////////////377//gz0X/2cUf/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/Ywxj/7eKP///////////////////////59tz/28cn/9rGJP/axib/2sYm/9rGJv/Ywxn/7uSZ///////////////////////489D/2sUi/9rGJf/axib/2sYm/9rGJv/axib/2sYm/9rGJv/ZxBv/5tlr///////////////////////////////////////////////8/+HQSf/ZxR//2sYm/9rGJv/axib/2sYm/9rGJv/axib/2cQb/+bYaP//////////////////////////////////////9O69/9nEHf/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2MMb/+bYaf///////////////////////fzz/97MOv/axSH/2sYm/9rGJv/axib/2MMb//LqsP//////////////////////9O26/9jDHP/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2cQe//XwxP////////////////////////////////////////////v55v/cyC3/2sYj/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9nEHf/177/////////////////////////////////////////+/P/gz0f/2cUf/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9nEHv/i01T///////////////////////7++//fzkT/2cUg/9rGJv/axib/2sYm/9nEHf/07r////////////////////////Dopv/Ywxn/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sUi/93LNv/9/PH////////////////////////////////////////////38s3/2sUh/9rGJf/axib/2sYm/9rGJv/axib/2sYm/9rFIv/dyjT//fvu////////////////////////////////////////////6dx5/9jDGv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/ZxB7/4tJT///////////////////////+/vr/385D/9nFIP/axib/2sYm/9rGJv/ZxB3/9O6////////////////////////v56H/2MMZ/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9nEHv/i0lD/////////////////////////////////////////////////9O69/9nEHf/axib/2sYm/9rGJv/axib/2sYm/9rGJv/ZxB7/4dFO/////////////////////////////////////////////////+/mnf/Ywxn/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2cQe/+LSU////////////////////////v76/9/OQ//ZxSD/2sYm/9rGJv/axib/2cQd//Tuv///////////////////////7+ei/9jDGf/axib/2sYm/9rGJv/axib/2sYm/9rGJv/ZxBz/5ddl//////////////////////////////////////////////////Ptuf/ZxBz/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2cQc/+XWY//////////////////////////////////////////////////z7LX/2cQb/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9nEHv/i0lP///////////////////////7++v/fzkP/2cUg/9rGJv/axib/2sYm/9nEHf/07r///////////////////////+/nov/Ywxn/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2MMb/+bZa//////////////////////////////////////////////////z7bn/2MQc/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9jDG//n2Gn/////////////////////////////////////////////////9e68/9nEHP/axib/2sYm/9rGJv/axib/2sYm/9rGJv/ZxB7/4tJT///////////////////////+/vr/385D/9nFIP/axib/2sYm/9rGJv/ZxB3/9O6////////////////////////v56L/2MMZ/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9jDG//m2Gr/////////////////////////////////////////////////8+25/9jEHP/axib/2sYm/9rGJv/axib/2sYm/9rGJv/Ywxv/5tdo//////////////////////////////////////////////////Ttu//ZxBz/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2cQe/+LSU////////////////////////v76/9/OQ//ZxSD/2sYm/9rGJv/axib/2cQd//Tuv///////////////////////7+ei/9jDGf/axib/2sYm/9rGJv/axib/2sYm/9rGJv/Ywxv/5thq//////////////////////////////////////////////////Ptuf/YxBz/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2MMb/+bXaP/////////////////////////////////////////////////07bv/2cQc/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9nEHv/i0lP///////////////////////7++v/fzkP/2cUg/9rGJv/axib/2sYm/9nEHf/07r///////////////////////+/nov/Ywxn/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2MMb/+bYav/////////////////////////////////////////////////z7bn/2MQc/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9jDG//m12j/////////////////////////////////////////////////9O27/9nEHP/axib/2sYm/9rGJv/axib/2sYm/9rGJv/ZxB7/4tJT///////////////////////+/vr/385D/9nFIP/axib/2sYm/9rGJv/ZxB3/9O6////////////////////////v56L/2MMZ/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9jDG//m2Gr/////////////////////////////////////////////////8+25/9jEHP/axib/2sYm/9rGJv/axib/2sYm/9rGJv/Ywxv/5tdo//////////////////////////////////////////////////Ttu//ZxBz/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2cQe/+LSU////////////////////////v76/9/OQ//ZxSD/2sYm/9rGJv/axib/2cQd//Tuv///////////////////////7+ei/9jDGf/axib/2sYm/9rGJv/axib/2sYm/9rGJv/Ywxv/5thq//////////////////////////////////////////////////Ptuf/YxBz/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2MMb/+bXaP/////////////////////////////////////////////////07bv/2cQc/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9nEHv/i0lP///////////////////////7++v/fzkP/2cUg/9rGJv/axib/2sYm/9nEHf/07r///////////////////////+/nov/Ywxn/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2MMb/+bYav/////////////////////////////////////////////////z7bn/2MQc/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9jDG//m12j/////////////////////////////////////////////////9O27/9nEHP/axib/2sYm/9rGJv/axib/2sYm/9rGJv/ZxB7/4tJT///////////////////////+/vr/385D/9nFIP/axib/2sYm/9rGJv/ZxB3/9O6////////////////////////v56L/2MMZ/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9jDG//m2Gr/////////////////////////////////////////////////8+25/9jEHP/axib/2sYm/9rGJv/axib/2sYm/9rGJv/Ywxv/5tdo//////////////////////////////////////////////////Ttu//ZxBz/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2cQe/+LSU////////////////////////v76/9/OQ//ZxSD/2sYm/9rGJv/axib/2cQd//Tuv///////////////////////7+ei/9jDGf/axib/2sYm/9rGJv/axib/2sYm/9rGJv/Ywxv/5thq//////////////////////////////////////////////////Ptuf/YxBz/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2MMb/+bXaP/////////////////////////////////////////////////07bv/2cQc/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9nEHv/i0lP///////////////////////7++v/fzkP/2cUg/9rGJv/axib/2sYm/9nEHf/07r///////////////////////+/nov/Ywxn/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2MMb/+bYav/////////////////////////////////////////////////z7bn/2MQc/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9jDG//m12j/////////////////////////////////////////////////9O27/9nEHP/axib/2sYm/9rGJv/axib/2sYm/9rGJv/ZxB7/4tJT///////////////////////+/vr/385D/9nFIP/axib/2sYm/9rGJv/ZxB3/9O6////////////////////////v56L/2MMZ/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9jDG//m2Gr/////////////////////////////////////////////////8+25/9jEHP/axib/2sYm/9rGJv/axib/2sYm/9rGJv/Ywxv/5tdo//////////////////////////////////////////////////Ttu//ZxBz/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2cQe/+LSU////////////////////////v76/9/OQ//ZxSD/2sYm/9rGJv/axib/2cQd//Tuv///////////////////////7+ei/9jDGf/axib/2sYm/9rGJv/axib/2sYm/9rGJv/Ywxv/5thq//////////////////////////////////////////////////Ptuf/YxBz/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2MMb/+bXaP/////////////////////////////////////////////////07bv/2cQc/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9nEHv/i0lP///////////////////////7++v/fzkP/2cUg/9rGJv/axib/2sYm/9nEHf/07r///////////////////////+/nov/Ywxn/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2MMb/+bYav/////////////////////////////////////////////////z7bn/2MQc/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9jDG//m12j/////////////////////////////////////////////////9O27/9nEHP/axib/2sYm/9rGJv/axib/2sYm/9rGJv/ZxB7/4tJT///////////////////////+/vr/385D/9nFIP/axib/2sYm/9rGJv/ZxB3/9O6////////////////////////v56L/2MMZ/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9jDG//m2Gr/////////////////////////////////////////////////8+25/9jEHP/axib/2sYm/9rGJv/axib/2sYm/9rGJv/Ywxv/5tdo//////////////////////////////////////////////////Ttu//ZxBz/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2cQe/+LSU////////////////////////v76/9/OQ//ZxSD/2sYm/9rGJv/axib/2cQd//Tuv///////////////////////7+ei/9jDGP/axiX/2sYl/9rGJf/axiX/2sYl/9rGJf/Ywxr/5thq//////////////////////////////////////////////////Ptuf/YxBv/2sYl/9rGJf/axiX/2sYl/9rGJf/axiX/2MMa/+bXaP/////////////////////////////////////////////////07bv/2cQb/9rGJf/axiX/2sYl/9rGJf/axiX/2sYl/9nEHf/i0lP///////////////////////7++v/fzkP/2cUg/9rGJv/axib/2sYm/9nEHf/078D//////////////////////+/mn//XwRL/2cQf/9nEH//ZxB//2cQf/9nEH//ZxB//18EU/+XXZv/////////////////////////////////////////////////z7bf/18IV/9nEH//ZxB//2cQf/9nEH//ZxB//2cQf/9fBFP/l1mP/////////////////////////////////////////////////9O25/9jCFf/ZxB//2cQf/9nEH//ZxB//2cQf/9nEH//Ywhf/4dFO///////////////////////+/vv/385E/9nFIP/axib/2sYm/9rGJv/ZxBz/8+25///////////////////////7+ej/9fDE//bxyP/28cj/9vHI//bxyP/28cj/9vHI//Xwxf/59dn//////////////////////////////////////////////////Pvt//Xwxf/28cj/9vHI//bxyP/28cj/9vHI//bxyP/18MX/+fXZ//////////////////////////////////////////////////z77v/28MX/9vHI//bxyP/28cj/9vHI//bxyP/28cj/9vDG//j00////////////////////////v73/9/NP//ZxSH/2sYm/9rGJv/axib/2MMZ/+zijf/////////////////////////////////////////////////////////////////////////////////////////////////+/ff//////////////////////////////////////////////////////////////////////////////////////////////////v33//////////////////////////////////////////////////////////////////////////////////////////////////n22//bxib/2sYk/9rGJv/axib/2sYm/9nEHv/i0U/////+////////////////////////////////////////////////////////////////////////////////////////////7eOT//z66////////////////////////////////////////////////////////////////////////////////////////////+7klv/7+eb////////////////////////////////////////////////////////////////////////////////////////////v5pz/2MMa/9rGJv/axib/2sYm/9rGJv/axib/2cQb/+3klf//////////////////////////////////////////////////////////////////////////////////////9fDD/9jDGf/p3Xz///////////////////////////////////////////////////////////////////////////////////////bxyP/ZxBv/6Nt1///////////////////////////////////////////////////////////////////////////////////////59tr/3Mkv/9rFIv/axib/2sYm/9rGJv/axib/2sYm/9rGJP/axSH/6+CJ//378P///////////////////////////////////////////////////////////////////vz/8uqu/9zILv/ZxSD/2cQd/+ncef/8+uz////////////////////////////////////////////////////////////////////9//Lqr//cyS//2cUg/9nEHf/o3Hj//Prr/////////////////////////////////////////////////////////////////////v/07rv/3sw5/9nEHv/axif/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYk/9jDG//ezDv/5thp/+3jkv/u5Jj/7uSY/+7kmP/u5Jj/7uSY/+7kmP/u5Jj/7uSY/+7kl//o3Hj/4M9I/9nEH//axSH/2sYn/9rGJf/Ywxv/3cs3/+XXZ//t45H/7uSY/+7kmP/u5Jj/7uSY/+7kmP/u5Jj/7uSY/+7kmP/u5Jf/6dx6/+DQSv/ZxB//2cUh/9rGJ//axiX/2MMb/93LNv/l12X/7eKQ/+7kmP/u5Jj/7uSY/+7kmP/u5Jj/7uSY/+7kmP/u5Jj/7uSY/+ndfP/h0Ez/2sUi/9nFH//axif/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2cUh/9jDG//Ywxn/2MMZ/9jDGf/Ywxn/2MMZ/9jDGf/Ywxn/2MMZ/9jDGf/Ywxn/2MMa/9nEH//axiX/2sYm/9rGJv/axib/2sYm/9rFIv/Ywxv/2MMZ/9jDGf/Ywxn/2MMZ/9jDGf/Ywxn/2MMZ/9jDGf/Ywxn/2MMZ/9jDGv/ZxB//2sYl/9rGJv/axib/2sYm/9rGJv/axSL/2cQc/9jDGf/Ywxn/2MMZ/9jDGf/Ywxn/2MMZ/9jDGf/Ywxn/2MMZ/9jDGf/Ywxr/2cQf/9rGJf/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv7axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv7axibW2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axibf2sYmX9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYmcdrGJgDaxiaH2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYmnNrGJgPaxiYA2sYmANrGJmHaxibR2sYm+trGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJvzaxibX2sYmb9rGJgDaxiYAgAAAAAAAAAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAIAAAAAAAAAAwAAAAAAAAAM=
@@ -42,11 +42,16 @@
     const IS_WIKI_HOST = hostname === 'wikicv.net' || hostname === 'koanchay.org';
     // --- Cấu hình ---
     const APP_PREFIX = 'WDU_';
-    const CURRENT_VERSION = '1.2.8.1';
+    const CURRENT_VERSION = '1.2.8.2';
     const VERSION_KEY = `${APP_PREFIX}version`;
     const SPLIT_LAUNCHER_KEY = `${APP_PREFIX}split_launcher_enabled`;
     const SPLIT_LAUNCHER_PROMPT_VERSION = '1.2.8';
     const SPLIT_LAUNCHER_PROMPT_KEY = `${APP_PREFIX}split_launcher_prompt_version`;
+    const SPLIT_CREDIT_CONFIG_KEY = `${APP_PREFIX}split_credit_config_v1`;
+    const SPLIT_CREDIT_PROMPT_KEY = `${APP_PREFIX}split_credit_prompt_seen_v1`;
+    const SPLIT_REGEX_KEY = `${APP_PREFIX}split_custom_regex_v1`;
+    const TXT_SPLIT_DEFAULT_MAX_LENGTH = 8000;
+    const SPLIT_PREFACE_MODES = new Set(['remove', 'merge', 'separate']);
     const VOLUME_STATS_KEY = `${APP_PREFIX}volume_stats_enabled`;
     const SHARED_THEME_KEY = 'WDX_theme';
     const DEFAULT_THEME_MODE = 'light';
@@ -66,7 +71,8 @@
         PARSE_PRIORITY: 'filename',
         THEME_MODE: DEFAULT_THEME_MODE,
         REVERSE_VOLUME_ORDER: false,
-        SPLIT_PREFACE_IN_FIRST_CHAPTER: true,
+        SPLIT_PREFACE_MODE: 'remove',
+        SPLIT_MAX_CHAPTER_LENGTH: 8000,
     };
     const SETTINGS_KEY = `${APP_PREFIX}settings`;
 
@@ -552,15 +558,17 @@
             font-size: 14px;
             font-weight: 800;
             letter-spacing: 0.15px;
-            background: linear-gradient(135deg, #ff7eb3 0%, #7c3aed 48%, #0ea5e9 100%);
-            box-shadow: 0 16px 32px rgba(124, 58, 237, 0.34);
+            color: #3f2a56 !important;
+            background: linear-gradient(135deg, #f9a8d4 0%, #a5b4fc 48%, #7dd3fc 100%);
+            box-shadow: 0 14px 26px rgba(125, 148, 252, 0.24);
         }
         #${APP_PREFIX}split-launcher:hover {
-            box-shadow: 0 18px 38px rgba(14, 165, 233, 0.36);
+            box-shadow: 0 16px 30px rgba(125, 211, 252, 0.28);
         }
         :host([data-theme="dark"]) #${APP_PREFIX}split-launcher {
-            background: linear-gradient(135deg, #f97316 0%, #be123c 48%, #0ea5e9 100%);
-            box-shadow: 0 16px 34px rgba(2, 6, 23, 0.62);
+            color: #fff !important;
+            background: linear-gradient(135deg, #fb7185 0%, #818cf8 48%, #38bdf8 100%);
+            box-shadow: 0 14px 30px rgba(2, 6, 23, 0.52);
         }
 
         #${APP_PREFIX}settings-overlay {
@@ -1412,6 +1420,44 @@
             gap: 10px;
             padding: 12px;
         }
+        #${APP_PREFIX}split-tabs {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+            padding-bottom: 2px;
+        }
+        .${APP_PREFIX}split-tab-btn {
+            width: auto;
+            margin: 0;
+            padding: 8px 11px;
+            min-height: 0;
+            border-radius: 999px;
+            background: rgba(255, 255, 255, 0.82);
+            color: #4a2c6f !important;
+            border: 1px solid rgba(100, 116, 139, 0.24);
+            box-shadow: none;
+        }
+        .${APP_PREFIX}split-tab-btn[data-active="true"] {
+            color: #fff !important;
+            background: linear-gradient(135deg, #7c3aed 0%, #0ea5e9 100%);
+            border-color: rgba(14, 165, 233, 0.35);
+            box-shadow: 0 8px 16px rgba(14, 165, 233, 0.2);
+        }
+        :host([data-theme="dark"]) .${APP_PREFIX}split-tab-btn {
+            background: rgba(30, 41, 59, 0.78);
+            color: #e5e7eb !important;
+            border-color: rgba(148, 163, 184, 0.24);
+        }
+        :host([data-theme="dark"]) .${APP_PREFIX}split-tab-btn[data-active="true"] {
+            background: linear-gradient(135deg, #8b5cf6 0%, #0284c7 100%);
+        }
+        .${APP_PREFIX}split-tab-panel {
+            min-height: 0;
+            flex: 1 1 auto;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
         #${APP_PREFIX}split-edit-actions {
             display: flex;
             gap: 8px;
@@ -1435,6 +1481,8 @@
         }
         #${APP_PREFIX}split-title-input,
         #${APP_PREFIX}split-preface-input,
+        #${APP_PREFIX}split-credit-text,
+        #${APP_PREFIX}split-regex-input,
         #${APP_PREFIX}split-content-input {
             width: 100%;
             box-sizing: border-box;
@@ -1444,6 +1492,45 @@
             background: rgba(255, 255, 255, 0.9);
             color: #1f2937;
             font: inherit;
+        }
+        #${APP_PREFIX}split-credit-text,
+        #${APP_PREFIX}split-regex-input {
+            min-height: 160px;
+            resize: vertical;
+            line-height: 1.5;
+            font-family: "JetBrains Mono", "Cascadia Mono", "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+        }
+        #${APP_PREFIX}split-credit-text {
+            font-family: "Noto Serif SC", "Noto Serif", Georgia, serif;
+        }
+        .${APP_PREFIX}split-tool-grid {
+            display: grid;
+            grid-template-columns: minmax(160px, 1fr) minmax(120px, 0.7fr);
+            gap: 10px;
+            align-items: end;
+        }
+        .${APP_PREFIX}split-tool-grid .${APP_PREFIX}select,
+        .${APP_PREFIX}split-tool-grid .${APP_PREFIX}text-input {
+            margin-bottom: 0;
+        }
+        .${APP_PREFIX}split-tool-actions {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+        .${APP_PREFIX}split-tool-actions .${APP_PREFIX}btn {
+            width: auto;
+            margin: 0;
+            padding: 8px 11px;
+            min-height: 0;
+            border-radius: 999px;
+        }
+        #${APP_PREFIX}split-credit-status,
+        #${APP_PREFIX}split-regex-status {
+            min-height: 18px;
+            font-size: 12px;
+            color: #64748b;
+            white-space: pre-wrap;
         }
         #${APP_PREFIX}split-preface-box {
             display: flex;
@@ -1477,6 +1564,8 @@
         }
         :host([data-theme="dark"]) #${APP_PREFIX}split-title-input,
         :host([data-theme="dark"]) #${APP_PREFIX}split-preface-input,
+        :host([data-theme="dark"]) #${APP_PREFIX}split-credit-text,
+        :host([data-theme="dark"]) #${APP_PREFIX}split-regex-input,
         :host([data-theme="dark"]) #${APP_PREFIX}split-content-input {
             background: rgba(2, 6, 23, 0.62);
             color: #f8fafc;
@@ -1497,6 +1586,8 @@
         #${APP_PREFIX}split-list::-webkit-scrollbar,
         #${APP_PREFIX}split-editor::-webkit-scrollbar,
         #${APP_PREFIX}split-preface-input::-webkit-scrollbar,
+        #${APP_PREFIX}split-credit-text::-webkit-scrollbar,
+        #${APP_PREFIX}split-regex-input::-webkit-scrollbar,
         #${APP_PREFIX}split-content-input::-webkit-scrollbar {
             width: 10px;
             height: 10px;
@@ -1504,6 +1595,8 @@
         #${APP_PREFIX}split-list::-webkit-scrollbar-track,
         #${APP_PREFIX}split-editor::-webkit-scrollbar-track,
         #${APP_PREFIX}split-preface-input::-webkit-scrollbar-track,
+        #${APP_PREFIX}split-credit-text::-webkit-scrollbar-track,
+        #${APP_PREFIX}split-regex-input::-webkit-scrollbar-track,
         #${APP_PREFIX}split-content-input::-webkit-scrollbar-track {
             background: rgba(255, 255, 255, 0.72);
             border-radius: 999px;
@@ -1511,6 +1604,8 @@
         #${APP_PREFIX}split-list::-webkit-scrollbar-thumb,
         #${APP_PREFIX}split-editor::-webkit-scrollbar-thumb,
         #${APP_PREFIX}split-preface-input::-webkit-scrollbar-thumb,
+        #${APP_PREFIX}split-credit-text::-webkit-scrollbar-thumb,
+        #${APP_PREFIX}split-regex-input::-webkit-scrollbar-thumb,
         #${APP_PREFIX}split-content-input::-webkit-scrollbar-thumb {
             background: linear-gradient(180deg, #ff8bd2 0%, #60a5fa 52%, #22d3ee 100%);
             border-radius: 999px;
@@ -1519,6 +1614,8 @@
         #${APP_PREFIX}split-list,
         #${APP_PREFIX}split-editor,
         #${APP_PREFIX}split-preface-input,
+        #${APP_PREFIX}split-credit-text,
+        #${APP_PREFIX}split-regex-input,
         #${APP_PREFIX}split-content-input {
             scrollbar-width: thin;
             scrollbar-color: #60a5fa rgba(255, 255, 255, 0.72);
@@ -1526,12 +1623,16 @@
         :host([data-theme="dark"]) #${APP_PREFIX}split-list::-webkit-scrollbar-track,
         :host([data-theme="dark"]) #${APP_PREFIX}split-editor::-webkit-scrollbar-track,
         :host([data-theme="dark"]) #${APP_PREFIX}split-preface-input::-webkit-scrollbar-track,
+        :host([data-theme="dark"]) #${APP_PREFIX}split-credit-text::-webkit-scrollbar-track,
+        :host([data-theme="dark"]) #${APP_PREFIX}split-regex-input::-webkit-scrollbar-track,
         :host([data-theme="dark"]) #${APP_PREFIX}split-content-input::-webkit-scrollbar-track {
             background: rgba(15, 23, 42, 0.86);
         }
         :host([data-theme="dark"]) #${APP_PREFIX}split-list::-webkit-scrollbar-thumb,
         :host([data-theme="dark"]) #${APP_PREFIX}split-editor::-webkit-scrollbar-thumb,
         :host([data-theme="dark"]) #${APP_PREFIX}split-preface-input::-webkit-scrollbar-thumb,
+        :host([data-theme="dark"]) #${APP_PREFIX}split-credit-text::-webkit-scrollbar-thumb,
+        :host([data-theme="dark"]) #${APP_PREFIX}split-regex-input::-webkit-scrollbar-thumb,
         :host([data-theme="dark"]) #${APP_PREFIX}split-content-input::-webkit-scrollbar-thumb {
             background: linear-gradient(180deg, #f472b6 0%, #38bdf8 60%, #818cf8 100%);
             border-color: rgba(15, 23, 42, 0.9);
@@ -1539,6 +1640,8 @@
         :host([data-theme="dark"]) #${APP_PREFIX}split-list,
         :host([data-theme="dark"]) #${APP_PREFIX}split-editor,
         :host([data-theme="dark"]) #${APP_PREFIX}split-preface-input,
+        :host([data-theme="dark"]) #${APP_PREFIX}split-credit-text,
+        :host([data-theme="dark"]) #${APP_PREFIX}split-regex-input,
         :host([data-theme="dark"]) #${APP_PREFIX}split-content-input {
             scrollbar-color: #38bdf8 rgba(15, 23, 42, 0.86);
         }
@@ -1556,6 +1659,9 @@
             #${APP_PREFIX}split-body {
                 grid-template-columns: 1fr;
                 grid-template-rows: minmax(140px, 34%) 1fr;
+            }
+            .${APP_PREFIX}split-tool-grid {
+                grid-template-columns: 1fr;
             }
         }
         .${APP_PREFIX}volume-stats {
@@ -1862,21 +1968,74 @@
             <div id="${APP_PREFIX}split-body">
                 <div id="${APP_PREFIX}split-list"></div>
                 <div id="${APP_PREFIX}split-editor">
-                    <label for="${APP_PREFIX}split-title-input">Tên chương</label>
-                    <input id="${APP_PREFIX}split-title-input" type="text" />
-                    <div id="${APP_PREFIX}split-edit-actions">
-                        <button id="${APP_PREFIX}split-insert-before" class="${APP_PREFIX}btn" type="button">＋ Chèn trước</button>
-                        <button id="${APP_PREFIX}split-insert-after" class="${APP_PREFIX}btn" type="button">＋ Chèn sau</button>
-                        <button id="${APP_PREFIX}split-delete" class="${APP_PREFIX}btn" type="button">Xóa chương</button>
+                    <div id="${APP_PREFIX}split-tabs">
+                        <button class="${APP_PREFIX}btn ${APP_PREFIX}split-tab-btn" data-split-tab="chapter" type="button">Chương</button>
+                        <button class="${APP_PREFIX}btn ${APP_PREFIX}split-tab-btn" data-split-tab="credit" type="button">Thêm Credit</button>
+                        <button class="${APP_PREFIX}btn ${APP_PREFIX}split-tab-btn" data-split-tab="regex" type="button">Regex chia file</button>
                     </div>
-                    <div id="${APP_PREFIX}split-preface-box" class="${APP_PREFIX}hide">
-                        <label for="${APP_PREFIX}split-preface-input">Mở đầu gộp vào chương này</label>
-                        <textarea id="${APP_PREFIX}split-preface-input" spellcheck="false"></textarea>
-                        <span class="${APP_PREFIX}notice">Phần này sẽ nằm trước tên chương khi lưu ZIP hoặc gán vào web.</span>
+                    <div id="${APP_PREFIX}split-tab-chapter" class="${APP_PREFIX}split-tab-panel">
+                        <label for="${APP_PREFIX}split-title-input">Tên chương</label>
+                        <input id="${APP_PREFIX}split-title-input" type="text" />
+                        <div id="${APP_PREFIX}split-edit-actions">
+                            <button id="${APP_PREFIX}split-insert-before" class="${APP_PREFIX}btn" type="button">＋ Chèn trước</button>
+                            <button id="${APP_PREFIX}split-insert-after" class="${APP_PREFIX}btn" type="button">＋ Chèn sau</button>
+                            <button id="${APP_PREFIX}split-delete" class="${APP_PREFIX}btn" type="button">Xóa chương</button>
+                        </div>
+                        <div id="${APP_PREFIX}split-preface-box" class="${APP_PREFIX}hide">
+                            <label for="${APP_PREFIX}split-preface-input">Mở đầu gộp vào chương này</label>
+                            <textarea id="${APP_PREFIX}split-preface-input" spellcheck="false"></textarea>
+                            <span class="${APP_PREFIX}notice">Phần này sẽ nằm trước tên chương khi lưu ZIP hoặc gán vào web.</span>
+                        </div>
+                        <label for="${APP_PREFIX}split-content-input">Nội dung chương (file xuất/gán tự thêm tên chương ở dòng đầu)</label>
+                        <textarea id="${APP_PREFIX}split-content-input" spellcheck="false"></textarea>
+                        <div id="${APP_PREFIX}split-stats"></div>
                     </div>
-                    <label for="${APP_PREFIX}split-content-input">Nội dung chương (file xuất/gán tự thêm tên chương ở dòng đầu)</label>
-                    <textarea id="${APP_PREFIX}split-content-input" spellcheck="false"></textarea>
-                    <div id="${APP_PREFIX}split-stats"></div>
+                    <div id="${APP_PREFIX}split-tab-credit" class="${APP_PREFIX}split-tab-panel ${APP_PREFIX}hide">
+                        <label for="${APP_PREFIX}split-credit-text">Nội dung Credit</label>
+                        <textarea id="${APP_PREFIX}split-credit-text" spellcheck="false" placeholder="Credit, nguồn, editor..."></textarea>
+                        <div class="${APP_PREFIX}split-tool-grid">
+                            <label for="${APP_PREFIX}split-credit-position">
+                                Vị trí chèn
+                                <select id="${APP_PREFIX}split-credit-position" class="${APP_PREFIX}select">
+                                    <option value="start">Đầu file</option>
+                                    <option value="end">Cuối file</option>
+                                    <option value="line">Trước dòng n</option>
+                                </select>
+                            </label>
+                            <label id="${APP_PREFIX}split-credit-line-box" for="${APP_PREFIX}split-credit-line">
+                                Dòng n
+                                <input id="${APP_PREFIX}split-credit-line" class="${APP_PREFIX}text-input" type="number" min="1" step="1" value="1">
+                            </label>
+                        </div>
+                        <div class="${APP_PREFIX}split-tool-actions">
+                            <button id="${APP_PREFIX}split-credit-apply" class="${APP_PREFIX}btn" type="button">Áp dụng Credit</button>
+                            <button id="${APP_PREFIX}split-credit-disable" class="${APP_PREFIX}btn ${APP_PREFIX}btn-ghost" type="button">Tắt Credit</button>
+                        </div>
+                        <div id="${APP_PREFIX}split-credit-status"></div>
+                    </div>
+                    <div id="${APP_PREFIX}split-tab-regex" class="${APP_PREFIX}split-tab-panel ${APP_PREFIX}hide">
+                        <div class="${APP_PREFIX}split-tool-grid">
+                            <label for="${APP_PREFIX}split-preface-mode">
+                                Văn án/Mở đầu
+                                <select id="${APP_PREFIX}split-preface-mode" class="${APP_PREFIX}select">
+                                    <option value="remove">Xóa khỏi file</option>
+                                    <option value="merge">Gộp vào chương 1</option>
+                                    <option value="separate">Tách thành file Mở đầu</option>
+                                </select>
+                            </label>
+                            <label for="${APP_PREFIX}split-regex-target">
+                                Tối đa mỗi chương
+                                <input id="${APP_PREFIX}split-regex-target" class="${APP_PREFIX}text-input" type="number" min="500" step="100" value="8000">
+                            </label>
+                        </div>
+                        <label for="${APP_PREFIX}split-regex-input">Regex chia file</label>
+                        <textarea id="${APP_PREFIX}split-regex-input" spellcheck="false" placeholder="/^第\\s*\\d+\\s*章.*$/gmi&#10;^Chương\\s+\\d+.*$"></textarea>
+                        <div class="${APP_PREFIX}split-tool-actions">
+                            <button id="${APP_PREFIX}split-regex-apply" class="${APP_PREFIX}btn" type="button">Chia lại</button>
+                            <button id="${APP_PREFIX}split-regex-clear" class="${APP_PREFIX}btn ${APP_PREFIX}btn-ghost" type="button">Xóa regex</button>
+                        </div>
+                        <div id="${APP_PREFIX}split-regex-status"></div>
+                    </div>
                 </div>
             </div>
             <div id="${APP_PREFIX}split-footer">
@@ -1977,11 +2136,18 @@
                     <span class="${APP_PREFIX}notice">Ví dụ: <code>chương {num}: {title}</code> hoặc <code>{num}-{title}</code></span>
                 </div>
                 <div class="${APP_PREFIX}setting-item">
-                    <label>
-                        <input type="checkbox" id="${APP_PREFIX}setting-split-preface-first">
-                        Gộp phần Mở đầu vào chương 1 khi chia TXT
-                    </label>
-                    <span class="${APP_PREFIX}notice">Nếu tắt, phần chữ nằm trước tiêu đề chương đầu sẽ tách thành file Mở đầu riêng.</span>
+                    <label for="${APP_PREFIX}setting-split-preface-mode">Phần Mở đầu/văn án khi chia TXT:</label>
+                    <select id="${APP_PREFIX}setting-split-preface-mode" class="${APP_PREFIX}select">
+                        <option value="remove">Xóa khỏi file</option>
+                        <option value="merge">Gộp vào chương 1</option>
+                        <option value="separate">Tách thành file Mở đầu</option>
+                    </select>
+                    <span class="${APP_PREFIX}notice">Mặc định xóa phần chữ đứng trước tiêu đề chương đầu khỏi file xuất/gán.</span>
+                </div>
+                <div class="${APP_PREFIX}setting-item">
+                    <label for="${APP_PREFIX}setting-split-max-length">Tối đa mỗi chương khi chia TXT:</label>
+                    <input type="number" id="${APP_PREFIX}setting-split-max-length" class="${APP_PREFIX}text-input" min="500" step="100" value="8000">
+                    <span class="${APP_PREFIX}notice">Dùng cho fallback chia theo đoạn và kiểm tra khối quá dài. Mặc định: 8000 ký tự.</span>
                 </div>
                 <div class="${APP_PREFIX}setting-item">
                     <label>
@@ -2170,6 +2336,12 @@
     const splitAssignBtn = shadowRoot.querySelector(`#${APP_PREFIX}split-assign`);
     const splitSummaryEl = shadowRoot.querySelector(`#${APP_PREFIX}split-summary`);
     const splitListEl = shadowRoot.querySelector(`#${APP_PREFIX}split-list`);
+    const splitTabBtns = [...shadowRoot.querySelectorAll(`.${APP_PREFIX}split-tab-btn[data-split-tab]`)];
+    const splitTabPanels = {
+        chapter: shadowRoot.querySelector(`#${APP_PREFIX}split-tab-chapter`),
+        credit: shadowRoot.querySelector(`#${APP_PREFIX}split-tab-credit`),
+        regex: shadowRoot.querySelector(`#${APP_PREFIX}split-tab-regex`),
+    };
     const splitSearchInput = shadowRoot.querySelector(`#${APP_PREFIX}split-search-input`);
     const splitSearchTargetBtn = shadowRoot.querySelector(`#${APP_PREFIX}split-search-target`);
     const splitTitleInput = shadowRoot.querySelector(`#${APP_PREFIX}split-title-input`);
@@ -2180,6 +2352,19 @@
     const splitInsertBeforeBtn = shadowRoot.querySelector(`#${APP_PREFIX}split-insert-before`);
     const splitInsertAfterBtn = shadowRoot.querySelector(`#${APP_PREFIX}split-insert-after`);
     const splitDeleteBtn = shadowRoot.querySelector(`#${APP_PREFIX}split-delete`);
+    const splitCreditTextInput = shadowRoot.querySelector(`#${APP_PREFIX}split-credit-text`);
+    const splitCreditPositionSelect = shadowRoot.querySelector(`#${APP_PREFIX}split-credit-position`);
+    const splitCreditLineInput = shadowRoot.querySelector(`#${APP_PREFIX}split-credit-line`);
+    const splitCreditLineBox = shadowRoot.querySelector(`#${APP_PREFIX}split-credit-line-box`);
+    const splitCreditApplyBtn = shadowRoot.querySelector(`#${APP_PREFIX}split-credit-apply`);
+    const splitCreditDisableBtn = shadowRoot.querySelector(`#${APP_PREFIX}split-credit-disable`);
+    const splitCreditStatusEl = shadowRoot.querySelector(`#${APP_PREFIX}split-credit-status`);
+    const splitPrefaceModeInlineSelect = shadowRoot.querySelector(`#${APP_PREFIX}split-preface-mode`);
+    const splitRegexTargetInput = shadowRoot.querySelector(`#${APP_PREFIX}split-regex-target`);
+    const splitRegexInput = shadowRoot.querySelector(`#${APP_PREFIX}split-regex-input`);
+    const splitRegexApplyBtn = shadowRoot.querySelector(`#${APP_PREFIX}split-regex-apply`);
+    const splitRegexClearBtn = shadowRoot.querySelector(`#${APP_PREFIX}split-regex-clear`);
+    const splitRegexStatusEl = shadowRoot.querySelector(`#${APP_PREFIX}split-regex-status`);
     const snapshotsOverlay = shadowRoot.querySelector(`#${APP_PREFIX}snapshots-overlay`);
     const snapshotsModal = shadowRoot.querySelector(`#${APP_PREFIX}snapshots-modal`);
     const snapshotsCloseBtn = shadowRoot.querySelector(`#${APP_PREFIX}snapshots-close`);
@@ -2204,7 +2389,8 @@
     const themeSelect = shadowRoot.querySelector(`#${APP_PREFIX}setting-theme`);
     const firstLineOnlyInput = shadowRoot.querySelector(`#${APP_PREFIX}setting-first-line-only`);
     const chapterTemplateInput = shadowRoot.querySelector(`#${APP_PREFIX}setting-chapter-template`);
-    const splitPrefaceFirstInput = shadowRoot.querySelector(`#${APP_PREFIX}setting-split-preface-first`);
+    const splitPrefaceModeSelect = shadowRoot.querySelector(`#${APP_PREFIX}setting-split-preface-mode`);
+    const splitMaxChapterLengthInput = shadowRoot.querySelector(`#${APP_PREFIX}setting-split-max-length`);
     const splitLauncherSettingInput = shadowRoot.querySelector(`#${APP_PREFIX}setting-split-launcher`);
     const volumeStatsCheckbox = shadowRoot.querySelector(`#${APP_PREFIX}setting-volume-stats`);
     const totalChaptersEl = shadowRoot.querySelector(`#${APP_PREFIX}setting-total-chapters`);
@@ -2914,7 +3100,7 @@
 ### 🧠 Parse chương (mặc định)
 - **Ưu tiên lấy thông tin từ**:
   - Tên file (fallback dòng đầu) hoặc Dòng đầu (fallback tên file).
-- Script dùng regex mặc định (tham chiếu logic app rename), không cần tự nhập regex.
+- Chia TXT ưu tiên regex user trong tab **Regex chia file** nếu có; nếu không ổn sẽ fallback về regex mặc định của script.
 - Mẫu tên chương: \`第{num}章 {title}\`.
 
 ### 🧯 Khi có lỗi parse
@@ -2928,27 +3114,20 @@
     `.trim();
 
     const changelogMarkdown = `
-### ✨ v1.2.8.1
-- Hotfix modal **Chia TXT**: phần **Mở đầu** gộp vào chương 1 giờ hiện rõ trong ô riêng để sửa, không còn nhìn như chương rỗng dù bộ đếm có ký tự.
-
-### 📦 v1.2.8
-- Script chạy mọi trang; trên wiki upload/edit hiện đủ Auto Volume, trang khác chỉ hiện nút **Chia TXT** nếu user bật.
-- Thêm menu Tampermonkey: mở **Cài đặt Auto Volume**, chia nhanh 1 file TXT, bật/tắt nút **Chia TXT**.
-- Khi cài mới hoặc update lên bản này sẽ hỏi có muốn bật nút **Chia TXT** không; có thể đổi lại trong menu Tampermonkey hoặc Cài đặt trên wiki.
-
-### 📦 v1.2.7
-- Chọn đúng **1 file TXT** sẽ tự mở modal **Chia TXT thành chương**.
-- Có thể sửa tên chương + nội dung từng file, **Lưu về** thành nhiều TXT hoặc **Gán vào web** ngay.
-- Regex chia chương tham chiếu reader_server: Trung/Việt/Anh, số thứ tự ngắn, dạng 001｜1.Tên chương; có fallback chia theo đoạn.
+### ✨ v1.2.8.2
+- Chia TXT mặc định **xóa phần Mở đầu/văn án khỏi file**; có thể đổi sang gộp chương 1 hoặc tách file Mở đầu trong Cài đặt/tab Regex.
+- Thêm tab **Thêm Credit** trong modal Chia TXT: chèn đầu file, cuối file hoặc trước dòng n; bấm áp dụng sẽ tự lưu dùng cho lần sau.
+- Thêm tab **Regex chia file**: regex user được chạy trước, không ổn sẽ fallback về regex mặc định của script.
+- Nâng tham số chia TXT mặc định lên **8000 ký tự/chương** và cho chỉnh trong Cài đặt.
+- Làm dịu màu nút **Chia TXT** khi hiện trên trang khác.
 
 ### 📦 Các bản trước (tóm tắt)
+- v1.2.8.1-v1.2.8: Mở Chia TXT ở mọi trang, menu Tampermonkey, hỏi bật nút Chia TXT, hotfix hiển thị phần Mở đầu trong modal.
+- v1.2.7: Chọn đúng 1 file TXT sẽ mở modal chia chương, sửa/lưu ZIP/gán web, regex mặc định nhiều dạng và fallback chia đoạn.
 - v1.2.6: Bản lưu/khôi phục form + file bằng IndexedDB, đảo danh sách volume, check/chuyển encoding, dọn zero-width, xử lý emoji/ký tự dễ lỗi upload.
 - v1.2.5: Popup xử lý ký tự đặc biệt, emoji/icon (4-byte), hỏi chuẩn hóa dấu phẩy Nhật "、", cải thiện dialog log.
 - v1.2.4: Bỏ regex tùy chỉnh UI, auto-detect encoding + hỏi chuyển UTF-8, fix double số chương trong tiêu đề.
-- v1.2.3: Tối ưu UI + theme tối.
-- v1.2.2: Thống kê chương theo quyển, tổng chương trong cài đặt, luồng xóa quyển có xác nhận chủ truyện.
-- v1.2.1: Hotfix gán file thật vào input + ổn định upload nhiều chương.
-- v1.2.0: Thêm nút xóa/thêm quyển, chống treo khi upload lại, làm mới panel.
+- v1.2.0-v1.2.3: Thêm nút xóa/thêm quyển, ổn định upload, thống kê chương theo quyển, cải thiện UI/theme tối.
 `.trim();
 
 
@@ -4389,6 +4568,13 @@
                     delete loadedSettings.FILE_ENCODING;
                     delete loadedSettings.FILENAME_REGEX;
                     delete loadedSettings.CONTENT_REGEX;
+                    delete loadedSettings.SPLIT_PREFACE_IN_FIRST_CHAPTER;
+                    if (Object.prototype.hasOwnProperty.call(loadedSettings, 'SPLIT_PREFACE_MODE')) {
+                        loadedSettings.SPLIT_PREFACE_MODE = normalizeSplitPrefaceMode(loadedSettings.SPLIT_PREFACE_MODE);
+                    }
+                    if (Object.prototype.hasOwnProperty.call(loadedSettings, 'SPLIT_MAX_CHAPTER_LENGTH')) {
+                        loadedSettings.SPLIT_MAX_CHAPTER_LENGTH = normalizeSplitMaxChapterLength(loadedSettings.SPLIT_MAX_CHAPTER_LENGTH);
+                    }
                 }
 
                 settings = { ...settings, ...loadedSettings };
@@ -4401,6 +4587,8 @@
         } catch (e) {
             log('⚠️ Lỗi khi tải cài đặt, dùng mặc định.', 'warn');
         }
+        settings.SPLIT_PREFACE_MODE = normalizeSplitPrefaceMode(settings.SPLIT_PREFACE_MODE);
+        settings.SPLIT_MAX_CHAPTER_LENGTH = normalizeSplitMaxChapterLength(settings.SPLIT_MAX_CHAPTER_LENGTH);
     }
 
 
@@ -4577,7 +4765,6 @@
     const BUILTIN_CONTENT_NUMERIC_REGEX = /^(\d+)[\s.\-:]*(.*)/;
     const TITLE_CHINESE_PREFIX_REGEX = /^第\s*([一二三四五六七八九十百千万两零\d]+)\s*章[\s:：\-_.]*(.*)$/i;
     const TITLE_COMMON_PREFIX_REGEX = /^(?:chương|chapter|chap|c|q|quyển)\s*(\d+)[\s:：\-_.]*(.*)$/i;
-    const TXT_SPLIT_TARGET_SIZE = 4500;
     const TXT_SPLIT_HEADING_REGEXES = [
         /^(?:\s*)(?:第\s*[\d0-9一二三四五六七八九十百千零两兩]+\s*[章节卷回集部篇])[^\n]{0,120}$/gmi,
         /^(?:\s*)(?:Chương|CHƯƠNG|Chuong|CHUONG)\s*[\dIVXLCDMivxlcdm]+[^\n]{0,120}$/gmi,
@@ -4590,6 +4777,21 @@
         '零': 0, '一': 1, '二': 2, '两': 2, '三': 3, '四': 4, '五': 5, '六': 6, '七': 7, '八': 8, '九': 9
     });
     const CHINESE_UNITS = Object.freeze({ '十': 10, '百': 100, '千': 1000, '万': 10000 });
+
+    function normalizeSplitPrefaceMode(value) {
+        const mode = String(value || '').trim();
+        return SPLIT_PREFACE_MODES.has(mode) ? mode : 'remove';
+    }
+
+    function normalizeSplitMaxChapterLength(value) {
+        const parsed = parseInt(value, 10);
+        if (!Number.isFinite(parsed) || parsed < 500) return TXT_SPLIT_DEFAULT_MAX_LENGTH;
+        return Math.min(parsed, 200000);
+    }
+
+    function getSplitTargetSize() {
+        return normalizeSplitMaxChapterLength(settings.SPLIT_MAX_CHAPTER_LENGTH);
+    }
 
     function chineseToArabic(text) {
         const raw = String(text || '').trim();
@@ -4729,9 +4931,9 @@
         return merged;
     }
 
-    function splitByNewlinesForTxt(normalized, targetSize = TXT_SPLIT_TARGET_SIZE) {
+    function splitByNewlinesForTxt(normalized, targetSize = TXT_SPLIT_DEFAULT_MAX_LENGTH) {
         if (!normalized) return [];
-        const maxChapterLen = Math.max(targetSize * 2, 9000);
+        const maxChapterLen = normalizeSplitMaxChapterLength(targetSize);
         let parts = normalized.split(/\n{2,}/g).map(s => s.trim()).filter(Boolean);
         let joiner = '\n\n';
         if (parts.length <= 1) {
@@ -4746,14 +4948,16 @@
         });
 
         const total = expanded.reduce((sum, item) => sum + item.length, 0);
-        const desiredCount = Math.max(1, Math.round(total / Math.max(targetSize, 1)));
+        const desiredCount = Math.max(1, Math.ceil(total / Math.max(maxChapterLen, 1)));
         const avg = Math.max(1, Math.ceil(total / desiredCount));
         const groups = [];
         let cur = [];
         let curLen = 0;
         expanded.forEach((part) => {
             const addLen = part.length + (cur.length ? joiner.length : 0);
-            if (cur.length && curLen + addLen > avg && groups.length < desiredCount - 1) {
+            const exceedsMax = cur.length && curLen + addLen > maxChapterLen;
+            const exceedsAvg = cur.length && curLen + addLen > avg && groups.length < desiredCount - 1;
+            if (exceedsMax || exceedsAvg) {
                 groups.push(cur.join(joiner).trim());
                 cur = [part];
                 curLen = part.length;
@@ -4801,9 +5005,9 @@
         return total > 0 ? good / total : 0;
     }
 
-    function collectSplitHeadingMatches(normalized) {
+    function collectSplitHeadingMatches(normalized, patterns = TXT_SPLIT_HEADING_REGEXES) {
         const rawMatches = [];
-        TXT_SPLIT_HEADING_REGEXES.forEach((pattern) => {
+        (patterns || []).forEach((pattern) => {
             const flags = pattern.flags.includes('g') ? pattern.flags : `${pattern.flags}g`;
             const re = new RegExp(pattern.source, flags);
             let match;
@@ -4833,60 +5037,88 @@
         return dedup;
     }
 
+    function normalizeSplitRegexFlags(flags) {
+        const safe = String(flags || '').replace(/[^dgimsuvy]/g, '');
+        const set = new Set(safe.split('').filter(Boolean));
+        set.delete('y');
+        set.add('g');
+        set.add('m');
+        return [...set].join('');
+    }
+
+    function parseSplitRegexLine(line) {
+        const raw = String(line || '').trim();
+        if (!raw || raw.startsWith('#')) return null;
+        let source = raw;
+        let flags = 'gmi';
+        const literal = raw.match(/^\/(.+)\/([dgimsuvy]*)$/);
+        if (literal) {
+            source = literal[1];
+            flags = normalizeSplitRegexFlags(literal[2] || 'gmi');
+        }
+        return new RegExp(source, normalizeSplitRegexFlags(flags));
+    }
+
+    function parseSplitRegexConfig(value) {
+        const lines = String(value || '').split(/\r?\n/);
+        const regexes = [];
+        const errors = [];
+        lines.forEach((line, idx) => {
+            const raw = String(line || '').trim();
+            if (!raw || raw.startsWith('#')) return;
+            try {
+                const re = parseSplitRegexLine(raw);
+                if (re) regexes.push(re);
+            } catch (e) {
+                errors.push(`Dòng ${idx + 1}: ${e.message}`);
+            }
+        });
+        return { regexes, errors };
+    }
+
     function buildRegexSplitCandidates(normalized, matches, prefaceTitle = 'Mở đầu') {
-        const mergePreface = settings.SPLIT_PREFACE_IN_FIRST_CHAPTER !== false;
+        const prefaceMode = normalizeSplitPrefaceMode(settings.SPLIT_PREFACE_MODE);
         const chapters = [];
         let preface = '';
         if (matches.length && matches[0].start > 0) {
             preface = normalizeTextForSplit(normalized.slice(0, matches[0].start));
-            if (preface && !mergePreface) chapters.push({ title: prefaceTitle, text: preface });
+            if (preface && prefaceMode === 'separate') chapters.push({ title: prefaceTitle, text: preface });
         }
         matches.forEach((match, idx) => {
             const title = String(match.title || '').trim() || `Chương ${idx + 1}`;
             const start = match.end;
             const end = idx + 1 < matches.length ? matches[idx + 1].start : normalized.length;
             const content = normalizeTextForSplit(normalized.slice(start, end));
-            if (content || (idx === 0 && preface && mergePreface)) {
+            if (content || (idx === 0 && preface && prefaceMode === 'merge')) {
                 chapters.push({
                     title,
                     text: content,
-                    preface: idx === 0 && mergePreface ? preface : '',
+                    preface: idx === 0 && prefaceMode === 'merge' ? preface : '',
                 });
             }
         });
         return chapters;
     }
 
-    function analyzeTxtSplit(text, targetSize = TXT_SPLIT_TARGET_SIZE) {
-        const normalized = normalizeTextForSplit(text);
-        const emptyDiagnostics = {
-            splitStrategy: 'newlines',
-            matchedHeadingCount: 0,
-            usedHeadingCount: 0,
-            fallbackReason: '',
-            sequenceScore: 0,
-        };
-        if (!normalized) return { chapters: [], diagnostics: emptyDiagnostics };
-
-        const matches = collectSplitHeadingMatches(normalized);
+    function tryAnalyzeRegexSplit(normalized, matches, targetSize, strategyName = 'regex') {
         if (!matches.length) {
             return {
-                chapters: splitByNewlinesForTxt(normalized, targetSize),
-                diagnostics: emptyDiagnostics,
+                ok: false,
+                reason: 'no_match',
+                matchedHeadingCount: 0,
+                usedHeadingCount: 0,
+                sequenceScore: 0,
             };
         }
 
         const regexCandidates = buildRegexSplitCandidates(normalized, matches, 'Mở đầu');
         if (!regexCandidates.length) {
             return {
-                chapters: splitByNewlinesForTxt(normalized, targetSize),
-                diagnostics: {
-                    splitStrategy: 'regex_fallback',
-                    matchedHeadingCount: matches.length,
-                    usedHeadingCount: 0,
-                    fallbackReason: 'empty_after_regex',
-                    sequenceScore: 0,
-                },
+                ok: false,
+                reason: 'empty_after_regex',
+                matchedHeadingCount: matches.length,
+                usedHeadingCount: 0,
+                sequenceScore: 0,
             };
         }
 
@@ -4910,24 +5142,77 @@
         }
         if (fallbackReason) {
             return {
-                chapters: splitByNewlinesForTxt(normalized, targetSize),
-                diagnostics: {
-                    splitStrategy: 'regex_fallback',
-                    matchedHeadingCount: matches.length,
-                    usedHeadingCount: matches.length,
-                    fallbackReason,
-                    sequenceScore: Number(sequenceScore.toFixed(3)),
-                },
+                ok: false,
+                reason: fallbackReason,
+                matchedHeadingCount: matches.length,
+                usedHeadingCount: matches.length,
+                sequenceScore: Number(sequenceScore.toFixed(3)),
             };
         }
         return {
+            ok: true,
             chapters: regexCandidates,
             diagnostics: {
-                splitStrategy: 'regex',
+                splitStrategy: strategyName,
                 matchedHeadingCount: matches.length,
                 usedHeadingCount: matches.length,
                 fallbackReason: '',
                 sequenceScore: Number(sequenceScore.toFixed(3)),
+            },
+        };
+    }
+
+    function analyzeTxtSplit(text, targetSize = TXT_SPLIT_DEFAULT_MAX_LENGTH, options = {}) {
+        const normalized = normalizeTextForSplit(text);
+        const emptyDiagnostics = {
+            splitStrategy: 'newlines',
+            matchedHeadingCount: 0,
+            usedHeadingCount: 0,
+            fallbackReason: '',
+            sequenceScore: 0,
+        };
+        if (!normalized) return { chapters: [], diagnostics: emptyDiagnostics };
+
+        const customRegexes = Array.isArray(options.customRegexes) ? options.customRegexes : [];
+        let customFallbackReason = '';
+        let customMatchedHeadingCount = 0;
+        if (customRegexes.length) {
+            const customMatches = collectSplitHeadingMatches(normalized, customRegexes);
+            customMatchedHeadingCount = customMatches.length;
+            const customResult = tryAnalyzeRegexSplit(normalized, customMatches, targetSize, 'custom_regex');
+            if (customResult.ok) {
+                customResult.diagnostics.customRegexCount = customRegexes.length;
+                return {
+                    chapters: customResult.chapters,
+                    diagnostics: customResult.diagnostics,
+                };
+            }
+            customFallbackReason = customResult.reason || 'custom_regex_failed';
+        }
+
+        const matches = collectSplitHeadingMatches(normalized);
+        const builtinResult = tryAnalyzeRegexSplit(normalized, matches, targetSize, 'regex');
+        if (builtinResult.ok) {
+            if (customFallbackReason) {
+                builtinResult.diagnostics.customRegexFallbackReason = customFallbackReason;
+                builtinResult.diagnostics.customMatchedHeadingCount = customMatchedHeadingCount;
+            }
+            return {
+                chapters: builtinResult.chapters,
+                diagnostics: builtinResult.diagnostics,
+            };
+        }
+
+        return {
+            chapters: splitByNewlinesForTxt(normalized, targetSize),
+            diagnostics: {
+                splitStrategy: matches.length || customRegexes.length ? 'regex_fallback' : 'newlines',
+                matchedHeadingCount: matches.length,
+                usedHeadingCount: builtinResult.usedHeadingCount || 0,
+                fallbackReason: customFallbackReason || builtinResult.reason || '',
+                sequenceScore: builtinResult.sequenceScore || 0,
+                customRegexFallbackReason,
+                customMatchedHeadingCount,
             },
         };
     }
@@ -5719,6 +6004,70 @@
             .replace(/{title}/g, title || '');
     }
 
+    const DEFAULT_SPLIT_CREDIT_CONFIG = Object.freeze({
+        enabled: false,
+        text: '',
+        position: 'end',
+        line: 1,
+    });
+
+    function normalizeSplitCreditConfig(value) {
+        const raw = value && typeof value === 'object' ? value : {};
+        const position = ['start', 'end', 'line'].includes(raw.position) ? raw.position : 'end';
+        const line = Math.max(1, parseInt(raw.line, 10) || 1);
+        return {
+            enabled: raw.enabled === true,
+            text: String(raw.text || ''),
+            position,
+            line,
+        };
+    }
+
+    function loadSplitCreditConfig() {
+        try {
+            const stored = GM_getValue(SPLIT_CREDIT_CONFIG_KEY, null);
+            if (!stored) return { ...DEFAULT_SPLIT_CREDIT_CONFIG };
+            const parsed = typeof stored === 'string' ? JSON.parse(stored) : stored;
+            return normalizeSplitCreditConfig(parsed);
+        } catch {
+            return { ...DEFAULT_SPLIT_CREDIT_CONFIG };
+        }
+    }
+
+    function saveSplitCreditConfig(config) {
+        const normalized = normalizeSplitCreditConfig(config);
+        GM_setValue(SPLIT_CREDIT_CONFIG_KEY, JSON.stringify(normalized));
+        return normalized;
+    }
+
+    function loadSplitRegexText() {
+        return String(GM_getValue(SPLIT_REGEX_KEY, '') || '');
+    }
+
+    function saveSplitRegexText(value) {
+        const text = String(value || '').trim();
+        GM_setValue(SPLIT_REGEX_KEY, text);
+        return text;
+    }
+
+    function applySplitCreditToContent(content, config = null) {
+        const credit = normalizeSplitCreditConfig(config || state.splitEditor?.creditConfig);
+        const text = normalizeSplitBodyText(credit.text);
+        const body = normalizeSplitBodyText(content);
+        if (!credit.enabled || !text) return body;
+        if (!body) return text;
+        if (credit.position === 'start') {
+            return `${text}\n\n${body}`.trim();
+        }
+        if (credit.position === 'line') {
+            const lines = body.split('\n');
+            const insertAt = Math.max(0, Math.min(lines.length, (parseInt(credit.line, 10) || 1) - 1));
+            lines.splice(insertAt, 0, ...text.split('\n'));
+            return lines.join('\n').trim();
+        }
+        return `${body}\n\n${text}`.trim();
+    }
+
     function normalizeSplitChapter(rawChapter, index) {
         const rawTitle = String(rawChapter?.title || '').trim() || `Chương ${index + 1}`;
         const chapterNumber = extractSplitHeadingIndex(rawTitle);
@@ -5758,7 +6107,7 @@
         return String(chapter?.title || `Chương ${index + 1}`).trim() || `Chương ${index + 1}`;
     }
 
-    function buildSplitFileContent(chapter, index) {
+    function buildSplitFileContent(chapter, index, options = {}) {
         const title = getSplitChapterTitle(chapter, index);
         const preface = normalizeSplitBodyText(chapter?.preface || '');
         let body = normalizeSplitBodyText(chapter?.text || '');
@@ -5768,7 +6117,8 @@
             body = body.slice(title.length).replace(/^\n+/, '').trim();
         }
         const chapterBlock = [title, body].filter(Boolean).join('\n').trim();
-        return [preface, chapterBlock].filter(Boolean).join('\n\n').trim();
+        const content = [preface, chapterBlock].filter(Boolean).join('\n\n').trim();
+        return options.includeCredit === false ? content : applySplitCreditToContent(content);
     }
 
     function updateSplitChapterFromInputs() {
@@ -5805,6 +6155,177 @@
         const prefaceLen = normalizeSplitBodyText(item.preface || '').length;
         const prefaceText = prefaceLen ? ` · mở đầu ${prefaceLen} ký tự` : '';
         splitStatsEl.textContent = `${fileContent.length} ký tự · ${lineCount} dòng${numText}${prefaceText}`;
+    }
+
+    function setSplitActiveTab(tab = 'chapter') {
+        const editor = state.splitEditor;
+        const active = splitTabPanels[tab] ? tab : 'chapter';
+        if (editor && editor.activeTab === 'chapter' && active !== 'chapter') {
+            updateSplitChapterFromInputs();
+        }
+        if (editor) editor.activeTab = active;
+        splitTabBtns.forEach((btn) => {
+            btn.dataset.active = btn.dataset.splitTab === active ? 'true' : 'false';
+        });
+        Object.entries(splitTabPanels).forEach(([name, panel]) => {
+            if (panel) panel.classList.toggle(`${APP_PREFIX}hide`, name !== active);
+        });
+        if (active === 'credit') syncSplitCreditUi();
+        if (active === 'regex') syncSplitRegexUi();
+    }
+
+    function updateSplitCreditLineUi() {
+        if (!splitCreditLineBox || !splitCreditPositionSelect) return;
+        splitCreditLineBox.classList.toggle(`${APP_PREFIX}hide`, splitCreditPositionSelect.value !== 'line');
+    }
+
+    function getSplitCreditConfigFromUi(enabled = null) {
+        const base = normalizeSplitCreditConfig(state.splitEditor?.creditConfig || loadSplitCreditConfig());
+        return normalizeSplitCreditConfig({
+            enabled: enabled == null ? base.enabled : enabled,
+            text: splitCreditTextInput ? splitCreditTextInput.value : base.text,
+            position: splitCreditPositionSelect ? splitCreditPositionSelect.value : base.position,
+            line: splitCreditLineInput ? splitCreditLineInput.value : base.line,
+        });
+    }
+
+    function syncSplitCreditUi() {
+        const config = normalizeSplitCreditConfig(state.splitEditor?.creditConfig || loadSplitCreditConfig());
+        if (splitCreditTextInput && splitCreditTextInput.value !== config.text) splitCreditTextInput.value = config.text;
+        if (splitCreditPositionSelect) splitCreditPositionSelect.value = config.position;
+        if (splitCreditLineInput) splitCreditLineInput.value = String(config.line || 1);
+        updateSplitCreditLineUi();
+        updateSplitCreditStatus();
+    }
+
+    function updateSplitCreditStatus() {
+        if (!splitCreditStatusEl) return;
+        const config = normalizeSplitCreditConfig(state.splitEditor?.creditConfig || loadSplitCreditConfig());
+        if (!config.text.trim()) {
+            splitCreditStatusEl.textContent = 'Chưa có nội dung Credit.';
+            return;
+        }
+        const where = config.position === 'start'
+            ? 'đầu file'
+            : config.position === 'line'
+                ? `trước dòng ${config.line || 1}`
+                : 'cuối file';
+        splitCreditStatusEl.textContent = config.enabled
+            ? `Đang bật: chèn ${where}.`
+            : `Đang tắt: cấu hình đã lưu, bấm Áp dụng Credit khi cần.`;
+    }
+
+    function refreshSplitCountsAfterToolChange() {
+        renderSplitList();
+        updateSplitStats();
+    }
+
+    function applySplitCreditFromUi() {
+        const editor = state.splitEditor;
+        if (!editor) return;
+        const config = getSplitCreditConfigFromUi(true);
+        editor.creditConfig = saveSplitCreditConfig(config);
+        updateSplitCreditStatus();
+        refreshSplitCountsAfterToolChange();
+        log('✅ Đã lưu và áp dụng Credit cho file chia TXT.', 'success');
+    }
+
+    function disableSplitCreditFromUi() {
+        const editor = state.splitEditor;
+        const config = getSplitCreditConfigFromUi(false);
+        if (editor) editor.creditConfig = saveSplitCreditConfig(config);
+        else saveSplitCreditConfig(config);
+        updateSplitCreditStatus();
+        refreshSplitCountsAfterToolChange();
+        log('Đã tắt Credit cho file chia TXT.');
+    }
+
+    function syncSplitRegexUi() {
+        const editor = state.splitEditor || {};
+        if (splitRegexInput && splitRegexInput.value !== String(editor.customRegexText || '')) {
+            splitRegexInput.value = String(editor.customRegexText || '');
+        }
+        if (splitPrefaceModeInlineSelect) {
+            splitPrefaceModeInlineSelect.value = normalizeSplitPrefaceMode(settings.SPLIT_PREFACE_MODE);
+        }
+        if (splitRegexTargetInput) {
+            splitRegexTargetInput.value = String(getSplitTargetSize());
+        }
+        updateSplitRegexStatus();
+    }
+
+    function updateSplitRegexStatus(extra = '') {
+        if (!splitRegexStatusEl) return;
+        const diagnostics = state.splitEditor?.diagnostics || {};
+        const strategy = diagnostics.splitStrategy === 'custom_regex'
+            ? `Đang dùng regex user (${diagnostics.customRegexCount || 0}).`
+            : diagnostics.customRegexFallbackReason
+                ? `Regex user fallback: ${diagnostics.customRegexFallbackReason}.`
+                : 'Đang dùng regex mặc định/fallback của script.';
+        splitRegexStatusEl.textContent = [strategy, extra].filter(Boolean).join('\n');
+    }
+
+    function buildSplitChaptersFromSource(sourceText, customRegexText = '') {
+        const parsed = parseSplitRegexConfig(customRegexText);
+        const result = analyzeTxtSplit(sourceText, getSplitTargetSize(), { customRegexes: parsed.regexes });
+        const chapters = (result.chapters || []).map(normalizeSplitChapter).filter(ch => ch.text || ch.title);
+        return { parsed, result, chapters };
+    }
+
+    async function resplitCurrentSource(customRegexText = null, sourceLabel = 'Regex chia file') {
+        const editor = state.splitEditor;
+        if (!editor || !editor.sourceText) {
+            await showUiAlert('Không còn nội dung nguồn để chia lại.', sourceLabel);
+            return;
+        }
+        updateSplitChapterFromInputs();
+        const regexText = customRegexText == null
+            ? (splitRegexInput ? splitRegexInput.value : editor.customRegexText || '')
+            : String(customRegexText || '');
+        const rawTargetSize = parseInt(splitRegexTargetInput ? splitRegexTargetInput.value : settings.SPLIT_MAX_CHAPTER_LENGTH, 10);
+        if (!Number.isFinite(rawTargetSize) || rawTargetSize < 500) {
+            await showUiAlert('Tối đa mỗi chương khi chia TXT phải từ 500 trở lên.', sourceLabel);
+            if (splitRegexTargetInput) splitRegexTargetInput.value = String(getSplitTargetSize());
+            return;
+        }
+        const targetSize = normalizeSplitMaxChapterLength(rawTargetSize);
+        settings.SPLIT_MAX_CHAPTER_LENGTH = targetSize;
+        if (splitPrefaceModeInlineSelect) {
+            settings.SPLIT_PREFACE_MODE = normalizeSplitPrefaceMode(splitPrefaceModeInlineSelect.value);
+        }
+        saveSettings();
+        const savedRegex = saveSplitRegexText(regexText);
+        const { parsed, result, chapters } = buildSplitChaptersFromSource(editor.sourceText, savedRegex);
+        if (parsed.errors.length && !parsed.regexes.length && savedRegex.trim()) {
+            updateSplitRegexStatus(parsed.errors.join('\n'));
+            await showUiAlert(`Regex chưa hợp lệ:\n${parsed.errors.join('\n')}`, sourceLabel);
+            return;
+        }
+        if (!chapters.length) {
+            await showUiAlert('Không tách được chương sau khi chia lại.', sourceLabel);
+            return;
+        }
+        editor.customRegexText = savedRegex;
+        editor.targetSize = targetSize;
+        editor.chapters = chapters;
+        editor.diagnostics = result.diagnostics || {};
+        editor.selectedIndex = 0;
+        editor.searchQuery = '';
+        updateSplitSearchUi();
+        renderSplitModal();
+        setSplitActiveTab('regex');
+        const errorText = parsed.errors.length ? `Regex lỗi bị bỏ qua:\n${parsed.errors.join('\n')}` : '';
+        updateSplitRegexStatus(errorText);
+        log(`🔁 Đã chia lại "${editor.sourceName || 'TXT'}" thành ${chapters.length} chương.`, 'success');
+    }
+
+    async function applySplitRegexFromUi() {
+        await resplitCurrentSource(null, 'Regex chia file');
+    }
+
+    async function clearSplitRegexFromUi() {
+        if (splitRegexInput) splitRegexInput.value = '';
+        await resplitCurrentSource('', 'Regex chia file');
     }
 
     function getSplitVisibleIndexes() {
@@ -5957,11 +6478,13 @@
         if (!editor) return;
         const chapters = getSplitChapters();
         const diagnostics = editor.diagnostics || {};
-        const strategy = diagnostics.splitStrategy === 'regex'
-            ? 'regex tiêu đề'
-            : diagnostics.splitStrategy === 'regex_fallback'
-                ? `fallback đoạn (${diagnostics.fallbackReason || 'regex chưa ổn'})`
-                : 'chia theo đoạn';
+        const strategy = diagnostics.splitStrategy === 'custom_regex'
+            ? 'regex user'
+            : diagnostics.splitStrategy === 'regex'
+                ? (diagnostics.customRegexFallbackReason ? 'regex mặc định (sau fallback user)' : 'regex tiêu đề')
+                : diagnostics.splitStrategy === 'regex_fallback'
+                    ? `fallback đoạn (${diagnostics.fallbackReason || 'regex chưa ổn'})`
+                    : 'chia theo đoạn';
         const visibleCount = getSplitVisibleIndexes().length;
         const searchText = editor.searchQuery ? ` · đang lọc ${visibleCount}` : '';
         if (splitSummaryEl) {
@@ -5975,6 +6498,7 @@
         }
         updateSplitSearchUi();
         renderSplitList();
+        setSplitActiveTab(editor.activeTab || 'chapter');
         selectSplitChapter(Math.min(editor.selectedIndex || 0, Math.max(0, chapters.length - 1)), false);
     }
 
@@ -5988,27 +6512,52 @@
         splitModal?.classList.add(`${APP_PREFIX}hide`);
     }
 
+    async function maybePromptSplitCreditFeature() {
+        if (!state.splitEditor) return;
+        if (GM_getValue(SPLIT_CREDIT_PROMPT_KEY, '') === '1') return;
+        GM_setValue(SPLIT_CREDIT_PROMPT_KEY, '1');
+        const wantsCredit = await showUiConfirm(
+            'Tính năng chia TXT đã có tab Thêm Credit.\n\nBạn có muốn mở tab Credit để thiết lập nội dung chèn vào đầu file, cuối file hoặc trước dòng n không?\n\nLần sau popup này sẽ không hiện nữa, bạn tự mở tab Thêm Credit khi cần.',
+            'Thêm Credit khi chia TXT?',
+            'Mở tab Credit',
+            'Để sau'
+        );
+        if (wantsCredit) setSplitActiveTab('credit');
+    }
+
     async function openSplitTxtModal(file, scanInfo, options = {}) {
         const scan = scanInfo || await readFirstLineOfFile(file);
         const text = await readFileAsTextWithEncoding(file, scan.detectedEncoding);
-        const splitResult = analyzeTxtSplit(text, TXT_SPLIT_TARGET_SIZE);
-        const chapters = (splitResult.chapters || []).map(normalizeSplitChapter).filter(ch => ch.text || ch.title);
+        const customRegexText = loadSplitRegexText();
+        const targetSize = getSplitTargetSize();
+        const { parsed, result: splitResult, chapters } = buildSplitChaptersFromSource(text, customRegexText);
         if (!chapters.length) {
             await showUiAlert('Không tách được chương từ file TXT này.', 'Chia TXT thất bại');
             return;
         }
         state.splitEditor = {
             sourceName: file.name,
+            sourceText: text,
+            sourceEncoding: scan.detectedEncoding,
+            targetSize,
             selectedIndex: 0,
             chapters,
             diagnostics: splitResult.diagnostics || {},
             searchQuery: '',
             searchTarget: 'title',
+            activeTab: 'chapter',
+            creditConfig: loadSplitCreditConfig(),
+            customRegexText,
+            regexErrors: parsed.errors || [],
             canAssign: options.canAssign !== false,
         };
         log(`📚 Đã chia "${file.name}" thành ${chapters.length} chương. Mở modal để chỉnh/lưu/gán.`);
+        if (parsed.errors.length) {
+            log(`⚠️ Có ${parsed.errors.length} dòng regex lỗi, đã bỏ qua dòng lỗi.`, 'warn');
+        }
         renderSplitModal();
         openSplitModal();
+        await maybePromptSplitCreditFeature();
     }
 
     function handleSplitSearchInput() {
@@ -7110,7 +7659,8 @@
             firstLineOnly: firstLineOnlyInput.checked,
             priority: prioritySelect.value,
             chapTemplate: chapterTemplateInput.value,
-            splitPrefaceFirst: splitPrefaceFirstInput ? splitPrefaceFirstInput.checked : true,
+            splitPrefaceMode: splitPrefaceModeSelect ? splitPrefaceModeSelect.value : settings.SPLIT_PREFACE_MODE,
+            splitMaxChapterLength: splitMaxChapterLengthInput ? splitMaxChapterLengthInput.value : settings.SPLIT_MAX_CHAPTER_LENGTH,
             splitLauncher: splitLauncherSettingInput ? splitLauncherSettingInput.checked : state.splitLauncherEnabled,
             volumeStats: volumeStatsCheckbox ? volumeStatsCheckbox.checked : null
         };
@@ -7125,8 +7675,11 @@
         firstLineOnlyInput.checked = !!settings.USE_FIRST_LINE_ONLY;
         prioritySelect.value = settings.PARSE_PRIORITY || 'filename';
         chapterTemplateInput.value = settings.CHAPTER_NAME_TEMPLATE;
-        if (splitPrefaceFirstInput) {
-            splitPrefaceFirstInput.checked = settings.SPLIT_PREFACE_IN_FIRST_CHAPTER !== false;
+        if (splitPrefaceModeSelect) {
+            splitPrefaceModeSelect.value = normalizeSplitPrefaceMode(settings.SPLIT_PREFACE_MODE);
+        }
+        if (splitMaxChapterLengthInput) {
+            splitMaxChapterLengthInput.value = String(getSplitTargetSize());
         }
         if (splitLauncherSettingInput) {
             splitLauncherSettingInput.checked = state.splitLauncherEnabled === true;
@@ -7170,6 +7723,7 @@
         const newFileKb = parseInt(fileSizeKbInput.value, 10);
         const newChapTpl = chapterTemplateInput.value.trim() || '第{num}章 {title}';
         const useFirstLineOnly = firstLineOnlyInput.checked;
+        const rawSplitMaxChapterLength = parseInt(splitMaxChapterLengthInput ? splitMaxChapterLengthInput.value : settings.SPLIT_MAX_CHAPTER_LENGTH, 10);
 
         if (!useFirstLineOnly && !newChapTpl.includes('{num}')) {
             await showUiAlert('Template phải chứa {num}.', 'Lỗi cài đặt');
@@ -7183,12 +7737,18 @@
             await showUiAlert('Kích thước file (KB) phải là số không âm (0 hoặc lớn hơn).', 'Lỗi cài đặt');
             return;
         }
+        if (!Number.isFinite(rawSplitMaxChapterLength) || rawSplitMaxChapterLength < 500) {
+            await showUiAlert('Tối đa mỗi chương khi chia TXT phải từ 500 trở lên.', 'Lỗi cài đặt');
+            return;
+        }
+        const newSplitMaxChapterLength = normalizeSplitMaxChapterLength(rawSplitMaxChapterLength);
 
         settings.LOG_MAX_LINES = newLogMax;
         settings.FILE_SIZE_WARNING_KB = newFileKb;
         settings.USE_FIRST_LINE_ONLY = useFirstLineOnly;
         settings.CHAPTER_NAME_TEMPLATE = newChapTpl;
-        settings.SPLIT_PREFACE_IN_FIRST_CHAPTER = splitPrefaceFirstInput ? splitPrefaceFirstInput.checked : true;
+        settings.SPLIT_PREFACE_MODE = splitPrefaceModeSelect ? normalizeSplitPrefaceMode(splitPrefaceModeSelect.value) : 'remove';
+        settings.SPLIT_MAX_CHAPTER_LENGTH = newSplitMaxChapterLength;
         settings.PARSE_PRIORITY = prioritySelect.value;
         if (themeSelect) {
             settings.THEME_MODE = themeSelect.value || DEFAULT_THEME_MODE;
@@ -7270,12 +7830,23 @@
         if (splitAssignBtn) splitAssignBtn.addEventListener('click', assignSplitChaptersToWeb);
         if (splitSearchInput) splitSearchInput.addEventListener('input', handleSplitSearchInput);
         if (splitSearchTargetBtn) splitSearchTargetBtn.addEventListener('click', toggleSplitSearchTarget);
+        splitTabBtns.forEach((btn) => {
+            btn.addEventListener('click', () => setSplitActiveTab(btn.dataset.splitTab || 'chapter'));
+        });
         if (splitInsertBeforeBtn) splitInsertBeforeBtn.addEventListener('click', () => insertSplitChapter(0));
         if (splitInsertAfterBtn) splitInsertAfterBtn.addEventListener('click', () => insertSplitChapter(1));
         if (splitDeleteBtn) splitDeleteBtn.addEventListener('click', () => deleteSplitChapter());
         if (splitTitleInput) splitTitleInput.addEventListener('input', updateSplitChapterFromInputs);
         if (splitPrefaceInput) splitPrefaceInput.addEventListener('input', updateSplitChapterFromInputs);
         if (splitContentInput) splitContentInput.addEventListener('input', updateSplitChapterFromInputs);
+        if (splitCreditPositionSelect) splitCreditPositionSelect.addEventListener('change', updateSplitCreditLineUi);
+        if (splitCreditApplyBtn) splitCreditApplyBtn.addEventListener('click', applySplitCreditFromUi);
+        if (splitCreditDisableBtn) splitCreditDisableBtn.addEventListener('click', disableSplitCreditFromUi);
+        if (splitRegexApplyBtn) splitRegexApplyBtn.addEventListener('click', applySplitRegexFromUi);
+        if (splitRegexClearBtn) splitRegexClearBtn.addEventListener('click', clearSplitRegexFromUi);
+        if (splitRegexInput) splitRegexInput.addEventListener('change', applySplitRegexFromUi);
+        if (splitPrefaceModeInlineSelect) splitPrefaceModeInlineSelect.addEventListener('change', applySplitRegexFromUi);
+        if (splitRegexTargetInput) splitRegexTargetInput.addEventListener('change', applySplitRegexFromUi);
         if (splitOnlyInput) splitOnlyInput.addEventListener('change', handleSplitOnlyFileSelect);
         if (splitLauncherBtn) splitLauncherBtn.addEventListener('click', openSplitOnlyPicker);
         if (settingsBtn) settingsBtn.addEventListener('click', showSettingsModal);
