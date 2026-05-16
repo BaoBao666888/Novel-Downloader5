@@ -8823,7 +8823,7 @@ class WikidichMixin:
         ids = [str(item.get("id") or item["num"]) for item in new_items if item.get("id") or item.get("num")]
         fetched = {}
         cleaned_by_id = {}
-        batch_size = 18
+        batch_size = self._wd_fanqie_auto_batch_size()
         try:
             max_attempts = int((self.nd5_options or {}).get("request_retries", DEFAULT_API_SETTINGS.get("wiki_retry_count", 5)))
         except Exception:
@@ -9221,6 +9221,19 @@ class WikidichMixin:
             return
         threading.Thread(target=self._wd_auto_update_worker, args=(dict(book), fanqie_link), daemon=True).start()
 
+    def _wd_fanqie_auto_batch_size(self) -> int:
+        try:
+            plugin_values = self._nd5_get_plugin_values("fanqie") if hasattr(self, "_nd5_get_plugin_values") else None
+            runtime_cfg = self._nd5_runtime_options_for_plugin(
+                "fanqie",
+                plugin_values=plugin_values,
+                global_overrides=self.nd5_options if isinstance(getattr(self, "nd5_options", None), dict) else None,
+            )
+            batch_size = int(runtime_cfg.get("batch_size") or 1)
+        except Exception:
+            batch_size = 1
+        return max(1, min(20, batch_size))
+
     def _wd_has_residual_html_in_text(self, text: str) -> bool:
         raw = (text or "").strip()
         if not raw:
@@ -9328,7 +9341,7 @@ class WikidichMixin:
             ids = [str(item.get("id") or item["num"]) for item in new_items if item.get("id") or item.get("num")]
             fetched = {}
             cleaned_by_id = {}
-            batch_size = 18
+            batch_size = self._wd_fanqie_auto_batch_size()
             try:
                 max_attempts = int((self.nd5_options or {}).get("request_retries", DEFAULT_API_SETTINGS.get("wiki_retry_count", 5)))
             except Exception:

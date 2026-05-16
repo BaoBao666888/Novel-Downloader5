@@ -545,6 +545,7 @@ class ND5Mixin:
             self.app_config["api_settings"] = dict(self.api_settings)
         except Exception:
             pass
+        self._fanqie_bridge_format_txt_cache = None
         try:
             self.save_config()
         except Exception:
@@ -573,6 +574,29 @@ class ND5Mixin:
             return {"ok": bool(resp.ok), "status_code": int(resp.status_code), "data": data, "error": ""}
         except Exception as exc:
             return {"ok": False, "status_code": 0, "data": {}, "error": str(exc)}
+
+    def _fanqie_bridge_supports_format_txt(self) -> bool:
+        port = self._get_fanqie_bridge_port()
+        now = time.time()
+        cache = getattr(self, "_fanqie_bridge_format_txt_cache", None)
+        if isinstance(cache, dict) and cache.get("port") == port and now - float(cache.get("time") or 0) < 300:
+            return bool(cache.get("ok"))
+        ok = False
+        health = self._fanqie_bridge_health(timeout=2.0)
+        data = health.get("data") if isinstance(health, dict) else {}
+        if health.get("ok") and isinstance(data, dict):
+            try:
+                bridge_version = data.get("bridge_version") or data.get("bridgeVersion") or data.get("api_version")
+                ok = int(bridge_version or 0) >= 2
+            except Exception:
+                ok = False
+            if not ok:
+                try:
+                    ok = parse_version(str(data.get("version") or "0")) >= parse_version("1.0.1")
+                except Exception:
+                    ok = False
+        self._fanqie_bridge_format_txt_cache = {"port": port, "ok": ok, "time": now}
+        return ok
 
     def _is_fanqie_bridge_proc_running(self) -> bool:
         proc = getattr(self, "_fanqie_bridge_proc", None)
@@ -4163,6 +4187,8 @@ class ND5Mixin:
             return {}
         try:
             url = f"{self._fanqie_bridge_url('/content')}?item_id={','.join(ids)}"
+            if self._fanqie_bridge_supports_format_txt():
+                url += "&format=txt"
             self._nd5_sleep_between_requests()
             resp = self._fanqie_request_with_retry(url, proxies=None)
             resp.raise_for_status()

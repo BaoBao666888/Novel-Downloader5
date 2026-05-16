@@ -3,6 +3,7 @@ from __future__ import annotations
 import datetime
 import json
 import re
+import time
 from typing import Any, Dict, List
 from urllib.parse import quote_plus
 
@@ -25,6 +26,34 @@ class FanqieBridgePlugin:
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/108.0.0.0 Safari/537.36"
     }
     _SEARCH_UA = "Mozilla/5.0 (Linux; Android 10; Mobile) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/108.0.0.0 Mobile Safari/537.36"
+    _MIN_FORMAT_TXT_BRIDGE_VERSION = 2
+
+    def _version_tuple(self, value: Any) -> tuple:
+        nums = re.findall(r"\d+", str(value or ""))[:3]
+        return tuple(int(x) for x in nums) if nums else (0,)
+
+    def _bridge_supports_format_txt(self, ctx: ND5Context) -> bool:
+        base = self._bridge_base_url(ctx)
+        now = time.time()
+        cache = getattr(self, "_format_txt_cache", None)
+        if isinstance(cache, dict) and cache.get("base") == base and now - float(cache.get("time") or 0) < 300:
+            return bool(cache.get("ok"))
+        ok = False
+        try:
+            resp = ctx.request_with_retry(f"{base}/healthz", headers={"Accept": "application/json"}, proxies=None, timeout=3.0)
+            data = resp.json() if resp.ok else {}
+            if isinstance(data, dict):
+                bridge_version = data.get("bridge_version") or data.get("bridgeVersion") or data.get("api_version")
+                try:
+                    ok = int(bridge_version or 0) >= self._MIN_FORMAT_TXT_BRIDGE_VERSION
+                except Exception:
+                    ok = False
+                if not ok:
+                    ok = self._version_tuple(data.get("version")) >= (1, 0, 1)
+        except Exception:
+            ok = False
+        self._format_txt_cache = {"base": base, "ok": ok, "time": now}
+        return ok
 
     def supports_url(self, url: str) -> bool:
         return "fanqienovel.com" in (url or "")
@@ -481,6 +510,8 @@ class FanqieBridgePlugin:
             url = f"{self._bridge_base_url(ctx)}/content?item_id={','.join(ids)}"
             if fmt == "epub":
                 url += "&format=epub"
+            elif self._bridge_supports_format_txt(ctx):
+                url += "&format=txt"
             ctx.sleep_between_requests()
             resp = ctx.request_with_retry(url, proxies=None)
             resp.raise_for_status()
