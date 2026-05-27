@@ -865,6 +865,8 @@ def fetch_book_detail(
     text = resp.text
 
     updated_book, book_id, sign_key, size, fuzzy_ctx = _parse_book_page(doc, text, book, current_user_slug, base_url)
+    if book_id:
+        updated_book["id"] = book_id
 
     chapters = None
     if not skip_chapter_count:

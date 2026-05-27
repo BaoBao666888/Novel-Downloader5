@@ -565,6 +565,7 @@ class RenamerApp(
         self._wd_cancel_requested = False
         self._wd_progress_running = False
         self.wd_new_chapters = {}
+        self.wd_new_chapter_cache = {}
         self.wd_not_found = []
         self.wd_site = "wikidich"
         self._wd_contexts = {}
