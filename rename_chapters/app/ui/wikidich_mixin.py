@@ -5639,6 +5639,43 @@ class WikidichMixin:
             return raw
         return []
 
+    def _wd_normalize_icon_warning_files(self, files: list) -> list:
+        normalized = []
+        if not isinstance(files, (list, tuple)):
+            return normalized
+        seen = set()
+        for item in files:
+            if not isinstance(item, dict):
+                continue
+            path = str(item.get("path") or "").strip()
+            if not path:
+                continue
+            key = os.path.normcase(os.path.normpath(path))
+            if key in seen:
+                continue
+            seen.add(key)
+            entry = {
+                "path": path,
+                "name": str(item.get("name") or os.path.basename(path) or path),
+                "reason": str(item.get("reason") or "").strip(),
+                "raw_title": str(item.get("raw_title") or "").strip(),
+                "samples": [str(x) for x in (item.get("samples") or []) if str(x).strip()][:3],
+            }
+            try:
+                entry["num"] = int(item.get("num") or 0)
+            except Exception:
+                entry["num"] = 0
+            try:
+                entry["four_byte"] = int(item.get("four_byte") or 0)
+            except Exception:
+                entry["four_byte"] = 0
+            try:
+                entry["emoji"] = int(item.get("emoji") or 0)
+            except Exception:
+                entry["emoji"] = 0
+            normalized.append(entry)
+        return normalized
+
     def _wd_prune_autoupdate_history(self, max_days: int = 30, persist: bool = True):
         history = self._wd_get_autoupdate_history_entries()
         if not history:
@@ -6073,6 +6110,14 @@ class WikidichMixin:
                 return False
             return bool(str(item.get("warning") or "").strip() or str(item.get("warning_message") or "").strip())
 
+        def _history_warning_files(item: dict) -> list:
+            if not isinstance(item, dict):
+                return []
+            return self._wd_normalize_icon_warning_files(item.get("warning_files") or [])
+
+        def _history_can_fix_warning(item: dict) -> bool:
+            return _history_has_warning(item)
+
         def _refresh():
             tree.delete(*tree.get_children())
             day_iids.clear()
@@ -6146,6 +6191,7 @@ class WikidichMixin:
             ]
             self._wd_save_autoupdate_state()
             _refresh()
+            _sync_history_action_buttons()
 
         def _delete_all():
             if not messagebox.askyesno("Xác nhận", "Xóa toàn bộ lịch sử Auto Update?", parent=win):
@@ -6153,21 +6199,28 @@ class WikidichMixin:
             self._wd_autoupdate_history_entries = []
             self._wd_save_autoupdate_state()
             _refresh()
+            _sync_history_action_buttons()
 
         actions = ttk.Frame(frame)
         actions.grid(row=2, column=0, sticky="ew")
         open_btn = ttk.Button(actions, text="Mở truyện", state=tk.DISABLED)
         open_btn.pack(side=tk.LEFT, padx=(0, 6))
+        fix_warning_btn = ttk.Button(actions, text="Sửa", state=tk.DISABLED)
+        fix_warning_btn.pack(side=tk.LEFT, padx=(0, 6))
         ttk.Button(actions, text="Xóa ngày đã chọn", command=_delete_day).pack(side=tk.LEFT)
         ttk.Button(actions, text="Xóa toàn bộ", command=_delete_all).pack(side=tk.LEFT, padx=(6, 0))
         ttk.Button(actions, text="Đóng", command=win.destroy).pack(side=tk.RIGHT)
 
-        def _selected_history_book():
+        def _selected_history_item():
             sel = tree.selection()
             if not sel:
                 return None
             item = child_item_map.get(sel[0])
-            if not isinstance(item, dict):
+            return item if isinstance(item, dict) else None
+
+        def _selected_history_book():
+            item = _selected_history_item()
+            if not item:
                 return None
             bid = str(item.get("book_id") or "").strip()
             if not bid:
@@ -6176,8 +6229,10 @@ class WikidichMixin:
             book = books.get(bid) if isinstance(books, dict) else None
             return book if isinstance(book, dict) and book.get("url") else None
 
-        def _sync_open_btn(_event=None):
+        def _sync_history_action_buttons(_event=None):
             open_btn.config(state=tk.NORMAL if _selected_history_book() else tk.DISABLED)
+            item = _selected_history_item()
+            fix_warning_btn.config(state=tk.NORMAL if _history_can_fix_warning(item) else tk.DISABLED)
 
         def _open_selected_book(_event=None):
             book = _selected_history_book()
@@ -6185,12 +6240,197 @@ class WikidichMixin:
                 return
             self._wd_open_link(book.get("url", ""))
 
+        def _open_files_in_text_ops(paths: list, parent_win):
+            clean_paths = []
+            missing = []
+            seen = set()
+            for raw in paths or []:
+                path = str(raw or "").strip()
+                if not path:
+                    continue
+                key = os.path.normcase(os.path.normpath(path))
+                if key in seen:
+                    continue
+                seen.add(key)
+                if os.path.isfile(path):
+                    clean_paths.append(path)
+                else:
+                    missing.append(path)
+            if not clean_paths:
+                if missing:
+                    messagebox.showerror("Không tìm thấy file", "Các file đã chọn không còn tồn tại.", parent=parent_win)
+                else:
+                    messagebox.showinfo("Chưa chọn", "Chọn ít nhất một file để mở.", parent=parent_win)
+                return
+            opener = getattr(self, "_open_text_ops_window", None)
+            if not callable(opener):
+                messagebox.showerror("Không mở được", "Không tìm thấy cửa sổ Xử lý văn bản.", parent=parent_win)
+                return
+            text_win = opener(filepath=clean_paths[0])
+            for path in clean_paths[1:]:
+                try:
+                    text_win.open_file(path)
+                except Exception as exc:
+                    self.log(f"[Wikidich][AutoUpdate] Không mở được file cảnh báo '{path}': {exc}")
+            if missing:
+                messagebox.showwarning(
+                    "Thiếu file",
+                    "Một số file không còn tồn tại nên không mở được:\n" + "\n".join(missing[:10]),
+                    parent=parent_win,
+                )
+
+        def _open_warning_fix_window(_event=None):
+            item = _selected_history_item()
+            files = _history_warning_files(item)
+            if not item:
+                return
+            title = str(item.get("title") or item.get("book_id") or "Truyện cảnh báo").strip()
+            fix_win = tk.Toplevel(win)
+            self._apply_window_icon(fix_win)
+            fix_win.title(f"Sửa cảnh báo icon - {title}")
+            fix_win.geometry("900x460")
+            fix_win.columnconfigure(0, weight=1)
+            fix_win.rowconfigure(0, weight=1)
+
+            fix_frame = ttk.Frame(fix_win, padding=10)
+            fix_frame.grid(row=0, column=0, sticky="nsew")
+            fix_frame.columnconfigure(0, weight=1)
+            fix_frame.rowconfigure(1, weight=1)
+
+            warning_text = str(item.get("warning_message") or item.get("message") or "").strip()
+            header = title
+            if warning_text:
+                header += f" - {warning_text}"
+            if not files:
+                header += " - Bản ghi cũ chưa lưu danh sách file lỗi."
+            ttk.Label(fix_frame, text=header, wraplength=860).grid(row=0, column=0, sticky="w")
+
+            list_wrap = ttk.Frame(fix_frame)
+            list_wrap.grid(row=1, column=0, sticky="nsew", pady=(8, 8))
+            list_wrap.columnconfigure(0, weight=1)
+            list_wrap.rowconfigure(0, weight=1)
+
+            file_cols = ("num", "name", "reason", "four_byte", "emoji", "samples", "path")
+            file_tree = ttk.Treeview(list_wrap, columns=file_cols, show="headings", selectmode="extended")
+            headings = {
+                "num": "#",
+                "name": "File",
+                "reason": "Lỗi mã hóa",
+                "four_byte": "4-byte",
+                "emoji": "Emoji/Icon",
+                "samples": "Mẫu",
+                "path": "Đường dẫn",
+            }
+            widths = {
+                "num": 55,
+                "name": 210,
+                "reason": 150,
+                "four_byte": 70,
+                "emoji": 80,
+                "samples": 170,
+                "path": 360,
+            }
+            for col in file_cols:
+                file_tree.heading(col, text=headings[col])
+                file_tree.column(col, width=widths[col], anchor="w", stretch=col in {"name", "samples", "path"})
+            file_tree.grid(row=0, column=0, sticky="nsew")
+            file_y = ttk.Scrollbar(list_wrap, orient="vertical", command=file_tree.yview)
+            file_x = ttk.Scrollbar(list_wrap, orient="horizontal", command=file_tree.xview)
+            file_tree.configure(yscrollcommand=file_y.set, xscrollcommand=file_x.set)
+            file_y.grid(row=0, column=1, sticky="ns")
+            file_x.grid(row=1, column=0, sticky="ew")
+
+            file_map = {}
+            for idx, entry in enumerate(files):
+                iid = f"file-{idx}"
+                sample_text = ", ".join(entry.get("samples") or [])
+                reason = str(entry.get("reason") or "").strip()
+                if not reason and int(entry.get("four_byte") or 0) > 0:
+                    reason = "Có ký tự 4-byte"
+                file_tree.insert(
+                    "",
+                    "end",
+                    iid=iid,
+                    values=(
+                        str(entry.get("num") or ""),
+                        str(entry.get("name") or os.path.basename(entry.get("path") or "")),
+                        reason,
+                        str(entry.get("four_byte") or 0),
+                        str(entry.get("emoji") or 0),
+                        sample_text,
+                        str(entry.get("path") or ""),
+                    ),
+                )
+                file_map[iid] = entry
+
+            fix_actions = ttk.Frame(fix_frame)
+            fix_actions.grid(row=2, column=0, sticky="ew")
+
+            def _selected_warning_paths():
+                return [
+                    str((file_map.get(iid) or {}).get("path") or "")
+                    for iid in file_tree.selection()
+                    if (file_map.get(iid) or {}).get("path")
+                ]
+
+            def _open_selected_warning_files():
+                _open_files_in_text_ops(_selected_warning_paths(), fix_win)
+
+            def _open_all_warning_files():
+                _open_files_in_text_ops([str(entry.get("path") or "") for entry in files], fix_win)
+
+            def _mark_warning_fixed():
+                if not messagebox.askyesno(
+                    "Sửa xong?",
+                    "Chọn Sửa xong sẽ xem như truyện này không còn lỗi UTF-8/icon.\n"
+                    "Dòng lịch sử sẽ bỏ màu vàng, trở về màu theo kết quả upload và không mở lại cửa sổ sửa này nữa.\n\n"
+                    "Tiếp tục?",
+                    parent=fix_win,
+                ):
+                    return
+                current_message = str(item.get("message") or "").strip()
+                warning_message = str(item.get("warning_message") or "").strip()
+                clean_message = current_message
+                if warning_message:
+                    clean_message = clean_message.replace(f" Cảnh báo: {warning_message}", "").strip()
+                    clean_message = clean_message.replace(f"Cảnh báo: {warning_message}", "").strip()
+                if "Cảnh báo:" in clean_message:
+                    clean_message = clean_message.split("Cảnh báo:", 1)[0].strip()
+                if not clean_message:
+                    clean_message = "Đã đánh dấu sửa xong cảnh báo UTF-8/icon."
+                item["message"] = clean_message[:500]
+                item.pop("warning", None)
+                item.pop("warning_message", None)
+                item.pop("warning_files", None)
+                item["warning_resolved"] = True
+                self._wd_save_autoupdate_state()
+                _refresh()
+                _sync_history_action_buttons()
+                messagebox.showinfo("Đã đánh dấu", "Đã đánh dấu truyện này là đã sửa xong cảnh báo UTF-8/icon.", parent=win)
+                fix_win.destroy()
+
+            open_selected_btn = ttk.Button(fix_actions, text="Mở", command=_open_selected_warning_files)
+            open_selected_btn.pack(side=tk.LEFT, padx=(0, 6))
+            open_all_btn = ttk.Button(fix_actions, text="Mở tất cả", command=_open_all_warning_files)
+            open_all_btn.pack(side=tk.LEFT, padx=(0, 6))
+            if not files:
+                open_selected_btn.config(state=tk.DISABLED)
+                open_all_btn.config(state=tk.DISABLED)
+            ttk.Button(fix_actions, text="Sửa xong", command=_mark_warning_fixed).pack(side=tk.LEFT)
+            ttk.Button(fix_actions, text="Đóng", command=fix_win.destroy).pack(side=tk.RIGHT)
+            file_tree.bind("<Double-Button-1>", lambda _e: _open_selected_warning_files())
+            if file_tree.get_children():
+                first = file_tree.get_children()[0]
+                file_tree.selection_set(first)
+                file_tree.focus(first)
+
         open_btn.config(command=_open_selected_book)
-        tree.bind("<<TreeviewSelect>>", _sync_open_btn)
+        fix_warning_btn.config(command=_open_warning_fix_window)
+        tree.bind("<<TreeviewSelect>>", _sync_history_action_buttons)
         tree.bind("<Double-Button-1>", _open_selected_book)
 
         _refresh()
-        _sync_open_btn()
+        _sync_history_action_buttons()
 
     def _wd_start_marked_auto_update(self):
         if self._wd_loading:
@@ -8845,6 +9085,7 @@ class WikidichMixin:
         total_four_byte = 0
         total_emoji = 0
         samples = []
+        file_entries = []
 
         def _format_cp(cp: int) -> str:
             return f"U+{cp:X}"
@@ -8914,6 +9155,19 @@ class WikidichMixin:
                         f"{filename}: 4-byte={local_four_byte}, emoji/icon={local_emoji}"
                         + (f", mẫu {sample_text}" if sample_text else "")
                     )
+            if reason or local_four_byte > 0:
+                file_entries.append(
+                    {
+                        "path": path,
+                        "name": filename,
+                        "num": (item or {}).get("num") or 0,
+                        "raw_title": str((item or {}).get("raw_title") or ""),
+                        "reason": reason,
+                        "four_byte": local_four_byte,
+                        "emoji": local_emoji,
+                        "samples": local_samples,
+                    }
+                )
         if non_utf8_files <= 0 and four_byte_files <= 0:
             return {"has_warning": False, "message": ""}
         sample_text = "; ".join(samples)
@@ -8934,6 +9188,7 @@ class WikidichMixin:
             "total_four_byte": total_four_byte,
             "total_emoji": total_emoji,
             "samples": samples,
+            "files": self._wd_normalize_icon_warning_files(file_entries),
         }
 
     def _wd_upload_parsed_files_to_volume(
@@ -9306,6 +9561,7 @@ class WikidichMixin:
             uploaded_count: int = 0,
             warning: str = "",
             warning_message: str = "",
+            warning_files=None,
         ):
             item = {
                 "run_id": run_id,
@@ -9324,6 +9580,9 @@ class WikidichMixin:
                 item["warning"] = str(warning)
             if warning_message:
                 item["warning_message"] = str(warning_message)[:500]
+            clean_warning_files = self._wd_normalize_icon_warning_files(warning_files or [])
+            if clean_warning_files:
+                item["warning_files"] = clean_warning_files
             history_entries.append(item)
 
         def _with_warning_message(message: str, warning_message: str) -> str:
@@ -9491,10 +9750,12 @@ class WikidichMixin:
                 self._wd_set_progress(f"{mode_label}: {idx}/{total} - kiểm tra icon {title}", idx - 1, total)
                 icon_warning_type = ""
                 icon_warning_message = ""
+                icon_warning_files = []
                 icon_warning = self._wd_scan_upload_files_for_icon_warning(payload.get("parsed_files") or [])
                 if icon_warning.get("has_warning"):
                     icon_warning_type = str(icon_warning.get("warning") or "upload_text_encoding_or_icon")
                     icon_warning_message = str(icon_warning.get("message") or "Có file không phải UTF-8 hoặc có ký tự 4-byte.")
+                    icon_warning_files = self._wd_normalize_icon_warning_files(icon_warning.get("files") or [])
                     icon_warning_entries.append(
                         {
                             "book_id": bid,
@@ -9529,6 +9790,7 @@ class WikidichMixin:
                         uploaded_count=uploaded_count,
                         warning=icon_warning_type,
                         warning_message=icon_warning_message,
+                        warning_files=icon_warning_files,
                     )
                 else:
                     failed_count += 1
@@ -9543,6 +9805,7 @@ class WikidichMixin:
                         new_before=payload_new_before,
                         warning=icon_warning_type,
                         warning_message=icon_warning_message,
+                        warning_files=icon_warning_files,
                     )
                 self._wd_set_progress(f"{mode_label}: {idx}/{total} - {title}", idx, total)
         except WikidichCancelled:
