@@ -12,6 +12,7 @@
 // @require     https://cdnjs.cloudflare.com/ajax/libs/jquery/3.1.0/jquery.js
 
 // @require     https://raw.githubusercontent.com/BaoBao666888/Novel-Downloader5/main/download-vietnamese.js
+// @require     https://raw.githubusercontent.com/BaoBao666888/Novel-Downloader5/main/nd-console-panel.js
 
 // @require     https://raw.githubusercontent.com/BaoBao666888/Novel-Downloader5/main/chs2cht.js
 // @require     https://cdnjs.cloudflare.com/ajax/libs/jszip/3.0.0/jszip.min.js
@@ -7787,6 +7788,8 @@ function decryptDES(encrypted, key, iv) {
             '  <input type="button" name="download" format="zip" value="Tải xuống dưới dạng ZIP">',
             '  <br>',
             '  <input type="button" name="toggle-opacity" value="Trong suốt">',
+            '  <input type="button" name="toggle-console" value="Tắt console">',
+            '  <input type="button" name="show-console" value="Mở console">',
             '  <input type="button" name="exit" value="Thoát">',
             '  <input type="button" name="force-download" value="Buộc tải xuống" raw-disabled="disabled">',
             '  <input type="button" name="force-save" value="Buộc lưu" raw-disabled="disabled">',
@@ -7803,6 +7806,22 @@ function decryptDES(encrypted, key, iv) {
         ].join('');
         const container = $('<div class="novel-downloader-v3"></div>').html(html);
         uiRoot.appendChild(container[0]);
+        const syncConsoleButtons = () => {
+            const consoleApi = window.NDConsole;
+            const toggleButton = container.find('[name="toggle-console"]');
+            const showButton = container.find('[name="show-console"]');
+            if (!consoleApi) {
+                toggleButton.val('Console lỗi').attr('disabled', 'disabled');
+                showButton.attr('disabled', 'disabled');
+                return;
+            }
+            toggleButton.val(consoleApi.isEnabled() ? 'Tắt console' : 'Bật console');
+            toggleButton.attr('disabled', null);
+            showButton.attr('disabled', null);
+        };
+        const removeConsoleStateListener = window.NDConsole && typeof window.NDConsole.onStateChange === 'function'
+            ? window.NDConsole.onStateChange(syncConsoleButtons)
+            : null;
         container.find('input,select,textarea').attr('disabled', 'disabled');
         container.find('[name="config"]').find('input,select,textarea').on('change', function (e) {
             const { name } = e.target;
@@ -8645,6 +8664,7 @@ function decryptDES(encrypted, key, iv) {
         container.find('[name="buttons"]').find('[type="button"]:not([name="download"])').on('click', async (e) => {
             const name = $(e.target).attr('name');
             if (name === 'exit') {
+                if (typeof removeConsoleStateListener === 'function') removeConsoleStateListener();
                 ndUI$('.novel-downloader-style,.novel-downloader-v3').remove();
                 $('.novel-downloader-style,.novel-downloader-style-chapter').remove();
                 $('[novel-downloader-chapter]').attr('order', null).attr('novel-downloader-chapter', null);
@@ -8652,6 +8672,18 @@ function decryptDES(encrypted, key, iv) {
                 xhr.start();
             } else if (name === 'toggle-opacity') {
                 container.toggleClass('opacity01');
+            } else if (name === 'toggle-console') {
+                if (window.NDConsole) {
+                    const isEnabled = window.NDConsole.toggle();
+                    if (isEnabled) {
+                        window.NDConsole.show();
+                    } else {
+                        window.NDConsole.hide();
+                    }
+                    syncConsoleButtons();
+                }
+            } else if (name === 'show-console') {
+                if (window.NDConsole) window.NDConsole.show();
             }
         });
         container.find('[name="config"]').find('button[name="toggle"]').on('click', (e) => {
@@ -8815,6 +8847,7 @@ function decryptDES(encrypted, key, iv) {
 
         container.find('input,select,textarea').attr('disabled', null);
         container.find('input,select,textarea').filter('[raw-disabled="disabled"]').attr('raw-disabled', null).attr('disabled', 'disabled');
+        syncConsoleButtons();
 
         container.find('[name="rememberDownloadDir"]').prop('checked', !!Config.rememberDownloadDir);
 
