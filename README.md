@@ -9,6 +9,8 @@
 *   **Tùy chỉnh linh hoạt:** Cho phép cấu hình số luồng tải, thời gian chờ, định dạng tiêu đề, xử lý văn bản, v.v.
 *   **Hỗ trợ tải ảnh:** Có thể tải ảnh bìa và ảnh trong nội dung truyện khi xuất ra file EPUB.
 *   **Giao diện người dùng:** Cung cấp bảng điều khiển để dễ dàng cấu hình và bắt đầu quá trình tải.
+*   **Quản lý tải xuống:** Theo dõi queue/lịch sử, copy summary/lỗi, hủy hoặc retry task trong phiên hiện tại.
+*   **Bảng console trong UI:** Xem log/lỗi ngay trong giao diện script, có nút bật/tắt và copy.
 *   **Xử lý chương VIP:** Có cơ chế xử lý chương VIP cho một số trang (như JJWXC cần token, Fanqie/STV dùng API riêng...).
 
 ## Cài đặt
@@ -30,7 +32,8 @@
 3.  **Kiểm tra thông tin:** Script sẽ cố gắng tự động lấy thông tin truyện (tên, tác giả, bìa, tóm tắt) nếu rule cho trang đó hỗ trợ. Bạn có thể chỉnh sửa lại nếu cần.
 4.  **Cấu hình (Tùy chọn):** Điều chỉnh các tùy chọn tải xuống như định dạng file, số luồng, thời gian chờ, có tải chương VIP hay không, v.v.
 5.  **Bắt đầu tải:** Nhấn vào nút "Tải xuống dưới dạng TEXT", "Tải xuống dưới dạng EPUB", hoặc "Tải xuống dưới dạng ZIP".
-6.  **Theo dõi:** Theo dõi thanh tiến trình ở cuối bảng điều khiển. Khi hoàn tất, file sẽ được tự động tải về.
+6.  **Theo dõi:** Theo dõi thanh tiến trình ở cuối bảng điều khiển hoặc mở menu userscript `Show Storage` để xem queue/lịch sử tải. Bảng này có nút copy summary/lỗi, xóa lịch sử, hủy task đang chạy và retry trong phiên hiện tại.
+7.  **Lưu file:** Có thể dùng nút `Chọn thư mục lưu` để ghi trực tiếp bằng File System Access API. Nếu trình duyệt không hỗ trợ hoặc không cấp quyền, script tự fallback về hộp lưu mặc định của trình duyệt.
 
 ## Cấu hình nâng cao (Tùy chọn)
 
@@ -180,6 +183,9 @@ Rule.special.push({
 *   **novelDownloaderVietSub.user.js:** Bao gồm bản stable (
 ovelDownloaderVietSub.user.js), bản beta và các phiên bản hồi quy (3.5.445, 3.5.446) để test/lùi lỗi; cài đặt nhanh [Stable](https://raw.githubusercontent.com/BaoBao666888/Novel-Downloader5/main/novelDownloaderVietSub.user.js) • [Beta](https://raw.githubusercontent.com/BaoBao666888/Novel-Downloader5/main/novelDownloaderVietSub-beta.user.js) • [3.5.446](https://raw.githubusercontent.com/BaoBao666888/Novel-Downloader5/main/novelDownloaderVietSub-3.5.446.user.js) • [3.5.445](https://raw.githubusercontent.com/BaoBao666888/Novel-Downloader5/main/novelDownloaderVietSub-3.5.445.user.js).
 *   **auto inject tokenOptions.user.js:** Script phụ tự tạo window.tokenOptions (token JJWXC, API Fanqie) cho novelDownloaderVietSub; [Cài đặt](https://raw.githubusercontent.com/BaoBao666888/Novel-Downloader5/main/auto%20inject%20tokenOptions.user.js).
+*   **nd-console-panel.js:** Panel console trong UI chính, bắt `console.log/info/warn/error/debug`, giữ màu `%c`, hỗ trợ copy/xóa/ẩn.
+*   **nd-download-manager.js:** Module quản lý tải xuống, lưu queue/lịch sử bằng GM storage và cung cấp action copy lỗi, clear history, hủy/retry runtime.
+*   **nd-file-save.js:** Module lưu file/thư mục, xử lý File System Access API, IndexedDB handle và fallback `saveAs`.
 
 ### Userscript bổ trợ
 
@@ -206,6 +212,22 @@ ovelDownloaderVietSub.user.js), bản beta và các phiên bản hồi quy (3.5.
 *   **fanqie-decrypt-lib.js:** Thư viện giải mã/chuyển hóa Fanqie, tái sử dụng trong các userscript liên quan.
 *   **chs2cht.js:** Bộ chuyển Giản thể ↔ Phồn thể, dùng khi cần xuất bản với chữ Hant hoặc chuyển từ nguồn zh-Hant.
 *   **SourceHanSansCN-Regular-Often.json:** Bản đồ glyph → ký tự được trích từ font Source Han Sans (dùng để giải mã icon font trong truyện).
+
+## Changelog
+
+### 2026-05-31 - Quản lý tải xuống và dọn module
+
+- Tách `TaskManager` và UI quản lý tải xuống sang `nd-download-manager.js`.
+- Nối manager với luồng tải thật: tạo task, cập nhật progress, ghi lỗi chương và chuyển sang lịch sử khi kết thúc.
+- Thêm action trong manager: copy summary, copy lỗi, xóa lịch sử, hủy task đang chạy và retry trong phiên hiện tại.
+- Tách chọn thư mục/lưu file sang `nd-file-save.js`; main script chỉ còn gọi API lưu file.
+- Giữ UI script trong Shadow DOM để giảm ảnh hưởng CSS từ website.
+
+### Trước đó
+
+- Thêm panel console trong UI chính, có nút bật/tắt, copy, xóa/ẩn và hỗ trợ log có `%c`.
+- Bổ sung helper viết rule nhanh trong README và cải thiện nạp rule tùy chỉnh từ UI.
+- Sửa rule Truyenwikidich và một số lỗi tải/chia chương được user báo trong quá trình test.
 
 ## Kế hoạch tương lai (TODO)
 
@@ -234,7 +256,6 @@ Khi báo lỗi, vui lòng cung cấp các thông tin sau:
 
 *   Script này được phát triển dựa trên phiên bản gốc của **dodying**.
 *   Cảm ơn tất cả những người đã đóng góp ý tưởng, báo lỗi và sử dụng script.
-
 
 
 
