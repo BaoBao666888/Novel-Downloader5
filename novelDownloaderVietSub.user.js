@@ -7662,7 +7662,7 @@ function decryptDES(encrypted, key, iv) {
 
             '<div name="config">',
             '  <span style="color:red;">NEW!</span>',
-            '  Nhiều cài đặt hơn: <button name="toggle">Hiển thị</button>',
+            '  Nhiều cài đặt hơn: <button type="button" name="toggle" aria-expanded="false">Hiển thị</button>',
             '</div>',
             '<div class="useless" name="config">',
             '  Thời gian chờ giữa các chương (ms): <input type="number" name="delayBetweenChapters" min="0" placeholder="2000" style="width:60px;">',
@@ -7744,6 +7744,22 @@ function decryptDES(encrypted, key, iv) {
         ].join('');
         const container = $('<div class="novel-downloader-v3"></div>').html(html);
         uiRoot.appendChild(container[0]);
+        const toggleAdvancedConfig = (expanded) => {
+            const advancedConfig = container.find('.useless[name="config"]');
+            const isExpanded = typeof expanded === 'boolean' ? expanded : !advancedConfig.hasClass('is-visible');
+            advancedConfig.toggleClass('is-visible', isExpanded).attr('aria-hidden', isExpanded ? 'false' : 'true');
+            container.find('[name="config"] button[name="toggle"]')
+                .text(isExpanded ? 'Ẩn' : 'Hiển thị')
+                .attr('aria-expanded', isExpanded ? 'true' : 'false');
+        };
+        toggleAdvancedConfig(false);
+        container[0].addEventListener('click', (event) => {
+            const button = event.target && event.target.closest ? event.target.closest('button[name="toggle"]') : null;
+            if (!button || !container[0].contains(button)) return;
+            event.preventDefault();
+            event.stopPropagation();
+            toggleAdvancedConfig();
+        });
         const syncConsoleButtons = () => {
             const consoleApi = window.NDConsole;
             const toggleButton = container.find('[name="toggle-console"]');
@@ -8645,9 +8661,6 @@ function decryptDES(encrypted, key, iv) {
                 if (window.NDConsole) window.NDConsole.show();
             }
         });
-        container.find('[name="config"]').find('button[name="toggle"]').on('click', (e) => {
-            container.find('.useless[name="config"]').toggle();
-        });
         container.find('[name="info"]>input[type="text"]').on('change', (e) => (Storage.book[$(e.target).attr('name')] = e.target.value));
 
         // style
@@ -8674,6 +8687,7 @@ function decryptDES(encrypted, key, iv) {
             '.novel-downloader-v3>div:nth-child(2n+1){background-color:#FAFAFA;}',
 
             '.novel-downloader-v3>.useless[name="config"]{display:none;}',
+            '.novel-downloader-v3>.useless[name="config"].is-visible{display:block;}',
             '.novel-downloader-v3>[name="config"] [name="vip"]:checked+span{color:red;}',
 
             '.novel-downloader-v3>[name="progress"]{display:none;}',
