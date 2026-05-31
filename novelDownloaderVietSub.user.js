@@ -1515,18 +1515,50 @@ function decryptDES(encrypted, key, iv) {
 
         {
             siteName: '69shuba',
-            url: '69shuba(.cx|.com)/book/\\d+/',
-            chapterUrl: '69shuba(.cx|.com)/txt/\\d+/\\d+',
-            infoPage: () => `https://www.69shuba.com/book/${window.location.pathname.match(/\/book\/(\d+)/)[1]}.htm`,
-            cover: 'div.bookimg2 > img',
-            title: '.booknav2 > h1 > a',
-            writer: '.booknav2 p:nth-of-type(1) a',
-            intro: 'div.navtxt',
-            chapter: '.mybox .catalog:last ul a',
-            chapterTitle: '.txtnav h1.hide720',
-            content: 'div.txtnav',
-            elementRemove: 'h1, div',
-            chapterNext: '.page1 a:contains("上一章")',
+            url: /69shuba\.(?:cx|com)\/book\/\d+(?:\.htm|\/)?(?:[?#].*)?$/,
+            chapterUrl: /69shuba\.(?:cx|com)\/txt\/\d+\/\d+(?:\.html?)?(?:[?#].*)?$/,
+            charset: 'gbk',
+            infoPage: () => {
+                const match = window.location.pathname.match(/\/(?:book|txt)\/(\d+)/);
+                return match ? `https://www.69shuba.com/book/${match[1]}.htm` : window.location.href;
+            },
+            cover: 'div.bookimg2 img, .bookimg img, .bookcover img',
+            title: '.booknav2 > h1 > a, .booknav2 h1, h1 a[href*="/book/"], h1',
+            writer: '.booknav2 p:nth-of-type(1) a, .booknav2 a[href*="/author"], a[href*="/zuozhe"], a[href*="/author"]',
+            intro: 'div.navtxt, #intro, .intro, .bookintro',
+            chapter: 'a[href*="/txt/"]',
+            getChapters: async (doc) => {
+                const currentChapter = window.location.href.match(/69shuba\.(?:cx|com)\/txt\/\d+\/\d+/);
+                if (currentChapter) {
+                    const title = $('.txtnav h1.hide720, .txtnav h1, h1.hide720, h1', doc).first().text().trim();
+                    return [{ title, url: window.location.href }];
+                }
+                const chapters = Rule.helpers.mapChapters('a[href*="/txt/"]', doc)
+                    .filter(chapter => /69shuba\.(?:cx|com)\/txt\/\d+\/\d+(?:\.html?)?(?:[?#].*)?$/.test(chapter.url));
+                return Rule.helpers.uniqueBy(chapters, chapter => chapter.url);
+            },
+            chapterTitle: (doc) => $('.txtnav h1.hide720, .txtnav h1, h1.hide720, h1', doc).first().text().trim(),
+            contentCheck: (doc, res, request) => {
+                const title = (doc && doc.title || '').trim();
+                if (/Just a moment|Enable JavaScript and cookies/i.test(title) || $('#challenge-error-text', doc).length) {
+                    console.error('[69shuba] Cloudflare challenge khi tải chương:', request && request.raw && request.raw.url);
+                    return false;
+                }
+                const hasContent = $('.txtnav', doc).length > 0;
+                if (!hasContent) console.error('[69shuba] Không tìm thấy .txtnav trong trang chương:', request && request.raw && request.raw.url);
+                return hasContent;
+            },
+            content: (doc) => {
+                const content = $('.txtnav', doc).first().clone();
+                content.find('h1.hide720, h1, .txtinfo, #txtright, .bottom-ad, .page1, script, style, iframe, ins').remove();
+                content.find('br').replaceWith('\n');
+                return (content.html() || '')
+                    .replace(/最[⊥\s]*新[⊥\s]*小[⊥\s]*说[⊥\s]*在[⊥\s]*六[⊥\s]*9[⊥\s]*书[⊥\s]*吧[⊥\s]*首[⊥\s]*发[!！]?/g, '')
+                    .replace(/\uFEFF/g, '')
+                    .trim();
+            },
+            elementRemove: 'script,style,iframe,ins',
+            chapterPrev: '.page1 a:contains("上一章")',
             chapterNext: '.page1 a:contains("下一章")'
         },
 
@@ -8139,6 +8171,12 @@ function decryptDES(encrypted, key, iv) {
             const onChapterFailed = async (res, request) => {
                 let chapter = request.raw;
                 if ('chapter' in chapter) chapter = chapter.chapter;
+                const status = res && (res.status || res.statusText)
+                    ? `${res.status || ''} ${res.statusText || ''}`.trim()
+                    : 'unknown';
+                const responseText = res && res.responseText ? String(res.responseText).slice(0, 200).replace(/\s+/g, ' ') : '';
+                const message = res && (res.error && res.error.message || res.error || res.statusText || responseText) || '';
+                console.error('[ND] Tải chương thất bại:', chapter.title || chapter.url || 'Không rõ chương', status, message);
                 chapter.contentRaw = '';
                 chapter.content = '';
                 chapter.document = '';
