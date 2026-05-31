@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name        nd-download-manager
-// @version     1.0.0
+// @version     1.0.1
 // @include     *
 // ==/UserScript==
 /* eslint-env browser */
@@ -14,6 +14,7 @@
     const STYLE_ID = 'ndDownloadManagerStyle';
     const OVERLAY_ID = 'nd-manager-overlay';
     const STATE_KEY = 'nd_manager_state';
+    const MAX_HISTORY = 50;
 
     function getUiRoot(create = false) {
         if (typeof window.__novelDownloaderGetUIRoot === 'function') {
@@ -57,6 +58,40 @@
         `;
     }
 
+    function normalizeState(state) {
+        return {
+            queue: Array.isArray(state && state.queue) ? state.queue : [],
+            history: Array.isArray(state && state.history) ? state.history : []
+        };
+    }
+
+    function nowIso() {
+        return new Date().toISOString();
+    }
+
+    function createTaskId() {
+        return `nd-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+    }
+
+    function normalizeProgress(progress = {}) {
+        return {
+            completed: Number(progress.completed) || 0,
+            total: Number(progress.total) || 0,
+            failed: Number(progress.failed) || 0
+        };
+    }
+
+    function normalizeError(error = {}) {
+        return {
+            time: error.time || nowIso(),
+            title: error.title || '',
+            url: error.url || '',
+            type: error.type || 'unknown',
+            status: error.status || '',
+            message: error.message || ''
+        };
+    }
+
     const TaskManager = {
         STATE_KEY,
         _listeners: [],
@@ -64,16 +99,14 @@
 
         async getState() {
             const state = await GM_getValue(this.STATE_KEY);
-            if (!state) {
-                return { queue: [], history: [] };
-            }
-            return state;
+            return normalizeState(state);
         },
 
         async setState(updater) {
             const currentState = await this.getState();
-            const newState = updater(currentState);
+            const newState = normalizeState(updater(currentState) || currentState);
             await GM_setValue(this.STATE_KEY, newState);
+            this._listeners.forEach(callback => callback(newState));
             return newState;
         },
 
@@ -91,6 +124,95 @@
                 }
             });
             console.log('TaskManager initialized and listening for changes.');
+        },
+
+        async createTask(task = {}) {
+            const now = nowIso();
+            const id = task.id || createTaskId();
+            const newTask = {
+                id,
+                bookTitle: task.bookTitle || 'Chưa có tên sách',
+                domain: task.domain || window.location.hostname || '',
+                sourceUrl: task.sourceUrl || window.location.href || '',
+                format: task.format || '',
+                status: task.status || 'queued',
+                createdAt: task.createdAt || now,
+                startedAt: task.startedAt || now,
+                updatedAt: now,
+                finishedAt: task.finishedAt || null,
+                progress: normalizeProgress(task.progress),
+                errors: Array.isArray(task.errors) ? task.errors.map(normalizeError) : [],
+                meta: task.meta || {}
+            };
+            await this.setState((state) => {
+                state.queue = state.queue.filter(item => item.id !== id);
+                state.queue.unshift(newTask);
+                return state;
+            });
+            return newTask;
+        },
+
+        async updateTask(id, patch = {}) {
+            if (!id) return null;
+            let updatedTask = null;
+            await this.setState((state) => {
+                const task = state.queue.find(item => item.id === id);
+                if (!task) return state;
+                if (patch.progress) {
+                    task.progress = normalizeProgress(Object.assign({}, task.progress, patch.progress));
+                }
+                for (const [key, value] of Object.entries(patch)) {
+                    if (key === 'progress' || key === 'errors') continue;
+                    task[key] = value;
+                }
+                task.updatedAt = nowIso();
+                updatedTask = task;
+                return state;
+            });
+            return updatedTask;
+        },
+
+        async recordError(id, error = {}) {
+            if (!id) return null;
+            let updatedTask = null;
+            await this.setState((state) => {
+                const task = state.queue.find(item => item.id === id);
+                if (!task) return state;
+                task.errors = Array.isArray(task.errors) ? task.errors : [];
+                task.errors.push(normalizeError(error));
+                task.progress = normalizeProgress(Object.assign({}, task.progress, {
+                    failed: task.errors.length
+                }));
+                task.updatedAt = nowIso();
+                updatedTask = task;
+                return state;
+            });
+            return updatedTask;
+        },
+
+        async finishTask(id, status = 'completed', patch = {}) {
+            if (!id) return null;
+            let finishedTask = null;
+            await this.setState((state) => {
+                const index = state.queue.findIndex(item => item.id === id);
+                if (index === -1) return state;
+                const task = state.queue.splice(index, 1)[0];
+                if (patch.progress) {
+                    task.progress = normalizeProgress(Object.assign({}, task.progress, patch.progress));
+                }
+                for (const [key, value] of Object.entries(patch)) {
+                    if (key === 'progress') continue;
+                    task[key] = value;
+                }
+                task.status = status;
+                task.finishedAt = nowIso();
+                task.updatedAt = task.finishedAt;
+                state.history.unshift(task);
+                state.history = state.history.slice(0, MAX_HISTORY);
+                finishedTask = task;
+                return state;
+            });
+            return finishedTask;
         }
     };
 
@@ -137,17 +259,20 @@
             if (!state.queue || state.queue.length === 0) {
                 queueList.innerHTML = 'Chưa có gì trong hàng đợi.';
             } else {
-                queueList.innerHTML = state.queue.map(task => `
-                    <div style="background: white; padding: 10px; border-radius: 5px; margin-bottom: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
-                        <div style="font-weight: bold;">${task.bookTitle}</div>
-                        <div style="font-size: 12px; color: #666;">Trang: ${task.domain}</div>
-                        <div style="display: flex; align-items: center; gap: 10px; margin-top: 5px;">
-                            <progress value="${task.progress.completed}" max="${task.progress.total}" style="width: 100%;"></progress>
-                            <span>${task.progress.completed} / ${task.progress.total}</span>
+                queueList.innerHTML = state.queue.map(task => {
+                    const progress = normalizeProgress(task.progress);
+                    return `
+                        <div style="background: white; padding: 10px; border-radius: 5px; margin-bottom: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
+                            <div style="font-weight: bold;">${task.bookTitle}</div>
+                            <div style="font-size: 12px; color: #666;">Trang: ${task.domain}</div>
+                            <div style="display: flex; align-items: center; gap: 10px; margin-top: 5px;">
+                                <progress value="${progress.completed}" max="${progress.total}" style="width: 100%;"></progress>
+                                <span>${progress.completed} / ${progress.total}</span>
+                            </div>
+                            <div style="font-size: 12px; color: #888;">Trạng thái: ${task.status}</div>
                         </div>
-                        <div style="font-size: 12px; color: #888;">Trạng thái: ${task.status}</div>
-                    </div>
-                `).join('');
+                    `;
+                }).join('');
             }
 
             const historyList = overlay.querySelector('#nd-history-list');

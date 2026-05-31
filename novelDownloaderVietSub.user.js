@@ -13,7 +13,7 @@
 
 // @require     https://raw.githubusercontent.com/BaoBao666888/Novel-Downloader5/main/download-vietnamese.js?v=1.3.1
 // @require     https://raw.githubusercontent.com/BaoBao666888/Novel-Downloader5/main/nd-console-panel.js?v=1.0.1
-// @require     https://raw.githubusercontent.com/BaoBao666888/Novel-Downloader5/main/nd-download-manager.js?v=1.0.0
+// @require     https://raw.githubusercontent.com/BaoBao666888/Novel-Downloader5/main/nd-download-manager.js?v=1.0.1
 
 // @require     https://raw.githubusercontent.com/BaoBao666888/Novel-Downloader5/main/chs2cht.js
 // @require     https://cdnjs.cloudflare.com/ajax/libs/jszip/3.0.0/jszip.min.js
@@ -7929,46 +7929,6 @@ function decryptDES(encrypted, key, iv) {
         // set initial ui
         updateDownloadDirUI();
 
-        async function runTask(task) {
-            // Lấy các biến cần thiết từ scope của showUI
-            const format = task.format;
-            const onComplete = async (force) => { /* ... */ }; // Ta sẽ định nghĩa lại onComplete ở bước sau
-
-            console.log(`Bắt đầu thực thi tác vụ: ${task.id} - ${task.bookTitle}`);
-
-            // Cập nhật trạng thái task thành "downloading"
-            await TaskManager.setState(s => {
-                const taskInState = s.queue.find(t => t.id === task.id);
-                if (taskInState) taskInState.status = 'downloading';
-                return s;
-            });
-
-            // (Phần logic tải xuống sẽ được chuyển vào đây từ trình xử lý click cũ)
-            // Tạm thời, chúng ta sẽ mô phỏng tiến trình
-            for (let i = 0; i < task.chapters.length; i++) {
-                await new Promise(resolve => setTimeout(resolve, 500)); // Giả lập tải 1 chương
-
-                // Cập nhật tiến trình
-                await TaskManager.setState(s => {
-                    const taskInState = s.queue.find(t => t.id === task.id);
-                    if (taskInState) taskInState.progress.completed = i + 1;
-                    return s;
-                });
-            }
-
-            // Cập nhật trạng thái hoàn thành và chuyển sang lịch sử
-            await TaskManager.setState(s => {
-                s.queue = s.queue.filter(t => t.id !== task.id);
-                task.status = 'completed';
-                task.finishedAt = new Date().toISOString();
-                s.history.push(task);
-                return s;
-            });
-
-            console.log(`Hoàn thành tác vụ: ${task.id}`);
-            ndShowToast(`Đã tải xong: ${task.bookTitle}`, 'success');
-        }
-
         container.find('[name="buttons"]').find('[name="download"]').on('click', async (e) => {
             container.find('[name="progress"]').show();
             //xhr.showDialog();
@@ -8021,12 +7981,80 @@ function decryptDES(encrypted, key, iv) {
             chaptersArr = Storage.book.chapters.map((i) => i.url);
 
             const format = $(e.target).attr('format');
+            let downloadManagerTaskId = null;
+            const getDownloadManagerProgress = () => {
+                const chapterList = Storage.book.chapters || [];
+                const completed = chapterList.filter(chapter => Boolean(chapter.contentRaw || chapter.content)).length;
+                const failed = chapterList.filter(chapter => chapter.contentRaw === '' && chapter.content === '').length;
+                return {
+                    completed,
+                    total: chapterList.length,
+                    failed
+                };
+            };
+            const syncDownloadManagerTask = async (status = 'downloading', patch = {}) => {
+                if (!downloadManagerTaskId || typeof TaskManager.updateTask !== 'function') return;
+                try {
+                    await TaskManager.updateTask(downloadManagerTaskId, Object.assign({
+                        status,
+                        progress: getDownloadManagerProgress()
+                    }, patch));
+                } catch (error) {
+                    console.warn('[ND] Không thể cập nhật download manager:', error);
+                }
+            };
+            const recordDownloadManagerError = async (chapter, error, type = 'download') => {
+                if (!downloadManagerTaskId || typeof TaskManager.recordError !== 'function') return;
+                try {
+                    await TaskManager.recordError(downloadManagerTaskId, {
+                        title: chapter && chapter.title,
+                        url: chapter && chapter.url,
+                        type,
+                        status: error && (error.status || error.statusText),
+                        message: error && (error.message || error.error && error.error.message || error.statusText || String(error))
+                    });
+                    await syncDownloadManagerTask('downloading');
+                } catch (managerError) {
+                    console.warn('[ND] Không thể ghi lỗi vào download manager:', managerError);
+                }
+            };
+            const finishDownloadManagerTask = async (status, patch = {}) => {
+                if (!downloadManagerTaskId || typeof TaskManager.finishTask !== 'function') return;
+                try {
+                    await TaskManager.finishTask(downloadManagerTaskId, status, Object.assign({
+                        progress: getDownloadManagerProgress()
+                    }, patch));
+                    downloadManagerTaskId = null;
+                } catch (error) {
+                    console.warn('[ND] Không thể hoàn tất download manager:', error);
+                }
+            };
+            try {
+                const managerTask = await TaskManager.createTask({
+                    bookTitle: Storage.book.title || Storage.book.chapters[0]?.title || document.title,
+                    domain: window.location.hostname,
+                    sourceUrl: window.location.href,
+                    format,
+                    status: 'downloading',
+                    progress: getDownloadManagerProgress(),
+                    meta: {
+                        rule: Storage.rule && Storage.rule.name || '',
+                        totalChapters: Storage.book.chapters.length
+                    }
+                });
+                downloadManagerTaskId = managerTask && managerTask.id;
+            } catch (error) {
+                console.warn('[ND] Không thể tạo task download manager:', error);
+            }
             const onComplete = async (force) => {
                 const failedChapters = Storage.book.chapters.filter(c => !(c.contentRaw || c.content));
                 if (failedChapters.length > 0 && !force) {
                     console.warn(`%cPhát hiện ${failedChapters.length} chương tải thất bại. Quá trình tạo file sẽ bị tạm dừng.`, "color: red; font-weight: bold;");
                     console.warn('Các chương lỗi:', failedChapters.map(c => c.url));
                     alert(`Tải xuống hoàn tất nhưng có ${failedChapters.length} chương bị lỗi.\n\nBạn có thể thử nhấn nút "Tải xuống" lại để thử lại các chương lỗi, hoặc nhấn "Buộc lưu" để tạo file với các chương đã tải thành công.`);
+                    await finishDownloadManagerTask('failed', {
+                        errorSummary: `${failedChapters.length} chương tải thất bại`
+                    });
 
                     // Kích hoạt lại các nút để người dùng có thể thao tác
                     container.find('[name="buttons"]').find('[name="download"]').attr('disabled', null);
@@ -8144,6 +8172,7 @@ function decryptDES(encrypted, key, iv) {
 
                 //hết
                 await downloadTo[format](chapters);
+                await finishDownloadManagerTask(failedChapters.length > 0 ? 'completed_with_errors' : 'completed');
                 if (!force) {
                     container.find('[name="buttons"]').find('[name="download"]').attr('disabled', null);
                     $(window).off('blur').off('focus');
@@ -8170,6 +8199,7 @@ function decryptDES(encrypted, key, iv) {
                 chapter.contentRaw = '';
                 chapter.content = '';
                 chapter.document = '';
+                await recordDownloadManagerError(chapter, res, 'download');
             };
             let failedCount = 0;
             const onChapterFailedEvery = Config.failedCount ? async (res, request, type) => {
@@ -8220,6 +8250,7 @@ function decryptDES(encrypted, key, iv) {
                     anchor = chapterNew;
                     Storage.book.chapters.splice(next ? index + 1 : index, 0, chapterNew);
                     chaptersArr.splice(next ? index + 1 : index, 0, url);
+                    await syncDownloadManagerTask('downloading');
 
                     const rule = vipChapters.includes(url) ? Storage.rule.vip : Storage.rule;
 
@@ -8249,6 +8280,7 @@ function decryptDES(encrypted, key, iv) {
             });
             container.find('[name="progress"]>progress').val(completedCount).attr('max', totalChapters);
             document.title = `[${completedCount}/${totalChapters}]${Storage.title}`;
+            await syncDownloadManagerTask('downloading');
 
             function updateProgress(isSuccess = true) {
                 // Chỉ tăng completedCount nếu chương đó *chưa* được đếm trước đó
@@ -8256,6 +8288,7 @@ function decryptDES(encrypted, key, iv) {
                 const currentCompleted = Storage.book.chapters.filter(c => 'contentRaw' in c).length;
                 container.find('[name="progress"]>progress').val(currentCompleted).attr('max', totalChapters);
                 document.title = `[${currentCompleted}/${totalChapters}]${Storage.title}`;
+                syncDownloadManagerTask('downloading');
             }
 
             // --- Hàm sleep ---
@@ -8465,6 +8498,7 @@ function decryptDES(encrypted, key, iv) {
                             chapter.contentRaw = '';
                             chapter.content = '';
                             chapter.document = '';
+                            await recordDownloadManagerError(chapter, error, 'deal');
                             try {
                                 if (taskIndex !== null && xhr.manual && typeof xhr.manual.fail === 'function') {
                                     xhr.manual.fail(taskIndex, { title: chapter.title || '' });
@@ -8521,18 +8555,22 @@ function decryptDES(encrypted, key, iv) {
                         const rule = vipChapters.includes(chapter.url) ? Storage.rule.vip : Storage.rule;
                         await new Promise((resolve) => {
                             $('<iframe>').on('load', async (e) => {
-                                let response, responseText;
                                 try {
+                                    let response, responseText;
                                     if (typeof rule.iframe === 'function') await rule.iframe(e.target.contentWindow);
                                     response = e.target.contentWindow.document;
                                     responseText = e.target.contentWindow.document.documentElement.outerHTML;
+                                    await originalOnChapterLoad({ response, responseText }, { raw: chapter });
                                 } catch (error) {
-                                    console.error(error);
-                                    response = ''; responseText = '';
+                                    console.error(`%cLỗi khi xử lý iframe cho chương: ${chapter.title || chapter.url}`, "color: red;", error);
+                                    chapter.contentRaw = '';
+                                    chapter.content = '';
+                                    chapter.document = '';
+                                    await recordDownloadManagerError(chapter, error, 'iframe');
+                                } finally {
+                                    $(e.target).remove();
+                                    resolve();
                                 }
-                                await originalOnChapterLoad({ response, responseText }, { raw: chapter });
-                                $(e.target).remove();
-                                resolve();
                             }).attr('src', chapter.url).css('visibility', 'hidden').appendTo('body');
                         });
                         if (Config.delayBetweenChapters > 0) await sleepWithPause(Config.delayBetweenChapters);
@@ -8549,7 +8587,15 @@ function decryptDES(encrypted, key, iv) {
                         window.localStorage.setItem('gm-nd-url', chapter.url);
                         await waitFor(() => window.localStorage.getItem('gm-nd-html') || !popupWindow || popupWindow.closed);
                         const html = window.localStorage.getItem('gm-nd-html');
-                        await originalOnChapterLoad({ response: html, responseText: html }, { raw: chapter });
+                        try {
+                            await originalOnChapterLoad({ response: html, responseText: html }, { raw: chapter });
+                        } catch (error) {
+                            console.error(`%cLỗi khi xử lý popup cho chương: ${chapter.title || chapter.url}`, "color: red;", error);
+                            chapter.contentRaw = '';
+                            chapter.content = '';
+                            chapter.document = '';
+                            await recordDownloadManagerError(chapter, error, 'popup');
+                        }
                         if (popupWindow && !popupWindow.closed) popupWindow.close();
                         window.localStorage.removeItem('gm-nd-url');
                         window.localStorage.removeItem('gm-nd-html');
