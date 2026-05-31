@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name        nd-download-manager
-// @version     1.0.3
+// @version     1.0.4
 // @include     *
 // ==/UserScript==
 /* eslint-env browser */
@@ -73,7 +73,48 @@
             .nd-manager-actions button[data-action="retry-task"] { color: #166534; border-color: #bbf7d0; background: #f0fdf4; }
             .nd-manager-actions button[data-action="resume-task"] { color: #1d4ed8; border-color: #bfdbfe; background: #eff6ff; }
             .nd-manager-errors { margin-top: 6px; color: #b91c1c; font-size: 12px; }
+            .nd-manager-settings { display: grid; gap: 12px; max-width: 620px; }
+            .nd-manager-setting-row { display: flex; align-items: center; justify-content: space-between; gap: 14px; padding: 12px; background: white; border: 1px solid #e2e8f0; border-radius: 8px; }
+            .nd-manager-setting-main { display: grid; gap: 3px; }
+            .nd-manager-setting-title { font-weight: 700; color: #111827; }
+            .nd-manager-setting-desc { font-size: 12px; color: #64748b; line-height: 1.4; }
+            .nd-manager-switch { display: inline-flex; align-items: center; gap: 8px; white-space: nowrap; font-size: 12px; color: #111827; }
+            .nd-manager-switch input { width: 18px; height: 18px; }
+            .nd-manager-doc-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+            .nd-manager-doc-actions button { border: 1px solid #bfdbfe; background: #eff6ff; color: #1d4ed8; border-radius: 6px; padding: 7px 10px; cursor: pointer; font-size: 12px; font-weight: 600; }
+            .nd-manager-doc-actions button:hover { background: #dbeafe; }
         `;
+    }
+
+    function getMainUiApi() {
+        return window.NDNovelDownloaderUI
+            || (typeof unsafeWindow !== 'undefined' && unsafeWindow.NDNovelDownloaderUI)
+            || null;
+    }
+
+    function notifyMainUiStateChanged() {
+        const api = getMainUiApi();
+        if (api && typeof api.updateLauncherVisibility === 'function') {
+            api.updateLauncherVisibility();
+        }
+    }
+
+    function isManagerVisible() {
+        const root = getUiRoot(false);
+        const overlay = root && root.querySelector(`#${OVERLAY_ID}`);
+        if (!overlay) return false;
+        const style = window.getComputedStyle(overlay);
+        return style.display !== 'none' && style.visibility !== 'hidden';
+    }
+
+    function isLauncherEnabledFromMain() {
+        const api = getMainUiApi();
+        return !api || typeof api.isLauncherEnabled !== 'function' || api.isLauncherEnabled();
+    }
+
+    function syncSettingsUI(overlay) {
+        const toggle = overlay && overlay.querySelector('#nd-manager-launcher-toggle');
+        if (toggle) toggle.checked = isLauncherEnabledFromMain();
     }
 
     function normalizeState(state) {
@@ -501,6 +542,8 @@
         const existingUI = uiRoot.querySelector(`#${OVERLAY_ID}`);
         if (existingUI) {
             existingUI.style.display = existingUI.style.display === 'none' ? 'flex' : 'none';
+            syncSettingsUI(existingUI);
+            notifyMainUiStateChanged();
             return;
         }
 
@@ -517,6 +560,7 @@
                 <div id="nd-manager-tabs">
                     <div class="nd-manager-tab active" data-tab="queue">Hàng đợi</div>
                     <div class="nd-manager-tab" data-tab="history">Lịch sử</div>
+                    <div class="nd-manager-tab" data-tab="settings">Cài đặt</div>
                 </div>
                 <div id="nd-manager-content">
                     <div class="nd-manager-page active" id="nd-manager-page-queue">
@@ -526,6 +570,31 @@
                     <div class="nd-manager-page" id="nd-manager-page-history">
                         <h3>Lịch sử Tương tác</h3>
                         <div id="nd-history-list">Chưa có lịch sử.</div>
+                    </div>
+                    <div class="nd-manager-page" id="nd-manager-page-settings">
+                        <h3>Cài đặt</h3>
+                        <div class="nd-manager-settings">
+                            <div class="nd-manager-setting-row">
+                                <div class="nd-manager-setting-main">
+                                    <div class="nd-manager-setting-title">Nút nổi Novel Downloader</div>
+                                    <div class="nd-manager-setting-desc">Hiện nút kéo thả trên web để mở nhanh UI tải hoặc Quản lý tải xuống.</div>
+                                </div>
+                                <label class="nd-manager-switch">
+                                    <input type="checkbox" id="nd-manager-launcher-toggle">
+                                    Hiện
+                                </label>
+                            </div>
+                            <div class="nd-manager-setting-row">
+                                <div class="nd-manager-setting-main">
+                                    <div class="nd-manager-setting-title">Tài liệu trong script</div>
+                                    <div class="nd-manager-setting-desc">Mở hướng dẫn sử dụng hoặc changelog của phiên bản hiện tại.</div>
+                                </div>
+                                <div class="nd-manager-doc-actions">
+                                    <button type="button" data-action="open-guide">Mở Hướng dẫn</button>
+                                    <button type="button" data-action="open-changelog">Mở Changelog</button>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -596,6 +665,7 @@
                     ${state.history.map(task => renderTask(task, 'history')).join('')}
                 `;
             }
+            syncSettingsUI(overlay);
         };
 
         overlay.addEventListener('click', async (event) => {
@@ -607,6 +677,16 @@
             try {
                 if (action === 'clear-history') {
                     await TaskManager.clearHistory();
+                    return;
+                }
+                if (action === 'open-guide' || action === 'open-changelog') {
+                    const api = getMainUiApi();
+                    const method = action === 'open-guide' ? 'openGuide' : 'openChangelog';
+                    if (api && typeof api[method] === 'function') {
+                        api[method]();
+                    } else {
+                        flashButton(button, 'Chưa sẵn sàng');
+                    }
                     return;
                 }
                 if (!task) return;
@@ -639,6 +719,7 @@
 
         overlay.querySelector('#nd-manager-close').addEventListener('click', () => {
             overlay.style.display = 'none';
+            notifyMainUiStateChanged();
         });
 
         overlay.querySelectorAll('.nd-manager-tab').forEach(tab => {
@@ -647,11 +728,21 @@
                 overlay.querySelector('.nd-manager-page.active').classList.remove('active');
                 tab.classList.add('active');
                 overlay.querySelector(`#nd-manager-page-${tab.dataset.tab}`).classList.add('active');
+                if (tab.dataset.tab === 'settings') syncSettingsUI(overlay);
             });
+        });
+
+        overlay.querySelector('#nd-manager-launcher-toggle').addEventListener('change', (event) => {
+            const api = getMainUiApi();
+            if (api && typeof api.setLauncherEnabled === 'function') {
+                api.setLauncherEnabled(event.target.checked);
+            }
+            syncSettingsUI(overlay);
         });
 
         const initialState = await TaskManager.getState();
         renderUI(initialState);
+        notifyMainUiStateChanged();
 
         TaskManager.onStateChange(renderUI);
     }
@@ -659,7 +750,8 @@
     const api = {
         __installed: true,
         TaskManager,
-        showManagerUI
+        showManagerUI,
+        isManagerVisible
     };
 
     window.NDDownloadManager = api;

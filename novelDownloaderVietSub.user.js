@@ -2,7 +2,7 @@
 // ==UserScript==
 // @name        novelDownloaderVietSub
 // @description Menu Download Novel hoặc nhấp đúp vào cạnh trái của trang để hiển thị bảng điều khiển
-// @version     3.5.447.45
+// @version     3.5.448
 // @author      dodying | BaoBao
 // @namespace   https://github.com/BaoBao666888/Novel-Downloader5
 // @supportURL  https://github.com/BaoBao666888/Novel-Downloader5/issues
@@ -13,7 +13,7 @@
 
 // @require     https://raw.githubusercontent.com/BaoBao666888/Novel-Downloader5/main/download-vietnamese.js?v=1.3.2
 // @require     https://raw.githubusercontent.com/BaoBao666888/Novel-Downloader5/main/nd-console-panel.js?v=1.0.1
-// @require     https://raw.githubusercontent.com/BaoBao666888/Novel-Downloader5/main/nd-download-manager.js?v=1.0.3
+// @require     https://raw.githubusercontent.com/BaoBao666888/Novel-Downloader5/main/nd-download-manager.js?v=1.0.4
 // @require     https://raw.githubusercontent.com/BaoBao666888/Novel-Downloader5/main/nd-file-save.js?v=1.0.0
 
 // @require     https://raw.githubusercontent.com/BaoBao666888/Novel-Downloader5/main/chs2cht.js
@@ -33,7 +33,6 @@
 // @grant       GM_getResourceText
 // @grant       GM_addValueChangeListener
 // @run-at      document-end
-// @grant       GM_openInTab
 // @connect     *
 // @include     *
 // @noframes
@@ -130,23 +129,12 @@ function decryptDES(encrypted, key, iv) {
     // Userscript Integrations & Shared UI Root
     // ============================================================================
 
-    function openHelperTab(url) {
-        try {
-            if (typeof GM_openInTab === 'function') {
-                GM_openInTab(url, { active: true, insert: true });
-            } else if (typeof GM !== 'undefined' && typeof GM.openInTab === 'function') {
-                GM.openInTab(url, { active: true, insert: true });
-            } else {
-                // fallback: dùng window.open (cần user gesture để tránh bị block popup)
-                window.open(url, '_blank');
-            }
-        } catch (e) {
-            console.error('[ND] Lỗi khi mở tab helper:', e);
-            window.open(url, '_blank');
-        }
-    }
-
     const ND_UI_HOST_ID = 'novel-downloader-shadow-host';
+    const ND_DOC_MODAL_ID = 'ndNovelDownloaderDocs';
+    const ND_LAUNCHER_ID = 'ndNovelDownloaderLauncher';
+    const ND_VERSION_NOTICE_KEY = 'ND_MAIN_LAST_VERSION';
+    const ND_LAUNCHER_ENABLED_KEY = 'ND_LAUNCHER_ENABLED';
+    const ND_LAUNCHER_POSITION_KEY = 'ND_LAUNCHER_POSITION';
     function getNovelDownloaderUIRoot(create = false) {
         if (typeof window.__novelDownloaderGetUIRoot === 'function') {
             const root = window.__novelDownloaderGetUIRoot(create);
@@ -193,6 +181,384 @@ function decryptDES(encrypted, key, iv) {
     const fileSave = window.NDFileSave;
     if (!fileSave || typeof fileSave.saveContent !== 'function') {
         throw new Error('[ND] nd-file-save.js chưa được tải đúng cách.');
+    }
+
+    // ============================================================================
+    // Floating Launcher & In-Script Documentation
+    // ============================================================================
+
+    function getNovelDownloaderScriptVersion() {
+        return GM_info && GM_info.script && GM_info.script.version ? GM_info.script.version : '3.5.448';
+    }
+
+    function docList(items) {
+        return `<ul>${items.map(item => `<li>${item}</li>`).join('')}</ul>`;
+    }
+
+    function getNovelDownloaderGuideHtml() {
+        return [
+            '<h3>Luồng thao tác cơ bản</h3>',
+            docList([
+                'Mở UI bằng nút nổi <b>Novel Downloader</b>, menu Tampermonkey <b>Download Novel</b>, hoặc nhấp đúp cạnh trái trang.',
+                'Bấm <b>Kiểm tra</b> để xem rule nhận chương đúng chưa, sau đó chọn <b>TEXT</b>, <b>EPUB</b> hoặc <b>ZIP</b> để tải.',
+                '<b>Phạm vi tải xuống</b> nhận dạng như <code>1-25, 35, 50</code>. <b>Tải xuống hàng loạt</b> dùng khi muốn dán danh sách URL riêng.',
+                'Có thể chọn thư mục lưu bằng File System Access API; nếu bật <b>Ghi nhớ</b>, script sẽ thử dùng lại thư mục đó cho cùng link truyện.'
+            ]),
+            '<h3>Nút nổi Novel Downloader</h3>',
+            docList([
+                'Nút nổi có thể kéo thả, tự nhớ vị trí và nằm trong Shadow Root để ít bị CSS của web ảnh hưởng.',
+                'Khi chưa mở bảng nào, bấm nút sẽ hiện hai lựa chọn: mở giao diện tải hoặc mở Quản lý tải xuống.',
+                'Khi UI tải chính đang mở, bấm nút sẽ mở Quản lý tải xuống. Khi Quản lý tải xuống đang mở, bấm nút sẽ mở UI tải chính.',
+                'Khi cả hai bảng cùng mở, nút tự ẩn. Có thể bật/tắt nút trong tab <b>Cài đặt</b> của Quản lý tải xuống.'
+            ]),
+            '<h3>Quản lý tải xuống</h3>',
+            docList([
+                'Tab <b>Hàng đợi</b> hiển thị truyện đang tải hoặc đang giữ dữ liệu tiếp tục.',
+                'Nếu tab bị đóng giữa chừng và script đã lưu được dữ liệu, nút <b>Tiếp tục</b> sẽ mở lại trang truyện và tự tải phần còn lại.',
+                'Tab <b>Lịch sử</b> giữ các lượt tải đã kết thúc, kể cả thành công có lỗi chương. Các thẻ cũ hơn 30 ngày được dọn tự động.',
+                'Mỗi thẻ có nút copy summary và copy lỗi để gửi log nhanh khi cần debug.'
+            ]),
+            '<h3>Console trong UI</h3>',
+            docList([
+                'Script hiện đã bắt <code>console.log/info/warn/error/debug</code> vào bảng Console bên trái, có nút bật/tắt, copy và đóng tạm.',
+                'Không còn cần cài thêm <b>NovelDownloader Helper - AntiClear</b>. Việc clear Console trong DevTools không xóa log đã nằm trong bảng UI.',
+                'Các log có định dạng <code>%c</code> được giữ màu cơ bản trong bảng Console để dễ nhìn các bước tải.'
+            ]),
+            '<h3>Rule tùy chỉnh</h3>',
+            docList([
+                'Ô <b>Quy tắc tùy chỉnh</b> nhận <code>{...}</code>, <code>[{...}]</code> hoặc lệnh <code>Rule.special.push({...});</code>.',
+                'Có thể dùng lại helper như <code>helpers.requestDoc</code>, <code>helpers.requestJson</code>, <code>helpers.mapChapters</code>, <code>helpers.absoluteUrl</code> để viết rule nhanh hơn.',
+                'Nếu rule cần Cloudflare/cookie, ưu tiên dùng helper tải trang có sẵn thay vì tự viết fetch rời rạc.'
+            ]),
+            '<h3>Khi gặp lỗi</h3>',
+            docList([
+                'Mở Quản lý tải xuống để copy summary/lỗi, đồng thời mở bảng Console để xem log chi tiết.',
+                'Với lỗi web đổi HTML, chạy <b>Kiểm tra</b> trước để biết đang hỏng mục lục, thông tin sách hay nội dung chương.',
+                'Với web chặn request, thử tăng delay giữa chương hoặc tải qua chế độ thủ công nếu rule hỗ trợ.'
+            ])
+        ].join('');
+    }
+
+    function getNovelDownloaderChangelogHtml() {
+        return [
+            `<h3>v${getNovelDownloaderScriptVersion()}</h3>`,
+            docList([
+                'Bỏ luồng hỏi cài <b>NovelDownloader Helper - AntiClear</b>; bảng Console trong UI là nguồn log chính.',
+                'Thêm nút nổi <b>Novel Downloader</b> hiện đại hơn, kéo thả được, tự nhớ vị trí và tự đổi hành động theo UI đang mở.',
+                'Nút nổi tự ẩn khi UI tải chính và Quản lý tải xuống cùng mở.',
+                'Thêm tab <b>Cài đặt</b> trong Quản lý tải xuống: bật/tắt nút nổi, mở Hướng dẫn, mở Changelog.',
+                'Thay nút <b>GitHub</b> trên UI tải chính bằng nút <b>Hướng dẫn</b>.',
+                'Bổ sung hướng dẫn chi tiết và changelog ngay trong script.'
+            ]),
+            '<h3>Các bản trước (tóm tắt)</h3>',
+            docList([
+                'v3.5.447.x: đưa UI script vào Shadow Root, thêm bảng Console trong UI, cải thiện bảng tiến độ tải và quản lý hàng đợi/lịch sử.',
+                'v3.5.447.x: thêm lưu dữ liệu tiếp tục khi tab bị đóng giữa chừng, nút <b>Tiếp tục</b> trong hàng đợi, dọn thẻ cũ sau 30 ngày.',
+                'v3.5.447.x: sửa rule 69shuba, xử lý encoding trang reader/txt và khôi phục thanh tiến độ x/y của UI tải chính.',
+                'Các bản cũ hơn: bổ sung rule web, cải thiện tải thủ công, tải ảnh/EPUB/TEXT/ZIP và helper viết rule tùy chỉnh.'
+            ])
+        ].join('');
+    }
+
+    function ensureNovelDownloaderDocsModal() {
+        const root = getNovelDownloaderUIRoot(true) || document.body;
+        ensureNovelDownloaderUIStyle('ndNovelDownloaderDocsStyle', [
+            `#${ND_DOC_MODAL_ID}{position:fixed;inset:0;z-index:1000005;display:none;align-items:center;justify-content:center;padding:18px;background:rgba(15,23,42,.54);pointer-events:auto;font-family:Arial,sans-serif;color:#111827;}`,
+            `#${ND_DOC_MODAL_ID}.is-visible{display:flex;}`,
+            `#${ND_DOC_MODAL_ID} .nd-doc-window{width:min(760px,calc(100vw - 28px));max-height:min(780px,calc(100vh - 28px));display:flex;flex-direction:column;background:#f8fafc;border:1px solid rgba(148,163,184,.55);border-radius:12px;box-shadow:0 22px 60px rgba(15,23,42,.34);overflow:hidden;}`,
+            `#${ND_DOC_MODAL_ID} .nd-doc-header{display:flex;align-items:center;gap:12px;padding:13px 16px;background:linear-gradient(135deg,#0f172a,#14532d 52%,#7f1d1d);color:#fff;}`,
+            `#${ND_DOC_MODAL_ID} .nd-doc-title{font-weight:700;font-size:16px;line-height:1.25;}`,
+            `#${ND_DOC_MODAL_ID} .nd-doc-spacer{flex:1 1 auto;}`,
+            `#${ND_DOC_MODAL_ID} button{border:1px solid rgba(255,255,255,.35);border-radius:7px;background:rgba(255,255,255,.12);color:#fff;padding:6px 10px;cursor:pointer;font-size:12px;}`,
+            `#${ND_DOC_MODAL_ID} button:hover{background:rgba(255,255,255,.22);}`,
+            `#${ND_DOC_MODAL_ID} .nd-doc-body{overflow:auto;padding:16px 18px 20px;font-size:13px;line-height:1.55;}`,
+            `#${ND_DOC_MODAL_ID} h3{margin:14px 0 7px;font-size:15px;line-height:1.3;color:#0f172a;}`,
+            `#${ND_DOC_MODAL_ID} h3:first-child{margin-top:0;}`,
+            `#${ND_DOC_MODAL_ID} ul{margin:0 0 8px 18px;padding:0;}`,
+            `#${ND_DOC_MODAL_ID} li{margin:4px 0;}`,
+            `#${ND_DOC_MODAL_ID} code{background:#e2e8f0;border:1px solid #cbd5e1;border-radius:4px;padding:1px 4px;font-family:Consolas,Menlo,Monaco,"Courier New",monospace;font-size:12px;}`
+        ].join(''));
+        let modal = root.querySelector(`#${ND_DOC_MODAL_ID}`);
+        if (!modal) {
+            modal = document.createElement('div');
+            modal.id = ND_DOC_MODAL_ID;
+            modal.innerHTML = [
+                '<div class="nd-doc-window" role="dialog" aria-modal="true">',
+                '  <div class="nd-doc-header">',
+                '    <span class="nd-doc-title" data-role="title">Hướng dẫn</span>',
+                '    <span class="nd-doc-spacer"></span>',
+                '    <button type="button" data-action="close-doc">Đóng</button>',
+                '  </div>',
+                '  <div class="nd-doc-body" data-role="body"></div>',
+                '</div>'
+            ].join('');
+            modal.addEventListener('click', (event) => {
+                if (event.target === modal || event.target.closest('[data-action="close-doc"]')) {
+                    modal.classList.remove('is-visible');
+                }
+            });
+            root.appendChild(modal);
+        }
+        return modal;
+    }
+
+    function openNovelDownloaderDocModal(title, contentHtml) {
+        const modal = ensureNovelDownloaderDocsModal();
+        modal.querySelector('[data-role="title"]').textContent = title;
+        modal.querySelector('[data-role="body"]').innerHTML = contentHtml;
+        modal.classList.add('is-visible');
+    }
+
+    function openNovelDownloaderGuide() {
+        openNovelDownloaderDocModal('Hướng dẫn Novel Downloader', getNovelDownloaderGuideHtml());
+    }
+
+    function openNovelDownloaderChangelog() {
+        openNovelDownloaderDocModal('Changelog Novel Downloader', getNovelDownloaderChangelogHtml());
+    }
+
+    function openNovelDownloaderGuideWithChangelog() {
+        openNovelDownloaderDocModal(
+            'Hướng dẫn & Changelog Novel Downloader',
+            `${getNovelDownloaderGuideHtml()}<h3>Changelog</h3>${getNovelDownloaderChangelogHtml()}`
+        );
+    }
+
+    function maybeShowNovelDownloaderVersionNotice() {
+        const version = getNovelDownloaderScriptVersion();
+        const lastVersion = GM_getValue(ND_VERSION_NOTICE_KEY, '');
+        if (lastVersion === version) return;
+        GM_setValue(ND_VERSION_NOTICE_KEY, version);
+        if (lastVersion) {
+            openNovelDownloaderChangelog();
+        } else {
+            openNovelDownloaderGuideWithChangelog();
+        }
+    }
+
+    function isUiElementVisible(element) {
+        if (!element || !element.isConnected) return false;
+        const style = window.getComputedStyle(element);
+        return style.display !== 'none' && style.visibility !== 'hidden' && style.opacity !== '0';
+    }
+
+    function isNovelDownloaderMainVisible() {
+        const root = getNovelDownloaderUIRoot(false);
+        return isUiElementVisible(root && root.querySelector('.novel-downloader-v3'));
+    }
+
+    function isNovelDownloaderManagerVisible() {
+        if (downloadManager && typeof downloadManager.isManagerVisible === 'function') {
+            return downloadManager.isManagerVisible();
+        }
+        const root = getNovelDownloaderUIRoot(false);
+        return isUiElementVisible(root && root.querySelector('#nd-manager-overlay'));
+    }
+
+    function isNovelDownloaderLauncherEnabled() {
+        return GM_getValue(ND_LAUNCHER_ENABLED_KEY, true) !== false;
+    }
+
+    function setNovelDownloaderLauncherEnabled(enabled) {
+        GM_setValue(ND_LAUNCHER_ENABLED_KEY, Boolean(enabled));
+        updateNovelDownloaderLauncherVisibility();
+        return Boolean(enabled);
+    }
+
+    function normalizeLauncherPosition(position) {
+        const viewportWidth = Math.max(320, window.innerWidth || 320);
+        const viewportHeight = Math.max(320, window.innerHeight || 320);
+        const fallback = {
+            left: Math.max(12, viewportWidth - 222),
+            top: Math.max(12, viewportHeight - 86)
+        };
+        const raw = position && typeof position === 'object' ? position : fallback;
+        const left = Number(raw.left);
+        const top = Number(raw.top);
+        return {
+            left: Math.min(Math.max(Number.isFinite(left) ? left : fallback.left, 8), viewportWidth - 56),
+            top: Math.min(Math.max(Number.isFinite(top) ? top : fallback.top, 8), viewportHeight - 48)
+        };
+    }
+
+    function applyLauncherPosition(launcher, position) {
+        const normalized = normalizeLauncherPosition(position);
+        launcher.style.left = `${normalized.left}px`;
+        launcher.style.top = `${normalized.top}px`;
+        launcher.style.right = 'auto';
+        launcher.style.bottom = 'auto';
+        return normalized;
+    }
+
+    function closeNovelDownloaderLauncherMenu() {
+        const root = getNovelDownloaderUIRoot(false);
+        const launcher = root && root.querySelector(`#${ND_LAUNCHER_ID}`);
+        if (launcher) launcher.classList.remove('is-open');
+    }
+
+    async function openNovelDownloaderMainUi() {
+        const resumeRequest = await getPendingResumeRequest();
+        init();
+        await showUI({ resumeRequest });
+        updateNovelDownloaderLauncherVisibility();
+    }
+
+    async function openNovelDownloaderManagerUi() {
+        await showManagerUI();
+        updateNovelDownloaderLauncherVisibility();
+    }
+
+    function ensureNovelDownloaderLauncher() {
+        const root = getNovelDownloaderUIRoot(true) || document.body;
+        ensureNovelDownloaderUIStyle('ndNovelDownloaderLauncherStyle', [
+            `#${ND_LAUNCHER_ID}{position:fixed;left:18px;top:18px;z-index:1000004;display:none;pointer-events:auto;font-family:Arial,sans-serif;user-select:none;}`,
+            `#${ND_LAUNCHER_ID}.is-open .nd-launcher-menu{display:flex;}`,
+            `#${ND_LAUNCHER_ID} .nd-launcher-main{display:flex;align-items:center;gap:8px;min-width:178px;height:42px;border:1px solid rgba(255,255,255,.32);border-radius:999px;background:linear-gradient(135deg,#0ea5e9 0%,#16a34a 48%,#f97316 100%);color:#fff;box-shadow:0 12px 28px rgba(15,23,42,.28),inset 0 1px 0 rgba(255,255,255,.28);cursor:grab;padding:0 14px 0 8px;font-size:13px;font-weight:700;letter-spacing:0;}`,
+            `#${ND_LAUNCHER_ID}.is-dragging .nd-launcher-main{cursor:grabbing;}`,
+            `#${ND_LAUNCHER_ID} .nd-launcher-main:hover{filter:saturate(1.08) brightness(1.02);}`,
+            `#${ND_LAUNCHER_ID} .nd-launcher-mark{display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;border-radius:50%;background:rgba(15,23,42,.28);border:1px solid rgba(255,255,255,.38);font-size:12px;font-weight:800;}`,
+            `#${ND_LAUNCHER_ID} .nd-launcher-menu{display:none;position:absolute;right:0;top:50px;min-width:220px;flex-direction:column;gap:6px;padding:8px;background:rgba(248,250,252,.97);border:1px solid rgba(148,163,184,.58);border-radius:10px;box-shadow:0 16px 36px rgba(15,23,42,.28);}`,
+            `#${ND_LAUNCHER_ID} .nd-launcher-menu:before{content:"";position:absolute;right:24px;top:-7px;width:12px;height:12px;background:rgba(248,250,252,.97);border-left:1px solid rgba(148,163,184,.58);border-top:1px solid rgba(148,163,184,.58);transform:rotate(45deg);}`,
+            `#${ND_LAUNCHER_ID} .nd-launcher-menu button{position:relative;border:1px solid #dbeafe;border-radius:8px;background:#fff;color:#0f172a;text-align:left;padding:9px 10px;cursor:pointer;font-size:13px;font-weight:600;}`,
+            `#${ND_LAUNCHER_ID} .nd-launcher-menu button:hover{background:#eff6ff;border-color:#93c5fd;}`
+        ].join(''));
+        let launcher = root.querySelector(`#${ND_LAUNCHER_ID}`);
+        if (launcher) return launcher;
+
+        launcher = document.createElement('div');
+        launcher.id = ND_LAUNCHER_ID;
+        launcher.innerHTML = [
+            '<button type="button" class="nd-launcher-main" title="Novel Downloader">',
+            '  <span class="nd-launcher-mark">ND</span>',
+            '  <span>Novel Downloader</span>',
+            '</button>',
+            '<div class="nd-launcher-menu">',
+            '  <button type="button" data-action="open-main">Mở giao diện tải</button>',
+            '  <button type="button" data-action="open-manager">Mở Quản lý tải xuống</button>',
+            '</div>'
+        ].join('');
+        root.appendChild(launcher);
+        applyLauncherPosition(launcher, GM_getValue(ND_LAUNCHER_POSITION_KEY, null));
+
+        const mainButton = launcher.querySelector('.nd-launcher-main');
+        let dragState = null;
+        let suppressClick = false;
+
+        mainButton.addEventListener('pointerdown', (event) => {
+            if (event.button !== 0) return;
+            const rect = launcher.getBoundingClientRect();
+            dragState = {
+                pointerId: event.pointerId,
+                startX: event.clientX,
+                startY: event.clientY,
+                left: rect.left,
+                top: rect.top,
+                moved: false
+            };
+            launcher.classList.add('is-dragging');
+            if (typeof mainButton.setPointerCapture === 'function') mainButton.setPointerCapture(event.pointerId);
+        });
+
+        mainButton.addEventListener('pointermove', (event) => {
+            if (!dragState || dragState.pointerId !== event.pointerId) return;
+            const dx = event.clientX - dragState.startX;
+            const dy = event.clientY - dragState.startY;
+            if (!dragState.moved && Math.hypot(dx, dy) < 4) return;
+            dragState.moved = true;
+            closeNovelDownloaderLauncherMenu();
+            applyLauncherPosition(launcher, {
+                left: dragState.left + dx,
+                top: dragState.top + dy
+            });
+        });
+
+        mainButton.addEventListener('pointerup', (event) => {
+            if (!dragState || dragState.pointerId !== event.pointerId) return;
+            launcher.classList.remove('is-dragging');
+            if (typeof mainButton.releasePointerCapture === 'function') mainButton.releasePointerCapture(event.pointerId);
+            if (dragState.moved) {
+                const saved = applyLauncherPosition(launcher, {
+                    left: launcher.getBoundingClientRect().left,
+                    top: launcher.getBoundingClientRect().top
+                });
+                GM_setValue(ND_LAUNCHER_POSITION_KEY, saved);
+                suppressClick = true;
+                window.setTimeout(() => { suppressClick = false; }, 0);
+            }
+            dragState = null;
+        });
+
+        mainButton.addEventListener('click', async (event) => {
+            event.preventDefault();
+            if (suppressClick) return;
+            const mainVisible = isNovelDownloaderMainVisible();
+            const managerVisible = isNovelDownloaderManagerVisible();
+            if (mainVisible && managerVisible) {
+                updateNovelDownloaderLauncherVisibility();
+            } else if (mainVisible) {
+                await openNovelDownloaderManagerUi();
+            } else if (managerVisible) {
+                await openNovelDownloaderMainUi();
+            } else {
+                launcher.classList.toggle('is-open');
+            }
+        });
+
+        launcher.querySelector('.nd-launcher-menu').addEventListener('click', async (event) => {
+            const button = event.target.closest('button[data-action]');
+            if (!button) return;
+            event.preventDefault();
+            closeNovelDownloaderLauncherMenu();
+            if (button.dataset.action === 'open-main') {
+                await openNovelDownloaderMainUi();
+            } else if (button.dataset.action === 'open-manager') {
+                await openNovelDownloaderManagerUi();
+            }
+        });
+
+        return launcher;
+    }
+
+    function updateNovelDownloaderLauncherVisibility() {
+        const root = getNovelDownloaderUIRoot(false);
+        const existingLauncher = root && root.querySelector(`#${ND_LAUNCHER_ID}`);
+        if (!isNovelDownloaderLauncherEnabled()) {
+            if (existingLauncher) existingLauncher.style.display = 'none';
+            return;
+        }
+        const mainVisible = isNovelDownloaderMainVisible();
+        const managerVisible = isNovelDownloaderManagerVisible();
+        if (mainVisible && managerVisible) {
+            if (existingLauncher) {
+                existingLauncher.style.display = 'none';
+                existingLauncher.classList.remove('is-open');
+            }
+            return;
+        }
+        const launcher = ensureNovelDownloaderLauncher();
+        const currentPosition = {
+            left: parseFloat(launcher.style.left),
+            top: parseFloat(launcher.style.top)
+        };
+        applyLauncherPosition(launcher, Number.isFinite(currentPosition.left) && Number.isFinite(currentPosition.top)
+            ? currentPosition
+            : GM_getValue(ND_LAUNCHER_POSITION_KEY, null));
+        launcher.style.display = 'block';
+    }
+
+    const novelDownloaderUiApi = {
+        openMain: openNovelDownloaderMainUi,
+        openManager: openNovelDownloaderManagerUi,
+        openGuide: openNovelDownloaderGuide,
+        openChangelog: openNovelDownloaderChangelog,
+        updateLauncherVisibility: updateNovelDownloaderLauncherVisibility,
+        isLauncherEnabled: isNovelDownloaderLauncherEnabled,
+        setLauncherEnabled: setNovelDownloaderLauncherEnabled,
+        isMainVisible: isNovelDownloaderMainVisible
+    };
+    window.NDNovelDownloaderUI = novelDownloaderUiApi;
+    if (typeof unsafeWindow !== 'undefined') {
+        unsafeWindow.NDNovelDownloaderUI = novelDownloaderUiApi;
     }
 
     // ============================================================================
@@ -7665,6 +8031,10 @@ function decryptDES(encrypted, key, iv) {
             } else {
                 $('.novel-downloader-style-chapter').attr('media', 'max-width: 1px');
             }
+            if (window.NDConsole && typeof window.NDConsole.setUiActive === 'function') {
+                window.NDConsole.setUiActive(existingPanel.is(':visible'));
+            }
+            updateNovelDownloaderLauncherVisibility();
             return;
         }
 
@@ -7687,7 +8057,7 @@ function decryptDES(encrypted, key, iv) {
         // ui
         const html = [
             '<div name="info">',
-            `  Quy tắc hiện tại: <span name="rule"></span><span name="mode"></span><sup><a href="https://github.com/BaoBao666888/Novel-Downloader5/issues/new?body=${encodeURIComponent(issueBody.join('\u000a'))}" target="_blank">Phản hồi</a></sup><sup><a href="https://github.com/BaoBao666888/Novel-Downloader5" target="_blank">GitHub</a></sup>`,
+            `  Quy tắc hiện tại: <span name="rule"></span><span name="mode"></span><sup><a href="https://github.com/BaoBao666888/Novel-Downloader5/issues/new?body=${encodeURIComponent(issueBody.join('\u000a'))}" target="_blank">Phản hồi</a></sup><sup><button type="button" name="open-guide" class="nd-doc-link" data-nd-action="open-guide">Hướng dẫn</button></sup>`,
             '  <br>',
             '  Tên sách: <input type="text" name="title" value="加载中，请稍候">',
             '  <br>',
@@ -7793,6 +8163,13 @@ function decryptDES(encrypted, key, iv) {
         };
         toggleAdvancedConfig(false);
         container[0].addEventListener('click', (event) => {
+            const actionButton = event.target && event.target.closest ? event.target.closest('[data-nd-action]') : null;
+            if (actionButton && container[0].contains(actionButton)) {
+                event.preventDefault();
+                event.stopPropagation();
+                if (actionButton.dataset.ndAction === 'open-guide') openNovelDownloaderGuide();
+                return;
+            }
             const button = event.target && event.target.closest ? event.target.closest('button[name="toggle"]') : null;
             if (!button || !container[0].contains(button)) return;
             event.preventDefault();
@@ -7818,6 +8195,8 @@ function decryptDES(encrypted, key, iv) {
         if (window.NDConsole && typeof window.NDConsole.setUiActive === 'function') {
             window.NDConsole.setUiActive(true);
         }
+        updateNovelDownloaderLauncherVisibility();
+        window.setTimeout(maybeShowNovelDownloaderVersionNotice, 0);
         container.find('input,select,textarea').attr('disabled', 'disabled');
         container.find('[name="config"]').find('input,select,textarea').on('change', function (e) {
             const { name } = e.target;
@@ -8767,6 +9146,7 @@ function decryptDES(encrypted, key, iv) {
                 ndUI$('.novel-downloader-style,.novel-downloader-v3').remove();
                 $('.novel-downloader-style,.novel-downloader-style-chapter').remove();
                 $('[novel-downloader-chapter]').attr('order', null).attr('novel-downloader-chapter', null);
+                updateNovelDownloaderLauncherVisibility();
             } else if (name === 'force-download') {
                 xhr.start();
             } else if (name === 'toggle-opacity') {
@@ -8801,6 +9181,7 @@ function decryptDES(encrypted, key, iv) {
             '.novel-downloader-v3 input:not([disabled="disabled"]),.novel-downloader-v3 button:not([disabled="disabled"]){color:#000;background-color:#fff;}',
             '.novel-downloader-v3 input[disabled="disabled"],.novel-downloader-v3 button[disabled="disabled"]{color:#fff;cursor:default!important;background-color:#545454;text-decoration:line-through double;}',
             '.novel-downloader-v3 span[title]::after{content:"(?)";text-decoration:underline;font-size:x-small;vertical-align:super;cursor:pointer;}',
+            '.novel-downloader-v3 .nd-doc-link{border:0!important;background:transparent!important;color:#0645ad!important;text-decoration:underline;padding:0!important;margin:0 0 0 4px!important;font:inherit!important;cursor:pointer;}',
 
             '.novel-downloader-v3{position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);z-index:99999;background:white;border:1px solid black;max-height:99vh;overflow:auto;text-align:center;}',
             '.novel-downloader-v3{pointer-events:auto;color:#000;}',
@@ -8989,68 +9370,33 @@ function decryptDES(encrypted, key, iv) {
         }
     }
 
-    async function checkNovelDownloaderHelper() {
+    async function openNovelDownloaderUiFromEntry() {
         const resumeRequest = await getPendingResumeRequest();
-        try {
-            const antiInstalled = unsafeWindow.__ND_ANTI_INSTALLED__;
-
-            if (!resumeRequest && !antiInstalled) {
-                const THREE_DAYS = 3 * 24 * 60 * 60 * 1000;
-                const now = Date.now();
-                const lastCancel = GM_getValue('ND_HELPER_LAST_CANCEL_TS', 0);
-
-                // Nếu chưa cài helper AND không nằm trong thời gian miễn hỏi
-                if (now - lastCancel >= THREE_DAYS) {
-
-                    const ok = confirm(
-                        "Để chặn console.clear & các trick chống debug của web, bạn nên cài script hỗ trợ:\n\n" +
-                        "『novelDownloaderAntiConsole』\n\n" +
-                        "Bấm OK để mở tab cài.\n" +
-                        "Bấm Cancel để bỏ qua (3 ngày sau sẽ hỏi lại)."
-                    );
-
-                    if (ok) {
-                        // User muốn cài → mở tab nhưng KHÔNG lưu trạng thái
-                        alert("Tab cài script anti sẽ mở.\nHãy bấm Install.\n\nSau khi cài xong, bấm lại menu Download Novel.");
-                        GM_openInTab(
-                            "https://raw.githubusercontent.com/BaoBao666888/Novel-Downloader5/main/tools/novelDownloaderAntiConsole.user.js",
-                            { active: true, insert: true, setParent: true }
-                        );
-                        return; // không mở UI
-                    } else {
-                        // User cố tình từ chối → nhớ lần cuối
-                        GM_setValue('ND_HELPER_LAST_CANCEL_TS', now);
-                    }
-                }
-                // Nếu < 3 ngày, thì không hỏi lại → chạy tiếp
-            }
-        } catch (e) {
-            console.error("Lỗi khi kiểm tra anti-script:", e);
-        }
-
-        // Helper đã cài hoặc user tạm bỏ qua → chạy bình thường
         init();
         await showUI({ resumeRequest });
+        updateNovelDownloaderLauncherVisibility();
     }
 
 
     const trigger = $('<div class="novel-downloader-trigger" style="position:fixed;top:0px;left:0px;width:1px;height:100%;z-index:999999;background:transparent;pointer-events:auto;"></div>').on({
         dblclick() {
-            checkNovelDownloaderHelper();
+            openNovelDownloaderUiFromEntry();
         },
     });
     (getNovelDownloaderUIRoot(true) || document.body).appendChild(trigger[0]);
 
     GM_registerMenuCommand("Download Novel", () => {
-        checkNovelDownloaderHelper();
+        openNovelDownloaderUiFromEntry();
     }, 'N');
-    GM_registerMenuCommand('Show Storage', () => {
-        showManagerUI();
+    GM_registerMenuCommand('Quản lý tải xuống', () => {
+        openNovelDownloaderManagerUi();
     }, 'S');
 
     getPendingResumeRequest().then((resumeRequest) => {
-        if (resumeRequest) checkNovelDownloaderHelper();
+        if (resumeRequest) openNovelDownloaderUiFromEntry();
     });
+    window.addEventListener('resize', updateNovelDownloaderLauncherVisibility);
+    updateNovelDownloaderLauncherVisibility();
 
     // ============================================================================
     // Output Builders
