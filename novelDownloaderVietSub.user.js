@@ -2,7 +2,7 @@
 // ==UserScript==
 // @name        novelDownloaderVietSub
 // @description Menu Download Novel hoặc nhấp đúp vào cạnh trái của trang để hiển thị bảng điều khiển
-// @version     3.5.448.1
+// @version     3.5.448.2
 // @author      dodying | BaoBao
 // @namespace   https://github.com/BaoBao666888/Novel-Downloader5
 // @supportURL  https://github.com/BaoBao666888/Novel-Downloader5/issues
@@ -188,7 +188,7 @@ function decryptDES(encrypted, key, iv) {
     // ============================================================================
 
     function getNovelDownloaderScriptVersion() {
-        return GM_info && GM_info.script && GM_info.script.version ? GM_info.script.version : '3.5.448.1';
+        return GM_info && GM_info.script && GM_info.script.version ? GM_info.script.version : '3.5.448.2';
     }
 
     function docList(items) {
@@ -243,7 +243,7 @@ function decryptDES(encrypted, key, iv) {
         return [
             `<h3>v${getNovelDownloaderScriptVersion()}</h3>`,
             docList([
-                'Đưa thanh tiến độ <b>x / y</b> lên trước cụm nút tải và giữ sticky trong UI chính để không bị che khi panel thấp.',
+                'Cho thanh tiến độ <b>x / y</b> hiện thường trực, cập nhật tổng chương ngay khi load mục lục và giữ sticky khi panel thấp.',
                 'Bỏ luồng hỏi cài <b>NovelDownloader Helper - AntiClear</b>; bảng Console trong UI là nguồn log chính.',
                 'Thêm nút nổi <b>Novel Downloader</b> hiện đại hơn, kéo thả được, tự nhớ vị trí và tự đổi hành động theo UI đang mở.',
                 'Nút nổi tự ẩn khi UI tải chính và Quản lý tải xuống cùng mở.',
@@ -253,6 +253,7 @@ function decryptDES(encrypted, key, iv) {
             ]),
             '<h3>Các bản trước (tóm tắt)</h3>',
             docList([
+                'v3.5.448.1: đưa thanh tiến độ lên trước cụm nút tải và giữ sticky trong UI chính.',
                 'v3.5.448: bỏ phụ thuộc AntiClear, thêm nút nổi Novel Downloader, tab Cài đặt, Hướng dẫn và Changelog trong script.',
                 'v3.5.447.x: đưa UI script vào Shadow Root, thêm bảng Console trong UI, cải thiện bảng tiến độ tải và quản lý hàng đợi/lịch sử.',
                 'v3.5.447.x: thêm lưu dữ liệu tiếp tục khi tab bị đóng giữa chừng, nút <b>Tiếp tục</b> trong hàng đợi, dọn thẻ cũ sau 30 ngày.',
@@ -8191,6 +8192,12 @@ function decryptDES(encrypted, key, iv) {
             toggleButton.attr('disabled', null);
             showButton.attr('disabled', null);
         };
+        const updateMainProgress = (completed = 0, total = 0) => {
+            const safeCompleted = Math.max(0, Number(completed) || 0);
+            const safeTotal = Math.max(0, Number(total) || 0);
+            container.find('[name="progress"]>progress').val(Math.min(safeCompleted, safeTotal || safeCompleted)).attr('max', safeTotal || 1);
+            container.find('[name="progress"]>[name="progress-text"]').text(`${safeCompleted} / ${safeTotal}`);
+        };
         const removeConsoleStateListener = window.NDConsole && typeof window.NDConsole.onStateChange === 'function'
             ? window.NDConsole.onStateChange(syncConsoleButtons)
             : null;
@@ -8761,8 +8768,7 @@ function decryptDES(encrypted, key, iv) {
             const totalChapters = Storage.book.chapters.length;
             const getCompletedChapterCount = () => Storage.book.chapters.filter(ch => Boolean(ch.contentRaw || ch.content)).length;
             const setMainProgress = (completed = getCompletedChapterCount()) => {
-                container.find('[name="progress"]>progress').val(completed).attr('max', totalChapters);
-                container.find('[name="progress"]>[name="progress-text"]').text(`${completed} / ${totalChapters}`);
+                updateMainProgress(completed, totalChapters);
             };
             setMainProgress();
             const completedCount = getCompletedChapterCount();
@@ -9197,7 +9203,7 @@ function decryptDES(encrypted, key, iv) {
             '.novel-downloader-v3>.useless[name="config"].is-visible{display:block;}',
             '.novel-downloader-v3>[name="config"] [name="vip"]:checked+span{color:red;}',
 
-            '.novel-downloader-v3>[name="progress"]{display:none;position:sticky;top:0;z-index:3;padding:3px 4px;border:1px solid #93c5fd;background:#eff6ff!important;}',
+            '.novel-downloader-v3>[name="progress"]{display:block;position:sticky;top:0;z-index:3;padding:3px 4px;border:1px solid #93c5fd;background:#eff6ff!important;}',
             '.novel-downloader-v3>[name="progress"]>[name="progress-text"]{display:inline-block;min-width:48px;text-align:right;font-weight:bold;}',
             '.novel-downloader-v3>[name="progress"]>progress{width:240px;height:14px;vertical-align:middle;}',
         ].join('');
@@ -9339,6 +9345,7 @@ function decryptDES(encrypted, key, iv) {
             console.log(`[ND] Đã nạp dữ liệu tiếp tục task ${pendingResumeTaskId}: ${chaptersDownloaded.length}/${chapters.length} chương đã có nội dung.`);
             ndShowToast(`Tiếp tục tải: đã có ${chaptersDownloaded.length}/${chapters.length} chương.`, 'info', 3000);
         }
+        updateMainProgress(chaptersDownloaded.length, chapters.length);
 
         container.find('input,select,textarea').attr('disabled', null);
         container.find('input,select,textarea').filter('[raw-disabled="disabled"]').attr('raw-disabled', null).attr('disabled', 'disabled');
