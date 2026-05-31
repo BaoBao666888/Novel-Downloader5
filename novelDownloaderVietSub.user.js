@@ -7777,6 +7777,7 @@ function decryptDES(encrypted, key, iv) {
 
             '<div name="progress">',
             '  <span title="Tiến trình hoàn thành chương\nKhi góc phải bên dưới biểu hiện【Tải xuống đã hoàn tất】, nếu thanh tiến trình chưa chạy xong, bạn có thể thử nhấp lại và tập lệnh sẽ thử lại chương bị lỗi trước đó\n（Chỉ hợp lệ đối với các lỗi do sự cố mạng, nếu tập lệnh có vấn đề, vui lòng đưa ra phản hồi hoặc tự mình giải quyết）">Tiến độ</span>: ',
+            '  <span name="progress-text">0 / 0</span>',
             '  <progress max="0" value="0"></progress>',
             '</div>',
         ].join('');
@@ -8377,21 +8378,19 @@ function decryptDES(encrypted, key, iv) {
             };
             //thêm
             const totalChapters = Storage.book.chapters.length;
-            let completedCount = 0;
-            Storage.book.chapters.forEach(ch => {
-                if ('contentRaw' in ch) {
-                    completedCount++;
-                }
-            });
-            container.find('[name="progress"]>progress').val(completedCount).attr('max', totalChapters);
+            const getCompletedChapterCount = () => Storage.book.chapters.filter(ch => Boolean(ch.contentRaw || ch.content)).length;
+            const setMainProgress = (completed = getCompletedChapterCount()) => {
+                container.find('[name="progress"]>progress').val(completed).attr('max', totalChapters);
+                container.find('[name="progress"]>[name="progress-text"]').text(`${completed} / ${totalChapters}`);
+            };
+            setMainProgress();
+            const completedCount = getCompletedChapterCount();
             document.title = `[${completedCount}/${totalChapters}]${Storage.title}`;
             await syncDownloadManagerTask('downloading');
 
             function updateProgress(isSuccess = true) {
-                // Chỉ tăng completedCount nếu chương đó *chưa* được đếm trước đó
-                // Cách đơn giản là gọi update lại giá trị progress bar dựa trên số chương đã có contentRaw
-                const currentCompleted = Storage.book.chapters.filter(c => 'contentRaw' in c).length;
-                container.find('[name="progress"]>progress').val(currentCompleted).attr('max', totalChapters);
+                const currentCompleted = getCompletedChapterCount();
+                setMainProgress(currentCompleted);
                 document.title = `[${currentCompleted}/${totalChapters}]${Storage.title}`;
                 syncDownloadManagerTask('downloading');
             }
@@ -8816,7 +8815,8 @@ function decryptDES(encrypted, key, iv) {
             '.novel-downloader-v3>[name="config"] [name="vip"]:checked+span{color:red;}',
 
             '.novel-downloader-v3>[name="progress"]{display:none;}',
-            '.novel-downloader-v3>[name="progress"]>progress::before{content:attr(value)" / "attr(max);}',
+            '.novel-downloader-v3>[name="progress"]>[name="progress-text"]{display:inline-block;min-width:48px;text-align:right;font-weight:bold;}',
+            '.novel-downloader-v3>[name="progress"]>progress{width:240px;height:14px;vertical-align:middle;}',
         ].join('');
         ensureNovelDownloaderUIStyle('novel-downloader-style', style).className = 'novel-downloader-style';
 
