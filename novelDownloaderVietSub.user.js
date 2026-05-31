@@ -1532,6 +1532,7 @@ function decryptDES(encrypted, key, iv) {
                 const res = await xhr.sync(readerUrl, null, {
                     method: 'GET',
                     responseType: 'text',
+                    overrideMimeType: 'text/html; charset=UTF-8',
                     headers: { 'X-Respond-With': 'html' },
                     timeout: Config.timeout
                 });
