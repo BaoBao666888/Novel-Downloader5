@@ -2,7 +2,7 @@
 // ==UserScript==
 // @name        novelDownloaderVietSub
 // @description Menu Download Novel hoặc nhấp đúp vào cạnh trái của trang để hiển thị bảng điều khiển
-// @version     3.5.447.43.12
+// @version     3.5.447.43.13
 // @author      dodying | BaoBao
 // @namespace   https://github.com/BaoBao666888/Novel-Downloader5
 // @supportURL  https://github.com/BaoBao666888/Novel-Downloader5/issues
@@ -3285,70 +3285,70 @@ function decryptDES(encrypted, key, iv) {
 
                 console.log('Xác thực người dùng thành công. Bắt đầu tải danh sách chương từ API...');
 
-                // 2. Tái tạo logic API một cách chính xác
-                const Http = {
-                    get: (url) => ({
-                        html: () => new Promise((resolve, reject) => {
-                            xhr.sync(url, null, {
-                                responseType: 'document',
-                                onload: (res) => resolve(res.response),
-                                onerror: reject
-                            });
-                        }),
-                    }),
-                };
-
-                const Script = {
-                    execute: (fnStr, fnName, arg) => {
-                        if (!fnStr) {
-                            console.error(`[Wikidich Rule] Lỗi: chuỗi hàm cho '${fnName}' không hợp lệ.`);
-                            return undefined;
-                        }
-                        try {
-                            const fn = new Function(fnStr + `; return ${fnName};`)();
-                            return fn(arg);
-                        } catch (e) {
-                            console.error(`[Wikidich Rule] Lỗi khi thực thi script cho '${fnName}':`, e);
-                            return undefined;
-                        }
-                    }
-                };
-
-                // Hàm signFunc gốc của Wikidich
-                const signFuncStr = `function signFunc(r){function o(r,o){return r>>>o|r<<32-o}for(var f,n,t=Math.pow,c=t(2,32),i="length",a="",e=[],u=8*r[i],v=[],g=[],h=g[i],l={},s=2;64>h;s++)if(!l[s]){for(f=0;313>f;f+=s)l[f]=s;v[h]=t(s,.5)*c|0,g[h++]=t(s,1/3)*c|0}for(r+="";r[i]%64-56;)r+="\\0";for(f=0;f<r[i];f++){if((n=r.charCodeAt(f))>>8)return;e[f>>2]|=n<<(3-f)%4*8}for(e[e[i]]=u/c|0,e[e[i]]=u,n=0;n<e[i];){var d=e.slice(n,n+=16),p=v;for(v=v.slice(0,8),f=0;64>f;f++){var w=d[f-15],A=d[f-2],C=v[0],F=v[4],M=v[7]+(o(F,6)^o(F,11)^o(F,25))+(F&v[5]^~F&v[6])+g[f]+(d[f]=16>f?d[f]:d[f-16]+(o(w,7)^o(w,18)^w>>>3)+d[f-7]+(o(A,17)^o(A,19)^A>>>10)|0);(v=[M+((o(C,2)^o(C,13)^o(C,22))+(C&v[1]^C&v[2]^v[1]&v[2]))|0].concat(v))[4]=v[4]+M|0}for(f=0;8>f;f++)v[f]=v[f]+p[f]|0}for(f=0;8>f;f++)for(n=3;n+1;n--){var S=v[f]>>8*n&255;a+=(16>S?0:"")+S.toString(16)}return a}`;
-
                 const html = doc.documentElement.outerHTML;
-                const bookId = doc.querySelector("input#bookId")?.value;
-                const size = html.match(/loadBookIndex.*?,\s*(\d+)/)?.[1] || 50;
+                const bookId = doc.querySelector("input#bookId")?.value || doc.querySelector('input[name="bookId"]')?.value || html.match(/bookId\s*=\s*["']([^"']+)/)?.[1];
+                const size = parseInt(html.match(/loadBookIndex\(\s*0\s*,\s*(\d+)/)?.[1] || html.match(/data-size=["'](\d+)/)?.[1] || 500, 10) || 500;
                 const signKey = html.match(/signKey\s*=\s*"(.*?)"/)?.[1];
-                const fuzzySignFuncStr = html.match(/function fuzzySign[\s\S]*?}/)?.[0];
+                const fuzzySignFuncStr = html.match(/function\s+fuzzySign\s*\([^)]*\)\s*\{[\s\S]*?\}/)?.[0];
 
-                if (!bookId || !signKey || !fuzzySignFuncStr) {
-                    alert("Lỗi: Không tìm thấy thông tin (bookId, signKey, fuzzySign) để gọi API. Cấu trúc trang có thể đã thay đổi.");
+                if (!bookId || !signKey) {
+                    alert("Lỗi: Không tìm thấy thông tin (bookId, signKey) để gọi API. Cấu trúc trang có thể đã thay đổi.");
                     return [];
                 }
 
-                const genSign = (key, page, pageSize) => {
-                    const fuzzyResult = Script.execute(fuzzySignFuncStr, "fuzzySign", key + page + pageSize);
-                    return Script.execute(signFuncStr, "signFunc", fuzzyResult);
+                const makeFuzzySign = () => {
+                    if (typeof unsafeWindow.fuzzySign === 'function') {
+                        return (text) => unsafeWindow.fuzzySign(String(text));
+                    }
+                    const rotateMatch = (fuzzySignFuncStr || html).match(/\.substring\(\s*(\d+)\s*\)\s*\+\s*\w+\.substring\(\s*0\s*,?\s*\1?\s*\)/);
+                    if (rotateMatch) {
+                        const shift = parseInt(rotateMatch[1], 10);
+                        return (text) => {
+                            const value = String(text);
+                            return value.slice(shift) + value.slice(0, shift);
+                        };
+                    }
+                    if (fuzzySignFuncStr) {
+                        try {
+                            const fn = new Function(`${fuzzySignFuncStr}; return fuzzySign;`)();
+                            if (typeof fn === 'function') return (text) => fn(String(text));
+                        } catch (e) {
+                            console.warn('[Wikidich Rule] Không chạy được fuzzySign lấy từ trang, dùng chuỗi gốc.', e);
+                        }
+                    }
+                    return (text) => String(text);
+                };
+                const fuzzySign = makeFuzzySign();
+
+                const genSign = (start, pageSize) => {
+                    const fuzzyText = fuzzySign(`${signKey}${start}${pageSize}`);
+                    if (typeof unsafeWindow.signFunc === 'function') return unsafeWindow.signFunc(fuzzyText);
+                    const crypto = typeof CryptoJS !== 'undefined' ? CryptoJS : unsafeWindow.CryptoJS;
+                    if (!crypto?.SHA256) throw new Error('Không tìm thấy CryptoJS.SHA256 để tạo sign.');
+                    return crypto.SHA256(fuzzyText).toString(crypto.enc.Hex);
                 };
 
                 const getChapterInPage = async (currentPage) => {
-                    const sign = genSign(signKey, currentPage, size);
-                    if (sign === undefined) {
-                        throw new Error("Tạo 'sign' thất bại. Logic ký tên trên trang có thể đã thay đổi.");
-                    }
+                    const sign = genSign(currentPage, size);
                     const params = new URLSearchParams({ bookId, signKey, sign, size, start: currentPage.toFixed(0) });
                     const url = `${window.location.origin}/book/index?${params}`;
-                    console.log(url);
-                    return await Http.get(url).html();
+                    console.log(`[Wikidich Rule] Tải mục lục start=${currentPage}: ${url}`);
+                    const res = await xhr.sync(url, null, {
+                        method: 'GET',
+                        responseType: 'text',
+                        headers: { 'X-Requested-With': 'XMLHttpRequest' }
+                    });
+                    const responseText = res.responseText || res.response || '';
+                    if (!String(responseText).trim()) throw new Error(`API mục lục trả về rỗng tại start=${currentPage}.`);
+                    return new DOMParser().parseFromString(`<html><body>${responseText}</body></html>`, 'text/html');
                 };
 
-                // 3. Vòng lặp để lấy tất cả các trang chương, với logic dừng chính xác
                 const allChapters = [];
+                const seenUrls = new Set();
                 let currentPage = 0;
+                const maxPages = 200;
 
-                while (true) {
+                for (let pageNo = 0; pageNo < maxPages; pageNo++) {
                     let pageDoc;
                     try {
                         console.log(`Đang tải trang mục lục, bắt đầu từ: ${currentPage}...`);
@@ -3358,31 +3358,47 @@ function decryptDES(encrypted, key, iv) {
                         break;
                     }
 
-                    const chapterLinks = $(pageDoc).find("li.chapter-name a[href]");
-                    if (chapterLinks.length === 0 && allChapters.length > 0) { // Nếu trang không có chương VÀ đã có chương từ trước -> dừng lại
+                    const chapterLinks = $(pageDoc).find("li.chapter-name a[href], ul#chapters li a[href], .chapter-name a[href]");
+                    if (chapterLinks.length === 0) {
                         console.log("Không tìm thấy chương nào trên trang này, kết thúc.");
                         break;
                     }
 
+                    let addedCount = 0;
                     chapterLinks.each((_, el) => {
+                        let link = $(el).attr('href') || $(el).attr('data-href') || '';
+                        if (!link) return;
+                        const chapterUrl = new URL(link, window.location.origin).href;
+                        if (seenUrls.has(chapterUrl)) return;
+                        seenUrls.add(chapterUrl);
                         allChapters.push({
                             title: $(el).text().trim(),
-                            url: new URL($(el).attr('href'), window.location.origin).href,
+                            url: chapterUrl,
                         });
+                        addedCount++;
                     });
 
-                    // Logic dừng vòng lặp chính xác: Dựa vào thông tin phân trang
-                    const paginationLinks = $(pageDoc).find("ul.pagination a[data-start]");
-                    const lastPageStartValue = paginationLinks.length > 0
-                        ? parseInt(paginationLinks.last().attr("data-start"))
-                        : 0;
+                    if (addedCount === 0) {
+                        console.log("Trang mục lục không có chương mới, kết thúc để tránh lặp vô hạn.");
+                        break;
+                    }
 
-                    if (currentPage >= lastPageStartValue && chapterLinks.length > 0) {
+                    const starts = $(pageDoc).find("ul.pagination a[data-start]").toArray()
+                        .map((a) => parseInt($(a).attr('data-start'), 10))
+                        .filter((n) => Number.isFinite(n) && n >= 0);
+                    const lastStart = starts.length ? Math.max(...starts) : currentPage;
+                    const nextStart = starts.filter((n) => n > currentPage).sort((a, b) => a - b)[0];
+
+                    if (chapterLinks.length < size || currentPage >= lastStart || !Number.isFinite(nextStart)) {
                         console.log("Đã đạt hoặc vượt qua trang cuối cùng, kết thúc.");
                         break;
                     }
 
-                    currentPage += parseInt(size);
+                    currentPage = nextStart;
+                }
+
+                if (allChapters.length >= maxPages * size) {
+                    console.warn(`[Wikidich Rule] Đã chạm giới hạn ${maxPages} trang mục lục, dừng để tránh vòng lặp vô hạn.`);
                 }
 
 
@@ -7410,13 +7426,96 @@ function decryptDES(encrypted, key, iv) {
         },
     ];
 
+    Rule.helpers = {
+        sleep,
+        absoluteUrl: (url, base = window.location.href) => {
+            try {
+                return new URL(url, base).href;
+            } catch (e) {
+                return '';
+            }
+        },
+        parseHtml: (html = '') => new DOMParser().parseFromString(String(html || ''), 'text/html'),
+        requestText: async (url, opt = {}) => {
+            const res = await xhr.sync(url, opt.data || null, {
+                method: opt.method || (opt.data ? 'POST' : 'GET'),
+                headers: opt.headers,
+                responseType: 'text',
+                cache: !!opt.cache,
+                timeout: opt.timeout
+            });
+            return res.responseText || res.response || '';
+        },
+        requestDoc: async (url, opt = {}) => Rule.helpers.parseHtml(await Rule.helpers.requestText(url, opt)),
+        requestJson: async (url, opt = {}) => {
+            const text = await Rule.helpers.requestText(url, opt);
+            return JSON.parse(text);
+        },
+        text: (selector, doc = document) => $(selector, doc).first().text().trim(),
+        html: (selector, doc = document) => $(selector, doc).first().html() || '',
+        attr: (selector, attr, doc = document) => $(selector, doc).first().attr(attr) || '',
+        cleanText: (html = '', dict = []) => html2Text(html, dict),
+        html2Text: (html = '', dict = []) => html2Text(html, dict),
+        uniqueBy: (items = [], keyFn = (item) => item) => {
+            const seen = new Set();
+            return [].concat(items || []).filter((item) => {
+                const key = keyFn(item);
+                if (seen.has(key)) return false;
+                seen.add(key);
+                return true;
+            });
+        },
+        mapChapters: (selector, doc = document, base = window.location.href) => $(selector, doc).toArray().map((el) => ({
+            title: $(el).text().trim(),
+            url: Rule.helpers.absoluteUrl($(el).attr('href') || $(el).attr('data-href') || '', base)
+        })).filter((chapter) => chapter.url),
+        makeChapterListContainer: (chapters = [], options = {}) => {
+            const container = document.createElement('div');
+            container.id = options.id || 'novel-downloader-custom-chapter-container';
+            container.style = options.style || 'padding:16px;border:1px solid #ccc;background:#fff;max-width:800px;margin:20px auto;box-shadow:0 2px 4px rgba(0,0,0,.1);';
+            container.innerHTML = `<h2 style="text-align:center;color:#1a73e8;">${options.title || `Danh sách chương (${chapters.length})`}</h2>`;
+            chapters.forEach((chapter, index) => {
+                const link = document.createElement('a');
+                link.href = chapter.url;
+                link.textContent = chapter.title || chapter.url;
+                link.setAttribute('novel-downloader-chapter', chapter.vip ? 'vip' : '');
+                link.setAttribute('order', index + 1);
+                link.style = options.linkStyle || 'display:block;padding:8px 12px;margin:5px 0;border-left:4px solid #2196F3;text-decoration:none;color:#333;background:#f9f9f9;border-radius:4px;';
+                container.appendChild(link);
+            });
+            return container;
+        }
+    };
+
+    try {
+        unsafeWindow.ND_RULE_HELPERS = Rule.helpers;
+        unsafeWindow.ND_RULE_UTILS = Rule.helpers;
+    } catch (e) {}
+
+    function loadCustomRulesFromConfig(source) {
+        const code = String(source || '').trim();
+        if (!code || code === '[]') return;
+        const beforeCount = Rule.special.length;
+        const params = ['Rule', 'helpers', 'utils', 'xhr', '$', 'sleep', 'html2Text', 'replaceWithDict', 'Storage', 'Config', 'unsafeWindow'];
+        const args = [Rule, Rule.helpers, Rule.helpers, xhr, $, sleep, html2Text, replaceWithDict, Storage, Config, unsafeWindow];
+        let result;
+        if (/^[\[{(]/.test(code)) {
+            result = new Function(...params, `"use strict"; return (${code});`)(...args);
+        } else {
+            result = new Function(...params, `"use strict";\n${code}`)(...args);
+        }
+        const rules = Array.isArray(result) ? result : (result && typeof result === 'object' ? [result] : []);
+        const validRules = rules.filter((rule) => rule && typeof rule === 'object' && rule.siteName);
+        if (validRules.length) Rule.special = Rule.special.concat(validRules);
+        const addedCount = Rule.special.length - beforeCount;
+        console.log(`[ND] Đã nạp ${addedCount} rule tùy chỉnh từ UI.`);
+    }
+
     if (Config.customize) {
         try {
-            console.log(JSON.parse(Config.customize));
-            const ruleUser = window.eval(Config.customize); // eslint-disable-line no-eval
-            Rule.special = Rule.special.concat(ruleUser);
+            loadCustomRulesFromConfig(Config.customize);
         } catch (error) {
-            console.error(error);
+            console.error('[ND] Lỗi khi nạp Quy tắc tùy chỉnh:', error);
         }
     }
 
@@ -7614,7 +7713,7 @@ function decryptDES(encrypted, key, iv) {
             '  <br>',
             '  Epub CSS: <textarea name="css" placeholder="" style="line-height:1;resize:both;"></textarea>',
             '  <br>',
-            '  Quy tắc tùy chỉnh: <textarea name="customize" placeholder="" style="line-height:1;resize:both;"></textarea>',
+            '  Quy tắc tùy chỉnh: <textarea name="customize" placeholder="Dán [{...}], {...} hoặc lệnh Rule.special.push({...}); có thể dùng helpers.requestDoc/requestJson/mapChapters..." style="line-height:1;resize:both;"></textarea>',
             '</div>',
 
             '<div name="config">',
