@@ -2,7 +2,7 @@
 // ==UserScript==
 // @name        novelDownloaderVietSub
 // @description Menu Download Novel hoặc nhấp đúp vào cạnh trái của trang để hiển thị bảng điều khiển
-// @version     3.5.448
+// @version     3.5.448.1
 // @author      dodying | BaoBao
 // @namespace   https://github.com/BaoBao666888/Novel-Downloader5
 // @supportURL  https://github.com/BaoBao666888/Novel-Downloader5/issues
@@ -188,7 +188,7 @@ function decryptDES(encrypted, key, iv) {
     // ============================================================================
 
     function getNovelDownloaderScriptVersion() {
-        return GM_info && GM_info.script && GM_info.script.version ? GM_info.script.version : '3.5.448';
+        return GM_info && GM_info.script && GM_info.script.version ? GM_info.script.version : '3.5.448.1';
     }
 
     function docList(items) {
@@ -243,6 +243,7 @@ function decryptDES(encrypted, key, iv) {
         return [
             `<h3>v${getNovelDownloaderScriptVersion()}</h3>`,
             docList([
+                'Đưa thanh tiến độ <b>x / y</b> lên trước cụm nút tải và giữ sticky trong UI chính để không bị che khi panel thấp.',
                 'Bỏ luồng hỏi cài <b>NovelDownloader Helper - AntiClear</b>; bảng Console trong UI là nguồn log chính.',
                 'Thêm nút nổi <b>Novel Downloader</b> hiện đại hơn, kéo thả được, tự nhớ vị trí và tự đổi hành động theo UI đang mở.',
                 'Nút nổi tự ẩn khi UI tải chính và Quản lý tải xuống cùng mở.',
@@ -252,6 +253,7 @@ function decryptDES(encrypted, key, iv) {
             ]),
             '<h3>Các bản trước (tóm tắt)</h3>',
             docList([
+                'v3.5.448: bỏ phụ thuộc AntiClear, thêm nút nổi Novel Downloader, tab Cài đặt, Hướng dẫn và Changelog trong script.',
                 'v3.5.447.x: đưa UI script vào Shadow Root, thêm bảng Console trong UI, cải thiện bảng tiến độ tải và quản lý hàng đợi/lịch sử.',
                 'v3.5.447.x: thêm lưu dữ liệu tiếp tục khi tab bị đóng giữa chừng, nút <b>Tiếp tục</b> trong hàng đợi, dọn thẻ cũ sau 30 ngày.',
                 'v3.5.447.x: sửa rule 69shuba, xử lý encoding trang reader/txt và khôi phục thanh tiến độ x/y của UI tải chính.',
@@ -8126,6 +8128,12 @@ function decryptDES(encrypted, key, iv) {
             '  Tải xuống hàng loạt: <textarea name="batch" placeholder="Tất cả các địa chỉ URL sẽ được tải xuống" style="line-height:1;resize:both;"></textarea>',
             '</div>',
 
+            '<div name="progress">',
+            '  <span title="Tiến trình hoàn thành chương\nKhi góc phải bên dưới biểu hiện【Tải xuống đã hoàn tất】, nếu thanh tiến trình chưa chạy xong, bạn có thể thử nhấp lại và tập lệnh sẽ thử lại chương bị lỗi trước đó\n（Chỉ hợp lệ đối với các lỗi do sự cố mạng, nếu tập lệnh có vấn đề, vui lòng đưa ra phản hồi hoặc tự mình giải quyết）">Tiến độ</span>: ',
+            '  <span name="progress-text">0 / 0</span>',
+            '  <progress max="0" value="0"></progress>',
+            '</div>',
+
             '<div name="buttons">',
             '  <input type="button" name="download" format="debug" value="Kiểm tra">',
             '  <input type="button" name="download" format="text" value="Tải xuống dưới dạng TEXT">',
@@ -8143,12 +8151,6 @@ function decryptDES(encrypted, key, iv) {
             '  <button type="button" name="choose-download-dir" style="border:2px solid #2ecc71;padding:4px 8px;border-radius:4px;margin-right:6px;">Chọn thư mục lưu</button>',
             '  <input type="text" name="downloadDirDisplay" readonly placeholder="Thư mục lưu hiện tại (mặc định trình duyệt)" style="min-width:260px;"/>',
             '  <label style="margin-left:6px;"><input type="checkbox" name="rememberDownloadDir"> Ghi nhớ (Link này)</label>',
-            '</div>',
-
-            '<div name="progress">',
-            '  <span title="Tiến trình hoàn thành chương\nKhi góc phải bên dưới biểu hiện【Tải xuống đã hoàn tất】, nếu thanh tiến trình chưa chạy xong, bạn có thể thử nhấp lại và tập lệnh sẽ thử lại chương bị lỗi trước đó\n（Chỉ hợp lệ đối với các lỗi do sự cố mạng, nếu tập lệnh có vấn đề, vui lòng đưa ra phản hồi hoặc tự mình giải quyết）">Tiến độ</span>: ',
-            '  <span name="progress-text">0 / 0</span>',
-            '  <progress max="0" value="0"></progress>',
             '</div>',
         ].join('');
         const container = $('<div class="novel-downloader-v3"></div>').html(html);
@@ -9195,7 +9197,7 @@ function decryptDES(encrypted, key, iv) {
             '.novel-downloader-v3>.useless[name="config"].is-visible{display:block;}',
             '.novel-downloader-v3>[name="config"] [name="vip"]:checked+span{color:red;}',
 
-            '.novel-downloader-v3>[name="progress"]{display:none;}',
+            '.novel-downloader-v3>[name="progress"]{display:none;position:sticky;top:0;z-index:3;padding:3px 4px;border:1px solid #93c5fd;background:#eff6ff!important;}',
             '.novel-downloader-v3>[name="progress"]>[name="progress-text"]{display:inline-block;min-width:48px;text-align:right;font-weight:bold;}',
             '.novel-downloader-v3>[name="progress"]>progress{width:240px;height:14px;vertical-align:middle;}',
         ].join('');
