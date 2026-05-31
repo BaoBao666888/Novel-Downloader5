@@ -2,7 +2,7 @@
 // ==UserScript==
 // @name        novelDownloaderVietSub
 // @description Menu Download Novel hoặc nhấp đúp vào cạnh trái của trang để hiển thị bảng điều khiển
-// @version     3.5.447.43.13
+// @version     3.5.447.43.14
 // @author      dodying | BaoBao
 // @namespace   https://github.com/BaoBao666888/Novel-Downloader5
 // @supportURL  https://github.com/BaoBao666888/Novel-Downloader5/issues
@@ -130,6 +130,40 @@ function decryptDES(encrypted, key, iv) {
             window.open(url, '_blank');
         }
     }
+
+    const ND_UI_HOST_ID = 'novel-downloader-shadow-host';
+    function getNovelDownloaderUIRoot(create = false) {
+        if (typeof window.__novelDownloaderGetUIRoot === 'function') {
+            const root = window.__novelDownloaderGetUIRoot(create);
+            if (root) return root;
+        }
+        let host = document.getElementById(ND_UI_HOST_ID);
+        if (!host && create) {
+            host = document.createElement('div');
+            host.id = ND_UI_HOST_ID;
+            (document.body || document.documentElement).appendChild(host);
+        }
+        if (!host) return null;
+        if (!host.shadowRoot && create && typeof host.attachShadow === 'function') {
+            host.attachShadow({ mode: 'open' });
+        }
+        return host.shadowRoot || host;
+    }
+    function ndUI$(selector) {
+        const root = getNovelDownloaderUIRoot(false);
+        return root ? $(selector, root) : $();
+    }
+    function ensureNovelDownloaderUIStyle(id, css) {
+        const root = getNovelDownloaderUIRoot(true) || document.head;
+        let style = root.querySelector(`#${id}`);
+        if (!style) {
+            style = document.createElement('style');
+            style.id = id;
+            root.appendChild(style);
+        }
+        style.textContent = css;
+        return style;
+    }
     const TaskManager = {
         STATE_KEY: 'nd_manager_state',
         _listeners: [], // Mảng để lưu các hàm callback khi state thay đổi
@@ -174,8 +208,9 @@ function decryptDES(encrypted, key, iv) {
 
     // Hàm để hiển thị Giao diện Quản lý
     async function showManagerUI() {
+        const uiRoot = getNovelDownloaderUIRoot(true) || document.body;
         // Nếu UI đã tồn tại, chỉ cần bật/tắt nó
-        const existingUI = document.getElementById('nd-manager-overlay');
+        const existingUI = uiRoot.querySelector('#nd-manager-overlay');
         if (existingUI) {
             existingUI.style.display = existingUI.style.display === 'none' ? 'flex' : 'none';
             return;
@@ -184,7 +219,9 @@ function decryptDES(encrypted, key, iv) {
         // Tạo style cho UI (chỉ một lần)
         const style = document.createElement('style');
         style.textContent = `
-            #nd-manager-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.6); z-index: 9999998; display: flex; align-items: center; justify-content: center; font-family: sans-serif; }
+            :host{all:initial;display:block;position:fixed;inset:0;z-index:2147483647;pointer-events:none;font-family:Arial,sans-serif;}
+            *,*:before,*:after{box-sizing:border-box;}
+            #nd-manager-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.6); z-index: 9999998; display: flex; align-items: center; justify-content: center; font-family: sans-serif; pointer-events:auto; }
             #nd-manager-window { background: #f4f4f4; width: 80%; max-width: 900px; height: 80%; max-height: 700px; border-radius: 10px; box-shadow: 0 10px 30px rgba(0,0,0,0.2); display: flex; flex-direction: column; overflow: hidden; }
             #nd-manager-header { padding: 15px 20px; background: #333; color: white; display: flex; justify-content: space-between; align-items: center; }
             #nd-manager-header h2 { margin: 0; font-size: 18px; }
@@ -196,7 +233,7 @@ function decryptDES(encrypted, key, iv) {
             .nd-manager-page { display: none; }
             .nd-manager-page.active { display: block; }
         `;
-        document.head.appendChild(style);
+        uiRoot.appendChild(style);
 
         // Tạo cấu trúc HTML
         const overlay = document.createElement('div');
@@ -223,14 +260,14 @@ function decryptDES(encrypted, key, iv) {
                 </div>
             </div>
         `;
-        document.body.appendChild(overlay);
+        uiRoot.appendChild(overlay);
 
         // Hàm để render dữ liệu vào UI
         const renderUI = (state) => {
             console.log('Rendering manager UI with new state:', state);
 
             // --- Render Hàng đợi ---
-            const queueList = document.getElementById('nd-queue-list');
+            const queueList = overlay.querySelector('#nd-queue-list');
             if (!state.queue || state.queue.length === 0) {
                 queueList.innerHTML = 'Chưa có gì trong hàng đợi.';
             } else {
@@ -248,7 +285,7 @@ function decryptDES(encrypted, key, iv) {
             }
 
             // --- Render Lịch sử ---
-            const historyList = document.getElementById('nd-history-list');
+            const historyList = overlay.querySelector('#nd-history-list');
             if (!state.history || state.history.length === 0) {
                 historyList.innerHTML = 'Chưa có lịch sử.';
             } else {
@@ -263,16 +300,16 @@ function decryptDES(encrypted, key, iv) {
         };
 
         // Gắn sự kiện
-        document.getElementById('nd-manager-close').addEventListener('click', () => {
+        overlay.querySelector('#nd-manager-close').addEventListener('click', () => {
             overlay.style.display = 'none';
         });
 
-        document.querySelectorAll('.nd-manager-tab').forEach(tab => {
+        overlay.querySelectorAll('.nd-manager-tab').forEach(tab => {
             tab.addEventListener('click', () => {
-                document.querySelector('.nd-manager-tab.active').classList.remove('active');
-                document.querySelector('.nd-manager-page.active').classList.remove('active');
+                overlay.querySelector('.nd-manager-tab.active').classList.remove('active');
+                overlay.querySelector('.nd-manager-page.active').classList.remove('active');
                 tab.classList.add('active');
-                document.getElementById(`nd-manager-page-${tab.dataset.tab}`).classList.add('active');
+                overlay.querySelector(`#nd-manager-page-${tab.dataset.tab}`).classList.add('active');
             });
         });
 
@@ -580,35 +617,45 @@ function decryptDES(encrypted, key, iv) {
     };
 
     (function initNovelDownloaderToast() {
+        const uiRoot = getNovelDownloaderUIRoot(true) || document.body;
         // tạo style nếu chưa có
-        if (!document.getElementById('nd-toast-style')) {
+        if (!uiRoot.querySelector('#nd-toast-style')) {
             const style = document.createElement('style');
             style.id = 'nd-toast-style';
             // FIX: THAY ĐỔI VỊ TRÍ TỪ BOTTOM SANG TOP
             style.textContent = `
-            #nd-toast-container{position:fixed;right:16px;top:18px;z-index:999999;display:flex;flex-direction:column;gap:8px;align-items:flex-end}
+            :host{all:initial;display:block;position:fixed;inset:0;z-index:2147483647;pointer-events:none;font-family:Arial,sans-serif;}
+            *,*:before,*:after{box-sizing:border-box;}
+            #nd-toast-container{position:fixed;right:16px;top:18px;z-index:999999;display:flex;flex-direction:column;gap:8px;align-items:flex-end;pointer-events:none;font-family:Arial,sans-serif;}
             .nd-toast{min-width:220px;max-width:360px;padding:10px 14px;border-radius:8px;box-shadow:0 6px 18px rgba(0,0,0,0.18);font-size:13px;color:#fff;opacity:0;transform:translateY(-10px);transition:all .22s ease;display:flex;align-items:center;gap:10px}
             .nd-toast-show{opacity:1;transform:translateY(0)}
             .nd-toast-success{background:linear-gradient(90deg,#2ecc71,#27ae60)}
             .nd-toast-info{background:linear-gradient(90deg,#3498db,#2c82c9)}
             .nd-toast-warn{background:linear-gradient(90deg,#f1c40f,#e0ac00);color:#222}
             .nd-toast-error{background:linear-gradient(90deg,#e74c3c,#c0392b)}
+            .nd-toast{pointer-events:auto;}
             .nd-toast .nd-toast-close{margin-left:auto;cursor:pointer;opacity:0.85}
             `;
-            document.head.appendChild(style);
+            uiRoot.appendChild(style);
         }
 
         // container
-        if (!document.getElementById('nd-toast-container')) {
+        if (!uiRoot.querySelector('#nd-toast-container')) {
             const cont = document.createElement('div');
             cont.id = 'nd-toast-container';
-            document.body.appendChild(cont);
+            uiRoot.appendChild(cont);
         }
 
         // showToast function global to this script space
         window.ndShowToast = function (message, type = 'info', duration = 4000) {
             try {
-                const cont = document.getElementById('nd-toast-container');
+                const root = getNovelDownloaderUIRoot(true) || document.body;
+                let cont = root.querySelector('#nd-toast-container');
+                if (!cont) {
+                    cont = document.createElement('div');
+                    cont.id = 'nd-toast-container';
+                    root.appendChild(cont);
+                }
                 if (!cont) return;
                 const el = document.createElement('div');
                 el.className = 'nd-toast nd-toast-' + (type === 'warning' ? 'warn' : (type || 'info'));
@@ -4482,10 +4529,10 @@ function decryptDES(encrypted, key, iv) {
                     if (intro) Storage.book.intro = intro;
                     if (cover) Storage.book.cover = cover;
 
-                    if (title) $('.novel-downloader-v3 input[name="title"]').val(title);
-                    if (writer) $('.novel-downloader-v3 input[name="writer"]').val(writer);
-                    if (intro) $('.novel-downloader-v3 input[name="intro"]').val(intro);
-                    if (cover) $('.novel-downloader-v3 input[name="cover"]').val(cover);
+                    if (title) ndUI$('.novel-downloader-v3 input[name="title"]').val(title);
+                    if (writer) ndUI$('.novel-downloader-v3 input[name="writer"]').val(writer);
+                    if (intro) ndUI$('.novel-downloader-v3 input[name="intro"]').val(intro);
+                    if (cover) ndUI$('.novel-downloader-v3 input[name="cover"]').val(cover);
 
                     // console.log('[QIDIAN] Lấy info xong:', {
                     //     title,
@@ -4558,12 +4605,12 @@ function decryptDES(encrypted, key, iv) {
                                 Storage.book.intro = intro || Storage.book.intro;
                                 processCover(doc.novelCover).then((cover) => {
                                     Storage.book.cover = cover;
-                                    $('.novel-downloader-v3 input[name="cover"]').val(cover);
+                                    ndUI$('.novel-downloader-v3 input[name="cover"]').val(cover);
                                 });
 
-                                if (name) $('.novel-downloader-v3 input[name="title"]').val(name);
-                                if (author) $('.novel-downloader-v3 input[name="writer"]').val(author);
-                                if (intro) $('.novel-downloader-v3 input[name="intro"]').val(intro);
+                                if (name) ndUI$('.novel-downloader-v3 input[name="title"]').val(name);
+                                if (author) ndUI$('.novel-downloader-v3 input[name="writer"]').val(author);
+                                if (intro) ndUI$('.novel-downloader-v3 input[name="intro"]').val(intro);
 
                                 resolve();
                             } catch (err) {
@@ -7634,8 +7681,10 @@ function decryptDES(encrypted, key, iv) {
 
 
     async function showUI() {
-        if ($('.novel-downloader-v3').length) {
-            $('.novel-downloader-v3').toggle();
+        const uiRoot = getNovelDownloaderUIRoot(true) || document.body;
+        const existingPanel = ndUI$('.novel-downloader-v3');
+        if (existingPanel.length) {
+            existingPanel.toggle();
             if ($('.novel-downloader-style-chapter[media]').length) { // https://stackoverflow.com/a/54441305
                 $('.novel-downloader-style-chapter[media]').attr('media', null);
             } else {
@@ -7752,7 +7801,8 @@ function decryptDES(encrypted, key, iv) {
             '  <progress max="0" value="0"></progress>',
             '</div>',
         ].join('');
-        const container = $('<div class="novel-downloader-v3"></div>').html(html).appendTo('body');
+        const container = $('<div class="novel-downloader-v3"></div>').html(html);
+        uiRoot.appendChild(container[0]);
         container.find('input,select,textarea').attr('disabled', 'disabled');
         container.find('[name="config"]').find('input,select,textarea').on('change', function (e) {
             const { name } = e.target;
@@ -8595,7 +8645,8 @@ function decryptDES(encrypted, key, iv) {
         container.find('[name="buttons"]').find('[type="button"]:not([name="download"])').on('click', async (e) => {
             const name = $(e.target).attr('name');
             if (name === 'exit') {
-                $('.novel-downloader-style,.novel-downloader-style-chapter,.novel-downloader-v3').remove();
+                ndUI$('.novel-downloader-style,.novel-downloader-v3').remove();
+                $('.novel-downloader-style,.novel-downloader-style-chapter').remove();
                 $('[novel-downloader-chapter]').attr('order', null).attr('novel-downloader-chapter', null);
             } else if (name === 'force-download') {
                 xhr.start();
@@ -8610,8 +8661,11 @@ function decryptDES(encrypted, key, iv) {
 
         // style
         const style = [
+            ':host{all:initial;display:block;position:fixed;inset:0;z-index:2147483647;pointer-events:none;font-family:Arial,sans-serif;}',
+            '*,*:before,*:after{box-sizing:border-box;}',
             '.novel-downloader-v3>div *,.novel-downloader-v3>div *:before,.novel-downloader-v3>div *:after{margin:1px;}',
-            '.novel-downloader-v3 input{border:1px solid #000;opacity: 1;}',
+            '.novel-downloader-v3,.novel-downloader-v3 *{font-family:Arial,sans-serif;font-size:13px;line-height:1.35;}',
+            '.novel-downloader-v3 input,.novel-downloader-v3 textarea,.novel-downloader-v3 select{border:1px solid #000;opacity: 1;color:#000;background:#fff;}',
             '.novel-downloader-v3 input[type="checkbox"]{position:relative;top:0;opacity:1;appearance:checkbox;}',
             '.novel-downloader-v3 input[type="button"],.novel-downloader-v3 button{border:1px solid #000;cursor:pointer;padding:2px 3px;}',
             '.novel-downloader-v3 input[type=number]{width:36px;}',
@@ -8621,6 +8675,7 @@ function decryptDES(encrypted, key, iv) {
             '.novel-downloader-v3 span[title]::after{content:"(?)";text-decoration:underline;font-size:x-small;vertical-align:super;cursor:pointer;}',
 
             '.novel-downloader-v3{position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);z-index:99999;background:white;border:1px solid black;max-height:99vh;overflow:auto;text-align:center;}',
+            '.novel-downloader-v3{pointer-events:auto;color:#000;}',
             '.novel-downloader-v3.opacity01{opacity:0.1;}',
             '.novel-downloader-v3.opacity01:hover{opacity:0.6;}',
             '.novel-downloader-v3>div{margin:2px 0px;}',
@@ -8632,12 +8687,15 @@ function decryptDES(encrypted, key, iv) {
 
             '.novel-downloader-v3>[name="progress"]{display:none;}',
             '.novel-downloader-v3>[name="progress"]>progress::before{content:attr(value)" / "attr(max);}',
+        ].join('');
+        ensureNovelDownloaderUIStyle('novel-downloader-style', style).className = 'novel-downloader-style';
 
+        const chapterMarkerStyle = [
             '[novel-downloader-chapter]:before{content:attr(order)"-"!important;}',
             '[novel-downloader-chapter]:before{color:blue!important;}',
             '[novel-downloader-chapter="vip"]:before{color:red!important;}',
         ].join('');
-        $('<style class="novel-downloader-style">').text(style).appendTo('head');
+        $('<style class="novel-downloader-style novel-downloader-style-chapter-base">').text(chapterMarkerStyle).appendTo('head');
 
         container.find('label:has([name="rememberDownloadDir"])').hide();
 
@@ -8807,11 +8865,12 @@ function decryptDES(encrypted, key, iv) {
     }
 
 
-    $('<div class="novel-downloader-trigger" style="position:fixed;top:0px;left:0px;width:1px;height:100%;z-index:999999;background:transparent;"></div>').on({
+    const trigger = $('<div class="novel-downloader-trigger" style="position:fixed;top:0px;left:0px;width:1px;height:100%;z-index:999999;background:transparent;pointer-events:auto;"></div>').on({
         dblclick() {
             checkNovelDownloaderHelper();
         },
-    }).appendTo('body');
+    });
+    (getNovelDownloaderUIRoot(true) || document.body).appendChild(trigger[0]);
 
     GM_registerMenuCommand("Download Novel", () => {
         checkNovelDownloaderHelper();
@@ -8860,7 +8919,7 @@ function decryptDES(encrypted, key, iv) {
             const { length } = String(chapters.length);
             const title = Storage.book.title || Storage.book.chapters[0].title;
             const writer = Storage.book.writer || 'novelDownloader';
-            const uuid = `ndv3-${window.location.href.match(/[a-z0-9-]+/ig).join('-')}${$('.novel-downloader-v3').find('[name="limit"]>[name="range"]').val()}`;
+            const uuid = `ndv3-${window.location.href.match(/[a-z0-9-]+/ig).join('-')}${ndUI$('.novel-downloader-v3').find('[name="limit"]>[name="range"]').val()}`;
             const href = $('<div>').text(window.location.href).html();
             const date = new Date().toISOString();
 
@@ -9192,12 +9251,15 @@ function decryptDES(encrypted, key, iv) {
     }
 
     async function showCustomConfirm(message, buttons) {
+        const uiRoot = getNovelDownloaderUIRoot(true) || document.body;
         // Tạo style nếu chưa có
-        if (!document.getElementById('nd-custom-confirm-style')) {
+        if (!uiRoot.querySelector('#nd-custom-confirm-style')) {
             const style = document.createElement('style');
             style.id = 'nd-custom-confirm-style';
             style.textContent = `
-                .nd-confirm-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000000; display: flex; align-items: center; justify-content: center; }
+                :host{all:initial;display:block;position:fixed;inset:0;z-index:2147483647;pointer-events:none;font-family:Arial,sans-serif;}
+                *,*:before,*:after{box-sizing:border-box;}
+                .nd-confirm-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000000; display: flex; align-items: center; justify-content: center; pointer-events:auto; }
                 .nd-confirm-box { background: white; padding: 25px; border-radius: 8px; box-shadow: 0 5px 15px rgba(0,0,0,0.3); text-align: center; max-width: 400px; font-family: sans-serif; }
                 .nd-confirm-message { margin-bottom: 20px; font-size: 16px; color: #333; }
                 .nd-confirm-buttons button { border: none; padding: 10px 18px; margin: 0 8px; border-radius: 5px; cursor: pointer; font-size: 14px; font-weight: bold; }
@@ -9205,7 +9267,7 @@ function decryptDES(encrypted, key, iv) {
                 .nd-confirm-buttons button.secondary { background-color: #3498db; color: white; }
                 .nd-confirm-buttons button.default { background-color: #bdc3c7; color: #2c3e50; }
             `;
-            document.head.appendChild(style);
+            uiRoot.appendChild(style);
         }
 
         return new Promise(resolve => {
@@ -9237,7 +9299,7 @@ function decryptDES(encrypted, key, iv) {
             box.appendChild(msg);
             box.appendChild(btnContainer);
             overlay.appendChild(box);
-            document.body.appendChild(overlay);
+            uiRoot.appendChild(overlay);
         });
     }
 

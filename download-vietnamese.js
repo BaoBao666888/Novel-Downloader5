@@ -83,6 +83,31 @@
 
   let storage = Object.assign({}, JSON.parse(JSON.stringify(storageInit)));
 
+  const UI_HOST_ID = 'novel-downloader-shadow-host';
+  const SHADOW_BASE_CSS = [
+    ':host{all:initial;display:block;position:fixed;inset:0;z-index:2147483647;pointer-events:none;font-family:Arial,sans-serif;}',
+    '*,*:before,*:after{box-sizing:border-box;}',
+    '#gmDownloadDialog{pointer-events:auto;font-family:Arial,sans-serif;}'
+  ].join('');
+  const getUiRoot = (create = false) => {
+    let host = document.getElementById(UI_HOST_ID);
+    if (!host && create) {
+      host = document.createElement('div');
+      host.id = UI_HOST_ID;
+      (document.body || document.documentElement).appendChild(host);
+    }
+    if (!host) return null;
+    if (!host.shadowRoot && create && typeof host.attachShadow === 'function') {
+      host.attachShadow({ mode: 'open' });
+    }
+    return host.shadowRoot || host;
+  };
+  const getMountedDialog = () => {
+    const root = storage.element.root || getUiRoot(false);
+    return root ? root.querySelector('#gmDownloadDialog') : document.getElementById('gmDownloadDialog');
+  };
+  window.__novelDownloaderGetUIRoot = getUiRoot;
+
   const updateProgress = (task, res = {}) => {
     let elem;
     let max = res.lengthComputable ? res.total : 1;
@@ -141,6 +166,7 @@
     for (const elem of Object.values(storage.element)) if (elem.parentNode) elem.parentNode.removeChild(elem);
     storage = Object.assign({}, JSON.parse(JSON.stringify(storageInit)));
     storage.config = Object.assign(storage.default, option);
+    storage.element.root = getUiRoot(true) || document.body;
     for (const listener of ['onComplete', 'onfailed', 'onfailedEvery', 'checkLoad',
       'onabort', 'onerror', 'onload', 'onprogress', 'onreadystatechange', 'ontimeout']) {
       if (typeof storage.config[listener] !== 'function') storage.config[listener] = function () {};
@@ -148,11 +174,13 @@
 
     const style = document.createElement('style');
     style.id = 'gmDownloadStyle';
-    style.textContent = storage.config.css;
-    document.head.appendChild(style);
+    style.textContent = `${SHADOW_BASE_CSS}\n${storage.config.css}`;
+    storage.element.root.querySelector('#gmDownloadStyle')?.remove();
+    storage.element.root.appendChild(style);
     storage.element.style = style;
 
-    if (document.getElementById('gmDownloadDialog')) document.getElementById('gmDownloadDialog').parentElement.removeChild(document.getElementById('gmDownloadDialog'));
+    const oldDialog = getMountedDialog();
+    if (oldDialog) oldDialog.parentElement.removeChild(oldDialog);
     const dialog = document.createElement('div');
     dialog.id = 'gmDownloadDialog';
     dialog.innerHTML = [
@@ -364,8 +392,8 @@
     storage.downloading = true;
     checkDownload();
 
-    if (!document.getElementById('gmDownloadDialog')) {
-        document.body.appendChild(storage.element.dialog);
+    if (!getMountedDialog()) {
+        (storage.element.root || getUiRoot(true) || document.body).appendChild(storage.element.dialog);
     }
   };
   main.stop = () => {
@@ -422,8 +450,8 @@
   const ensureDialogMounted = () => {
     try {
       if (!storage.element || !storage.element.dialog) return;
-      if (!document.getElementById('gmDownloadDialog')) {
-        document.body.appendChild(storage.element.dialog);
+      if (!getMountedDialog()) {
+        (storage.element.root || getUiRoot(true) || document.body).appendChild(storage.element.dialog);
       }
       storage.element.dialog.style.display = 'block';
     } catch (e) {}
