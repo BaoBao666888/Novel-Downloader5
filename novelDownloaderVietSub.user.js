@@ -13,6 +13,7 @@
 
 // @require     https://raw.githubusercontent.com/BaoBao666888/Novel-Downloader5/main/download-vietnamese.js?v=1.3.1
 // @require     https://raw.githubusercontent.com/BaoBao666888/Novel-Downloader5/main/nd-console-panel.js?v=1.0.1
+// @require     https://raw.githubusercontent.com/BaoBao666888/Novel-Downloader5/main/nd-download-manager.js?v=1.0.0
 
 // @require     https://raw.githubusercontent.com/BaoBao666888/Novel-Downloader5/main/chs2cht.js
 // @require     https://cdnjs.cloudflare.com/ajax/libs/jszip/3.0.0/jszip.min.js
@@ -179,165 +180,14 @@ function decryptDES(encrypted, key, iv) {
     }
 
     // ============================================================================
-    // Download Manager (Inline Legacy, Extract Later)
+    // Download Manager Module
     // ============================================================================
 
-    const TaskManager = {
-        STATE_KEY: 'nd_manager_state',
-        _listeners: [], // Mảng để lưu các hàm callback khi state thay đổi
-
-        // Hàm để lấy state hiện tại một cách an toàn
-        async getState() {
-            let state = await GM_getValue(this.STATE_KEY);
-            // Nếu chưa có state, khởi tạo state mặc định
-            if (!state) {
-                return { queue: [], history: [] };
-            }
-            return state;
-        },
-
-        // Hàm để cập nhật state. Rất quan trọng: nó nhận một hàm updater
-        // để tránh race condition (xung đột khi nhiều tab cùng ghi)
-        async setState(updater) {
-            const currentState = await this.getState();
-            const newState = updater(currentState);
-            await GM_setValue(this.STATE_KEY, newState);
-            return newState;
-        },
-
-        // Thêm một hàm lắng nghe
-        onStateChange(callback) {
-            this._listeners.push(callback);
-        },
-
-        // Khởi tạo trình quản lý
-        init() {
-            // Lắng nghe sự thay đổi của state từ các tab khác
-            GM_addValueChangeListener(this.STATE_KEY, (name, old_value, new_value, remote) => {
-                if (remote) { // Chỉ xử lý nếu thay đổi đến từ tab khác
-                    console.log('TaskManager: State changed from another tab.');
-                    // Thông báo cho tất cả các listener trên tab này
-                    this._listeners.forEach(callback => callback(new_value));
-                }
-            });
-            console.log('TaskManager initialized and listening for changes.');
-        }
-    };
-
-    // Hàm để hiển thị Giao diện Quản lý
-    async function showManagerUI() {
-        const uiRoot = getNovelDownloaderUIRoot(true) || document.body;
-        // Nếu UI đã tồn tại, chỉ cần bật/tắt nó
-        const existingUI = uiRoot.querySelector('#nd-manager-overlay');
-        if (existingUI) {
-            existingUI.style.display = existingUI.style.display === 'none' ? 'flex' : 'none';
-            return;
-        }
-
-        // Tạo style cho UI (chỉ một lần)
-        const style = document.createElement('style');
-        style.textContent = `
-            :host{all:initial;display:block;position:fixed;inset:0;z-index:2147483647;pointer-events:none;font-family:Arial,sans-serif;}
-            *,*:before,*:after{box-sizing:border-box;}
-            #nd-manager-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.6); z-index: 9999998; display: flex; align-items: center; justify-content: center; font-family: sans-serif; pointer-events:auto; }
-            #nd-manager-window { background: #f4f4f4; width: 80%; max-width: 900px; height: 80%; max-height: 700px; border-radius: 10px; box-shadow: 0 10px 30px rgba(0,0,0,0.2); display: flex; flex-direction: column; overflow: hidden; }
-            #nd-manager-header { padding: 15px 20px; background: #333; color: white; display: flex; justify-content: space-between; align-items: center; }
-            #nd-manager-header h2 { margin: 0; font-size: 18px; }
-            #nd-manager-close { background: none; border: none; color: white; font-size: 24px; cursor: pointer; opacity: 0.8; }
-            #nd-manager-tabs { display: flex; background: #e0e0e0; padding: 0 10px; }
-            .nd-manager-tab { padding: 12px 18px; cursor: pointer; border-bottom: 3px solid transparent; }
-            .nd-manager-tab.active { border-bottom-color: #3498db; background: #f4f4f4; font-weight: bold; }
-            #nd-manager-content { flex-grow: 1; padding: 20px; overflow-y: auto; color: #333; }
-            .nd-manager-page { display: none; }
-            .nd-manager-page.active { display: block; }
-        `;
-        uiRoot.appendChild(style);
-
-        // Tạo cấu trúc HTML
-        const overlay = document.createElement('div');
-        overlay.id = 'nd-manager-overlay';
-        overlay.innerHTML = `
-            <div id="nd-manager-window">
-                <div id="nd-manager-header">
-                    <h2>Trình Quản lý Tải xuống</h2>
-                    <button id="nd-manager-close">&times;</button>
-                </div>
-                <div id="nd-manager-tabs">
-                    <div class="nd-manager-tab active" data-tab="queue">Hàng đợi</div>
-                    <div class="nd-manager-tab" data-tab="history">Lịch sử</div>
-                </div>
-                <div id="nd-manager-content">
-                    <div class="nd-manager-page active" id="nd-manager-page-queue">
-                        <h3>Đang tải & Đang chờ</h3>
-                        <div id="nd-queue-list">Chưa có gì trong hàng đợi.</div>
-                    </div>
-                    <div class="nd-manager-page" id="nd-manager-page-history">
-                        <h3>Lịch sử Tương tác</h3>
-                        <div id="nd-history-list">Chưa có lịch sử.</div>
-                    </div>
-                </div>
-            </div>
-        `;
-        uiRoot.appendChild(overlay);
-
-        // Hàm để render dữ liệu vào UI
-        const renderUI = (state) => {
-            console.log('Rendering manager UI with new state:', state);
-
-            // --- Render Hàng đợi ---
-            const queueList = overlay.querySelector('#nd-queue-list');
-            if (!state.queue || state.queue.length === 0) {
-                queueList.innerHTML = 'Chưa có gì trong hàng đợi.';
-            } else {
-                queueList.innerHTML = state.queue.map(task => `
-                    <div style="background: white; padding: 10px; border-radius: 5px; margin-bottom: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
-                        <div style="font-weight: bold;">${task.bookTitle}</div>
-                        <div style="font-size: 12px; color: #666;">Trang: ${task.domain}</div>
-                        <div style="display: flex; align-items: center; gap: 10px; margin-top: 5px;">
-                            <progress value="${task.progress.completed}" max="${task.progress.total}" style="width: 100%;"></progress>
-                            <span>${task.progress.completed} / ${task.progress.total}</span>
-                        </div>
-                        <div style="font-size: 12px; color: #888;">Trạng thái: ${task.status}</div>
-                    </div>
-                `).join('');
-            }
-
-            // --- Render Lịch sử ---
-            const historyList = overlay.querySelector('#nd-history-list');
-            if (!state.history || state.history.length === 0) {
-                historyList.innerHTML = 'Chưa có lịch sử.';
-            } else {
-                historyList.innerHTML = state.history.map(task => `
-                    <div style="background: white; padding: 10px; border-radius: 5px; margin-bottom: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
-                        <div style="font-weight: bold;">${task.bookTitle}</div>
-                        <div style="font-size: 12px; color: #666;">Trang: ${task.domain}</div>
-                        <div style="font-size: 12px; color: #888;">Trạng thái: ${task.status} - ${new Date(task.finishedAt).toLocaleString()}</div>
-                    </div>
-                `).join('');
-            }
-        };
-
-        // Gắn sự kiện
-        overlay.querySelector('#nd-manager-close').addEventListener('click', () => {
-            overlay.style.display = 'none';
-        });
-
-        overlay.querySelectorAll('.nd-manager-tab').forEach(tab => {
-            tab.addEventListener('click', () => {
-                overlay.querySelector('.nd-manager-tab.active').classList.remove('active');
-                overlay.querySelector('.nd-manager-page.active').classList.remove('active');
-                tab.classList.add('active');
-                overlay.querySelector(`#nd-manager-page-${tab.dataset.tab}`).classList.add('active');
-            });
-        });
-
-        // Lấy state lần đầu và render
-        const initialState = await TaskManager.getState();
-        renderUI(initialState);
-
-        // Đăng ký hàm render để tự động cập nhật UI khi state thay đổi
-        TaskManager.onStateChange(renderUI);
+    const downloadManager = window.NDDownloadManager;
+    if (!downloadManager || !downloadManager.TaskManager || typeof downloadManager.showManagerUI !== 'function') {
+        throw new Error('[ND] nd-download-manager.js chưa được tải đúng cách.');
     }
+    const { TaskManager, showManagerUI } = downloadManager;
 
     // ============================================================================
     // Runtime State & Defaults
