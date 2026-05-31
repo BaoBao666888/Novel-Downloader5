@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name        download
-// @version     1.3.1
+// @version     1.3.2
 // @include     *
 // ==/UserScript==
 // TODO: 支持fetch,xhr
@@ -419,7 +419,7 @@
     if (!storage.downloading) main.start();
   };
   main.showDialog = () => {
-    storage.element.dialog.style.display = 'block';
+    ensureDialogMounted();
   };
   main.hideDialog = () => {
     storage.element.dialog.style.display = 'none';

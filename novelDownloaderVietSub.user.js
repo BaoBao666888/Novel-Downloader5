@@ -11,7 +11,7 @@
 // @updateURL   https://raw.githubusercontent.com/BaoBao666888/Novel-Downloader5/main/novelDownloaderVietSub.user.js
 // @require     https://cdnjs.cloudflare.com/ajax/libs/jquery/3.1.0/jquery.js
 
-// @require     https://raw.githubusercontent.com/BaoBao666888/Novel-Downloader5/main/download-vietnamese.js?v=1.3.1
+// @require     https://raw.githubusercontent.com/BaoBao666888/Novel-Downloader5/main/download-vietnamese.js?v=1.3.2
 // @require     https://raw.githubusercontent.com/BaoBao666888/Novel-Downloader5/main/nd-console-panel.js?v=1.0.1
 // @require     https://raw.githubusercontent.com/BaoBao666888/Novel-Downloader5/main/nd-download-manager.js?v=1.0.3
 // @require     https://raw.githubusercontent.com/BaoBao666888/Novel-Downloader5/main/nd-file-save.js?v=1.0.0
@@ -8667,6 +8667,12 @@ function decryptDES(encrypted, key, iv) {
                         if (chapter.contentRaw) continue;
                         await waitIfPaused();
                         const rule = vipChapters.includes(chapter.url) ? Storage.rule.vip : Storage.rule;
+                        let taskIndex = null;
+                        try {
+                            if (xhr.manual && typeof xhr.manual.add === 'function') {
+                                taskIndex = xhr.manual.add({ url: chapter.url, title: chapter.title || '' });
+                            }
+                        } catch (e) { /* ignore */ }
                         await new Promise((resolve) => {
                             $('<iframe>').on('load', async (e) => {
                                 try {
@@ -8675,12 +8681,22 @@ function decryptDES(encrypted, key, iv) {
                                     response = e.target.contentWindow.document;
                                     responseText = e.target.contentWindow.document.documentElement.outerHTML;
                                     await originalOnChapterLoad({ response, responseText }, { raw: chapter });
+                                    try {
+                                        if (taskIndex !== null && xhr.manual && typeof xhr.manual.done === 'function') {
+                                            xhr.manual.done(taskIndex, { title: chapter.title || '' });
+                                        }
+                                    } catch (e) { /* ignore */ }
                                 } catch (error) {
                                     console.error(`%cLỗi khi xử lý iframe cho chương: ${chapter.title || chapter.url}`, "color: red;", error);
                                     chapter.contentRaw = '';
                                     chapter.content = '';
                                     chapter.document = '';
                                     await recordDownloadManagerError(chapter, error, 'iframe');
+                                    try {
+                                        if (taskIndex !== null && xhr.manual && typeof xhr.manual.fail === 'function') {
+                                            xhr.manual.fail(taskIndex, { title: chapter.title || '' });
+                                        }
+                                    } catch (e) { /* ignore */ }
                                 } finally {
                                     $(e.target).remove();
                                     resolve();
@@ -8698,18 +8714,34 @@ function decryptDES(encrypted, key, iv) {
                         if (downloadManagerCancelled) break;
                         if (chapter.contentRaw) continue;
                         await waitIfPaused();
+                        let taskIndex = null;
+                        try {
+                            if (xhr.manual && typeof xhr.manual.add === 'function') {
+                                taskIndex = xhr.manual.add({ url: chapter.url, title: chapter.title || '' });
+                            }
+                        } catch (e) { /* ignore */ }
                         var popupWindow = window.open(chapter.url, '', 'resizable,scrollbars,width=300,height=350');
                         window.localStorage.setItem('gm-nd-url', chapter.url);
                         await waitFor(() => window.localStorage.getItem('gm-nd-html') || !popupWindow || popupWindow.closed);
                         const html = window.localStorage.getItem('gm-nd-html');
                         try {
                             await originalOnChapterLoad({ response: html, responseText: html }, { raw: chapter });
+                            try {
+                                if (taskIndex !== null && xhr.manual && typeof xhr.manual.done === 'function') {
+                                    xhr.manual.done(taskIndex, { title: chapter.title || '' });
+                                }
+                            } catch (e) { /* ignore */ }
                         } catch (error) {
                             console.error(`%cLỗi khi xử lý popup cho chương: ${chapter.title || chapter.url}`, "color: red;", error);
                             chapter.contentRaw = '';
                             chapter.content = '';
                             chapter.document = '';
                             await recordDownloadManagerError(chapter, error, 'popup');
+                            try {
+                                if (taskIndex !== null && xhr.manual && typeof xhr.manual.fail === 'function') {
+                                    xhr.manual.fail(taskIndex, { title: chapter.title || '' });
+                                }
+                            } catch (e) { /* ignore */ }
                         }
                         if (popupWindow && !popupWindow.closed) popupWindow.close();
                         window.localStorage.removeItem('gm-nd-url');
