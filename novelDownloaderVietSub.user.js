@@ -13,7 +13,7 @@
 
 // @require     https://raw.githubusercontent.com/BaoBao666888/Novel-Downloader5/main/download-vietnamese.js?v=1.3.1
 // @require     https://raw.githubusercontent.com/BaoBao666888/Novel-Downloader5/main/nd-console-panel.js?v=1.0.1
-// @require     https://raw.githubusercontent.com/BaoBao666888/Novel-Downloader5/main/nd-download-manager.js?v=1.0.1
+// @require     https://raw.githubusercontent.com/BaoBao666888/Novel-Downloader5/main/nd-download-manager.js?v=1.0.2
 
 // @require     https://raw.githubusercontent.com/BaoBao666888/Novel-Downloader5/main/chs2cht.js
 // @require     https://cdnjs.cloudflare.com/ajax/libs/jszip/3.0.0/jszip.min.js
@@ -7982,6 +7982,8 @@ function decryptDES(encrypted, key, iv) {
 
             const format = $(e.target).attr('format');
             let downloadManagerTaskId = null;
+            let downloadManagerCancelled = false;
+            let resolveDownloadManagerWait = null;
             const getDownloadManagerProgress = () => {
                 const chapterList = Storage.book.chapters || [];
                 const completed = chapterList.filter(chapter => Boolean(chapter.contentRaw || chapter.content)).length;
@@ -8043,6 +8045,38 @@ function decryptDES(encrypted, key, iv) {
                     }
                 });
                 downloadManagerTaskId = managerTask && managerTask.id;
+                if (downloadManagerTaskId && typeof TaskManager.registerRuntimeActions === 'function') {
+                    TaskManager.registerRuntimeActions(downloadManagerTaskId, {
+                        cancel: async () => {
+                            downloadManagerCancelled = true;
+                            try { xhr.stop(); } catch (stopError) { console.warn('[ND] Không thể dừng xhr:', stopError); }
+                            if (typeof resolveDownloadManagerWait === 'function') {
+                                resolveDownloadManagerWait();
+                                resolveDownloadManagerWait = null;
+                            }
+                            container.find('[name="buttons"]').find('[name="download"]').attr('disabled', null);
+                            container.find('[name="buttons"]').find('[name="force-download"]').attr('disabled', 'disabled');
+                            container.find('[name="buttons"]').find('[name="force-save"]').attr('disabled', 'disabled');
+                            $(window).off('blur').off('focus');
+                            if (Storage.audio) Storage.audio.pause();
+                            if (Storage.title) document.title = Storage.title;
+                            await finishDownloadManagerTask('cancelled');
+                            ndShowToast('Đã hủy task tải xuống.', 'info', 2500);
+                        },
+                        retry: async () => {
+                            if (downloadManagerTaskId) {
+                                ndShowToast('Đang có task tải xuống trong phiên này.', 'warning', 2500);
+                                return;
+                            }
+                            const button = container.find(`[name="download"][format="${format}"]`).get(0);
+                            if (button && !button.disabled) {
+                                button.click();
+                            } else {
+                                ndShowToast('Retry chỉ khả dụng khi nút tải đã sẵn sàng.', 'warning', 2500);
+                            }
+                        }
+                    });
+                }
             } catch (error) {
                 console.warn('[ND] Không thể tạo task download manager:', error);
             }
@@ -8297,6 +8331,7 @@ function decryptDES(encrypted, key, iv) {
             }
 
             async function waitIfPaused() {
+                if (downloadManagerCancelled) return;
                 try {
                     if (xhr && typeof xhr.waitWhilePaused === 'function') {
                         await xhr.waitWhilePaused();
@@ -8316,7 +8351,7 @@ function decryptDES(encrypted, key, iv) {
             async function sleepWithPause(ms) {
                 const step = 250;
                 let remaining = ms;
-                while (remaining > 0) {
+                while (remaining > 0 && !downloadManagerCancelled) {
                     await waitIfPaused();
                     const t = Math.min(step, remaining);
                     await sleep(t);
@@ -8418,6 +8453,7 @@ function decryptDES(encrypted, key, iv) {
             // Vòng lặp thử lại chính
             const maxAttempts = Math.max(0, Config.retry || 0);
             for (let attempt = 0; attempt <= maxAttempts; attempt++) {
+                if (downloadManagerCancelled) break;
                 let chaptersToProcess;
                 if (attempt === 0) {
                     // Lần đầu tiên, xử lý tất cả chương
@@ -8457,6 +8493,7 @@ function decryptDES(encrypted, key, iv) {
                 if (currentRunList.deal.length > 0) {
                     console.log(`Bắt đầu xử lý (deal) ${currentRunList.deal.length} chương.`);
                     for (const chapter of currentRunList.deal) {
+                        if (downloadManagerCancelled) break;
                         if (chapter.contentRaw) continue; // Bỏ qua nếu đã được xử lý bởi logic khác trong cùng lần chạy
                         await waitIfPaused();
                         if (Config.delayBetweenChapters > 0) {
@@ -8518,6 +8555,7 @@ function decryptDES(encrypted, key, iv) {
                     }
 
                     for (let i = 0; i < currentRunList.download.length; i += chunkSize) {
+                        if (downloadManagerCancelled) break;
                         const chunk = currentRunList.download.slice(i, i + chunkSize);
                         const currentChunkNum = (i / chunkSize) + 1;
                         console.log(`%cĐang xử lý lô ${currentChunkNum} (gồm ${chunk.length} chương)`, "color: blue; font-weight: bold;");
@@ -8525,8 +8563,10 @@ function decryptDES(encrypted, key, iv) {
                         // Đồng bộ: đợi đến khi thư viện hoàn tất xử lý xong (đã await onload handler)
                         xhr.storage.config.set('thread', Math.min(chunkSize, chunk.length));
                         await new Promise(resolveChunk => {
+                            resolveDownloadManagerWait = resolveChunk;
                             xhr.storage.config.set('onComplete', async () => {
                                 console.log(`%cĐã hoàn thành lô ${currentChunkNum}.`, "color: green;");
+                                resolveDownloadManagerWait = null;
                                 resolveChunk();
                             });
 
@@ -8538,6 +8578,7 @@ function decryptDES(encrypted, key, iv) {
                             });
                             xhr.start();
                         });
+                        if (downloadManagerCancelled) break;
 
                         if (i + chunkSize < currentRunList.download.length && Config.delayBetweenChapters > 0) {
                             console.log(`%cĐang chờ ${Config.delayBetweenChapters / 1000} giây... trước khi tiếp tục.`, "color: orange");
@@ -8550,6 +8591,7 @@ function decryptDES(encrypted, key, iv) {
                 if (currentRunList.iframe.length > 0) {
                     console.log(`Bắt đầu xử lý (iframe) ${currentRunList.iframe.length} chương.`);
                     for (const chapter of currentRunList.iframe) {
+                        if (downloadManagerCancelled) break;
                         if (chapter.contentRaw) continue;
                         await waitIfPaused();
                         const rule = vipChapters.includes(chapter.url) ? Storage.rule.vip : Storage.rule;
@@ -8581,6 +8623,7 @@ function decryptDES(encrypted, key, iv) {
                 if (currentRunList.popup.length > 0) {
                     console.log(`Bắt đầu xử lý (popup) ${currentRunList.popup.length} chương.`);
                     for (const chapter of currentRunList.popup) {
+                        if (downloadManagerCancelled) break;
                         if (chapter.contentRaw) continue;
                         await waitIfPaused();
                         var popupWindow = window.open(chapter.url, '', 'resizable,scrollbars,width=300,height=350');
@@ -8606,6 +8649,7 @@ function decryptDES(encrypted, key, iv) {
             } // Kết thúc vòng lặp for (retry)
 
             // Sau khi tất cả các lần thử lại kết thúc, gọi onComplete lần cuối
+            if (downloadManagerCancelled) return;
             console.log("Tất cả các lần tải và thử lại đã hoàn tất. Chuẩn bị lưu file...");
             await onComplete(); // Luôn gọi onComplete, nó sẽ tự xử lý các chương lỗi bên trong.
         });

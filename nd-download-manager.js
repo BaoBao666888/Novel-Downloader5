@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name        nd-download-manager
-// @version     1.0.1
+// @version     1.0.2
 // @include     *
 // ==/UserScript==
 /* eslint-env browser */
@@ -15,6 +15,7 @@
     const OVERLAY_ID = 'nd-manager-overlay';
     const STATE_KEY = 'nd_manager_state';
     const MAX_HISTORY = 50;
+    const runtimeActions = new Map();
 
     function getUiRoot(create = false) {
         if (typeof window.__novelDownloaderGetUIRoot === 'function') {
@@ -55,6 +56,19 @@
             #nd-manager-content { flex-grow: 1; padding: 20px; overflow-y: auto; color: #333; }
             .nd-manager-page { display: none; }
             .nd-manager-page.active { display: block; }
+            .nd-manager-toolbar { display: flex; justify-content: flex-end; gap: 8px; margin-bottom: 12px; }
+            .nd-manager-item { background: white; padding: 10px; border-radius: 5px; margin-bottom: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+            .nd-manager-title { font-weight: bold; word-break: break-word; }
+            .nd-manager-meta { font-size: 12px; color: #666; margin-top: 3px; word-break: break-word; }
+            .nd-manager-status { font-size: 12px; color: #888; margin-top: 5px; }
+            .nd-manager-progress { display: flex; align-items: center; gap: 10px; margin-top: 5px; }
+            .nd-manager-progress progress { width: 100%; }
+            .nd-manager-actions { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+            .nd-manager-actions button, .nd-manager-toolbar button { border: 1px solid #cbd5e1; background: #f8fafc; color: #111827; border-radius: 4px; padding: 4px 8px; cursor: pointer; font-size: 12px; }
+            .nd-manager-actions button:hover, .nd-manager-toolbar button:hover { background: #e2e8f0; }
+            .nd-manager-actions button[data-action="cancel-task"] { color: #b91c1c; border-color: #fecaca; background: #fff1f2; }
+            .nd-manager-actions button[data-action="retry-task"] { color: #166534; border-color: #bbf7d0; background: #f0fdf4; }
+            .nd-manager-errors { margin-top: 6px; color: #b91c1c; font-size: 12px; }
         `;
     }
 
@@ -92,6 +106,92 @@
         };
     }
 
+    function escapeHtml(value) {
+        return String(value == null ? '' : value).replace(/[&<>"']/g, (char) => ({
+            '&': '&amp;',
+            '<': '&lt;',
+            '>': '&gt;',
+            '"': '&quot;',
+            "'": '&#39;'
+        }[char]));
+    }
+
+    function formatDateTime(value) {
+        if (!value) return '';
+        const date = new Date(value);
+        if (Number.isNaN(date.getTime())) return '';
+        return date.toLocaleString();
+    }
+
+    function formatStatus(status) {
+        return {
+            queued: 'Đang chờ',
+            downloading: 'Đang tải',
+            completed: 'Hoàn thành',
+            completed_with_errors: 'Hoàn thành có lỗi',
+            failed: 'Thất bại',
+            cancelled: 'Đã hủy'
+        }[status] || status || 'Không rõ';
+    }
+
+    function taskErrors(task) {
+        return Array.isArray(task && task.errors) ? task.errors.map(normalizeError) : [];
+    }
+
+    function buildTaskSummary(task) {
+        const progress = normalizeProgress(task && task.progress);
+        const errors = taskErrors(task);
+        return [
+            `Sách: ${task.bookTitle || ''}`,
+            `Trang: ${task.domain || ''}`,
+            `URL: ${task.sourceUrl || ''}`,
+            `Định dạng: ${task.format || ''}`,
+            `Trạng thái: ${formatStatus(task.status)}`,
+            `Tiến độ: ${progress.completed}/${progress.total}`,
+            `Lỗi: ${errors.length}`,
+            `Bắt đầu: ${formatDateTime(task.startedAt)}`,
+            `Kết thúc: ${formatDateTime(task.finishedAt)}`
+        ].filter(line => !line.endsWith(': ')).join('\n');
+    }
+
+    function buildTaskErrorText(task) {
+        const errors = taskErrors(task);
+        if (!errors.length) return 'Không có lỗi chương.';
+        return errors.map((error, index) => [
+            `#${index + 1}`,
+            `Thời gian: ${formatDateTime(error.time)}`,
+            `Loại: ${error.type}`,
+            `Tiêu đề: ${error.title}`,
+            `URL: ${error.url}`,
+            `Status: ${error.status}`,
+            `Lỗi: ${error.message}`
+        ].filter(line => !line.endsWith(': ')).join('\n')).join('\n\n');
+    }
+
+    async function copyText(text) {
+        if (navigator.clipboard && typeof navigator.clipboard.writeText === 'function') {
+            await navigator.clipboard.writeText(text);
+            return;
+        }
+        const textarea = document.createElement('textarea');
+        textarea.value = text;
+        textarea.style.position = 'fixed';
+        textarea.style.left = '-9999px';
+        document.body.appendChild(textarea);
+        textarea.select();
+        document.execCommand('copy');
+        textarea.remove();
+    }
+
+    function flashButton(button, text) {
+        if (!button) return;
+        const oldText = button.textContent;
+        button.textContent = text;
+        window.setTimeout(() => {
+            button.textContent = oldText;
+        }, 1000);
+    }
+
     const TaskManager = {
         STATE_KEY,
         _listeners: [],
@@ -106,12 +206,24 @@
             const currentState = await this.getState();
             const newState = normalizeState(updater(currentState) || currentState);
             await GM_setValue(this.STATE_KEY, newState);
-            this._listeners.forEach(callback => callback(newState));
+            this._emit(newState);
             return newState;
         },
 
         onStateChange(callback) {
             this._listeners.push(callback);
+            return () => {
+                const index = this._listeners.indexOf(callback);
+                if (index >= 0) this._listeners.splice(index, 1);
+            };
+        },
+
+        _emit(state) {
+            this._listeners.forEach(callback => callback(normalizeState(state)));
+        },
+
+        async emitCurrentState() {
+            this._emit(await this.getState());
         },
 
         init() {
@@ -120,7 +232,7 @@
             GM_addValueChangeListener(this.STATE_KEY, (name, oldValue, newValue, remote) => {
                 if (remote) {
                     console.log('TaskManager: State changed from another tab.');
-                    this._listeners.forEach(callback => callback(newValue));
+                    this._emit(newValue);
                 }
             });
             console.log('TaskManager initialized and listening for changes.');
@@ -213,6 +325,39 @@
                 return state;
             });
             return finishedTask;
+        },
+
+        async clearHistory() {
+            await this.setState((state) => {
+                state.history = [];
+                return state;
+            });
+        },
+
+        registerRuntimeActions(id, actions = {}) {
+            if (!id) return () => {};
+            runtimeActions.set(id, actions);
+            this.emitCurrentState();
+            return () => {
+                if (runtimeActions.get(id) === actions) {
+                    runtimeActions.delete(id);
+                    this.emitCurrentState();
+                }
+            };
+        },
+
+        hasRuntimeAction(id, action) {
+            const actions = runtimeActions.get(id);
+            return Boolean(actions && typeof actions[action] === 'function');
+        },
+
+        async runRuntimeAction(id, action, task) {
+            const actions = runtimeActions.get(id);
+            const handler = actions && actions[action];
+            if (typeof handler !== 'function') return false;
+            await handler(task);
+            await this.emitCurrentState();
+            return true;
         }
     };
 
@@ -252,6 +397,50 @@
         `;
         uiRoot.appendChild(overlay);
 
+        const findTask = async (id) => {
+            const state = await TaskManager.getState();
+            return state.queue.concat(state.history).find(task => task.id === id) || null;
+        };
+
+        const renderActions = (task, location) => {
+            const errors = taskErrors(task);
+            const buttons = [
+                `<button type="button" data-action="copy-summary" data-task-id="${escapeHtml(task.id)}">Copy summary</button>`
+            ];
+            if (errors.length) {
+                buttons.push(`<button type="button" data-action="copy-errors" data-task-id="${escapeHtml(task.id)}">Copy lỗi (${errors.length})</button>`);
+            }
+            if (location === 'queue' && TaskManager.hasRuntimeAction(task.id, 'cancel')) {
+                buttons.push(`<button type="button" data-action="cancel-task" data-task-id="${escapeHtml(task.id)}">Hủy</button>`);
+            }
+            if (TaskManager.hasRuntimeAction(task.id, 'retry')) {
+                buttons.push(`<button type="button" data-action="retry-task" data-task-id="${escapeHtml(task.id)}">Retry</button>`);
+            }
+            return `<div class="nd-manager-actions">${buttons.join('')}</div>`;
+        };
+
+        const renderTask = (task, location) => {
+            const progress = normalizeProgress(task.progress);
+            const errors = taskErrors(task);
+            const progressText = `${progress.completed} / ${progress.total}${progress.failed ? `, lỗi ${progress.failed}` : ''}`;
+            const timeText = location === 'history'
+                ? `Kết thúc: ${formatDateTime(task.finishedAt)}`
+                : `Cập nhật: ${formatDateTime(task.updatedAt)}`;
+            return `
+                <div class="nd-manager-item" data-task-id="${escapeHtml(task.id)}">
+                    <div class="nd-manager-title">${escapeHtml(task.bookTitle)}</div>
+                    <div class="nd-manager-meta">Trang: ${escapeHtml(task.domain)}${task.format ? ` - ${escapeHtml(task.format)}` : ''}</div>
+                    <div class="nd-manager-progress">
+                        <progress value="${progress.completed}" max="${progress.total || 1}"></progress>
+                        <span>${escapeHtml(progressText)}</span>
+                    </div>
+                    <div class="nd-manager-status">Trạng thái: ${escapeHtml(formatStatus(task.status))}${timeText ? ` - ${escapeHtml(timeText)}` : ''}</div>
+                    ${errors.length ? `<div class="nd-manager-errors">Lỗi gần nhất: ${escapeHtml(errors[errors.length - 1].message || errors[errors.length - 1].url)}</div>` : ''}
+                    ${renderActions(task, location)}
+                </div>
+            `;
+        };
+
         const renderUI = (state) => {
             console.log('Rendering manager UI with new state:', state);
 
@@ -259,35 +448,50 @@
             if (!state.queue || state.queue.length === 0) {
                 queueList.innerHTML = 'Chưa có gì trong hàng đợi.';
             } else {
-                queueList.innerHTML = state.queue.map(task => {
-                    const progress = normalizeProgress(task.progress);
-                    return `
-                        <div style="background: white; padding: 10px; border-radius: 5px; margin-bottom: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
-                            <div style="font-weight: bold;">${task.bookTitle}</div>
-                            <div style="font-size: 12px; color: #666;">Trang: ${task.domain}</div>
-                            <div style="display: flex; align-items: center; gap: 10px; margin-top: 5px;">
-                                <progress value="${progress.completed}" max="${progress.total}" style="width: 100%;"></progress>
-                                <span>${progress.completed} / ${progress.total}</span>
-                            </div>
-                            <div style="font-size: 12px; color: #888;">Trạng thái: ${task.status}</div>
-                        </div>
-                    `;
-                }).join('');
+                queueList.innerHTML = state.queue.map(task => renderTask(task, 'queue')).join('');
             }
 
             const historyList = overlay.querySelector('#nd-history-list');
             if (!state.history || state.history.length === 0) {
                 historyList.innerHTML = 'Chưa có lịch sử.';
             } else {
-                historyList.innerHTML = state.history.map(task => `
-                    <div style="background: white; padding: 10px; border-radius: 5px; margin-bottom: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
-                        <div style="font-weight: bold;">${task.bookTitle}</div>
-                        <div style="font-size: 12px; color: #666;">Trang: ${task.domain}</div>
-                        <div style="font-size: 12px; color: #888;">Trạng thái: ${task.status} - ${new Date(task.finishedAt).toLocaleString()}</div>
-                    </div>
-                `).join('');
+                historyList.innerHTML = `
+                    <div class="nd-manager-toolbar"><button type="button" data-action="clear-history">Xóa lịch sử</button></div>
+                    ${state.history.map(task => renderTask(task, 'history')).join('')}
+                `;
             }
         };
+
+        overlay.addEventListener('click', async (event) => {
+            const button = event.target.closest('button[data-action]');
+            if (!button) return;
+            const action = button.dataset.action;
+            const taskId = button.dataset.taskId;
+            const task = taskId ? await findTask(taskId) : null;
+            try {
+                if (action === 'clear-history') {
+                    await TaskManager.clearHistory();
+                    return;
+                }
+                if (!task) return;
+                if (action === 'copy-summary') {
+                    await copyText(buildTaskSummary(task));
+                    flashButton(button, 'Đã copy');
+                } else if (action === 'copy-errors') {
+                    await copyText(buildTaskErrorText(task));
+                    flashButton(button, 'Đã copy');
+                } else if (action === 'cancel-task') {
+                    const handled = await TaskManager.runRuntimeAction(task.id, 'cancel', task);
+                    if (!handled) await TaskManager.finishTask(task.id, 'cancelled');
+                } else if (action === 'retry-task') {
+                    const handled = await TaskManager.runRuntimeAction(task.id, 'retry', task);
+                    if (!handled) flashButton(button, 'Không khả dụng');
+                }
+            } catch (error) {
+                console.error('[ND] Lỗi thao tác download manager:', error);
+                flashButton(button, 'Lỗi');
+            }
+        });
 
         overlay.querySelector('#nd-manager-close').addEventListener('click', () => {
             overlay.style.display = 'none';
