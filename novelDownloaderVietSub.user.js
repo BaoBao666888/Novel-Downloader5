@@ -13,7 +13,7 @@
 
 // @require     https://raw.githubusercontent.com/BaoBao666888/Novel-Downloader5/main/download-vietnamese.js?v=1.3.1
 // @require     https://raw.githubusercontent.com/BaoBao666888/Novel-Downloader5/main/nd-console-panel.js?v=1.0.1
-// @require     https://raw.githubusercontent.com/BaoBao666888/Novel-Downloader5/main/nd-download-manager.js?v=1.0.2
+// @require     https://raw.githubusercontent.com/BaoBao666888/Novel-Downloader5/main/nd-download-manager.js?v=1.0.3
 // @require     https://raw.githubusercontent.com/BaoBao666888/Novel-Downloader5/main/nd-file-save.js?v=1.0.0
 
 // @require     https://raw.githubusercontent.com/BaoBao666888/Novel-Downloader5/main/chs2cht.js
@@ -1527,7 +1527,21 @@ function decryptDES(encrypted, key, iv) {
             writer: '.booknav2 p:nth-of-type(1) a, .booknav2 a[href*="/author"], a[href*="/zuozhe"], a[href*="/author"]',
             intro: 'div.navtxt, #intro, .intro, .bookintro',
             chapter: 'a[href*="/txt/"]',
-            iframe: true,
+            deal: async (chapter) => {
+                const readerUrl = `https://r.jina.ai/http://${chapter.url}`;
+                const res = await xhr.sync(readerUrl, null, {
+                    method: 'GET',
+                    responseType: 'text',
+                    headers: { 'X-Respond-With': 'html' },
+                    timeout: Config.timeout
+                });
+                const doc = Rule.helpers.parseHtml(res.responseText || res.response || '');
+                const rule = Rule.special.find(i => i.siteName === '69shuba');
+                const title = rule.chapterTitle(doc) || chapter.title;
+                const content = await rule.content(doc, res, { raw: chapter });
+                if (!content || !String(content).trim()) throw new Error('69shuba reader không trả về nội dung chương');
+                return { title, content };
+            },
             getChapters: async (doc) => {
                 const currentChapter = window.location.href.match(/69shuba\.(?:cx|com)\/txt\/\d+\/\d+/);
                 if (currentChapter) {
@@ -1541,16 +1555,33 @@ function decryptDES(encrypted, key, iv) {
             chapterTitle: (doc) => $('.txtnav h1.hide720, .txtnav h1, h1.hide720, h1', doc).first().text().trim(),
             contentCheck: (doc, res, request) => {
                 const title = (doc && doc.title || '').trim();
-                if (/Just a moment|Enable JavaScript and cookies/i.test(title) || $('#challenge-error-text', doc).length) {
+                const bodyText = $('body', doc).text().replace(/\s+/g, ' ').trim();
+                const requestTitle = (request && request.raw && request.raw.title || '').replace(/\s+/g, ' ').trim();
+                const bodyCompact = bodyText.replace(/\s+/g, '');
+                const requestTitleCompact = requestTitle.replace(/\s+/g, '');
+                if (/Just a moment|Enable JavaScript and cookies|403 Forbidden|Access denied|cf-error/i.test(`${title} ${bodyText}`) || $('#challenge-error-text', doc).length) {
                     console.error('[69shuba] Cloudflare challenge khi tải chương:', request && request.raw && request.raw.url);
                     return false;
                 }
-                const hasContent = $('.txtnav', doc).length > 0;
-                if (!hasContent) console.error('[69shuba] Không tìm thấy .txtnav trong trang chương:', request && request.raw && request.raw.url);
+                const hasContent = $('.txtnav, #content, .content, .read-content, article', doc).length > 0
+                    || (bodyText.length > 600 && (!requestTitleCompact || bodyCompact.includes(requestTitleCompact)) && /第\s*\d+\s*章/.test(bodyText));
+                if (!hasContent) {
+                    console.error('[69shuba] Không tìm thấy nội dung chương:', request && request.raw && request.raw.url, title, bodyText.slice(0, 160));
+                }
                 return hasContent;
             },
-            content: (doc) => {
-                const content = $('.txtnav', doc).first().clone();
+            content: (doc, res, request) => {
+                let content = $('.txtnav, #content, .content, .read-content, article', doc).first().clone();
+                if (!content.length) {
+                    content = $('body', doc).first().clone();
+                    const title = $('.txtnav h1.hide720, .txtnav h1, h1.hide720, h1', doc).first().text().trim()
+                        || (request && request.raw && request.raw.title || '').trim();
+                    const lines = content.text().split(/\n+/).map(line => line.trim()).filter(Boolean);
+                    const titleIndex = title ? lines.findIndex(line => line.includes(title)) : -1;
+                    const chapterLines = (titleIndex >= 0 ? lines.slice(titleIndex + 1) : lines)
+                        .filter(line => !/上一章|下一章|返回目录|加入书签|推荐阅读|最新网址|69书吧|六九书吧|书架|报错|评论|目录/.test(line));
+                    return chapterLines.join('\n').trim();
+                }
                 content.find('h1.hide720, h1, .txtinfo, #txtright, .bottom-ad, .page1, script, style, iframe, ins').remove();
                 content.find('br').replaceWith('\n');
                 return (content.html() || '')
@@ -7619,11 +7650,15 @@ function decryptDES(encrypted, key, iv) {
     // Main Panel UI & Download Pipeline
     // ============================================================================
 
-    async function showUI() {
+    async function showUI(options = {}) {
         const uiRoot = getNovelDownloaderUIRoot(true) || document.body;
         const existingPanel = ndUI$('.novel-downloader-v3');
         if (existingPanel.length) {
-            existingPanel.toggle();
+            if (options.resumeRequest) {
+                existingPanel.show();
+            } else {
+                existingPanel.toggle();
+            }
             if ($('.novel-downloader-style-chapter[media]').length) { // https://stackoverflow.com/a/54441305
                 $('.novel-downloader-style-chapter[media]').attr('media', null);
             } else {
@@ -7636,6 +7671,8 @@ function decryptDES(encrypted, key, iv) {
             chaptersArr;
         let vipChapters = [];
         const chaptersDownloaded = [];
+        let pendingResumeTaskId = options.resumeRequest && options.resumeRequest.task && options.resumeRequest.task.id;
+        let pendingResumeData = options.resumeRequest && options.resumeRequest.data;
 
         const issueBody = [
             `- Script: \`novelDownloader5 v${GM_info.script.version}\``,
@@ -7939,6 +7976,12 @@ function decryptDES(encrypted, key, iv) {
             chaptersArr = Storage.book.chapters.map((i) => i.url);
 
             const format = $(e.target).attr('format');
+            const activeResumeTaskId = pendingResumeTaskId && pendingResumeData ? pendingResumeTaskId : null;
+            if (activeResumeTaskId && typeof TaskManager.consumeResumeRequest === 'function') {
+                await TaskManager.consumeResumeRequest(activeResumeTaskId);
+                pendingResumeTaskId = null;
+                pendingResumeData = null;
+            }
             let downloadManagerTaskId = null;
             let downloadManagerCancelled = false;
             let resolveDownloadManagerWait = null;
@@ -7951,6 +7994,35 @@ function decryptDES(encrypted, key, iv) {
                     total: chapterList.length,
                     failed
                 };
+            };
+            const buildDownloadResumeData = () => ({
+                version: 1,
+                sourceUrl: window.location.href,
+                format,
+                book: {
+                    title: Storage.book.title,
+                    writer: Storage.book.writer,
+                    intro: Storage.book.intro,
+                    cover: Storage.book.cover
+                },
+                chapters: (Storage.book.chapters || []).map((chapter) => ({
+                    title: chapter.title || '',
+                    url: chapter.url || '',
+                    volume: chapter.volume || '',
+                    vip: Boolean(chapter.vip || vipChapters.includes(chapter.url)),
+                    contentRaw: chapter.contentRaw || '',
+                    content: chapter.content || ''
+                })),
+                vipChapters: vipChapters.slice(),
+                progress: getDownloadManagerProgress()
+            });
+            const persistDownloadResumeData = async () => {
+                if (!downloadManagerTaskId || typeof TaskManager.saveResumeData !== 'function') return;
+                try {
+                    await TaskManager.saveResumeData(downloadManagerTaskId, buildDownloadResumeData());
+                } catch (error) {
+                    console.warn('[ND] Không thể lưu dữ liệu tiếp tục:', error);
+                }
             };
             const syncDownloadManagerTask = async (status = 'downloading', patch = {}) => {
                 if (!downloadManagerTaskId || typeof TaskManager.updateTask !== 'function') return;
@@ -7990,6 +8062,7 @@ function decryptDES(encrypted, key, iv) {
                         message: stringifyError(error)
                     });
                     await syncDownloadManagerTask('downloading');
+                    await persistDownloadResumeData();
                 } catch (managerError) {
                     console.warn('[ND] Không thể ghi lỗi vào download manager:', managerError);
                 }
@@ -8006,19 +8079,35 @@ function decryptDES(encrypted, key, iv) {
                 }
             };
             try {
-                const managerTask = await TaskManager.createTask({
-                    bookTitle: Storage.book.title || Storage.book.chapters[0]?.title || document.title,
-                    domain: window.location.hostname,
-                    sourceUrl: window.location.href,
-                    format,
-                    status: 'downloading',
-                    progress: getDownloadManagerProgress(),
-                    meta: {
-                        rule: Storage.rule && Storage.rule.name || '',
-                        totalChapters: Storage.book.chapters.length
-                    }
-                });
-                downloadManagerTaskId = managerTask && managerTask.id;
+                if (activeResumeTaskId) {
+                    downloadManagerTaskId = activeResumeTaskId;
+                    await TaskManager.updateTask(downloadManagerTaskId, {
+                        bookTitle: Storage.book.title || Storage.book.chapters[0]?.title || document.title,
+                        domain: window.location.hostname,
+                        sourceUrl: window.location.href,
+                        format,
+                        status: 'downloading',
+                        progress: getDownloadManagerProgress(),
+                        meta: {
+                            rule: Storage.rule && Storage.rule.name || '',
+                            totalChapters: Storage.book.chapters.length
+                        }
+                    });
+                } else {
+                    const managerTask = await TaskManager.createTask({
+                        bookTitle: Storage.book.title || Storage.book.chapters[0]?.title || document.title,
+                        domain: window.location.hostname,
+                        sourceUrl: window.location.href,
+                        format,
+                        status: 'downloading',
+                        progress: getDownloadManagerProgress(),
+                        meta: {
+                            rule: Storage.rule && Storage.rule.name || '',
+                            totalChapters: Storage.book.chapters.length
+                        }
+                    });
+                    downloadManagerTaskId = managerTask && managerTask.id;
+                }
                 if (downloadManagerTaskId && typeof TaskManager.registerRuntimeActions === 'function') {
                     TaskManager.registerRuntimeActions(downloadManagerTaskId, {
                         cancel: async () => {
@@ -8051,6 +8140,7 @@ function decryptDES(encrypted, key, iv) {
                         }
                     });
                 }
+                await persistDownloadResumeData();
             } catch (error) {
                 console.warn('[ND] Không thể tạo task download manager:', error);
             }
@@ -8395,6 +8485,7 @@ function decryptDES(encrypted, key, iv) {
                     throw new Error("ContentCheck thất bại"); // Ném lỗi để onChapterFailed xử lý
                 }
                 updateProgress(true);
+                await persistDownloadResumeData();
             };
             //thêm
             const chapterList = { iframe: [], popup: [], deal: [], download: [] };
@@ -8505,6 +8596,7 @@ function decryptDES(encrypted, key, iv) {
                                 throw new Error(result?.error || "Hàm deal không trả về nội dung");
                             }
                             updateProgress();
+                            await persistDownloadResumeData();
                             try {
                                 if (taskIndex !== null && xhr.manual && typeof xhr.manual.done === 'function') {
                                     xhr.manual.done(taskIndex, { title: chapter.title || '' });
@@ -8818,11 +8910,34 @@ function decryptDES(encrypted, key, iv) {
             if (!chapters.length) chapters = temp;
         }
 
+        if (pendingResumeData && Array.isArray(pendingResumeData.chapters) && pendingResumeData.chapters.length) {
+            Storage.book = Object.assign(Storage.book, pendingResumeData.book || {});
+            chapters = pendingResumeData.chapters.map((chapter) => Object.assign({}, chapter));
+            vipChapters = Array.isArray(pendingResumeData.vipChapters) ? pendingResumeData.vipChapters.slice() : vipChapters;
+            chaptersDownloaded.splice(0, chaptersDownloaded.length, ...chapters.filter(chapter => chapter.contentRaw || chapter.content));
+            container.find('[name="limit"]>[name="range"]').val('');
+            container.find('[name="limit"]>[name="batch"]').val('');
+            for (const name of ['title', 'writer', 'intro', 'cover']) {
+                container.find(`[name="info"]>[name="${name}"]`).val(Storage.book[name] || '');
+            }
+            console.log(`[ND] Đã nạp dữ liệu tiếp tục task ${pendingResumeTaskId}: ${chaptersDownloaded.length}/${chapters.length} chương đã có nội dung.`);
+            ndShowToast(`Tiếp tục tải: đã có ${chaptersDownloaded.length}/${chapters.length} chương.`, 'info', 3000);
+        }
+
         container.find('input,select,textarea').attr('disabled', null);
         container.find('input,select,textarea').filter('[raw-disabled="disabled"]').attr('raw-disabled', null).attr('disabled', 'disabled');
         syncConsoleButtons();
 
         container.find('[name="rememberDownloadDir"]').prop('checked', !!Config.rememberDownloadDir);
+
+        if (pendingResumeTaskId && pendingResumeData) {
+            window.setTimeout(() => {
+                const format = pendingResumeData.format || 'text';
+                const button = container.find(`[name="download"][format="${format}"]`).get(0)
+                    || container.find('[name="download"][format="text"]').get(0);
+                if (button && !button.disabled) button.click();
+            }, 300);
+        }
 
         if (Storage.debug.book) console.log(Storage.book);
     }
@@ -8831,11 +8946,22 @@ function decryptDES(encrypted, key, iv) {
     // Bootstrap & Entry Points
     // ============================================================================
 
-    function checkNovelDownloaderHelper() {
+    async function getPendingResumeRequest() {
+        if (!TaskManager || typeof TaskManager.peekResumeRequestForUrl !== 'function') return null;
+        try {
+            return await TaskManager.peekResumeRequestForUrl(window.location.href);
+        } catch (error) {
+            console.warn('[ND] Không thể đọc yêu cầu tiếp tục:', error);
+            return null;
+        }
+    }
+
+    async function checkNovelDownloaderHelper() {
+        const resumeRequest = await getPendingResumeRequest();
         try {
             const antiInstalled = unsafeWindow.__ND_ANTI_INSTALLED__;
 
-            if (!antiInstalled) {
+            if (!resumeRequest && !antiInstalled) {
                 const THREE_DAYS = 3 * 24 * 60 * 60 * 1000;
                 const now = Date.now();
                 const lastCancel = GM_getValue('ND_HELPER_LAST_CANCEL_TS', 0);
@@ -8871,7 +8997,7 @@ function decryptDES(encrypted, key, iv) {
 
         // Helper đã cài hoặc user tạm bỏ qua → chạy bình thường
         init();
-        showUI();
+        await showUI({ resumeRequest });
     }
 
 
@@ -8888,6 +9014,10 @@ function decryptDES(encrypted, key, iv) {
     GM_registerMenuCommand('Show Storage', () => {
         showManagerUI();
     }, 'S');
+
+    getPendingResumeRequest().then((resumeRequest) => {
+        if (resumeRequest) checkNovelDownloaderHelper();
+    });
 
     // ============================================================================
     // Output Builders

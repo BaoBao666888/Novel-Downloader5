@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name        nd-download-manager
-// @version     1.0.2
+// @version     1.0.3
 // @include     *
 // ==/UserScript==
 /* eslint-env browser */
@@ -14,7 +14,10 @@
     const STYLE_ID = 'ndDownloadManagerStyle';
     const OVERLAY_ID = 'nd-manager-overlay';
     const STATE_KEY = 'nd_manager_state';
+    const RESUME_KEY_PREFIX = 'nd_manager_resume_';
+    const RESUME_REQUEST_KEY = 'nd_manager_resume_request';
     const MAX_HISTORY = 50;
+    const TASK_RETENTION_MS = 30 * 24 * 60 * 60 * 1000;
     const runtimeActions = new Map();
 
     function getUiRoot(create = false) {
@@ -68,6 +71,7 @@
             .nd-manager-actions button:hover, .nd-manager-toolbar button:hover { background: #e2e8f0; }
             .nd-manager-actions button[data-action="cancel-task"] { color: #b91c1c; border-color: #fecaca; background: #fff1f2; }
             .nd-manager-actions button[data-action="retry-task"] { color: #166534; border-color: #bbf7d0; background: #f0fdf4; }
+            .nd-manager-actions button[data-action="resume-task"] { color: #1d4ed8; border-color: #bfdbfe; background: #eff6ff; }
             .nd-manager-errors { margin-top: 6px; color: #b91c1c; font-size: 12px; }
         `;
     }
@@ -76,6 +80,33 @@
         return {
             queue: Array.isArray(state && state.queue) ? state.queue : [],
             history: Array.isArray(state && state.history) ? state.history : []
+        };
+    }
+
+    function getTaskTime(task = {}) {
+        const value = task.finishedAt || task.updatedAt || task.startedAt || task.createdAt;
+        const time = value ? new Date(value).getTime() : 0;
+        return Number.isFinite(time) ? time : 0;
+    }
+
+    function pruneExpiredState(state) {
+        const normalized = normalizeState(state);
+        const cutoff = Date.now() - TASK_RETENTION_MS;
+        const removed = [];
+        const keepTask = (task) => {
+            const time = getTaskTime(task);
+            const keep = !time || time >= cutoff;
+            if (!keep) removed.push(task);
+            return keep;
+        };
+        const nextState = {
+            queue: normalized.queue.filter(keepTask),
+            history: normalized.history.filter(keepTask)
+        };
+        return {
+            state: nextState,
+            removed,
+            changed: nextState.queue.length !== normalized.queue.length || nextState.history.length !== normalized.history.length
         };
     }
 
@@ -104,6 +135,20 @@
             status: error.status || '',
             message: error.message || ''
         };
+    }
+
+    function getResumeKey(id) {
+        return `${RESUME_KEY_PREFIX}${id}`;
+    }
+
+    function normalizeUrlForResume(url) {
+        try {
+            const parsed = new URL(url, window.location.href);
+            parsed.hash = '';
+            return parsed.href;
+        } catch (error) {
+            return String(url || '').split('#')[0];
+        }
     }
 
     function escapeHtml(value) {
@@ -198,14 +243,19 @@
         _initialized: false,
 
         async getState() {
-            const state = await GM_getValue(this.STATE_KEY);
-            return normalizeState(state);
+            const { state, removed, changed } = pruneExpiredState(await GM_getValue(this.STATE_KEY));
+            if (changed) {
+                await GM_setValue(this.STATE_KEY, state);
+                await Promise.all(removed.map(task => this.clearResumeData(task && task.id, { updateTask: false })).filter(Boolean));
+            }
+            return state;
         },
 
         async setState(updater) {
             const currentState = await this.getState();
-            const newState = normalizeState(updater(currentState) || currentState);
+            const { state: newState, removed } = pruneExpiredState(updater(currentState) || currentState);
             await GM_setValue(this.STATE_KEY, newState);
+            await Promise.all(removed.map(task => this.clearResumeData(task && task.id, { updateTask: false })).filter(Boolean));
             this._emit(newState);
             return newState;
         },
@@ -254,7 +304,7 @@
                 finishedAt: task.finishedAt || null,
                 progress: normalizeProgress(task.progress),
                 errors: Array.isArray(task.errors) ? task.errors.map(normalizeError) : [],
-                meta: task.meta || {}
+                meta: Object.assign({}, task.meta || {})
             };
             await this.setState((state) => {
                 state.queue = state.queue.filter(item => item.id !== id);
@@ -275,7 +325,11 @@
                 }
                 for (const [key, value] of Object.entries(patch)) {
                     if (key === 'progress' || key === 'errors') continue;
-                    task[key] = value;
+                    if (key === 'meta') {
+                        task.meta = Object.assign({}, task.meta || {}, value || {});
+                    } else {
+                        task[key] = value;
+                    }
                 }
                 task.updatedAt = nowIso();
                 updatedTask = task;
@@ -324,14 +378,95 @@
                 finishedTask = task;
                 return state;
             });
+            await this.clearResumeData(id, { updateTask: false });
             return finishedTask;
         },
 
         async clearHistory() {
+            const currentState = await this.getState();
+            await Promise.all((currentState.history || []).map(task => this.clearResumeData(task && task.id, { updateTask: false })).filter(Boolean));
             await this.setState((state) => {
                 state.history = [];
                 return state;
             });
+        },
+
+        async saveResumeData(id, data = {}) {
+            if (!id) return null;
+            const key = getResumeKey(id);
+            const payload = Object.assign({}, data, {
+                taskId: id,
+                savedAt: nowIso()
+            });
+            await GM_setValue(key, payload);
+            await this.updateTask(id, {
+                meta: {
+                    resumeAvailable: true,
+                    resumeKey: key,
+                    resumeUpdatedAt: payload.savedAt,
+                    resumeSourceUrl: payload.sourceUrl || '',
+                    resumeFormat: payload.format || ''
+                }
+            });
+            return payload;
+        },
+
+        async getResumeData(id) {
+            if (!id) return null;
+            const data = await GM_getValue(getResumeKey(id));
+            return data && typeof data === 'object' ? data : null;
+        },
+
+        async clearResumeData(id, options = {}) {
+            if (!id) return null;
+            await GM_setValue(getResumeKey(id), null);
+            if (options.updateTask !== false) {
+                await this.updateTask(id, {
+                    meta: {
+                        resumeAvailable: false,
+                        resumeClearedAt: nowIso()
+                    }
+                });
+            }
+            return true;
+        },
+
+        async requestResume(id) {
+            if (!id) return null;
+            const state = await this.getState();
+            const task = state.queue.find(item => item.id === id);
+            const resumeData = await this.getResumeData(id);
+            if (!task || !resumeData) return null;
+            const request = {
+                taskId: id,
+                sourceUrl: task.sourceUrl || resumeData.sourceUrl || window.location.href,
+                requestedAt: nowIso()
+            };
+            await GM_setValue(RESUME_REQUEST_KEY, request);
+            return Object.assign({}, task, { resumeData });
+        },
+
+        async peekResumeRequestForUrl(url) {
+            const request = await GM_getValue(RESUME_REQUEST_KEY);
+            if (!request || !request.taskId) return null;
+            const requestedAt = new Date(request.requestedAt || 0).getTime();
+            if (requestedAt && Date.now() - requestedAt > 10 * 60 * 1000) {
+                await GM_setValue(RESUME_REQUEST_KEY, null);
+                return null;
+            }
+            if (normalizeUrlForResume(request.sourceUrl) !== normalizeUrlForResume(url)) return null;
+            const state = await this.getState();
+            const task = state.queue.find(item => item.id === request.taskId);
+            const data = await this.getResumeData(request.taskId);
+            if (!task || !data) return null;
+            return { request, task, data };
+        },
+
+        async consumeResumeRequest(id) {
+            const request = await GM_getValue(RESUME_REQUEST_KEY);
+            if (!request || (id && request.taskId !== id)) return false;
+            await GM_setValue(RESUME_REQUEST_KEY, null);
+            return true;
         },
 
         registerRuntimeActions(id, actions = {}) {
@@ -416,6 +551,9 @@
             if (TaskManager.hasRuntimeAction(task.id, 'retry')) {
                 buttons.push(`<button type="button" data-action="retry-task" data-task-id="${escapeHtml(task.id)}">Retry</button>`);
             }
+            if (location === 'queue' && !TaskManager.hasRuntimeAction(task.id, 'cancel') && task.meta && task.meta.resumeAvailable) {
+                buttons.push(`<button type="button" data-action="resume-task" data-task-id="${escapeHtml(task.id)}">Tiếp tục</button>`);
+            }
             return `<div class="nd-manager-actions">${buttons.join('')}</div>`;
         };
 
@@ -442,8 +580,6 @@
         };
 
         const renderUI = (state) => {
-            console.log('Rendering manager UI with new state:', state);
-
             const queueList = overlay.querySelector('#nd-queue-list');
             if (!state.queue || state.queue.length === 0) {
                 queueList.innerHTML = 'Chưa có gì trong hàng đợi.';
@@ -486,6 +622,14 @@
                 } else if (action === 'retry-task') {
                     const handled = await TaskManager.runRuntimeAction(task.id, 'retry', task);
                     if (!handled) flashButton(button, 'Không khả dụng');
+                } else if (action === 'resume-task') {
+                    const resumeTask = await TaskManager.requestResume(task.id);
+                    if (!resumeTask) {
+                        flashButton(button, 'Không có data');
+                        return;
+                    }
+                    window.open(resumeTask.sourceUrl || task.sourceUrl, '_blank', 'noopener');
+                    flashButton(button, 'Đã mở tab');
                 }
             } catch (error) {
                 console.error('[ND] Lỗi thao tác download manager:', error);
