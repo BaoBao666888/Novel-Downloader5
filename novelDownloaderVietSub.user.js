@@ -11,8 +11,8 @@
 // @updateURL   https://raw.githubusercontent.com/BaoBao666888/Novel-Downloader5/main/novelDownloaderVietSub.user.js
 // @require     https://cdnjs.cloudflare.com/ajax/libs/jquery/3.1.0/jquery.js
 
-// @require     https://raw.githubusercontent.com/BaoBao666888/Novel-Downloader5/main/download-vietnamese.js
-// @require     https://raw.githubusercontent.com/BaoBao666888/Novel-Downloader5/main/nd-console-panel.js
+// @require     https://raw.githubusercontent.com/BaoBao666888/Novel-Downloader5/main/download-vietnamese.js?v=1.3.1
+// @require     https://raw.githubusercontent.com/BaoBao666888/Novel-Downloader5/main/nd-console-panel.js?v=1.0.1
 
 // @require     https://raw.githubusercontent.com/BaoBao666888/Novel-Downloader5/main/chs2cht.js
 // @require     https://cdnjs.cloudflare.com/ajax/libs/jszip/3.0.0/jszip.min.js
@@ -7822,6 +7822,9 @@ function decryptDES(encrypted, key, iv) {
         const removeConsoleStateListener = window.NDConsole && typeof window.NDConsole.onStateChange === 'function'
             ? window.NDConsole.onStateChange(syncConsoleButtons)
             : null;
+        if (window.NDConsole && typeof window.NDConsole.setUiActive === 'function') {
+            window.NDConsole.setUiActive(true);
+        }
         container.find('input,select,textarea').attr('disabled', 'disabled');
         container.find('[name="config"]').find('input,select,textarea').on('change', function (e) {
             const { name } = e.target;
@@ -8664,6 +8667,9 @@ function decryptDES(encrypted, key, iv) {
         container.find('[name="buttons"]').find('[type="button"]:not([name="download"])').on('click', async (e) => {
             const name = $(e.target).attr('name');
             if (name === 'exit') {
+                if (window.NDConsole && typeof window.NDConsole.setUiActive === 'function') {
+                    window.NDConsole.setUiActive(false);
+                }
                 if (typeof removeConsoleStateListener === 'function') removeConsoleStateListener();
                 ndUI$('.novel-downloader-style,.novel-downloader-v3').remove();
                 $('.novel-downloader-style,.novel-downloader-style-chapter').remove();

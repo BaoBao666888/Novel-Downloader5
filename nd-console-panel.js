@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name        nd-console-panel
-// @version     1.0.0
+// @version     1.0.1
 // @include     *
 // ==/UserScript==
 /* eslint-env browser */
@@ -28,6 +28,7 @@
     const listeners = [];
     const consoleObject = window.console || {};
     let enabled = loadEnabled();
+    let uiActive = false;
     let hiddenByUser = true;
     let installed = false;
 
@@ -145,11 +146,13 @@
     }
 
     function isVisible() {
-        const panel = ensurePanel();
+        const root = getUiRoot(false);
+        const panel = root && root.querySelector(`#${PANEL_ID}`);
         return Boolean(panel && panel.classList.contains('is-visible'));
     }
 
     function show() {
+        if (!uiActive) return;
         const panel = ensurePanel();
         if (!panel) return;
         hiddenByUser = false;
@@ -159,9 +162,13 @@
     }
 
     function hide() {
-        const panel = ensurePanel();
-        if (!panel) return;
         hiddenByUser = true;
+        const root = getUiRoot(false);
+        const panel = root && root.querySelector(`#${PANEL_ID}`);
+        if (!panel) {
+            emitState();
+            return;
+        }
         panel.classList.remove('is-visible');
         emitState();
     }
@@ -178,6 +185,16 @@
         render();
         emitState();
         if (enabled && entries.length) show();
+    }
+
+    function setUiActive(value) {
+        uiActive = Boolean(value);
+        if (!uiActive) {
+            hide();
+            return;
+        }
+        render();
+        emitState();
     }
 
     function toggle() {
@@ -248,19 +265,138 @@
         }[char]));
     }
 
+    function escapeAttr(text) {
+        return escapeHtml(text).replace(/`/g, '&#96;');
+    }
+
+    function sanitizeConsoleStyle(styleText) {
+        const allowed = new Set([
+            'color',
+            'background',
+            'background-color',
+            'font-weight',
+            'font-style',
+            'font-size',
+            'text-decoration',
+            'text-decoration-line',
+            'text-transform'
+        ]);
+        return String(styleText || '')
+            .split(';')
+            .map((item) => item.trim())
+            .filter(Boolean)
+            .map((item) => {
+                const splitIndex = item.indexOf(':');
+                if (splitIndex < 1) return '';
+                const property = item.slice(0, splitIndex).trim().toLowerCase();
+                const value = item.slice(splitIndex + 1).trim();
+                if (!allowed.has(property)) return '';
+                if (!value || value.length > 120) return '';
+                if (/[{}<>]/.test(value) || /(?:url|expression|javascript|@import)\s*\(/i.test(value)) return '';
+                return `${property}: ${value}`;
+            })
+            .filter(Boolean)
+            .join('; ');
+    }
+
+    function formatSpecifier(specifier, value) {
+        if (specifier === 's') return String(value);
+        if (specifier === 'd' || specifier === 'i') {
+            const number = parseInt(value, 10);
+            return Number.isNaN(number) ? 'NaN' : String(number);
+        }
+        if (specifier === 'f') {
+            const number = parseFloat(value);
+            return Number.isNaN(number) ? 'NaN' : String(number);
+        }
+        return formatArg(value);
+    }
+
+    function formatConsoleArgs(argsLike) {
+        const args = Array.prototype.slice.call(argsLike);
+        const segments = [];
+        let text = '';
+        let activeStyle = '';
+
+        const append = (value, style = activeStyle) => {
+            const valueText = String(value);
+            if (!valueText) return;
+            text += valueText;
+            const last = segments[segments.length - 1];
+            if (last && last.style === style) {
+                last.text += valueText;
+            } else {
+                segments.push({ text: valueText, style });
+            }
+        };
+
+        if (!args.length) return { text: '', html: '' };
+        if (typeof args[0] !== 'string') {
+            args.forEach((value, index) => {
+                if (index > 0) append(' ', '');
+                append(formatArg(value), '');
+            });
+            return {
+                text,
+                html: segments.map((segment) => escapeHtml(segment.text)).join('')
+            };
+        }
+
+        const format = args[0];
+        let argIndex = 1;
+        for (let index = 0; index < format.length; index++) {
+            const char = format[index];
+            if (char !== '%' || index + 1 >= format.length) {
+                append(char);
+                continue;
+            }
+            const specifier = format[++index];
+            if (specifier === '%') {
+                append('%');
+            } else if (specifier === 'c') {
+                activeStyle = sanitizeConsoleStyle(argIndex < args.length ? args[argIndex++] : '');
+            } else if ('sdifoO'.includes(specifier)) {
+                if (argIndex < args.length) {
+                    append(formatSpecifier(specifier, args[argIndex++]));
+                } else {
+                    append(`%${specifier}`);
+                }
+            } else {
+                append(`%${specifier}`);
+            }
+        }
+
+        while (argIndex < args.length) {
+            append(' ', '');
+            append(formatArg(args[argIndex++]), '');
+        }
+
+        return {
+            text,
+            html: segments.map((segment) => {
+                const content = escapeHtml(segment.text);
+                return segment.style
+                    ? `<span style="${escapeAttr(segment.style)}">${content}</span>`
+                    : content;
+            }).join('')
+        };
+    }
+
     function addEntry(type, args) {
         if (!enabled) return;
         const normalizedType = TYPE_LABEL[type] ? type : 'log';
         const time = new Date();
-        const text = limitText(Array.prototype.map.call(args, formatArg).join(' '), 12000);
+        const formatted = formatConsoleArgs(args);
+        const text = limitText(formatted.text, 12000);
         entries.push({
             type: normalizedType,
             time,
-            text
+            text,
+            html: text === formatted.text ? formatted.html : escapeHtml(text)
         });
         if (entries.length > MAX_ENTRIES) entries.splice(0, entries.length - MAX_ENTRIES);
         render();
-        if (hiddenByUser || !isVisible()) show();
+        if (uiActive && (hiddenByUser || !isVisible())) show();
         emitState();
     }
 
@@ -284,7 +420,7 @@
             list.innerHTML = entries.map((entry) => [
                 `<div class="nd-console-entry" data-type="${entry.type}">`,
                 `  <span class="nd-console-entry-meta">${formatTime(entry.time)} ${TYPE_LABEL[entry.type]}</span>`,
-                escapeHtml(entry.text),
+                entry.html || escapeHtml(entry.text),
                 '</div>'
             ].join('')).join('');
         }
@@ -321,6 +457,7 @@
         const state = {
             count: entries.length,
             enabled,
+            uiActive,
             visible: isVisible()
         };
         listeners.slice().forEach((listener) => {
@@ -338,6 +475,7 @@
         listener({
             count: entries.length,
             enabled,
+            uiActive,
             visible: isVisible()
         });
         return function removeListener() {
@@ -385,7 +523,9 @@
         copy,
         toggle,
         setEnabled,
+        setUiActive,
         isEnabled: () => enabled,
+        isUiActive: () => uiActive,
         isVisible,
         getEntries: () => entries.slice(),
         getText,

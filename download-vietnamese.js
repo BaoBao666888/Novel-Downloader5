@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name        download
-// @version     1.3.0
+// @version     1.3.1
 // @include     *
 // ==/UserScript==
 // TODO: 支持fetch,xhr
