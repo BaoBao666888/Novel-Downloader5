@@ -1527,6 +1527,7 @@ function decryptDES(encrypted, key, iv) {
             writer: '.booknav2 p:nth-of-type(1) a, .booknav2 a[href*="/author"], a[href*="/zuozhe"], a[href*="/author"]',
             intro: 'div.navtxt, #intro, .intro, .bookintro',
             chapter: 'a[href*="/txt/"]',
+            iframe: true,
             getChapters: async (doc) => {
                 const currentChapter = window.location.href.match(/69shuba\.(?:cx|com)\/txt\/\d+\/\d+/);
                 if (currentChapter) {
@@ -7948,13 +7949,29 @@ function decryptDES(encrypted, key, iv) {
             };
             const recordDownloadManagerError = async (chapter, error, type = 'download') => {
                 if (!downloadManagerTaskId || typeof TaskManager.recordError !== 'function') return;
+                const stringifyError = (value) => {
+                    if (!value) return '';
+                    if (typeof value === 'string') return value;
+                    if (value.message) return value.message;
+                    if (value.status || value.statusText) {
+                        const status = `${value.status || ''} ${value.statusText || ''}`.trim();
+                        const detail = value.error && value.error !== value ? stringifyError(value.error) : '';
+                        return [status, detail].filter(Boolean).join(' - ');
+                    }
+                    if (value.error && value.error !== value) return stringifyError(value.error);
+                    try {
+                        return JSON.stringify(value).slice(0, 500);
+                    } catch (e) {
+                        return String(value);
+                    }
+                };
                 try {
                     await TaskManager.recordError(downloadManagerTaskId, {
                         title: chapter && chapter.title,
                         url: chapter && chapter.url,
                         type,
                         status: error && (error.status || error.statusText),
-                        message: error && (error.message || error.error && error.error.message || error.statusText || String(error))
+                        message: stringifyError(error)
                     });
                     await syncDownloadManagerTask('downloading');
                 } catch (managerError) {
