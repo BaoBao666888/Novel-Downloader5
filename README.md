@@ -207,14 +207,6 @@ ovelDownloaderVietSub.user.js), bản beta và các phiên bản hồi quy (3.5.
 *   **chs2cht.js:** Bộ chuyển Giản thể ↔ Phồn thể, dùng khi cần xuất bản với chữ Hant hoặc chuyển từ nguồn zh-Hant.
 *   **SourceHanSansCN-Regular-Often.json:** Bản đồ glyph → ký tự được trích từ font Source Han Sans (dùng để giải mã icon font trong truyện).
 
-## Vấn đề đã biết (Chưa sửa lỗi)
-
-1.  **Khó hiển thị giao diện:** Trong phiên bản `3.5.447` này, giao diện tải xuống (bảng điều khiển) **đôi khi không tự động xuất hiện** khi nhấp đúp vào cạnh trái hoặc dùng menu lệnh, không ổn định như các bản 445, 446 trước đó.
-    *   **Cách khắc phục tạm thời:** Tải lại trang (F5) và thử lại thao tác mở bảng điều khiển (nhấp đúp hoặc dùng menu). Có thể cần thử vài lần.
-2.  **Luồng tải không hoạt động đúng:** Việc cài đặt nhiều hơn 1 luồng tải (`thread`) trong cấu hình hiện tại **không hoạt động song song** như mong đợi cho tất cả các trường hợp.
-    *   Script vẫn xử lý tải xuống một cách **tuần tự** (từng chương một) đối với các rule phức tạp (dùng `deal`, `iframe`, `popup`) hoặc khi có độ trễ (`delayBetweenChapters`).
-    *   Ngay cả với các chương tải trực tiếp, việc tăng số luồng dường như **không tăng tốc độ tải song song** mà vẫn chạy như 1 luồng. Đây là vấn đề cần được kiểm tra và sửa lỗi trong code xử lý hàng đợi tải xuống.
-
 ## Kế hoạch tương lai (TODO)
 
 *   **Ưu tiên:** Sửa lỗi giao diện không hiển thị và lỗi xử lý luồng tải.
