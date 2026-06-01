@@ -155,7 +155,7 @@ Rule tối thiểu cần `siteName`, cách nhận diện trang (`url`/`chapterUr
 ```
 
 Lưu ý:
-- Ô “Quy tắc tùy chỉnh” chạy trong scope có sẵn `Rule`, `helpers`/`utils`, `xhr`, `$`, `sleep`, `html2Text`, `replaceWithDict`, `Storage`, `Config`, `unsafeWindow`.
+- Ô “Quy tắc tùy chỉnh” chạy trong scope có sẵn `Rule`, `helpers`/`utils`, `xhr`, `$`, `sleep`, `html2Text`, `replaceWithDict`, `Storage`, `Config`, `unsafeWindow`, `GM_getValue`, `GM_setValue`, `GM_xmlhttpRequest`, `download`, `saveAs`, `CryptoJS`, `console`.
 - Có thể dán trực tiếp `[{...}]`, `{...}` hoặc lệnh:
 
 ```js

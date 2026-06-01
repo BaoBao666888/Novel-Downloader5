@@ -2,7 +2,7 @@
 // ==UserScript==
 // @name        novelDownloaderVietSub
 // @description Menu Download Novel hoặc nhấp đúp vào cạnh trái của trang để hiển thị bảng điều khiển
-// @version     3.5.448.2
+// @version     3.5.448.3
 // @author      dodying | BaoBao
 // @namespace   https://github.com/BaoBao666888/Novel-Downloader5
 // @supportURL  https://github.com/BaoBao666888/Novel-Downloader5/issues
@@ -12,7 +12,7 @@
 // @require     https://cdnjs.cloudflare.com/ajax/libs/jquery/3.1.0/jquery.js
 
 // @require     https://raw.githubusercontent.com/BaoBao666888/Novel-Downloader5/main/download-vietnamese.js?v=1.3.2
-// @require     https://raw.githubusercontent.com/BaoBao666888/Novel-Downloader5/main/nd-console-panel.js?v=1.0.1
+// @require     https://raw.githubusercontent.com/BaoBao666888/Novel-Downloader5/main/nd-console-panel.js?v=1.0.2
 // @require     https://raw.githubusercontent.com/BaoBao666888/Novel-Downloader5/main/nd-download-manager.js?v=1.0.4
 // @require     https://raw.githubusercontent.com/BaoBao666888/Novel-Downloader5/main/nd-file-save.js?v=1.0.0
 
@@ -188,7 +188,7 @@ function decryptDES(encrypted, key, iv) {
     // ============================================================================
 
     function getNovelDownloaderScriptVersion() {
-        return GM_info && GM_info.script && GM_info.script.version ? GM_info.script.version : '3.5.448.2';
+        return GM_info && GM_info.script && GM_info.script.version ? GM_info.script.version : '3.5.448.3';
     }
 
     function docList(items) {
@@ -243,16 +243,12 @@ function decryptDES(encrypted, key, iv) {
         return [
             `<h3>v${getNovelDownloaderScriptVersion()}</h3>`,
             docList([
-                'Cho thanh tiến độ <b>x / y</b> hiện thường trực, cập nhật tổng chương ngay khi load mục lục và giữ sticky khi panel thấp.',
-                'Bỏ luồng hỏi cài <b>NovelDownloader Helper - AntiClear</b>; bảng Console trong UI là nguồn log chính.',
-                'Thêm nút nổi <b>Novel Downloader</b> hiện đại hơn, kéo thả được, tự nhớ vị trí và tự đổi hành động theo UI đang mở.',
-                'Nút nổi tự ẩn khi UI tải chính và Quản lý tải xuống cùng mở.',
-                'Thêm tab <b>Cài đặt</b> trong Quản lý tải xuống: bật/tắt nút nổi, mở Hướng dẫn, mở Changelog.',
-                'Thay nút <b>GitHub</b> trên UI tải chính bằng nút <b>Hướng dẫn</b>.',
-                'Bổ sung hướng dẫn chi tiết và changelog ngay trong script.'
+                'Cải thiện bảng Console để nhận log từ ngữ cảnh thực thi phụ, giữ object/error và màu <code>%c</code> đầy đủ hơn.',
+                'Ổn định sandbox JS mở rộng bằng cách truyền thêm các API tiện ích cần thiết.'
             ]),
             '<h3>Các bản trước (tóm tắt)</h3>',
             docList([
+                'v3.5.448.2: cho thanh tiến độ <b>x / y</b> hiện thường trực, cập nhật tổng chương ngay khi load mục lục và giữ sticky khi panel thấp.',
                 'v3.5.448.1: đưa thanh tiến độ lên trước cụm nút tải và giữ sticky trong UI chính.',
                 'v3.5.448: bỏ phụ thuộc AntiClear, thêm nút nổi Novel Downloader, tab Cài đặt, Hướng dẫn và Changelog trong script.',
                 'v3.5.447.x: đưa UI script vào Shadow Root, thêm bảng Console trong UI, cải thiện bảng tiến độ tải và quản lý hàng đợi/lịch sử.',
@@ -705,8 +701,10 @@ function decryptDES(encrypted, key, iv) {
 
     async function processJjwxcTagsWithModel(rawHtml, sourceType, chapterContext) {
         console.log(`[Model Client] Bắt đầu xử lý Model cho chương ${chapterContext?.chapterId || '?'} (Gửi HTML đến server)...`);
-        if (sourceType !== "jjwxc") {
-            console.log(`[Model Client] Không phải nội dung Tấn Giang. Đang trả về...`);
+        const modelSourceTypes = new Set(['jjwxc', 'faloo']);
+        const normalizedSourceType = String(sourceType || '').toLowerCase();
+        if (!modelSourceTypes.has(normalizedSourceType)) {
+            console.log(`[Model Client] Nguồn ${sourceType || '?'} chưa cần xử lý model. Đang trả về...`);
             return rawHtml;
         }
         const startTime = performance.now();
@@ -4763,12 +4761,12 @@ function decryptDES(encrypted, key, iv) {
             },
         },
 
-        { // https://sangtacviet.com/truyen/
+        { // https://sangtacviet.com/truyen/ | https://sangtacviet.app/truyen/
             siteName: 'Sáng Tác Việt (API Chapter List)',
             // Nhận diện trang tổng quan truyện
-            url: '://sangtacviet.com/truyen/[^/]+/\\d+/\\d+/',
+            url: '://sangtacviet\\.(?:com|app)/truyen/[^/]+/\\d+/\\d+/',
             filter: () => {
-                if (window.location.pathname.match(/^\/truyen\/[^/]+\/\d+\/\d+\/$/) && $('#book_name2').length) {
+                if (/^(.+\.)?sangtacviet\.(com|app)$/i.test(window.location.hostname) && window.location.pathname.match(/^\/truyen\/[^/]+\/\d+\/\d+\/$/) && $('#book_name2').length) {
                     return 1; // Chỉ cần nhận diện trang truyện
                 }
                 return 0;
@@ -4959,6 +4957,7 @@ function decryptDES(encrypted, key, iv) {
                 }
                 const sourceId = novelMatch[1];
                 const bookId = novelMatch[2];
+                const stvBase = /^(.+\.)?sangtacviet\.app$/i.test(window.location.hostname) ? 'https://sangtacviet.app' : 'https://sangtacviet.com';
                 if (sourceId === 'qidian') {
                     try {
                         await Rule.special.find(r => r.siteName.startsWith('Sáng Tác Việt (API Chapter List)'))._getBookInfoFromQIDIAN(bookId);
@@ -4981,7 +4980,7 @@ function decryptDES(encrypted, key, iv) {
                 }
 
 
-                const apiUrl = 'https://sangtacviet.com/index.php';
+                const apiUrl = `${stvBase}/index.php`;
                 const payload = `ngmar=chapterlist&h=${sourceId}&bookid=${bookId}&sajax=getchapterlist`;
                 const refererUrl = window.location.href;
 
@@ -5063,12 +5062,15 @@ function decryptDES(encrypted, key, iv) {
                             }
 
                             if (chapterId && chapterTitleOri && !isNaN(parseInt(chapterId))) {
+                                const stvUrl = `${stvBase}/truyen/${sourceId}/1/${bookId}/${chapterId}/`;
                                 chapters.push({
                                     title: chapterTitleOri,
                                     url: `#stv-api-chapter-${chapterId}`,
                                     bookId: bookId,
                                     chapterId: chapterId,
                                     sourceType: sourceId,
+                                    stvBase: stvBase,
+                                    stvUrl: stvUrl,
                                 });
                             } else {
                                 console.warn("STV getChapters Warn: Bỏ qua dòng dữ liệu chương không hợp lệ:", oriDataChapters[i]);
@@ -5159,9 +5161,10 @@ function decryptDES(encrypted, key, iv) {
                 Storage.book = Storage.book || {};
                 Storage.book.debugLog = Storage.book.debugLog || [];
 
-                const apiUrl = 'https://sangtacviet.com/index.php';
+                const stvBase = chapter.stvBase || (/^(.+\.)?sangtacviet\.app$/i.test(window.location.hostname) ? 'https://sangtacviet.app' : 'https://sangtacviet.com');
+                const apiUrl = `${stvBase}/index.php`;
                 const payload = `bookid=${bookId}&h=${sourceType}&c=${chapterId}&ngmar=readc&sajax=readchapter&sty=1&exts=`;
-                const chapterWebUrl = `https://sangtacviet.com/truyen/${sourceType}/1/${bookId}/${chapterId}/`;
+                const chapterWebUrl = chapter.stvUrl || `${stvBase}/truyen/${sourceType}/1/${bookId}/${chapterId}/`;
                 let retryAttempted = false; // Cờ để chỉ thử lại một lần
                 /// auto captcha review
                 let captchaShouldStop = false;
@@ -7871,23 +7874,71 @@ function decryptDES(encrypted, key, iv) {
         unsafeWindow.ND_RULE_UTILS = Rule.helpers;
     } catch (e) {}
 
+    function createCustomRuleConsole() {
+        const methods = ['log', 'info', 'warn', 'error', 'debug'];
+        const nativeConsole = (typeof unsafeWindow !== 'undefined' && unsafeWindow.console) || window.console || console;
+        const proxy = {};
+        methods.forEach((method) => {
+            proxy[method] = function () {
+                const args = Array.prototype.slice.call(arguments);
+                const consoleApi = window.NDConsole;
+                if (consoleApi && typeof consoleApi.capture === 'function') {
+                    consoleApi.capture(method, args, { echo: true });
+                    return;
+                }
+                const fallback = nativeConsole && (nativeConsole[method] || nativeConsole.log);
+                if (typeof fallback === 'function') fallback.apply(nativeConsole, args);
+            };
+        });
+        ['group', 'groupCollapsed', 'groupEnd', 'table', 'trace'].forEach((method) => {
+            proxy[method] = function () {
+                const fallback = nativeConsole && (nativeConsole[method] || nativeConsole.log);
+                if (typeof fallback === 'function') fallback.apply(nativeConsole, arguments);
+            };
+        });
+        return proxy;
+    }
+
     function loadCustomRulesFromConfig(source) {
         const code = String(source || '').trim();
         if (!code || code === '[]') return;
-        const beforeCount = Rule.special.length;
-        const params = ['Rule', 'helpers', 'utils', 'xhr', '$', 'sleep', 'html2Text', 'replaceWithDict', 'Storage', 'Config', 'unsafeWindow'];
-        const args = [Rule, Rule.helpers, Rule.helpers, xhr, $, sleep, html2Text, replaceWithDict, Storage, Config, unsafeWindow];
+        const originalRules = Rule.special.slice();
+        const sandboxApis = {
+            GM_getValue: typeof GM_getValue !== 'undefined' ? GM_getValue : undefined,
+            GM_setValue: typeof GM_setValue !== 'undefined' ? GM_setValue : undefined,
+            GM_xmlhttpRequest: typeof GM_xmlhttpRequest !== 'undefined' ? GM_xmlhttpRequest : undefined,
+            GM_cookie: typeof GM_cookie !== 'undefined' ? GM_cookie : undefined,
+            download: typeof download !== 'undefined' ? download : undefined,
+            saveAs: typeof saveAs !== 'undefined' ? saveAs : undefined,
+            CryptoJS: typeof CryptoJS !== 'undefined' ? CryptoJS : undefined,
+            console: createCustomRuleConsole(),
+        };
+        const params = ['Rule', 'helpers', 'utils', 'xhr', '$', 'sleep', 'html2Text', 'replaceWithDict', 'Storage', 'Config', 'unsafeWindow', ...Object.keys(sandboxApis)];
+        const args = [Rule, Rule.helpers, Rule.helpers, xhr, $, sleep, html2Text, replaceWithDict, Storage, Config, unsafeWindow, ...Object.values(sandboxApis)];
         let result;
         if (/^[\[{(]/.test(code)) {
             result = new Function(...params, `"use strict"; return (${code});`)(...args);
         } else {
             result = new Function(...params, `"use strict";\n${code}`)(...args);
         }
-        const rules = Array.isArray(result) ? result : (result && typeof result === 'object' ? [result] : []);
-        const validRules = rules.filter((rule) => rule && typeof rule === 'object' && rule.siteName);
-        if (validRules.length) Rule.special = Rule.special.concat(validRules);
-        const addedCount = Rule.special.length - beforeCount;
-        console.log(`[ND] Đã nạp ${addedCount} rule tùy chỉnh từ UI.`);
+        const returnedRules = Array.isArray(result) ? result : (result && typeof result === 'object' ? [result] : []);
+        const injectedRules = Rule.special.filter((rule) => !originalRules.includes(rule));
+        const seenRules = new Set();
+        const customRules = [];
+
+        for (const rule of returnedRules.concat(injectedRules)) {
+            if (!rule || typeof rule !== 'object' || !rule.siteName || seenRules.has(rule)) continue;
+            seenRules.add(rule);
+            rule.__ndCustomRule = true;
+            customRules.push(rule);
+        }
+
+        if (customRules.length) {
+            Rule.special = customRules.concat(originalRules);
+        } else {
+            Rule.special = originalRules;
+        }
+        console.log(`[ND] Đã nạp ${customRules.length} rule tùy chỉnh từ UI (ưu tiên trước rule gốc).`);
     }
 
     if (Config.customize) {

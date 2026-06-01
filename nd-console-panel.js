@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name        nd-console-panel
-// @version     1.0.1
+// @version     1.0.2
 // @include     *
 // ==/UserScript==
 /* eslint-env browser */
@@ -400,6 +400,20 @@
         emitState();
     }
 
+    function capture(type, argsLike, options = {}) {
+        const normalizedType = TYPE_LABEL[type] ? type : 'log';
+        const args = Array.prototype.slice.call(argsLike || []);
+        if (options.echo !== false) {
+            const original = originalConsole[normalizedType] || originalConsole.log;
+            try {
+                if (typeof original === 'function') original.apply(consoleObject, args);
+            } catch (error) {
+                // Console capture must never break caller code.
+            }
+        }
+        addEntry(normalizedType, args);
+    }
+
     function render() {
         const root = getUiRoot(false);
         if (!root) return;
@@ -529,6 +543,7 @@
         isVisible,
         getEntries: () => entries.slice(),
         getText,
+        capture,
         onStateChange
     };
 
