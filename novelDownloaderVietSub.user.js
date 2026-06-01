@@ -244,7 +244,8 @@ function decryptDES(encrypted, key, iv) {
             `<h3>v${getNovelDownloaderScriptVersion()}</h3>`,
             docList([
                 'Cải thiện bảng Console để nhận log từ ngữ cảnh thực thi phụ, giữ object/error và màu <code>%c</code> đầy đủ hơn.',
-                'Ổn định sandbox JS mở rộng bằng cách truyền thêm các API tiện ích cần thiết.'
+                'Ổn định sandbox JS mở rộng bằng cách truyền thêm các API tiện ích cần thiết.',
+                'Giữ metadata chương khi dùng <b>Tiếp tục</b> trong Quản lý tải xuống.'
             ]),
             '<h3>Các bản trước (tóm tắt)</h3>',
             docList([
@@ -8436,6 +8437,26 @@ function decryptDES(encrypted, key, iv) {
                     failed
                 };
             };
+            const serializeChapterForResume = (chapter) => {
+                const result = {
+                    title: chapter && chapter.title || '',
+                    url: chapter && chapter.url || '',
+                    volume: chapter && chapter.volume || '',
+                    vip: Boolean(chapter && (chapter.vip || vipChapters.includes(chapter.url))),
+                    contentRaw: chapter && chapter.contentRaw || '',
+                    content: chapter && chapter.content || ''
+                };
+                Object.keys(chapter || {}).forEach((key) => {
+                    if (key === 'document' || key === 'filtered') return;
+                    if (Object.prototype.hasOwnProperty.call(result, key)) return;
+                    const value = chapter[key];
+                    if (value === undefined || value === null || typeof value === 'function') return;
+                    if (['string', 'number', 'boolean'].includes(typeof value)) {
+                        result[key] = value;
+                    }
+                });
+                return result;
+            };
             const buildDownloadResumeData = () => ({
                 version: 1,
                 sourceUrl: window.location.href,
@@ -8446,14 +8467,7 @@ function decryptDES(encrypted, key, iv) {
                     intro: Storage.book.intro,
                     cover: Storage.book.cover
                 },
-                chapters: (Storage.book.chapters || []).map((chapter) => ({
-                    title: chapter.title || '',
-                    url: chapter.url || '',
-                    volume: chapter.volume || '',
-                    vip: Boolean(chapter.vip || vipChapters.includes(chapter.url)),
-                    contentRaw: chapter.contentRaw || '',
-                    content: chapter.content || ''
-                })),
+                chapters: (Storage.book.chapters || []).map(serializeChapterForResume),
                 vipChapters: vipChapters.slice(),
                 progress: getDownloadManagerProgress()
             });
@@ -9383,9 +9397,31 @@ function decryptDES(encrypted, key, iv) {
             if (!chapters.length) chapters = temp;
         }
 
+        const normalizeChapterUrlKey = (url) => {
+            const value = String(url || '').trim();
+            if (!value) return '';
+            try {
+                return new URL(value, window.location.href).href;
+            } catch (error) {
+                return value;
+            }
+        };
+        const findChapterByResumeUrl = (chapterList, url) => {
+            const rawKey = String(url || '').trim();
+            const normalizedKey = normalizeChapterUrlKey(rawKey);
+            return (chapterList || []).find((chapter) => {
+                const chapterRawKey = String(chapter && chapter.url || '').trim();
+                return chapterRawKey === rawKey || normalizeChapterUrlKey(chapterRawKey) === normalizedKey;
+            });
+        };
+        const mergeResumeChapters = (resumeChapters, currentChapters) => resumeChapters.map((savedChapter) => {
+            const currentChapter = findChapterByResumeUrl(currentChapters, savedChapter && savedChapter.url);
+            return Object.assign({}, currentChapter || {}, savedChapter || {});
+        });
+
         if (pendingResumeData && Array.isArray(pendingResumeData.chapters) && pendingResumeData.chapters.length) {
             Storage.book = Object.assign(Storage.book, pendingResumeData.book || {});
-            chapters = pendingResumeData.chapters.map((chapter) => Object.assign({}, chapter));
+            chapters = mergeResumeChapters(pendingResumeData.chapters, chapters);
             vipChapters = Array.isArray(pendingResumeData.vipChapters) ? pendingResumeData.vipChapters.slice() : vipChapters;
             chaptersDownloaded.splice(0, chaptersDownloaded.length, ...chapters.filter(chapter => chapter.contentRaw || chapter.content));
             container.find('[name="limit"]>[name="range"]').val('');
