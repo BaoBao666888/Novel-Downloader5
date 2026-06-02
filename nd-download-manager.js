@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name        nd-download-manager
-// @version     1.0.4
+// @version     1.0.5
 // @include     *
 // ==/UserScript==
 /* eslint-env browser */
@@ -70,6 +70,7 @@
             .nd-manager-actions button, .nd-manager-toolbar button { border: 1px solid #cbd5e1; background: #f8fafc; color: #111827; border-radius: 4px; padding: 4px 8px; cursor: pointer; font-size: 12px; }
             .nd-manager-actions button:hover, .nd-manager-toolbar button:hover { background: #e2e8f0; }
             .nd-manager-actions button[data-action="cancel-task"] { color: #b91c1c; border-color: #fecaca; background: #fff1f2; }
+            .nd-manager-actions button[data-action="delete-task"] { color: #991b1b; border-color: #fecaca; background: #fff7ed; }
             .nd-manager-actions button[data-action="retry-task"] { color: #166534; border-color: #bbf7d0; background: #f0fdf4; }
             .nd-manager-actions button[data-action="resume-task"] { color: #1d4ed8; border-color: #bfdbfe; background: #eff6ff; }
             .nd-manager-errors { margin-top: 6px; color: #b91c1c; font-size: 12px; }
@@ -215,6 +216,7 @@
             downloading: 'Đang tải',
             completed: 'Hoàn thành',
             completed_with_errors: 'Hoàn thành có lỗi',
+            forced_saved: 'Đã buộc lưu',
             failed: 'Thất bại',
             cancelled: 'Đã hủy'
         }[status] || status || 'Không rõ';
@@ -283,9 +285,32 @@
         _listeners: [],
         _initialized: false,
 
+        async hydrateResumeProgress(state) {
+            let changed = false;
+            const queue = Array.isArray(state && state.queue) ? state.queue : [];
+            for (const task of queue) {
+                if (!task || !task.id || !task.meta || !task.meta.resumeAvailable) continue;
+                const resumeData = await GM_getValue(getResumeKey(task.id));
+                if (!resumeData || !resumeData.progress) continue;
+                const nextProgress = normalizeProgress(resumeData.progress);
+                const currentProgress = normalizeProgress(task.progress);
+                if (
+                    nextProgress.completed !== currentProgress.completed ||
+                    nextProgress.total !== currentProgress.total ||
+                    nextProgress.failed !== currentProgress.failed
+                ) {
+                    task.progress = nextProgress;
+                    if (resumeData.savedAt) task.updatedAt = resumeData.savedAt;
+                    changed = true;
+                }
+            }
+            return changed;
+        },
+
         async getState() {
             const { state, removed, changed } = pruneExpiredState(await GM_getValue(this.STATE_KEY));
-            if (changed) {
+            const resumeChanged = await this.hydrateResumeProgress(state);
+            if (changed || resumeChanged) {
                 await GM_setValue(this.STATE_KEY, state);
                 await Promise.all(removed.map(task => this.clearResumeData(task && task.id, { updateTask: false })).filter(Boolean));
             }
@@ -423,6 +448,61 @@
             return finishedTask;
         },
 
+        async archiveTask(id, status = 'forced_saved', patch = {}) {
+            if (!id) return null;
+            let archivedTask = null;
+            await this.setState((state) => {
+                const task = state.queue.find(item => item.id === id);
+                if (!task) return state;
+                const now = nowIso();
+                const copy = Object.assign({}, task, {
+                    id: `${id}-archive-${Date.now()}`,
+                    sourceTaskId: id,
+                    status,
+                    finishedAt: now,
+                    updatedAt: now,
+                    progress: normalizeProgress(task.progress),
+                    errors: Array.isArray(task.errors) ? task.errors.map(normalizeError) : [],
+                    meta: Object.assign({}, task.meta || {}, {
+                        archivedFromQueue: true,
+                        archivedStatus: status
+                    })
+                });
+                if (patch.progress) {
+                    copy.progress = normalizeProgress(Object.assign({}, task.progress, patch.progress));
+                }
+                for (const [key, value] of Object.entries(patch)) {
+                    if (key === 'progress') continue;
+                    if (key === 'meta') {
+                        copy.meta = Object.assign({}, copy.meta || {}, value || {});
+                    } else {
+                        copy[key] = value;
+                    }
+                }
+                state.history.unshift(copy);
+                state.history = state.history.slice(0, MAX_HISTORY);
+                archivedTask = copy;
+                return state;
+            });
+            return archivedTask;
+        },
+
+        async removeTask(id) {
+            if (!id) return null;
+            let removedTask = null;
+            await this.setState((state) => {
+                const index = state.queue.findIndex(item => item.id === id);
+                if (index === -1) return state;
+                removedTask = state.queue.splice(index, 1)[0];
+                return state;
+            });
+            if (removedTask) {
+                runtimeActions.delete(id);
+                await this.clearResumeData(id, { updateTask: false });
+            }
+            return removedTask;
+        },
+
         async clearHistory() {
             const currentState = await this.getState();
             await Promise.all((currentState.history || []).map(task => this.clearResumeData(task && task.id, { updateTask: false })).filter(Boolean));
@@ -440,7 +520,7 @@
                 savedAt: nowIso()
             });
             await GM_setValue(key, payload);
-            await this.updateTask(id, {
+            const patch = {
                 meta: {
                     resumeAvailable: true,
                     resumeKey: key,
@@ -448,7 +528,9 @@
                     resumeSourceUrl: payload.sourceUrl || '',
                     resumeFormat: payload.format || ''
                 }
-            });
+            };
+            if (payload.progress) patch.progress = payload.progress;
+            await this.updateTask(id, patch);
             return payload;
         },
 
@@ -616,6 +698,8 @@
             }
             if (location === 'queue' && TaskManager.hasRuntimeAction(task.id, 'cancel')) {
                 buttons.push(`<button type="button" data-action="cancel-task" data-task-id="${escapeHtml(task.id)}">Hủy</button>`);
+            } else if (location === 'queue') {
+                buttons.push(`<button type="button" data-action="delete-task" data-task-id="${escapeHtml(task.id)}">Xóa</button>`);
             }
             if (TaskManager.hasRuntimeAction(task.id, 'retry')) {
                 buttons.push(`<button type="button" data-action="retry-task" data-task-id="${escapeHtml(task.id)}">Retry</button>`);
@@ -699,6 +783,9 @@
                 } else if (action === 'cancel-task') {
                     const handled = await TaskManager.runRuntimeAction(task.id, 'cancel', task);
                     if (!handled) await TaskManager.finishTask(task.id, 'cancelled');
+                } else if (action === 'delete-task') {
+                    if (!window.confirm('Xóa task này khỏi Đang tải & Đang chờ?')) return;
+                    await TaskManager.removeTask(task.id);
                 } else if (action === 'retry-task') {
                     const handled = await TaskManager.runRuntimeAction(task.id, 'retry', task);
                     if (!handled) flashButton(button, 'Không khả dụng');

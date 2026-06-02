@@ -13,7 +13,7 @@
 
 // @require     https://raw.githubusercontent.com/BaoBao666888/Novel-Downloader5/main/download-vietnamese.js?v=1.3.2
 // @require     https://raw.githubusercontent.com/BaoBao666888/Novel-Downloader5/main/nd-console-panel.js?v=1.0.2
-// @require     https://raw.githubusercontent.com/BaoBao666888/Novel-Downloader5/main/nd-download-manager.js?v=1.0.4
+// @require     https://raw.githubusercontent.com/BaoBao666888/Novel-Downloader5/main/nd-download-manager.js?v=1.0.5
 // @require     https://raw.githubusercontent.com/BaoBao666888/Novel-Downloader5/main/nd-file-save.js?v=1.0.0
 
 // @require     https://raw.githubusercontent.com/BaoBao666888/Novel-Downloader5/main/chs2cht.js
@@ -245,7 +245,8 @@ function decryptDES(encrypted, key, iv) {
             docList([
                 'Cải thiện bảng Console để nhận log từ ngữ cảnh thực thi phụ, giữ object/error và màu <code>%c</code> đầy đủ hơn.',
                 'Ổn định sandbox JS mở rộng bằng cách truyền thêm các API tiện ích cần thiết.',
-                'Giữ metadata chương khi dùng <b>Tiếp tục</b> trong Quản lý tải xuống.'
+                'Giữ metadata chương khi dùng <b>Tiếp tục</b> trong Quản lý tải xuống.',
+                'Đồng bộ tiến độ thật cho Quản lý tải xuống, thêm xóa task treo và giữ task đang tải khi dùng <b>Buộc lưu</b>.'
             ]),
             '<h3>Các bản trước (tóm tắt)</h3>',
             docList([
@@ -8198,7 +8199,6 @@ function decryptDES(encrypted, key, iv) {
             '  <input type="button" name="toggle-console" value="Tắt console">',
             '  <input type="button" name="show-console" value="Mở console">',
             '  <input type="button" name="exit" value="Thoát">',
-            '  <input type="button" name="force-download" value="Buộc tải xuống" raw-disabled="disabled">',
             '  <input type="button" name="force-save" value="Buộc lưu" raw-disabled="disabled">',
             '  <br>',
             '  <button type="button" name="choose-download-dir" style="border:2px solid #2ecc71;padding:4px 8px;border-radius:4px;margin-right:6px;">Chọn thư mục lưu</button>',
@@ -8370,7 +8370,6 @@ function decryptDES(encrypted, key, iv) {
             container.find('[name="progress"]').show();
             //xhr.showDialog();
             container.find('[name="buttons"]').find('[name="download"]').attr('disabled', 'disabled');
-            container.find('[name="buttons"]').find('[name="force-download"]').attr('disabled', null);
             if (!Storage.audio) {
                 // 来自 E-Hentai-Downloader
                 Storage.audio = new window.Audio('data:audio/mp3;base64,SUQzBAAAAAAAI1RTU0UAAAAPAAADTGF2ZjU3LjcxLjEwMAAAAAAAAAAAAAAA/+M4wAAAAAAAAAAAAEluZm8AAAAPAAAAEAAABVgANTU1NTU1Q0NDQ0NDUFBQUFBQXl5eXl5ea2tra2tra3l5eXl5eYaGhoaGhpSUlJSUlKGhoaGhoaGvr6+vr6+8vLy8vLzKysrKysrX19fX19fX5eXl5eXl8vLy8vLy////////AAAAAExhdmM1Ny44OQAAAAAAAAAAAAAAACQCgAAAAAAAAAVY82AhbwAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA/+MYxAALACwAAP/AADwQKVE9YWDGPkQWpT66yk4+zIiYPoTUaT3tnU487uNhOvEmQDaCm1Yz1c6DPjbs6zdZVBk0pdGpMzxF/+MYxA8L0DU0AP+0ANkwmYaAMkOKDDjmYoMtwNMyDxMzDHE/MEsLow9AtDnBlQgDhTx+Eye0GgMHoCyDC8gUswJcMVMABBGj/+MYxBoK4DVpQP8iAtVmDk7LPgi8wvDzI4/MWAwK1T7rxOQwtsItMMQBazAowc4wZMC5MF4AeQAGDpruNuMEzyfjLBJhACU+/+MYxCkJ4DVcAP8MAO9J9THVg6oxRMGNMIqCCTAEwzwwBkINOPAs/iwjgBnMepYyId0PhWo+80PXMVsBFzD/AiwwfcKGMEJB/+MYxDwKKDVkAP8eAF8wMwIxMlpU/OaDPLpNKkEw4dRoBh6qP2FC8jCJQFcweQIPMHOBtTBoAVcwOoCNMYDI0u0Dd8ANTIsy/+MYxE4KUDVsAP8eAFBVpgVVPjdGeTEWQr0wdcDtMCeBgDBkgRgwFYB7Pv/zqx0yQQMCCgKNgonHKj6RRVkxM0GwML0AhDAN/+MYxF8KCDVwAP8MAIHZMDDA3DArAQo3K+TF5WOBDQw0lgcKQUJxhT5sxRcwQQI+EIPWMA7AVBoTABgTgzfBN+ajn3c0lZMe/+MYxHEJyDV0AP7MAA4eEwsqP/PDmzC/gNcwXUGaMBVBIwMEsmB6gaxhVuGkpoqMZMQjooTBwM0+S8FTMC0BcjBTgPwwOQDm/+MYxIQKKDV4AP8WADAzAKQwI4CGPhWOEwCFAiBAYQnQMT+uwXUeGzjBWQVkwTcENMBzA2zAGgFEJfSPkPSZzPXgqFy2h0xB/+MYxJYJCDV8AP7WAE0+7kK7MQrATDAvQRIwOADKMBuA9TAYQNM3AiOSPjGxowgHMKFGcBNMQU1FMy45OS41VVU/31eYM4sK/+MYxKwJaDV8AP7SAI4y1Yq0MmOIADGwBZwwlgIJMztCM0qU5TQPG/MSkn8yEROzCdAxECVMQU1FMy45OS41VTe7Ohk+Pqcx/+MYxMEJMDWAAP6MADVLDFUx+4J6Mq7NsjN2zXo8V5fjVJCXNOhwM0vTCDAxFpMYYQU+RlVMQU1FMy45OS41VVVVVVVVVVVV/+MYxNcJADWAAP7EAFVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVV/+MYxOsJwDWEAP7SAFVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVV/+MYxPMLoDV8AP+eAFVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVV/+MYxPQL0DVcAP+0AFVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVV');
@@ -8533,6 +8532,16 @@ function decryptDES(encrypted, key, iv) {
                     console.warn('[ND] Không thể hoàn tất download manager:', error);
                 }
             };
+            const archiveDownloadManagerTask = async (status, patch = {}) => {
+                if (!downloadManagerTaskId || typeof TaskManager.archiveTask !== 'function') return;
+                try {
+                    await TaskManager.archiveTask(downloadManagerTaskId, status, Object.assign({
+                        progress: getDownloadManagerProgress()
+                    }, patch));
+                } catch (error) {
+                    console.warn('[ND] Không thể ghi lịch sử download manager:', error);
+                }
+            };
             try {
                 if (activeResumeTaskId) {
                     downloadManagerTaskId = activeResumeTaskId;
@@ -8573,7 +8582,6 @@ function decryptDES(encrypted, key, iv) {
                                 resolveDownloadManagerWait = null;
                             }
                             container.find('[name="buttons"]').find('[name="download"]').attr('disabled', null);
-                            container.find('[name="buttons"]').find('[name="force-download"]').attr('disabled', 'disabled');
                             container.find('[name="buttons"]').find('[name="force-save"]').attr('disabled', 'disabled');
                             $(window).off('blur').off('focus');
                             if (Storage.audio) Storage.audio.pause();
@@ -8618,7 +8626,6 @@ function decryptDES(encrypted, key, iv) {
 
                 if (!force) {
                     container.find('[name="buttons"]').find('[name="force-save"]').attr('disabled', 'disabled').off('click');
-                    container.find('[name="buttons"]').find('[name="force-download"]').attr('disabled', 'disabled');
                 }
 
                 let { chapters } = Storage.book;
@@ -8725,7 +8732,15 @@ function decryptDES(encrypted, key, iv) {
 
                 //hết
                 await downloadTo[format](chapters);
-                await finishDownloadManagerTask(failedChapters.length > 0 ? 'completed_with_errors' : 'completed');
+                if (force) {
+                    await archiveDownloadManagerTask('forced_saved', {
+                        forcedSavedAt: new Date().toISOString(),
+                        errorSummary: failedChapters.length ? `${failedChapters.length} chương chưa tải khi buộc lưu` : ''
+                    });
+                    await persistDownloadResumeData();
+                } else {
+                    await finishDownloadManagerTask(failedChapters.length > 0 ? 'completed_with_errors' : 'completed');
+                }
                 if (!force) {
                     container.find('[name="buttons"]').find('[name="download"]').attr('disabled', null);
                     $(window).off('blur').off('focus');
@@ -9220,8 +9235,6 @@ function decryptDES(encrypted, key, iv) {
                 $('.novel-downloader-style,.novel-downloader-style-chapter').remove();
                 $('[novel-downloader-chapter]').attr('order', null).attr('novel-downloader-chapter', null);
                 updateNovelDownloaderLauncherVisibility();
-            } else if (name === 'force-download') {
-                xhr.start();
             } else if (name === 'toggle-opacity') {
                 container.toggleClass('opacity01');
             } else if (name === 'toggle-console') {
