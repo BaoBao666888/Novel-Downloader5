@@ -2,8 +2,8 @@
 // @name         TM Translate
 // @author       QuocBao
 // @namespace    http://tampermonkey.net/
-// @version      3.5.5.3_beta
-// @description  Dịch trang, quản lý name-sets, sửa tên, chế độ đọc rút gọn và tùy chỉnh giao diện.
+// @version      3.5.5.5_beta
+// @description  Dịch trang, quản lý name-sets, sửa tên, Thư viện đọc offline, OCR và TTS.
 // @icon         data:image/png;base64,AAABAAEAQEAAAAEAIAAoQgAAFgAAACgAAABAAAAAgAAAAAEAIAAAAAAAAEAAAAAAAAAAAAAAAAAAAAAAAAA+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/0CLNf9BjDb/QYw2/0GMNv9BjDb/QYw2/0GMNv9BjDb/QYw2/0GMNv9BjDb/QYw2/0GMNv9BjDb/QIs1/z+LNP8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z+KNP81hCn/L4Ek/zCCJf8wgiX/MIIl/zCCJf8wgiX/MIIl/zCCJf8wgiX/MIIk/zCCJP8xgiX/MoMm/zWFKv86hy7/Pooz/0GMNv9BjDb/P4s0/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/0CLNf83hiz/gbJ6/7HQrf+py6T/qsum/6rLpv+qy6b/qsum/6rLpv+qy6b/qsum/6jKo/+fxZr/kLuJ/36xd/9oo1//UJVH/zyJMf8xgiX/MoIm/zqIL/9BjDb/QIs1/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/9AizX/M4Mo/8DZvP///////P38//////////////////////////////////////////////////////////////////X59f/b6dr/tNGw/4CyeP9Ok0T/M4Mn/zSEKP8/izT/QYw2/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/QIs1/zOEKP+71rj///////n8+f/8/fz//P38//z9/P/8/fz//P38//z9/P/8/fz//P38//z9/P/8/fz//f79//7//v//////////////////////8/jz/7zWuf9wqGj/OIYt/zOEKP9AizX/P4s0/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/0CLNv8zgyj/vde6///////8/fz//////////////////v79//3+/f/9/v3//f79//7+/v/+/v7//v/+/////////////v/+//3+/f/8/fz//f79/////////////////9Pk0f9yqWr/M4Mo/zmHLv9BjDb/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/9Aizb/M4Mo/73Xuv///////P38///////////////////////////////////////////////////////9/v3//P38//z9/P/9/v3////////////+//7//P38//3+/f///////////8DYvP9Nk0P/MoMn/0GMNv8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/QIs2/zODKP+917r///////z9/P/////////////////h7N//1+fV/9vp2f/e69z/5/Dl//P48v/9/v3///////////////////////7//v/8/fz//v7+/////////////f79//3+/P//////7/Xu/3Wrbv8wgiT/QIs1/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/0CLNv8zgyj/vde6///////8/fz/////////////////Yp9Z/zODJ/89iTP/PYoy/0ONOP9Mk0L/WptR/3Gpaf+Qu4n/ttKy/+Ds3v/9/v3////////////9/vz//v7+/////////////P38//7+/v//////lL6O/zGCJv9AizX/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/9Aizb/M4Mo/73Xuv///////P38/////////////////2ShXP82hSv/QIs1/z6KM/88iTH/Oogv/zeGLP80hCj/MYIl/zKDJv8+ijP/Yp9Z/6THn//s8+v///////7+/f/9/v3////////////+/v3//P38//////+awpX/MYIl/0GMNv8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/QIs2/zODKP+917r///////z9/P////////////////9koVz/NoUr/0CLNf8+ijP/P4o0/z+LNP8/izX/QIs1/0GMNv9BjDb/Pooz/zaFK/8wgST/Ro88/5nBk//1+fT///////z9/P////////////7//v/8/fz//////4a2gP8xgiX/QYw2/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/0CLNv8zgyj/vde6///////8/fz/////////////////ZKFb/zaFKv9AizX/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/9AizX/QYw3/zyJMf8vgSP/VZhL/9Hjzv///////P38/////////////v7+///////6/Pr/YJ9Y/zaFKv9AizX/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/9Aizb/M4Mo/73Xuv///////P38/////////////////2ShW/82hSr/QIs1/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8/ijT/Qow3/zeGLP85hy7/udW2///////8/fz////////////9/v3//////9Pk0P87iDD/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/QIs2/zODKP+917r///////z9/P////////////////9koVv/NoUq/0CLNf8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/9BjDb/PYky/zWEKf+/2Lv///////39/P////////////z9/P//////hrV//zGCJf9BjDb/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/0CLNv8zgyj/vde6///////8/fz/////////////////ZKFb/zaFKv9AizX/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/0CLNf87iTD/QIs1/93q2////////f79///////+/v3//////93q2/8/ijT/PYoy/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/9Aizb/M4Mo/73Xuv///////P38/////////////////2ShW/82hSr/QIs1/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/QYw2/zOEKP9ppGH///////7//v////////////3+/f//////dqxv/zODJ/9AjDb/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/QIs2/zODKP+917r///////z9/P////////////////9koVv/NoUq/0CLNf8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/9BjDb/MYIm/7jUtP///////f38///////8/fz//////7nUtf8ygyf/QYw2/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/0CLNv8zgyj/vde6///////8/fz/////////////////ZKFb/zaFKv9AizX/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/QIs1/zaFKv9koVz//////////////////v7+///////p8uj/RY47/zyJMf8/ijT/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/9Aizb/M4Mo/73Xuv///////P38/////////////////2ShW/82hSr/QIs1/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8/ijT/O4gw/9ro1////////f79///////+//7//////2aiXv81hSr/QIs1/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/QIs2/zODKP+917r///////z9/P////////////////9koVv/NoUq/0CLNf8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/QYw2/zCCJP+oyqP///////z9/P///////P38//////+JuIP/MYIl/0GMNv8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/0CLNv8zgyj/vde6///////8/fz/////////////////ZKFb/zaFKv9AizX/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/0GMNv8ygyb/gbJ6///////9/vz///////z9/P//////qMqj/zGCJf9BjDb/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/9Aizb/M4Mo/73Xuv///////P38/////////////////2ShW/82hSr/QIs1/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/9AizX/NYUq/2ejX////////v/+///////8/fz//////7zWuf8zgyf/QIw2/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/QIs2/zODKP+917r///////z9/P////////////////9koVv/NoUq/0CLNf8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/P4s1/ziGLP9am1D/+/37///////+//7//f79///////K38f/NoUq/0CLNf8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/0CLNv8zgyj/vde6///////8/fz/////////////////ZKFb/zaFKv9AizX/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z+LNP85hy7/U5dJ//j7+P///////v/+//3+/f//////0+TR/zmHLf8/izT/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/9Aizb/M4Mo/73Xuv///////P38/////////////////2ShW/82hSr/QIs1/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8/izT/OYcu/1OWSf/3+vf///////7//v/9/v3//////9bm1P86hy7/P4o0/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/QIs2/zODKP+917r///////z9/P////////////////9koVv/NoUq/0CLNf8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/P4s0/ziGLf9XmU7/+vz6///////+//7//f79///////R487/OIYs/z+LNP8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/0CLNv8zgyj/vde6///////8/fz/////////////////ZKFb/zaFKv9AizX/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/0CLNf82hSv/YqBa//////////////////3+/f//////xtzD/zWEKf9AizX/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/9Aizb/M4Mo/73Xuv///////P38/////////////////2ShW/82hSr/QIs1/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/9BjDb/M4Mn/3itcf///////f79///////8/fz//////7bSsv8ygyb/QYw2/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/QIs2/zODKP+917r///////z9/P////////////////9koVv/NoUq/0CLNf8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/QYw2/zCCJP+bwpX///////z9/P///////P38//////+dw5f/MIIk/0GMNv8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/0CLNv8zgyj/vde6///////8/fz/////////////////ZKFb/zaFKv9AizX/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/0CLNf81hSr/yd7F///////9/v3///////3+/f//////fK90/zKDJ/9BjDb/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/9Aizb/M4Mo/73Xuv///////P38/////////////////2ShW/82hSr/QIs1/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z+LNP85hy7/UZZI//b69v///////v/+//7//v//////+vz6/1eZTf84hi3/P4s0/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/QIs2/zODKP+917r///////z9/P////////////////9koVv/NoUq/0CLNf8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/9CjDf/MIIk/5W/j////////P38///////9/v3//////9Xl0/86hy//P4o0/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/0CLNv8zgyj/vde6///////8/fz/////////////////ZKFb/zaFKv9AizX/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8/izT/O4gw/0ePPP/r8ur///////7+/v///////P38//////+XwJH/MIIl/0GMNv8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/9Aizb/M4Mo/73Xuv///////P38/////////////////2ShW/82hSr/QIs1/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Qow3/y+BI/+tzaj///////39/P///////v/+///////2+fX/VZdL/zmHLf8/izT/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/QIs2/zODKP+917r///////z9/P////////////////9koVv/NoUq/0CLNf8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8/ijT/Qo04/y2AIf+Cs3v///////3+/f////////////z9/P//////sM+r/zKCJv9BjDb/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/0CLNv8zgyj/vde6///////8/fz/////////////////ZKFb/zaFKv9AizX/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/9BjDb/Pooz/y2AIf99sHb//P38///////+//7///////7+/v//////8/fy/1KWSf85hy7/P4s0/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/9Aizb/M4Mo/73Xuv///////P38/////////////////2ShW/82hSr/QIs1/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/P4o0/0GMNv9AizX/M4Mn/zuIMP+gxZr//v/+//7+/v/+//7////////////8/fv//////4y5hf8xgiX/QYw2/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/QIs2/zODKP+917r///////z9/P////////////////9koVv/NoUq/0CLNf8+ijP/Pooz/z6KM/8+ijP/P4o0/0CLNf9BjDb/QYw2/zyJMf8ygyb/N4Yr/3Oqa//b6dn///////3+/P/+//7////////////7/fv//////7nUtf80hCn/QIs1/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/0CLNv8zgyj/vde6///////8/fz/////////////////Z6Je/zmHLv9DjTj/QYw2/0GMNv9AizX/Pooz/zuIMP82hSv/MYIl/zKDJ/9Gjzz/frF3/9Hjzv////////////3+/f/+//7////////////7/fv//////8zgyf89iTL/PIkx/z+LNP8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/9Aizb/M4Mo/73Xuv///////P38/////////////////1maUP8nfBv/MoMn/zGCJf8ygyb/NYQp/zuIMP9JkT//YZ9Z/4e2gf+51LX/7PPr/////////////f79//3+/f////////////7+/f/8/fz//////8fdxP8/ijT/O4gv/0CLNf8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/QIs2/zODKP+917r///////z9/P////////////////+71bf/psmh/6vMpv+uzqn/t9Oz/8jdxf/a6dj/8PXv//7//v/////////////////9/v3//f79/////////////v/+//z9/P/+//7//////6rLpf84hi3/O4gw/0CLNf8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/0CLNv8zgyj/vde6///////8/fz///////////////////////////////////////////////////////////////7//P38//z9/P/+/v7////////////+/v7//P38//7+/v//////6/Pq/3mucv8xgiX/Pooz/0CLNf8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/9Aizb/M4Mo/73Xuv///////P38//////////////////3+/P/8/fz//P38//z9/P/8/fz//f79//3+/f/+/v7//////////////////v7+//z9/P/9/v3////////////4+/f/qMqj/0ePPf8ygyb/QYw2/z+KNP8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/QIs2/zODKP+81rj///////v8+v/9/v3//f79//3+/f/9/v3//f79//3+/f/9/v3//f79//3+/f/9/vz//P38//z9/P/9/v3////////////+//7//////+vz6v+myaH/VZhL/zCCJP87iDD/QYw2/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/0CLNf8zgyj/wNi8///////8/fz///////////////////////////////////////////////////////////////////////3+/f/l7+P/t9Oz/3uvdP9Gjzv/MIIl/ziHLf9BjDb/P4s0/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/9AizX/NYQp/6HGnP/l7+T/2ejX/9vp2f/b6dn/2+nZ/9vp2f/b6dn/2+nZ/9vp2f/a6Nj/1OXS/8jdxf+10rH/ncSY/36xd/9enVX/Qow3/zKCJv8ygyb/PIkx/0GMNv8/izT/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/87iDD/PIgx/zyIMf88iDH/PIgx/zyIMf88iDH/PIgx/zyIMf88iTH/O4gw/ziGLf81hCn/MYIm/zCCJP8ygyb/N4Yr/z2JMv9BjDb/QYw2/z+KNP8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/P4o0/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8/izT/QIs1/0GMNv9BjDb/QYw2/0CLNf8+ijT/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=
 // @downloadURL  https://raw.githubusercontent.com/BaoBao666888/Novel-Downloader5/main/TM%20Translate.user.js
 // @updateURL    https://raw.githubusercontent.com/BaoBao666888/Novel-Downloader5/main/TM%20Translate.user.js
@@ -27,7 +27,18 @@
 // @connect      drive.usercontent.google.com
 // @connect      api.dichnhanh.com
 // @connect      release-assets.githubusercontent.com
+// @connect      api16-normal-c-useast1a.tiktokv.com
+// @connect      translate.google.com
+// @connect      gemini.google.com
+// @connect      www.bing.com
+// @connect      api.zalo.ai
+// @connect      *.zalo.ai
+// @connect      *.zdn.vn
+// @connect      *.zadn.vn
+// @connect      *.zmdcdn.me
+// @connect      *
 // @require      https://raw.githubusercontent.com/BaoBao666888/Novel-Downloader5/main/translate/zh_to_vi/translateZhToVi.js
+// @require      https://raw.githubusercontent.com/BaoBao666888/Novel-Downloader5/main/tools/TTS_Reader_Core.user.js
 // @require      https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js
 // @require      https://unpkg.com/@oovz/esearch-ocr/dist/eSearchOCR.umd.js
 // @require      https://unpkg.com/onnxruntime-web@1.22.0/dist/ort.wasm.min.js
@@ -190,6 +201,242 @@
         lastNameSetsHash = nextHash;
         GM_setValue('tm_translate_config_v2', cfg);
     }
+
+    function getTtsCore() {
+        try {
+            return (typeof globalThis !== 'undefined' && globalThis.TTSReaderCore)
+                || (typeof window !== 'undefined' && window.TTSReaderCore)
+                || null;
+        } catch (err) {
+            return null;
+        }
+    }
+
+    function tmTtsClampNumber(value, min, max, fallback) {
+        const n = Number(value);
+        if (!Number.isFinite(n)) return fallback;
+        return Math.min(max, Math.max(min, n));
+    }
+
+    function tmTtsClampInt(value, min, max, fallback) {
+        return Math.round(tmTtsClampNumber(value, min, max, fallback));
+    }
+
+    function normalizeTtsSettings(settings) {
+        const core = getTtsCore();
+        if (core && typeof core.normalizeSettings === 'function') {
+            try {
+                return core.normalizeSettings(settings || {});
+            } catch (err) {
+                console.warn('[tm-translate] Không normalize được TTS core settings:', err);
+            }
+        }
+        const merged = {
+            ...TTS_DEFAULT_SETTINGS,
+            ...(settings && typeof settings === 'object' ? settings : {})
+        };
+        const provider = String(merged.provider || 'browser');
+        merged.provider = ['browser', 'tiktok', 'google', 'gemini', 'bing', 'zalo'].includes(provider) ? provider : 'browser';
+        merged.voiceURI = String(merged.voiceURI || '');
+        merged.tiktokVoiceId = String(merged.tiktokVoiceId || TTS_DEFAULT_SETTINGS.tiktokVoiceId);
+        merged.googleVoiceId = String(merged.googleVoiceId || TTS_DEFAULT_SETTINGS.googleVoiceId);
+        merged.geminiVoiceId = String(merged.geminiVoiceId || TTS_DEFAULT_SETTINGS.geminiVoiceId);
+        merged.bingVoiceId = String(merged.bingVoiceId || TTS_DEFAULT_SETTINGS.bingVoiceId);
+        merged.zaloVoiceId = String(merged.zaloVoiceId || TTS_DEFAULT_SETTINGS.zaloVoiceId);
+        merged.tiktokCookieText = String(merged.tiktokCookieText || '');
+        merged.zaloApiKeysText = String(merged.zaloApiKeysText || '');
+        merged.prefetchEnabled = !!merged.prefetchEnabled;
+        merged.prefetchCount = tmTtsClampInt(merged.prefetchCount, TTS_LIMITS.prefetchCount[0], TTS_LIMITS.prefetchCount[1], TTS_DEFAULT_SETTINGS.prefetchCount);
+        merged.remoteTimeoutMs = tmTtsClampInt(merged.remoteTimeoutMs, TTS_LIMITS.remoteTimeoutMs[0], TTS_LIMITS.remoteTimeoutMs[1], TTS_DEFAULT_SETTINGS.remoteTimeoutMs);
+        merged.remoteRetries = tmTtsClampInt(merged.remoteRetries, TTS_LIMITS.remoteRetries[0], TTS_LIMITS.remoteRetries[1], TTS_DEFAULT_SETTINGS.remoteRetries);
+        merged.remoteMinGapMs = tmTtsClampInt(merged.remoteMinGapMs, TTS_LIMITS.remoteMinGapMs[0], TTS_LIMITS.remoteMinGapMs[1], TTS_DEFAULT_SETTINGS.remoteMinGapMs);
+        merged.replaceEnabled = !!merged.replaceEnabled;
+        merged.replaceRules = Array.isArray(merged.replaceRules)
+            ? merged.replaceRules.map(rule => ({ from: String(rule?.from || '').trim(), to: String(rule?.to || '').trim() })).filter(rule => rule.from)
+            : [];
+        merged.rate = tmTtsClampNumber(merged.rate, TTS_LIMITS.rate[0], TTS_LIMITS.rate[1], TTS_DEFAULT_SETTINGS.rate);
+        merged.pitch = tmTtsClampNumber(merged.pitch, TTS_LIMITS.pitch[0], TTS_LIMITS.pitch[1], TTS_DEFAULT_SETTINGS.pitch);
+        merged.volume = tmTtsClampNumber(merged.volume, TTS_LIMITS.volume[0], TTS_LIMITS.volume[1], TTS_DEFAULT_SETTINGS.volume);
+        merged.maxChars = tmTtsClampInt(merged.maxChars, TTS_LIMITS.maxChars[0], TTS_LIMITS.maxChars[1], TTS_DEFAULT_SETTINGS.maxChars);
+        merged.segmentDelayMs = tmTtsClampInt(merged.segmentDelayMs, TTS_LIMITS.segmentDelayMs[0], TTS_LIMITS.segmentDelayMs[1], TTS_DEFAULT_SETTINGS.segmentDelayMs);
+        merged.autoNext = !!merged.autoNext;
+        merged.includeTitle = !!merged.includeTitle;
+        merged.autoScroll = !!merged.autoScroll;
+        merged.autoStartOnNextChapter = !!merged.autoStartOnNextChapter;
+        merged.sleepTimerMinutes = tmTtsClampInt(merged.sleepTimerMinutes, TTS_LIMITS.sleepTimerMinutes[0], TTS_LIMITS.sleepTimerMinutes[1], TTS_DEFAULT_SETTINGS.sleepTimerMinutes);
+        merged.panelCollapsed = !!merged.panelCollapsed;
+        return merged;
+    }
+
+    function parseTtsSettingsValue(value) {
+        if (!value) return {};
+        if (typeof value === 'object') return value;
+        try {
+            const parsed = JSON.parse(String(value));
+            return parsed && typeof parsed === 'object' ? parsed : {};
+        } catch (err) {
+            return {};
+        }
+    }
+
+    function loadTtsSettings() {
+        const core = getTtsCore();
+        if (core && typeof core.getSettings === 'function') {
+            try {
+                return normalizeTtsSettings(core.getSettings());
+            } catch (err) {
+                console.warn('[tm-translate] Không đọc được TTS core settings:', err);
+            }
+        }
+
+        let stored = {};
+        try {
+            stored = parseTtsSettingsValue(GM_getValue(TTS_STORAGE_KEY, null));
+        } catch (err) {
+            stored = {};
+        }
+        if (!Object.keys(stored).length) {
+            try {
+                stored = parseTtsSettingsValue(localStorage.getItem(TTS_STORAGE_KEY));
+            } catch (err) {
+                stored = {};
+            }
+        }
+        return normalizeTtsSettings(stored);
+    }
+
+    function saveTtsSettings(settings) {
+        const next = normalizeTtsSettings(settings);
+        const core = getTtsCore();
+        if (core && typeof core.saveSettings === 'function') {
+            try {
+                return normalizeTtsSettings(core.saveSettings(next));
+            } catch (err) {
+                console.warn('[tm-translate] Không lưu được TTS core settings:', err);
+            }
+        }
+        try { GM_setValue(TTS_STORAGE_KEY, next); } catch (err) { /* ignore */ }
+        try { localStorage.setItem(TTS_STORAGE_KEY, JSON.stringify(next)); } catch (err) { /* ignore */ }
+        return next;
+    }
+
+    function resetTtsSettings() {
+        const core = getTtsCore();
+        if (core && typeof core.resetSettings === 'function') {
+            try {
+                return normalizeTtsSettings(core.resetSettings());
+            } catch (err) {
+                console.warn('[tm-translate] Không reset được TTS core settings:', err);
+            }
+        }
+        return saveTtsSettings(TTS_DEFAULT_SETTINGS);
+    }
+
+    function getTtsProviderList() {
+        const core = getTtsCore();
+        if (core && typeof core.getProviderList === 'function') {
+            try {
+                const providers = core.getProviderList() || [];
+                if (providers.length) return providers;
+            } catch (err) {
+                /* ignore */
+            }
+        }
+        return [
+            { id: 'browser', label: 'Browser', remote: false },
+            { id: 'tiktok', label: 'TikTok', remote: true },
+            { id: 'google', label: 'Google', remote: true },
+            { id: 'gemini', label: 'Gemini', remote: true },
+            { id: 'bing', label: 'Bing', remote: true },
+            { id: 'zalo', label: 'Zalo', remote: true }
+        ];
+    }
+
+    function getTtsVoices(providerId = 'browser') {
+        const provider = String(providerId || 'browser');
+        const core = getTtsCore();
+        if (core && typeof core.getProviderVoices === 'function') {
+            try {
+                return core.getProviderVoices(provider) || [];
+            } catch (err) {
+                return [];
+            }
+        }
+        if (provider !== 'browser') return [];
+        try {
+            return ('speechSynthesis' in window && typeof speechSynthesis.getVoices === 'function')
+                ? (speechSynthesis.getVoices() || [])
+                : [];
+        } catch (err) {
+            return [];
+        }
+    }
+
+    function formatTtsVoiceLabel(voice) {
+        if (!voice) return '';
+        const name = voice.name || voice.voiceURI || voice.id || 'Voice';
+        const lang = voice.lang || voice.language;
+        const suffix = lang ? ` (${lang})` : '';
+        return `${name}${suffix}`;
+    }
+
+    function getTtsProviderVoiceKey(providerId) {
+        switch (String(providerId || 'browser')) {
+            case 'tiktok': return 'tiktokVoiceId';
+            case 'google': return 'googleVoiceId';
+            case 'gemini': return 'geminiVoiceId';
+            case 'bing': return 'bingVoiceId';
+            case 'zalo': return 'zaloVoiceId';
+            default: return 'voiceURI';
+        }
+    }
+
+    function getTtsVoiceValue(settings, providerId) {
+        const key = getTtsProviderVoiceKey(providerId);
+        return String(settings && settings[key] ? settings[key] : '');
+    }
+
+    function parseTtsReplaceRulesText(text) {
+        return String(text || '')
+            .split(/\r?\n/)
+            .map(line => line.trim())
+            .filter(Boolean)
+            .map((line) => {
+                let parts = line.split(/\s*=>\s*/);
+                if (parts.length < 2) parts = line.split(/\t+/);
+                if (parts.length < 2) parts = line.split(/\s*=\s*/);
+                const from = String(parts.shift() || '').trim();
+                const to = String(parts.join('=').trim());
+                return { from, to };
+            })
+            .filter(rule => rule.from);
+    }
+
+    function formatTtsReplaceRulesText(rules) {
+        const list = Array.isArray(rules) ? rules : [];
+        return list
+            .map(rule => `${String(rule?.from || '').trim()} => ${String(rule?.to || '').trim()}`)
+            .filter(line => line.trim().replace(/\s*=>\s*$/, ''))
+            .join('\n');
+    }
+
+    function describeTtsProvider(providerId) {
+        switch (String(providerId || 'browser')) {
+            case 'tiktok':
+                return 'TikTok cần cookie phiên. Có thể dán Cookie header, JSON cookies hoặc Netscape cookie file.';
+            case 'google':
+                return 'Google Translate TTS chọn theo ngôn ngữ, không cần cookie riêng.';
+            case 'gemini':
+                return 'Gemini cần đăng nhập gemini.google.com trên trình duyệt hiện tại.';
+            case 'bing':
+                return 'Bing lấy token từ bing.com/translator, nên mở trang đó một lần nếu request lỗi token.';
+            case 'zalo':
+                return 'Zalo AI TTS cần một hoặc nhiều API key, mỗi dòng một key.';
+            default:
+                return 'Browser Web Speech dùng giọng có sẵn của trình duyệt/hệ điều hành.';
+        }
+    }
+
     let config = loadConfig();
 
     /* ================== GLOBAL STATE ================== */
@@ -209,8 +456,50 @@
     let translatedBodyClone = null;
 
     /* ================== VERSION ================== */
-    const CURRENT_VERSION = '3.5.5.3';
+    const CURRENT_VERSION = '3.5.5.5_beta';
     const TM_VERSION_KEY = 'tm_translate_version';
+    const TTS_STORAGE_KEY = 'twd_tts_reader_settings_v1';
+    const TTS_DEFAULT_SETTINGS = {
+        provider: 'browser',
+        voiceURI: '',
+        tiktokVoiceId: 'vi_female_huong',
+        googleVoiceId: 'vi-VN',
+        geminiVoiceId: 'vi-VN',
+        bingVoiceId: 'vi-VN-HoaiMyNeural;Female',
+        zaloVoiceId: '1',
+        tiktokCookieText: '',
+        zaloApiKeysText: '',
+        prefetchEnabled: true,
+        prefetchCount: 2,
+        remoteTimeoutMs: 20000,
+        remoteRetries: 2,
+        remoteMinGapMs: 220,
+        replaceEnabled: false,
+        replaceRules: [],
+        rate: 1,
+        pitch: 1,
+        volume: 1,
+        maxChars: 260,
+        segmentDelayMs: 250,
+        autoNext: true,
+        includeTitle: true,
+        autoScroll: true,
+        autoStartOnNextChapter: true,
+        sleepTimerMinutes: 30,
+        panelCollapsed: false
+    };
+    const TTS_LIMITS = {
+        rate: [0.5, 4],
+        pitch: [0.7, 1.4],
+        volume: [0, 1],
+        maxChars: [80, 600],
+        segmentDelayMs: [0, 5000],
+        prefetchCount: [0, 6],
+        remoteTimeoutMs: [3000, 60000],
+        remoteRetries: [0, 5],
+        remoteMinGapMs: [0, 2000],
+        sleepTimerMinutes: [1, 240]
+    };
 
     /* ================== SHADOW DOM ================== */
     // Tạo shadow host để cách ly UI khỏi CSS trang web
@@ -1108,9 +1397,32 @@
         temp.remove();
         return ok;
     }
-    function speakSelectionText(text) {
+    async function speakSelectionText(text) {
         const value = String(text || '').trim();
         if (!value) return;
+        const core = getTtsCore();
+        if (core && typeof core.speakText === 'function') {
+            try {
+                const settings = loadTtsSettings();
+                const result = core.speakText(value, {
+                    provider: settings.provider || 'browser',
+                    lang: /[\u4e00-\u9fff]/.test(value) ? 'zh-CN' : 'vi-VN',
+                    maxChars: settings.maxChars || TTS_DEFAULT_SETTINGS.maxChars,
+                    title: 'TM Translate',
+                    artist: 'TM Translate'
+                });
+                if (result && result.ok) {
+                    showNotification('Đang phát đoạn chọn.');
+                    return;
+                }
+                if (result && result.reason === 'unsupported') {
+                    showNotification('Trình duyệt chưa hỗ trợ phát đoạn chọn.');
+                    return;
+                }
+            } catch (err) {
+                console.warn('[tm-translate] TTS core không phát được đoạn chọn, thử fallback:', err);
+            }
+        }
         if (!('speechSynthesis' in window) || typeof SpeechSynthesisUtterance === 'undefined') {
             showNotification('Trình duyệt chưa hỗ trợ phát đoạn chọn.');
             return;
@@ -1118,7 +1430,13 @@
         try {
             window.speechSynthesis.cancel();
             const utterance = new SpeechSynthesisUtterance(value);
+            const settings = loadTtsSettings();
             utterance.lang = /[\u4e00-\u9fff]/.test(value) ? 'zh-CN' : 'vi-VN';
+            utterance.rate = settings.rate;
+            utterance.pitch = settings.pitch;
+            utterance.volume = settings.volume;
+            const voice = getTtsVoices().find(v => v.voiceURI === settings.voiceURI);
+            if (voice) utterance.voice = voice;
             window.speechSynthesis.speak(utterance);
             showNotification('Đang phát đoạn chọn.');
         } catch (err) {
@@ -1599,7 +1917,7 @@
             return;
         }
         if (action === 'speak') {
-            speakSelectionText(selectedText);
+            await speakSelectionText(selectedText);
             hideSelectionEditButton();
             return;
         }
@@ -4215,6 +4533,8 @@
         const currentProvider = config.serverProvider || 'dichngay';
         const serverEndpointsForUi = config.serverEndpoints || {};
         const currentServerUrl = escapeHtml(serverEndpointsForUi[currentProvider] || SERVER_PROVIDER_DEFAULTS[currentProvider] || SERVER_PROVIDER_DEFAULTS.dichngay);
+        const ttsSettings = loadTtsSettings();
+        const ttsSettingsSnapshot = JSON.stringify(ttsSettings);
 
         const wrapper = document.createElement('div');
         wrapper.id = 'tm-settings-modal';
@@ -4223,7 +4543,7 @@
 
         const isBlocked = checkBlacklistStatus();
         const hiddenStyle = isBlocked ? 'display: none !important;' : '';
-        const validTabs = ['namesets', 'general', 'library', 'ocr', 'advanced', 'blacklist', 'localedit'];
+        const validTabs = ['namesets', 'general', 'library', 'tts', 'ocr', 'advanced', 'blacklist', 'localedit'];
         const preferredTab = (!isBlocked && typeof initialTab === 'string' && validTabs.includes(initialTab)) ? initialTab : null;
         const defaultTab = isBlocked ? 'blacklist' : (preferredTab || 'namesets');
         const activeClass = (tab) => tab === defaultTab ? 'active' : '';
@@ -4239,6 +4559,7 @@
             <button class="tm-tab-btn ${activeClass('namesets')}" data-tab="namesets" style="${hiddenStyle}">Bộ Tên</button>
             <button class="tm-tab-btn ${activeClass('general')}" data-tab="general" style="${hiddenStyle}">Chung</button>
             <button class="tm-tab-btn ${activeClass('library')}" data-tab="library" style="${hiddenStyle}">Thư viện</button>
+            <button class="tm-tab-btn ${activeClass('tts')}" data-tab="tts" style="${hiddenStyle}">TTS</button>
             <button class="tm-tab-btn ${activeClass('ocr')}" data-tab="ocr" style="${hiddenStyle}">OCR</button>
             <button class="tm-tab-btn ${activeClass('advanced')}" data-tab="advanced" style="${hiddenStyle}">Nâng cao</button>
             <button class="tm-tab-btn ${activeClass('blacklist')}" data-tab="blacklist">Blacklist</button>
@@ -4429,6 +4750,143 @@
                 </div>
                 <div style="margin-top: 12px; display:flex; justify-content:flex-end;">
                     <button id="tm-reader-reset" class="tm-btn">Mặc định</button>
+                </div>
+            </div>
+            <!-- TTS Tab -->
+            <div id="tab-tts" class="tm-tab-content ${activeClass('tts')}">
+                <label class="tm-label">Nguồn phát</label>
+                <select id="tm-tts-provider" class="tm-select">
+                    <option value="browser">Browser Web Speech</option>
+                    <option value="tiktok">TikTok</option>
+                    <option value="google">Google Translate</option>
+                    <option value="gemini">Gemini</option>
+                    <option value="bing">Bing</option>
+                    <option value="zalo">Zalo AI</option>
+                </select>
+                <p id="tm-tts-provider-note" style="font-size:13px; color:#555">Dùng cho nút Phát trên thanh chọn text trong reader.</p>
+                <div class="tm-row">
+                    <div class="tm-col">
+                        <label class="tm-label">Giọng đọc</label>
+                        <select id="tm-tts-voice" class="tm-select"></select>
+                    </div>
+                    <div style="align-self:flex-end; display:flex; gap:8px; margin-bottom:12px;">
+                        <button id="tm-tts-refresh-voices" class="tm-btn" type="button">Làm mới giọng</button>
+                    </div>
+                </div>
+                <div id="tm-tts-tiktok-auth" style="display:none; padding:10px 12px; border:1px solid #eee; border-radius:6px; background:#fafafa; margin-bottom:12px;">
+                    <label class="tm-label" style="margin-top:0;">Cookie TikTok</label>
+                    <p id="tm-tts-tiktok-cookie-info" style="font-size:13px; color:#555; margin:4px 0 10px;">Chưa có cookie.</p>
+                    <div style="display:flex; gap:8px; flex-wrap:wrap;">
+                        <button id="tm-tts-tiktok-cookie-btn" class="tm-btn" type="button">Nhập/sửa cookie</button>
+                        <button id="tm-tts-tiktok-cookie-clear" class="tm-btn" type="button">Xóa cookie</button>
+                        <button id="tm-tts-open-tiktok" class="tm-btn" type="button">Mở TikTok</button>
+                    </div>
+                </div>
+                <div id="tm-tts-zalo-auth" style="display:none; padding:10px 12px; border:1px solid #eee; border-radius:6px; background:#fafafa; margin-bottom:12px;">
+                    <label class="tm-label" style="margin-top:0;">API key Zalo</label>
+                    <p id="tm-tts-zalo-api-info" style="font-size:13px; color:#555; margin:4px 0 10px;">Chưa có API key.</p>
+                    <div style="display:flex; gap:8px; flex-wrap:wrap;">
+                        <button id="tm-tts-zalo-api-btn" class="tm-btn" type="button">Nhập/sửa API key</button>
+                        <button id="tm-tts-zalo-api-clear" class="tm-btn" type="button">Xóa API key</button>
+                    </div>
+                </div>
+                <div class="tm-row">
+                    <div class="tm-col">
+                        <label class="tm-label">Tốc độ (<span id="tm-tts-rate-value">${ttsSettings.rate.toFixed(2)}</span>)</label>
+                        <input id="tm-tts-rate" type="range" min="${TTS_LIMITS.rate[0]}" max="${TTS_LIMITS.rate[1]}" step="0.1" value="${ttsSettings.rate}" style="width:100%;">
+                    </div>
+                    <div class="tm-col">
+                        <label class="tm-label">Cao độ (<span id="tm-tts-pitch-value">${ttsSettings.pitch.toFixed(2)}</span>)</label>
+                        <input id="tm-tts-pitch" type="range" min="${TTS_LIMITS.pitch[0]}" max="${TTS_LIMITS.pitch[1]}" step="0.05" value="${ttsSettings.pitch}" style="width:100%;">
+                    </div>
+                    <div class="tm-col">
+                        <label class="tm-label">Âm lượng (<span id="tm-tts-volume-value">${ttsSettings.volume.toFixed(2)}</span>)</label>
+                        <input id="tm-tts-volume" type="range" min="${TTS_LIMITS.volume[0]}" max="${TTS_LIMITS.volume[1]}" step="0.05" value="${ttsSettings.volume}" style="width:100%;">
+                    </div>
+                </div>
+                <div class="tm-row">
+                    <div class="tm-col">
+                        <label class="tm-label">Ký tự tối đa mỗi đoạn</label>
+                        <input id="tm-tts-max-chars" type="number" class="tm-input" min="${TTS_LIMITS.maxChars[0]}" max="${TTS_LIMITS.maxChars[1]}" step="10" value="${ttsSettings.maxChars}">
+                    </div>
+                    <div class="tm-col">
+                        <label class="tm-label">Delay giữa đoạn (ms)</label>
+                        <input id="tm-tts-segment-delay" type="number" class="tm-input" min="${TTS_LIMITS.segmentDelayMs[0]}" max="${TTS_LIMITS.segmentDelayMs[1]}" step="50" value="${ttsSettings.segmentDelayMs}">
+                    </div>
+                    <div class="tm-col">
+                        <label class="tm-label">Hẹn giờ ngủ (phút)</label>
+                        <input id="tm-tts-sleep-timer" type="number" class="tm-input" min="${TTS_LIMITS.sleepTimerMinutes[0]}" max="${TTS_LIMITS.sleepTimerMinutes[1]}" step="1" value="${ttsSettings.sleepTimerMinutes}">
+                    </div>
+                </div>
+                <details open style="margin-top: 8px;">
+                    <summary style="cursor:pointer; font-weight:600; color:#333;">Remote TTS</summary>
+                    <div class="tm-row" style="margin-top:10px;">
+                        <div class="tm-col">
+                            <label class="tm-label" style="font-weight:normal;">
+                                <input type="checkbox" id="tm-tts-prefetch-enabled" style="margin-right:6px;">
+                                Prefetch audio đoạn kế tiếp
+                            </label>
+                        </div>
+                        <div class="tm-col">
+                            <label class="tm-label">Số đoạn prefetch</label>
+                            <input id="tm-tts-prefetch-count" type="number" class="tm-input" min="${TTS_LIMITS.prefetchCount[0]}" max="${TTS_LIMITS.prefetchCount[1]}" step="1" value="${ttsSettings.prefetchCount}">
+                        </div>
+                    </div>
+                    <div class="tm-row">
+                        <div class="tm-col">
+                            <label class="tm-label">Timeout request (ms)</label>
+                            <input id="tm-tts-remote-timeout" type="number" class="tm-input" min="${TTS_LIMITS.remoteTimeoutMs[0]}" max="${TTS_LIMITS.remoteTimeoutMs[1]}" step="1000" value="${ttsSettings.remoteTimeoutMs}">
+                        </div>
+                        <div class="tm-col">
+                            <label class="tm-label">Retry</label>
+                            <input id="tm-tts-remote-retries" type="number" class="tm-input" min="${TTS_LIMITS.remoteRetries[0]}" max="${TTS_LIMITS.remoteRetries[1]}" step="1" value="${ttsSettings.remoteRetries}">
+                        </div>
+                        <div class="tm-col">
+                            <label class="tm-label">Giãn request (ms)</label>
+                            <input id="tm-tts-remote-gap" type="number" class="tm-input" min="${TTS_LIMITS.remoteMinGapMs[0]}" max="${TTS_LIMITS.remoteMinGapMs[1]}" step="50" value="${ttsSettings.remoteMinGapMs}">
+                        </div>
+                    </div>
+                </details>
+                <details style="margin-top: 8px;">
+                    <summary style="cursor:pointer; font-weight:600; color:#333;">Thay thế từ khi đọc</summary>
+                    <label class="tm-label" style="font-weight:normal; margin-top:10px;">
+                        <input type="checkbox" id="tm-tts-replace-enabled" style="margin-right:6px;">
+                        Bật thay thế trước khi phát TTS
+                    </label>
+                    <textarea id="tm-tts-replace-rules" class="tm-textarea" rows="6" spellcheck="false" placeholder="幽山 => U sơn&#10;từ gốc = từ đọc"></textarea>
+                    <p style="font-size:12px; color:#555; margin-top:-8px;">Mỗi dòng một luật, dùng <code>=</code>, <code>=&gt;</code> hoặc tab để tách từ gốc và từ đọc.</p>
+                </details>
+                <details style="margin-top: 8px;">
+                    <summary style="cursor:pointer; font-weight:600; color:#333;">Tùy chọn reader</summary>
+                    <div style="display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:8px 16px; margin-top:10px;">
+                        <label class="tm-label" style="font-weight:normal;"><input type="checkbox" id="tm-tts-include-title" style="margin-right:6px;">Đọc tiêu đề khi reader hỗ trợ</label>
+                        <label class="tm-label" style="font-weight:normal;"><input type="checkbox" id="tm-tts-auto-next" style="margin-right:6px;">Tự qua đoạn/chương khi reader hỗ trợ</label>
+                        <label class="tm-label" style="font-weight:normal;"><input type="checkbox" id="tm-tts-auto-scroll" style="margin-right:6px;">Tự cuộn khi reader hỗ trợ</label>
+                        <label class="tm-label" style="font-weight:normal;"><input type="checkbox" id="tm-tts-auto-start-next" style="margin-right:6px;">Tự đọc chương kế khi reader hỗ trợ</label>
+                    </div>
+                </details>
+                <div style="margin-top: 12px; display:flex; justify-content:flex-end; gap:8px; flex-wrap:wrap;">
+                    <button id="tm-tts-test" class="tm-btn" type="button">Thử giọng</button>
+                    <button id="tm-tts-stop" class="tm-btn" type="button">Dừng phát</button>
+                    <button id="tm-tts-clear-cache" class="tm-btn" type="button">Xóa cache audio</button>
+                    <button id="tm-tts-reset" class="tm-btn" type="button">Mặc định</button>
+                </div>
+                <div id="tm-tts-secret-modal" class="tm-modal-wrapper" style="display:none; z-index:2147483650;">
+                    <div class="tm-modal-backdrop"></div>
+                    <div class="tm-modal-box" style="width:min(560px, calc(100vw - 24px));">
+                        <div class="tm-modal-header">
+                            <h3 id="tm-tts-secret-title">Nhập dữ liệu TTS</h3>
+                            <button id="tm-tts-secret-close" class="tm-btn" type="button">&times;</button>
+                        </div>
+                        <div class="tm-modal-content">
+                            <p id="tm-tts-secret-message" style="font-size:13px; color:#555; margin-top:0;"></p>
+                            <textarea id="tm-tts-secret-text" class="tm-textarea" rows="8" spellcheck="false"></textarea>
+                        </div>
+                        <div class="tm-modal-footer">
+                            <button id="tm-tts-secret-cancel" class="tm-btn" type="button">Hủy</button>
+                            <button id="tm-tts-secret-save" class="tm-btn tm-btn-primary" type="button">Lưu</button>
+                        </div>
+                    </div>
                 </div>
             </div>
             <!-- OCR Tab -->
@@ -4657,6 +5115,52 @@
         const readerPaddingInput = wrapper.querySelector('#tm-reader-padding');
         const readerAlignSelect = wrapper.querySelector('#tm-reader-align');
         const readerResetBtn = wrapper.querySelector('#tm-reader-reset');
+        const ttsProviderSelect = wrapper.querySelector('#tm-tts-provider');
+        const ttsVoiceSelect = wrapper.querySelector('#tm-tts-voice');
+        const ttsRefreshVoicesBtn = wrapper.querySelector('#tm-tts-refresh-voices');
+        const ttsRateInput = wrapper.querySelector('#tm-tts-rate');
+        const ttsPitchInput = wrapper.querySelector('#tm-tts-pitch');
+        const ttsVolumeInput = wrapper.querySelector('#tm-tts-volume');
+        const ttsRateValue = wrapper.querySelector('#tm-tts-rate-value');
+        const ttsPitchValue = wrapper.querySelector('#tm-tts-pitch-value');
+        const ttsVolumeValue = wrapper.querySelector('#tm-tts-volume-value');
+        const ttsMaxCharsInput = wrapper.querySelector('#tm-tts-max-chars');
+        const ttsSegmentDelayInput = wrapper.querySelector('#tm-tts-segment-delay');
+        const ttsSleepTimerInput = wrapper.querySelector('#tm-tts-sleep-timer');
+        const ttsProviderNote = wrapper.querySelector('#tm-tts-provider-note');
+        const ttsTikTokAuth = wrapper.querySelector('#tm-tts-tiktok-auth');
+        const ttsTikTokCookieInfo = wrapper.querySelector('#tm-tts-tiktok-cookie-info');
+        const ttsTikTokCookieBtn = wrapper.querySelector('#tm-tts-tiktok-cookie-btn');
+        const ttsTikTokCookieClearBtn = wrapper.querySelector('#tm-tts-tiktok-cookie-clear');
+        const ttsOpenTikTokBtn = wrapper.querySelector('#tm-tts-open-tiktok');
+        const ttsZaloAuth = wrapper.querySelector('#tm-tts-zalo-auth');
+        const ttsZaloApiInfo = wrapper.querySelector('#tm-tts-zalo-api-info');
+        const ttsZaloApiBtn = wrapper.querySelector('#tm-tts-zalo-api-btn');
+        const ttsZaloApiClearBtn = wrapper.querySelector('#tm-tts-zalo-api-clear');
+        const ttsPrefetchEnabledInput = wrapper.querySelector('#tm-tts-prefetch-enabled');
+        const ttsPrefetchCountInput = wrapper.querySelector('#tm-tts-prefetch-count');
+        const ttsRemoteTimeoutInput = wrapper.querySelector('#tm-tts-remote-timeout');
+        const ttsRemoteRetriesInput = wrapper.querySelector('#tm-tts-remote-retries');
+        const ttsRemoteGapInput = wrapper.querySelector('#tm-tts-remote-gap');
+        const ttsReplaceEnabledInput = wrapper.querySelector('#tm-tts-replace-enabled');
+        const ttsReplaceRulesInput = wrapper.querySelector('#tm-tts-replace-rules');
+        const ttsIncludeTitleInput = wrapper.querySelector('#tm-tts-include-title');
+        const ttsAutoNextInput = wrapper.querySelector('#tm-tts-auto-next');
+        const ttsAutoScrollInput = wrapper.querySelector('#tm-tts-auto-scroll');
+        const ttsAutoStartNextInput = wrapper.querySelector('#tm-tts-auto-start-next');
+        const ttsTestBtn = wrapper.querySelector('#tm-tts-test');
+        const ttsStopBtn = wrapper.querySelector('#tm-tts-stop');
+        const ttsClearCacheBtn = wrapper.querySelector('#tm-tts-clear-cache');
+        const ttsResetBtn = wrapper.querySelector('#tm-tts-reset');
+        const ttsSecretModal = wrapper.querySelector('#tm-tts-secret-modal');
+        const ttsSecretTitle = wrapper.querySelector('#tm-tts-secret-title');
+        const ttsSecretMessage = wrapper.querySelector('#tm-tts-secret-message');
+        const ttsSecretText = wrapper.querySelector('#tm-tts-secret-text');
+        const ttsSecretSaveBtn = wrapper.querySelector('#tm-tts-secret-save');
+        const ttsSecretCancelBtn = wrapper.querySelector('#tm-tts-secret-cancel');
+        const ttsSecretCloseBtn = wrapper.querySelector('#tm-tts-secret-close');
+        let ttsWorkingSettings = normalizeTtsSettings(ttsSettings);
+        let ttsSecretMode = '';
 
         const readNumberInput = (selector, fallback, min, max, integer = false) => {
             const raw = wrapper.querySelector(selector)?.value;
@@ -4675,6 +5179,219 @@
             paddingX: readNumberInput('#tm-reader-padding', DEFAULT_CONFIG.readerStyle.paddingX, 0, 240, true),
             textAlign: wrapper.querySelector('#tm-reader-align')?.value || DEFAULT_CONFIG.readerStyle.textAlign
         });
+        const readTtsSettingsFromUI = () => {
+            const provider = ttsProviderSelect?.value || TTS_DEFAULT_SETTINGS.provider;
+            const next = {
+                ...ttsWorkingSettings,
+                provider,
+                rate: readNumberInput('#tm-tts-rate', TTS_DEFAULT_SETTINGS.rate, TTS_LIMITS.rate[0], TTS_LIMITS.rate[1]),
+                pitch: readNumberInput('#tm-tts-pitch', TTS_DEFAULT_SETTINGS.pitch, TTS_LIMITS.pitch[0], TTS_LIMITS.pitch[1]),
+                volume: readNumberInput('#tm-tts-volume', TTS_DEFAULT_SETTINGS.volume, TTS_LIMITS.volume[0], TTS_LIMITS.volume[1]),
+                maxChars: readNumberInput('#tm-tts-max-chars', TTS_DEFAULT_SETTINGS.maxChars, TTS_LIMITS.maxChars[0], TTS_LIMITS.maxChars[1], true),
+                segmentDelayMs: readNumberInput('#tm-tts-segment-delay', TTS_DEFAULT_SETTINGS.segmentDelayMs, TTS_LIMITS.segmentDelayMs[0], TTS_LIMITS.segmentDelayMs[1], true),
+                sleepTimerMinutes: readNumberInput('#tm-tts-sleep-timer', TTS_DEFAULT_SETTINGS.sleepTimerMinutes, TTS_LIMITS.sleepTimerMinutes[0], TTS_LIMITS.sleepTimerMinutes[1], true),
+                prefetchEnabled: !!ttsPrefetchEnabledInput?.checked,
+                prefetchCount: readNumberInput('#tm-tts-prefetch-count', TTS_DEFAULT_SETTINGS.prefetchCount, TTS_LIMITS.prefetchCount[0], TTS_LIMITS.prefetchCount[1], true),
+                remoteTimeoutMs: readNumberInput('#tm-tts-remote-timeout', TTS_DEFAULT_SETTINGS.remoteTimeoutMs, TTS_LIMITS.remoteTimeoutMs[0], TTS_LIMITS.remoteTimeoutMs[1], true),
+                remoteRetries: readNumberInput('#tm-tts-remote-retries', TTS_DEFAULT_SETTINGS.remoteRetries, TTS_LIMITS.remoteRetries[0], TTS_LIMITS.remoteRetries[1], true),
+                remoteMinGapMs: readNumberInput('#tm-tts-remote-gap', TTS_DEFAULT_SETTINGS.remoteMinGapMs, TTS_LIMITS.remoteMinGapMs[0], TTS_LIMITS.remoteMinGapMs[1], true),
+                replaceEnabled: !!ttsReplaceEnabledInput?.checked,
+                replaceRules: parseTtsReplaceRulesText(ttsReplaceRulesInput?.value || ''),
+                includeTitle: !!ttsIncludeTitleInput?.checked,
+                autoNext: !!ttsAutoNextInput?.checked,
+                autoScroll: !!ttsAutoScrollInput?.checked,
+                autoStartOnNextChapter: !!ttsAutoStartNextInput?.checked
+            };
+            const voiceKey = getTtsProviderVoiceKey(provider);
+            next[voiceKey] = ttsVoiceSelect?.value || '';
+            return normalizeTtsSettings(next);
+        };
+        const updateTtsRangeLabels = () => {
+            if (ttsRateValue) ttsRateValue.textContent = (parseFloat(ttsRateInput?.value) || TTS_DEFAULT_SETTINGS.rate).toFixed(2);
+            if (ttsPitchValue) ttsPitchValue.textContent = (parseFloat(ttsPitchInput?.value) || TTS_DEFAULT_SETTINGS.pitch).toFixed(2);
+            if (ttsVolumeValue) ttsVolumeValue.textContent = (parseFloat(ttsVolumeInput?.value) || TTS_DEFAULT_SETTINGS.volume).toFixed(2);
+        };
+        const populateTtsProviders = (selectedProvider = '') => {
+            if (!ttsProviderSelect) return;
+            const providers = getTtsProviderList();
+            ttsProviderSelect.innerHTML = '';
+            providers.forEach((provider) => {
+                const option = document.createElement('option');
+                option.value = provider.id;
+                option.textContent = provider.label || provider.id;
+                ttsProviderSelect.appendChild(option);
+            });
+            if (selectedProvider && !providers.some(p => p.id === selectedProvider)) {
+                const option = document.createElement('option');
+                option.value = selectedProvider;
+                option.textContent = selectedProvider;
+                ttsProviderSelect.appendChild(option);
+            }
+            ttsProviderSelect.value = selectedProvider || TTS_DEFAULT_SETTINGS.provider;
+        };
+        const populateTtsVoices = (providerId = 'browser', selectedVoiceId = '') => {
+            if (!ttsVoiceSelect) return;
+            const provider = providerId || 'browser';
+            const voices = getTtsVoices(provider);
+            ttsVoiceSelect.innerHTML = '';
+            const autoOption = document.createElement('option');
+            autoOption.value = '';
+            autoOption.textContent = 'Tự động';
+            ttsVoiceSelect.appendChild(autoOption);
+            voices.forEach((voice) => {
+                const option = document.createElement('option');
+                option.value = voice.id || voice.voiceURI || '';
+                option.textContent = formatTtsVoiceLabel(voice);
+                ttsVoiceSelect.appendChild(option);
+            });
+            if (selectedVoiceId && !voices.some(v => (v.id || v.voiceURI) === selectedVoiceId)) {
+                const missing = document.createElement('option');
+                missing.value = selectedVoiceId;
+                missing.textContent = `Đã lưu: ${selectedVoiceId}`;
+                ttsVoiceSelect.appendChild(missing);
+            }
+            ttsVoiceSelect.value = selectedVoiceId || '';
+        };
+        const updateTtsSecretInfo = (settings = ttsWorkingSettings) => {
+            const core = getTtsCore();
+            const cookieRaw = String(settings.tiktokCookieText || '');
+            const cookieParsed = core && typeof core.parseTikTokCookieInput === 'function'
+                ? core.parseTikTokCookieInput(cookieRaw)
+                : { header: cookieRaw, hasSession: /(?:^|;\s*)(sessionid|sid_tt|sid_guard)=/i.test(cookieRaw), format: 'header' };
+            if (ttsTikTokCookieInfo) {
+                ttsTikTokCookieInfo.textContent = cookieRaw
+                    ? (cookieParsed.hasSession ? `Đã lưu cookie (ẩn). Định dạng: ${cookieParsed.format || 'header'}.` : 'Đã lưu cookie nhưng thiếu sessionid/sid_tt/sid_guard.')
+                    : 'Chưa có cookie.';
+            }
+            const keys = core && typeof core.parseZaloApiKeys === 'function'
+                ? core.parseZaloApiKeys(settings.zaloApiKeysText)
+                : String(settings.zaloApiKeysText || '').split(/[\r\n,;]+/).filter(Boolean);
+            if (ttsZaloApiInfo) {
+                ttsZaloApiInfo.textContent = keys.length ? `Đã lưu ${keys.length} API key.` : 'Chưa có API key.';
+            }
+        };
+        const updateTtsProviderUi = (settings = ttsWorkingSettings) => {
+            const provider = settings.provider || 'browser';
+            if (ttsProviderNote) ttsProviderNote.textContent = describeTtsProvider(provider);
+            if (ttsTikTokAuth) ttsTikTokAuth.style.display = provider === 'tiktok' ? 'block' : 'none';
+            if (ttsZaloAuth) ttsZaloAuth.style.display = provider === 'zalo' ? 'block' : 'none';
+            updateTtsSecretInfo(settings);
+        };
+        const applyTtsSettingsToUI = (settings) => {
+            const normalized = normalizeTtsSettings(settings);
+            ttsWorkingSettings = normalized;
+            populateTtsProviders(normalized.provider);
+            populateTtsVoices(normalized.provider, getTtsVoiceValue(normalized, normalized.provider));
+            if (ttsRateInput) ttsRateInput.value = normalized.rate;
+            if (ttsPitchInput) ttsPitchInput.value = normalized.pitch;
+            if (ttsVolumeInput) ttsVolumeInput.value = normalized.volume;
+            if (ttsMaxCharsInput) ttsMaxCharsInput.value = normalized.maxChars;
+            if (ttsSegmentDelayInput) ttsSegmentDelayInput.value = normalized.segmentDelayMs;
+            if (ttsSleepTimerInput) ttsSleepTimerInput.value = normalized.sleepTimerMinutes;
+            if (ttsPrefetchEnabledInput) ttsPrefetchEnabledInput.checked = !!normalized.prefetchEnabled;
+            if (ttsPrefetchCountInput) ttsPrefetchCountInput.value = normalized.prefetchCount;
+            if (ttsRemoteTimeoutInput) ttsRemoteTimeoutInput.value = normalized.remoteTimeoutMs;
+            if (ttsRemoteRetriesInput) ttsRemoteRetriesInput.value = normalized.remoteRetries;
+            if (ttsRemoteGapInput) ttsRemoteGapInput.value = normalized.remoteMinGapMs;
+            if (ttsReplaceEnabledInput) ttsReplaceEnabledInput.checked = !!normalized.replaceEnabled;
+            if (ttsReplaceRulesInput) ttsReplaceRulesInput.value = formatTtsReplaceRulesText(normalized.replaceRules);
+            if (ttsIncludeTitleInput) ttsIncludeTitleInput.checked = !!normalized.includeTitle;
+            if (ttsAutoNextInput) ttsAutoNextInput.checked = !!normalized.autoNext;
+            if (ttsAutoScrollInput) ttsAutoScrollInput.checked = !!normalized.autoScroll;
+            if (ttsAutoStartNextInput) ttsAutoStartNextInput.checked = !!normalized.autoStartOnNextChapter;
+            updateTtsProviderUi(normalized);
+            updateTtsRangeLabels();
+        };
+        const closeTtsSecretModal = () => {
+            if (ttsSecretModal) ttsSecretModal.style.display = 'none';
+            if (ttsSecretText) ttsSecretText.value = '';
+            ttsSecretMode = '';
+        };
+        const openTtsSecretModal = (mode) => {
+            ttsSecretMode = mode;
+            if (!ttsSecretModal || !ttsSecretText) return;
+            if (mode === 'zalo') {
+                if (ttsSecretTitle) ttsSecretTitle.textContent = 'Nhập API key Zalo';
+                if (ttsSecretMessage) ttsSecretMessage.textContent = 'Dán một hoặc nhiều API key Zalo AI, mỗi dòng một key.';
+                ttsSecretText.placeholder = 'API key 1\nAPI key 2';
+                ttsSecretText.value = String(ttsWorkingSettings.zaloApiKeysText || '');
+            } else {
+                if (ttsSecretTitle) ttsSecretTitle.textContent = 'Nhập Cookie TikTok';
+                if (ttsSecretMessage) ttsSecretMessage.textContent = 'Dán Cookie header, JSON cookies hoặc Netscape cookie file. Cookie sẽ được lưu ẩn trong settings.';
+                ttsSecretText.placeholder = 'Cookie: sessionid=...; sid_tt=...\nHoặc JSON/Netscape export từ Cookie-Editor';
+                ttsSecretText.value = '';
+            }
+            ttsSecretModal.style.display = 'flex';
+            setTimeout(() => ttsSecretText.focus(), 30);
+        };
+        const saveTtsSecretModal = () => {
+            const raw = String(ttsSecretText?.value || '').trim();
+            const core = getTtsCore();
+            if (ttsSecretMode === 'zalo') {
+                const keys = core && typeof core.parseZaloApiKeys === 'function'
+                    ? core.parseZaloApiKeys(raw)
+                    : raw.split(/[\r\n,;]+/).filter(Boolean);
+                if (!keys.length) {
+                    showNotification('Nhập ít nhất một API key Zalo.');
+                    return;
+                }
+                ttsWorkingSettings = normalizeTtsSettings({ ...ttsWorkingSettings, zaloApiKeysText: raw });
+                updateTtsProviderUi(ttsWorkingSettings);
+                closeTtsSecretModal();
+                showNotification('Đã cập nhật API key Zalo.');
+                return;
+            }
+            const parsed = core && typeof core.parseTikTokCookieInput === 'function'
+                ? core.parseTikTokCookieInput(raw)
+                : { header: raw, hasSession: /(?:^|;\s*)(sessionid|sid_tt|sid_guard)=/i.test(raw) };
+            if (!parsed.header) {
+                showNotification('Cookie TikTok rỗng hoặc sai định dạng.');
+                return;
+            }
+            if (!parsed.hasSession && !confirm('Cookie có vẻ thiếu sessionid/sid_tt/sid_guard. Vẫn lưu?')) {
+                return;
+            }
+            ttsWorkingSettings = normalizeTtsSettings({ ...ttsWorkingSettings, tiktokCookieText: raw });
+            updateTtsProviderUi(ttsWorkingSettings);
+            closeTtsSecretModal();
+            showNotification('Đã cập nhật cookie TikTok.');
+        };
+        const stopTtsPlayback = () => {
+            const core = getTtsCore();
+            if (core && typeof core.stop === 'function') {
+                try { core.stop(); return; } catch (err) { /* ignore */ }
+            }
+            try { window.speechSynthesis?.cancel?.(); } catch (err) { /* ignore */ }
+        };
+        const playTtsPreview = () => {
+            const settings = readTtsSettingsFromUI();
+            ttsWorkingSettings = settings;
+            const core = getTtsCore();
+            try {
+                if (core && typeof core.testVoice === 'function') {
+                    const result = core.testVoice('Xin chào. Đây là thử giọng TTS.', settings);
+                    if (!result || result.ok === false) throw new Error(result && result.reason ? result.reason : 'tts test failed');
+                } else {
+                    if (!('speechSynthesis' in window) || typeof SpeechSynthesisUtterance === 'undefined') {
+                        showNotification('Trình duyệt chưa hỗ trợ phát thử TTS.');
+                        return;
+                    }
+                    window.speechSynthesis.cancel();
+                    const utterance = new SpeechSynthesisUtterance('Xin chào. Đây là thử giọng TTS.');
+                    utterance.lang = 'vi-VN';
+                    utterance.rate = settings.rate;
+                    utterance.pitch = settings.pitch;
+                    utterance.volume = settings.volume;
+                    const voice = getTtsVoices('browser').find(v => v.voiceURI === settings.voiceURI);
+                    if (voice) utterance.voice = voice;
+                    window.speechSynthesis.speak(utterance);
+                }
+                showNotification('Đang phát thử giọng.');
+            } catch (err) {
+                console.warn('[tm-translate] Không phát thử TTS được:', err);
+                showNotification('Không phát thử TTS được.');
+            }
+        };
 
         if (libPrefetchRange && libPrefetchValue) {
             libPrefetchValue.textContent = `${libPrefetchRange.value}%`;
@@ -4714,6 +5431,66 @@
                 }
             });
         }
+
+        applyTtsSettingsToUI(ttsSettings);
+        [ttsRateInput, ttsPitchInput, ttsVolumeInput].forEach(input => {
+            input?.addEventListener('input', updateTtsRangeLabels);
+        });
+        ttsProviderSelect?.addEventListener('change', () => {
+            const provider = ttsProviderSelect.value || TTS_DEFAULT_SETTINGS.provider;
+            const current = readTtsSettingsFromUI();
+            const voiceKey = getTtsProviderVoiceKey(provider);
+            ttsWorkingSettings = normalizeTtsSettings({
+                ...ttsWorkingSettings,
+                ...current,
+                provider,
+                [voiceKey]: ttsWorkingSettings[voiceKey]
+            });
+            populateTtsVoices(ttsWorkingSettings.provider, getTtsVoiceValue(ttsWorkingSettings, ttsWorkingSettings.provider));
+            updateTtsProviderUi(ttsWorkingSettings);
+        });
+        ttsVoiceSelect?.addEventListener('change', () => {
+            ttsWorkingSettings = readTtsSettingsFromUI();
+        });
+        ttsRefreshVoicesBtn?.addEventListener('click', () => {
+            const current = readTtsSettingsFromUI();
+            populateTtsVoices(current.provider, getTtsVoiceValue(current, current.provider));
+        });
+        ttsTikTokCookieBtn?.addEventListener('click', () => openTtsSecretModal('tiktok'));
+        ttsZaloApiBtn?.addEventListener('click', () => openTtsSecretModal('zalo'));
+        ttsTikTokCookieClearBtn?.addEventListener('click', () => {
+            ttsWorkingSettings = normalizeTtsSettings({ ...ttsWorkingSettings, tiktokCookieText: '' });
+            updateTtsProviderUi(ttsWorkingSettings);
+            showNotification('Đã xóa cookie TikTok trong cài đặt tạm.');
+        });
+        ttsZaloApiClearBtn?.addEventListener('click', () => {
+            ttsWorkingSettings = normalizeTtsSettings({ ...ttsWorkingSettings, zaloApiKeysText: '' });
+            updateTtsProviderUi(ttsWorkingSettings);
+            showNotification('Đã xóa API key Zalo trong cài đặt tạm.');
+        });
+        ttsOpenTikTokBtn?.addEventListener('click', () => window.open('https://www.tiktok.com/', '_blank', 'noopener,noreferrer'));
+        ttsSecretSaveBtn?.addEventListener('click', saveTtsSecretModal);
+        ttsSecretCancelBtn?.addEventListener('click', closeTtsSecretModal);
+        ttsSecretCloseBtn?.addEventListener('click', closeTtsSecretModal);
+        ttsSecretModal?.querySelector('.tm-modal-backdrop')?.addEventListener('click', closeTtsSecretModal);
+        ttsSecretText?.addEventListener('keydown', (event) => {
+            if (event.key === 'Escape') closeTtsSecretModal();
+        });
+        ttsResetBtn?.addEventListener('click', () => {
+            applyTtsSettingsToUI(TTS_DEFAULT_SETTINGS);
+        });
+        ttsStopBtn?.addEventListener('click', () => {
+            stopTtsPlayback();
+            showNotification('Đã dừng phát TTS.');
+        });
+        ttsClearCacheBtn?.addEventListener('click', () => {
+            const core = getTtsCore();
+            if (core && typeof core.clearRemoteAudioCache === 'function') {
+                try { core.clearRemoteAudioCache(); } catch (err) { /* ignore */ }
+            }
+            showNotification('Đã xóa cache audio TTS.');
+        });
+        ttsTestBtn?.addEventListener('click', playTtsPreview);
 
         const updateOcrUiState = () => {
             const actionMode = ocrActionModeSelect.value;
@@ -4961,6 +5738,7 @@
         const tabs = wrapper.querySelectorAll('.tm-tab-btn');
         const contents = wrapper.querySelectorAll('.tm-tab-content');
         tabs.forEach(tab => {
+            if (!tab.dataset.tab) return;
             tab.addEventListener('click', () => {
                 tabs.forEach(t => t.classList.remove('active'));
                 contents.forEach(c => c.classList.remove('active'));
@@ -5377,8 +6155,9 @@
             tempConfigCheck.blacklist = tempBlacklist;
 
             const newConfigSnapshot = JSON.stringify(tempConfigCheck);
+            const newTtsSettingsSnapshot = JSON.stringify(readTtsSettingsFromUI());
 
-            if (newConfigSnapshot !== configSnapshot) {
+            if (newConfigSnapshot !== configSnapshot || newTtsSettingsSnapshot !== ttsSettingsSnapshot) {
                 if (confirm("Bạn đã thay đổi cài đặt! Bạn có muốn lưu lại không?")) {
                     saveChanges();
                 } else {
@@ -5449,6 +6228,7 @@
             config.blacklist = tempBlacklist;
 
             config.activeNameSet = setSelect.value;
+            saveTtsSettings(readTtsSettingsFromUI());
             saveConfig(config);
 
             wrapper.remove(); // Đóng modal sau khi lưu
@@ -9595,6 +10375,7 @@ body.tmx-fullscreen .tmx-scroll {
                     <button id="tm-reader-raw-btn" class="tm-btn">RAW</button>
                     <button id="tm-reader-trans-btn" class="tm-btn">DỊCH</button>
                     <button id="tm-reader-settings" class="tm-btn">Cài đặt</button>
+                    <button id="tm-reader-tts-settings" class="tm-btn">TTS</button>
                     <button id="tm-reader-fullscreen" class="tm-btn">Fullscreen</button>
                     <button id="tm-reader-close" class="tm-btn tm-reader-close-btn">Thoát</button>
                 </div>
@@ -9656,6 +10437,7 @@ body.tmx-fullscreen .tmx-scroll {
             btnTrans: root.querySelector('#tm-reader-trans-btn'),
             btnFullscreen: root.querySelector('#tm-reader-fullscreen'),
             btnSettings: root.querySelector('#tm-reader-settings'),
+            btnTtsSettings: root.querySelector('#tm-reader-tts-settings'),
             btnToc: root.querySelector('#tm-reader-toc-btn'),
             btnClose: root.querySelector('#tm-reader-close')
         };
@@ -9672,6 +10454,7 @@ body.tmx-fullscreen .tmx-scroll {
         libReaderUI.btnTrans.addEventListener('click', () => libReaderSetMode('trans'));
         libReaderUI.btnFullscreen.addEventListener('click', () => libReaderToggleFullscreen());
         libReaderUI.btnSettings.addEventListener('click', () => openSettingsUI('library'));
+        libReaderUI.btnTtsSettings.addEventListener('click', () => openSettingsUI('tts'));
         if (libReaderUI.contentWrap) {
             libReaderUI.contentWrap.addEventListener('pointerdown', libReaderNameTapStart, { passive: true });
             libReaderUI.contentWrap.addEventListener('pointermove', libReaderNameTapMove, { passive: true });
@@ -10663,9 +11446,9 @@ body.tmx-fullscreen .tmx-scroll {
 
     const welcomeHtml = `
 <div class="tm-welcome-title">🌸 Chào mừng đến với TM Translate 🌸</div>
-	<div class="tm-welcome-sub">TM Translate v${CURRENT_VERSION} • Dịch trang web Trung → Việt, quản lý Name-set, Thư viện đọc offline, OCR dịch ảnh</div>
+	<div class="tm-welcome-sub">TM Translate v${CURRENT_VERSION} • Dịch trang web Trung → Việt, quản lý Name-set, Thư viện đọc offline, OCR dịch ảnh và TTS</div>
 	<div class="tm-welcome-banner">
-	  <strong>✨ v${CURRENT_VERSION}:</strong> Sửa tách TXT trong Thư viện và làm cuộn đổi chương đỡ nhảy quá tay.
+	  <strong>✨ v${CURRENT_VERSION}:</strong> Thanh chọn text mới trong Reader, sửa raw/xóa rác trước dịch, fix Name-set và TTS đầy đủ trong Cài đặt.
 	</div>
 <div style="height:8px;"></div>
     `.trim();
@@ -10674,7 +11457,7 @@ body.tmx-fullscreen .tmx-scroll {
 ### 🟢 Nút Nổi (Floating Buttons)
 - **Dịch Trang** (xanh lá): Dịch toàn bộ trang. Có tự động dịch khi cuộn nếu bật trong Cài đặt.
 - **Thư viện** (xanh ngọc): Mở Thư viện import/đọc/export truyện.
-- **Edit Name** (xanh dương, hình bút chì): Bôi đen đoạn đã dịch → bấm bút chì để sửa tên.
+- **Edit Name** (xanh dương, hình bút chì): Bôi đen đoạn đã dịch trên web → bấm bút chì để sửa tên.
 - **Dịch Nhanh** (xám): Dán text và dịch nhanh mà không cần dịch cả trang.
 - **OCR** (teal): Dịch chữ trong ảnh — khoanh vùng hoặc dịch ảnh.
 - **Style** (tối): Tùy chỉnh giao diện Chế độ đọc rút gọn.
@@ -10682,7 +11465,10 @@ body.tmx-fullscreen .tmx-scroll {
 
 ### 📚 Thư Viện & Đọc Truyện
 - Import **TXT/EPUB**, chọn ngôn ngữ nguồn (Trung → có RAW/DỊCH, Việt → chỉ đọc).
-- Reader có: RAW/DỊCH, Fullscreen, Mục lục, cache dịch + prefetch chương.
+- Reader có: RAW/DỊCH, Fullscreen, Mục lục, cache dịch + prefetch chương, nút mở nhanh Cài đặt/TTS.
+- Bôi đen text trong Reader sẽ hiện thanh **Phát / Sửa tên hoặc Thay thế từ / Xóa rác / Sao chép**. Trên mobile, menu copy/share mặc định của máy được ẩn trong Reader.
+- Truyện Trung RAW+DỊCH: **Sửa tên** dùng được cả khi chọn text ở RAW hoặc DỊCH. Truyện chỉ RAW: nút đổi thành **Thay thế từ**.
+- **Xóa rác** luôn mở popup để sửa đoạn raw trước khi xác nhận; có tùy chọn không phân biệt hoa thường khi cần.
 - Kiểu đọc cuộn dọc: chạm đầu/cuối chương rồi cuộn thêm một nhịp mới chuyển chương.
 - Tự lưu **tiến độ đọc** (chương + vị trí cuộn).
 - Xuất **TXT/EPUB/HTML** với cache dịch & Name-set hiện tại. HTML có giao diện đọc, cài đặt và fullscreen riêng.
@@ -10696,6 +11482,8 @@ body.tmx-fullscreen .tmx-scroll {
 - **Tab Chung**: Chế độ dịch (Server/Local), bật/tắt nút, Simplified View, chặn JS.
 - **Tab Bộ Tên**: Tạo/Xóa bộ name, nhập file JSON/TXT, xuất, thêm/sửa nhanh.
 - **Tab Thư viện**: Hiển thị nút, prefetch, kiểu đọc, giao diện reader.
+- **Tab TTS**: Chọn nguồn Browser/TikTok/Google/Gemini/Bing/Zalo, giọng đọc, tốc độ/cao độ/âm lượng, độ dài đoạn, delay, hẹn giờ ngủ, prefetch remote, retry/timeout và thay thế từ trước khi đọc.
+- TikTok có popup nhập Cookie; Zalo có popup nhập một hoặc nhiều API key. Gemini cần đăng nhập gemini.google.com; Bing có thể cần mở bing.com/translator một lần nếu token hết hạn.
 - **Tab Từ điển Local**: Tìm/sửa/xóa mục, khôi phục gốc.
 - **Tab Blacklist**: Chặn domain không muốn script chạy.
 - **Tab Nâng cao**: Provider dịch, delay, max ký tự, retry.
@@ -10703,13 +11491,17 @@ body.tmx-fullscreen .tmx-scroll {
     `.trim();
 
     const changelogMarkdown = `
-### ✨ v3.5.5.3
-- Sửa import TXT trong Thư viện: lọc heading trùng kiểu **tiêu đề + số chữ** nhưng vẫn giữ tiêu đề thật ở đầu nội dung chương.
-- Khi TXT đã có heading rõ ràng thì không gộp chương ngắn nữa, tránh mất chương trong danh sách.
-- Kiểu đọc cuộn dọc cần cuộn thêm một nhịp ở đầu/cuối chương mới chuyển chương, giảm nhảy chương liên tục khi lỡ tay cuộn mạnh.
+### ✨ v3.5.5.5_beta
+- Reader mobile ẩn menu chọn text mặc định của máy, chỉ hiện thanh thao tác riêng.
+- Thanh chọn text trong Reader có **Phát / Sửa tên hoặc Thay thế từ / Xóa rác / Sao chép**.
+- **Xóa rác** và **Thay thế từ** sửa raw trước khi dịch lại, có tùy chọn không phân biệt hoa thường và giữ popup xác nhận trước khi ghi.
+- Truyện RAW+DỊCH vẫn dùng **Sửa tên**; truyện chỉ RAW dùng **Thay thế từ** thay cho sửa tên.
+- Fix Name-set không thay thế Việt → Việt quá tay, chỉ khớp cặp Trung → Việt để tránh lỗi kiểu “điềU sơn”.
+- Thêm shared TTS core đã mã hóa; nút **Phát** dùng core mới, tab **TTS** đầy đủ trong Cài đặt và nút mở nhanh TTS trong Reader.
+- Tab TTS hỗ trợ nguồn Browser/TikTok/Google/Gemini/Bing/Zalo, popup cookie TikTok/API key Zalo, thay thế từ khi đọc, prefetch audio remote, retry/timeout/request gap và hẹn giờ ngủ.
 
 ### 📦 Các bản trước (tóm tắt)
-- v3.5.5 - v3.5.5.2: gom các sửa Reader, fullscreen, mục lục, tiến độ đọc, xuất HTML, Edit Name mobile, import đoạn, provider dichngay và regex Name-set.
+- v3.5.5 - v3.5.5.3: gom các sửa Reader, fullscreen, mục lục, tiến độ đọc, xuất HTML, Edit Name mobile, import đoạn, provider dichngay, regex Name-set, import TXT và cuộn đổi chương.
 - v3.5.3 - v3.5.4: cải thiện import/export Thư viện, làm sạch ký tự ẩn, giảm dính chữ sau dấu câu và hotfix dịch server.
 - v3.5.2: Shadow DOM cho UI, popup welcome/changelog, dọn dẹp giao diện.
 - v3.5.0: Thư viện đọc offline, reader UI, OCR vùng chọn, dịch local nâng cao.

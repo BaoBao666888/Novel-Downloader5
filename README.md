@@ -191,7 +191,7 @@ ovelDownloaderVietSub.user.js), bản beta và các phiên bản hồi quy (3.5.
 
 *   **Auto Volume Chapter Uploader.user.js:** Tự động chèn tập/chương, kiểm tra trùng/thiếu và chọn vị trí chèn -n/n- khi đăng truyện; [Cài đặt](https://raw.githubusercontent.com/BaoBao666888/Novel-Downloader5/main/Auto%20Volume%20Chapter%20Uploader.user.js) và khuyến nghị dùng kèm app [rename_chapters](rename_chapters) để đồng bộ tên chương trước khi tải lên.
 *   **Fanqie Chapter Replacer and copy Full.user.js:** Thay nội dung chương Fanqie từ API cá nhân và thêm nút copy tiêu đề + nội dung để dùng lại nhanh; [Cài đặt](https://raw.githubusercontent.com/BaoBao666888/Novel-Downloader5/main/Fanqie%20Chapter%20Replacer%20and%20copy%20Full.user.js).
-*   **TM Translate.user.js:** Dịch trang, quản lý name-set, chuẩn hóa tên, chế độ đọc rút gọn và tùy chỉnh giao diện; [Cài đặt](https://raw.githubusercontent.com/BaoBao666888/Novel-Downloader5/main/TM%20Translate.user.js) • [Hướng dẫn sử dụng](TM_TRANSLATE_GUIDE.md).
+*   **TM Translate.user.js:** Dịch trang, quản lý name-set, Thư viện đọc offline, OCR, selection toolbar và TTS trong reader; [Cài đặt](https://raw.githubusercontent.com/BaoBao666888/Novel-Downloader5/main/TM%20Translate.user.js) • [Hướng dẫn sử dụng](TM_TRANSLATE_GUIDE.md).
 *   **Wikidich Book Sync (Refactored).user.js:** Đồng bộ, chép chương từ nguồn (Fanqie, 69shuba, ...) sang Wikidich ngay trên trang sách, xử lý chương ẩn hoặc rỗng; [Cài đặt](https://raw.githubusercontent.com/BaoBao666888/Novel-Downloader5/main/Wikidich%20Book%20Sync%20(Refactored).user.js).
 *   **TruyenWikiDich_Works_Manager.user.js:** Đồng bộ toàn bộ works cá nhân trên Wikidich, lưu vào localForage, hỗ trợ lọc nâng cao và xuất/nhập dữ liệu; [Cài đặt](https://raw.githubusercontent.com/BaoBao666888/Novel-Downloader5/main/TruyenWikiDich_Works_Manager.user.js).
 *   **Wikicv_Library_Archiver.user.js:** Quét, lưu, xem và xuất thư viện Wikicv/Koanchay, hỗ trợ checkpoint, helper và xuất HTML linh hoạt; [Cài đặt](https://raw.githubusercontent.com/BaoBao666888/Novel-Downloader5/main/tools/Wikicv_Library_Archiver.user.js).
@@ -214,6 +214,13 @@ ovelDownloaderVietSub.user.js), bản beta và các phiên bản hồi quy (3.5.
 *   **SourceHanSansCN-Regular-Often.json:** Bản đồ glyph → ký tự được trích từ font Source Han Sans (dùng để giải mã icon font trong truyện).
 
 ## Changelog
+
+### 2026-06-03 - TM Translate reader actions + TTS
+
+- TM Translate v3.5.5.5_beta: thêm thanh thao tác khi bôi đen text trong reader, ẩn menu chọn text mặc định trên mobile.
+- Thêm sửa raw trước dịch cho Xóa rác/Thay thế từ, fix Name-set không thay Việt → Việt quá tay.
+- Thêm shared TTS core mã hóa nhẹ khi publish, tab TTS đầy đủ trong Cài đặt và nút mở TTS từ reader.
+- TTS trong TM hỗ trợ Browser/TikTok/Google/Gemini/Bing/Zalo, popup cookie TikTok/API key Zalo, thay thế từ khi đọc, prefetch audio remote, retry/timeout/request gap và hẹn giờ ngủ.
 
 ### 2026-05-31 - Quản lý tải xuống và dọn module
 
