@@ -509,6 +509,29 @@
         .tm-selection-action-btn:focus-visible { background: rgba(255,255,255,0.14); outline: none; }
         .tm-selection-action-btn[data-action="edit"] { background: var(--tm-primary); }
         .tm-selection-action-btn[disabled] { opacity: 0.52; cursor: not-allowed; }
+        #tm-selection-action-modal .tm-modal-box { width: min(520px, calc(100vw - 24px)); }
+        .tm-selection-action-note {
+            margin: 0 0 12px;
+            color: var(--tm-secondary);
+            font-size: 13px;
+            line-height: 1.45;
+        }
+        .tm-selection-action-check {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin: 0 0 12px;
+            font-size: 14px;
+            font-weight: 500;
+            user-select: none;
+            -webkit-user-select: none;
+        }
+        .tm-selection-action-check input {
+            width: 16px;
+            height: 16px;
+            margin: 0;
+            accent-color: var(--tm-primary);
+        }
         .tm-modal-wrapper {
             position: fixed; inset: 0; z-index: 2147483645;
             display: flex; align-items: center; justify-content: center; font-family: var(--tm-font);
@@ -1103,18 +1126,464 @@
             showNotification('Không phát được đoạn chọn.');
         }
     }
+    function getActiveSelectionRangeForAction() {
+        const sel = window.getSelection();
+        if (sel && sel.rangeCount > 0 && !sel.isCollapsed) {
+            const range = sel.getRangeAt(0);
+            if (range && range.toString().trim()) {
+                cacheSelectionRange(range);
+                return range;
+            }
+        }
+        if (lastSelectionRange && !lastSelectionRange.collapsed) {
+            const text = String(lastSelectionRange._textSnapshot || lastSelectionRange.toString() || '').trim();
+            if (text) return lastSelectionRange.cloneRange ? lastSelectionRange.cloneRange() : lastSelectionRange;
+        }
+        return null;
+    }
+    function getReaderChapterForSelection(range) {
+        if (!range || !libReaderState?.chapters?.length) {
+            return { chapter: null, chapterIndex: -1 };
+        }
+        const container = getSelectionContainer(range);
+        const block = container?.closest?.('.tm-reader-block[data-chapter-id]');
+        const blockChapterId = block?.dataset?.chapterId || '';
+        let chapterIndex = blockChapterId
+            ? libReaderState.chapters.findIndex(ch => ch.chapterId === blockChapterId)
+            : Number(libReaderState.currentIndex || 0);
+        if (chapterIndex < 0 || chapterIndex >= libReaderState.chapters.length) {
+            chapterIndex = Number(libReaderState.currentIndex || 0);
+        }
+        return {
+            chapter: libReaderState.chapters[chapterIndex] || null,
+            chapterIndex
+        };
+    }
+    function renderedReaderTextLength(node) {
+        if (!node) return 0;
+        if (node.nodeType === Node.TEXT_NODE) return String(node.nodeValue || '').length;
+        if (node.nodeType !== Node.ELEMENT_NODE) return 0;
+        const tag = (node.tagName || '').toLowerCase();
+        if (tag === 'br') return 1;
+        let total = 0;
+        node.childNodes.forEach(child => { total += renderedReaderTextLength(child); });
+        return total;
+    }
+    function offsetInsideReaderNode(root, targetNode, targetOffset) {
+        if (!root || !targetNode) return null;
+        if (root === targetNode) {
+            if (root.nodeType === Node.TEXT_NODE) {
+                return Math.max(0, Math.min(Number(targetOffset) || 0, String(root.nodeValue || '').length));
+            }
+            if (root.nodeType === Node.ELEMENT_NODE) {
+                let sum = 0;
+                const limit = Math.max(0, Math.min(Number(targetOffset) || 0, root.childNodes.length));
+                for (let i = 0; i < limit; i++) {
+                    sum += renderedReaderTextLength(root.childNodes[i]);
+                }
+                return sum;
+            }
+            return 0;
+        }
+        let acc = 0;
+        for (const child of Array.from(root.childNodes || [])) {
+            const inner = offsetInsideReaderNode(child, targetNode, targetOffset);
+            if (inner != null) return acc + inner;
+            acc += renderedReaderTextLength(child);
+        }
+        return null;
+    }
+    function computeReaderTextRootOffset(textRoot, targetNode, targetOffset) {
+        if (!textRoot || !targetNode) return null;
+        const paragraphs = Array.from(textRoot.children || [])
+            .filter(el => (el.tagName || '').toLowerCase() === 'p');
+        if (!paragraphs.length) return offsetInsideReaderNode(textRoot, targetNode, targetOffset);
+        let total = 0;
+        for (let i = 0; i < paragraphs.length; i++) {
+            const paragraph = paragraphs[i];
+            if (i > 0) total += 1;
+            const inner = offsetInsideReaderNode(paragraph, targetNode, targetOffset);
+            if (inner != null) return total + inner;
+            total += renderedReaderTextLength(paragraph);
+        }
+        return null;
+    }
+    function getReaderRawSelectionInfo(range) {
+        if (!range) return null;
+        const container = getSelectionContainer(range);
+        const textRoot = container?.closest?.('.tm-reader-block-text, .tm-reader-text');
+        if (!textRoot || !textRoot.contains(range.startContainer) || !textRoot.contains(range.endContainer)) return null;
+        const startRaw = computeReaderTextRootOffset(textRoot, range.startContainer, range.startOffset);
+        const endRaw = computeReaderTextRootOffset(textRoot, range.endContainer, range.endOffset);
+        if (startRaw == null || endRaw == null) return null;
+        const exactText = String(range.toString() || '');
+        return {
+            start: Math.max(0, Math.min(startRaw, endRaw)),
+            end: Math.max(0, Math.max(startRaw, endRaw)),
+            exactText,
+            sourceText: exactText.trim()
+        };
+    }
+    function getSelectionReaderContext(range = getActiveSelectionRangeForAction()) {
+        if (!range || !libReaderState?.book) return null;
+        const readerRoot = document.getElementById('tm-reader-overlay');
+        const rangeContainer = range.commonAncestorContainer?.nodeType === 3
+            ? range.commonAncestorContainer.parentElement
+            : range.commonAncestorContainer;
+        const readerContent = readerRoot ? readerRoot.querySelector('.tm-reader-content') : null;
+        const isReaderSelection = !!(readerContent && rangeContainer && readerContent.contains(rangeContainer));
+        if (!isReaderSelection) return null;
+        const { chapter, chapterIndex } = getReaderChapterForSelection(range);
+        const isRawOnlyBook = libReaderState.book.langSource === 'vi';
+        return {
+            range,
+            readerRoot,
+            readerContent,
+            book: libReaderState.book,
+            mode: libReaderState.mode,
+            chapter,
+            chapterIndex,
+            rawSelection: isRawOnlyBook ? getReaderRawSelectionInfo(range) : null,
+            isRawOnlyBook,
+            isTranslatableBook: libReaderState.book.langSource === 'zh'
+        };
+    }
+    function getDatasetOrigText(el) {
+        if (!el) return '';
+        if (el.dataset && typeof el.dataset.orig === 'string') return el.dataset.orig;
+        return unescapeHtml(el.getAttribute?.('data-orig') || '');
+    }
+    function getSelectionSourceTextForRawEdit(range, selectedText, context) {
+        const value = String(selectedText || '').trim();
+        if (!value) return '';
+        if (/[\u4e00-\u9fff]/.test(value)) return value;
+        const targetSpan = findChunkFromRange(range);
+        if (targetSpan?.classList?.contains('tm-name')) {
+            const original = getDatasetOrigText(targetSpan).trim();
+            if (original) return original;
+        }
+        if (context?.isRawOnlyBook || context?.mode === 'raw') return value;
+        return value;
+    }
+    function buildSelectionRawEditNote(kind, context) {
+        const staleText = context?.isTranslatableBook
+            ? 'Cache dịch của chương sẽ bị xóa để dịch lại từ raw mới.'
+            : 'Nội dung raw của chương hiện tại sẽ được cập nhật trực tiếp.';
+        if (kind === 'junk') {
+            if (context?.isTranslatableBook && context?.mode === 'trans') {
+                return `Đang chọn trên bản dịch. Hãy sửa ô dưới thành cụm Trung/raw cần xóa trước khi xác nhận. ${staleText}`;
+            }
+            return `Cụm dưới sẽ bị xóa khỏi raw của chương hiện tại. ${staleText}`;
+        }
+        return `Thay thế cụm được chọn trong raw của chương hiện tại. ${staleText}`;
+    }
+    function replaceLiteralInText(text, source, replacement, ignoreCase) {
+        const content = String(text || '');
+        const needle = String(source || '');
+        const target = String(replacement || '');
+        if (!needle) return { text: content, count: 0 };
+        if (!ignoreCase) {
+            const parts = content.split(needle);
+            const count = parts.length - 1;
+            return { text: count > 0 ? parts.join(target) : content, count };
+        }
+        let count = 0;
+        const pattern = new RegExp(escapeRegExp(needle), 'gi');
+        const nextText = content.replace(pattern, () => {
+            count += 1;
+            return target;
+        });
+        return { text: nextText, count };
+    }
+    function applyJunkLiteralToRawText(rawText, source, ignoreCase) {
+        const lines = String(rawText || '').split('\n');
+        let total = 0;
+        const kept = [];
+        lines.forEach(rawLine => {
+            const originalBlank = !String(rawLine || '').trim();
+            const result = replaceLiteralInText(rawLine, source, '', ignoreCase);
+            let line = result.text;
+            total += result.count;
+            if (result.count > 0) {
+                line = line.replace(/[^\S\n]+$/g, '');
+                if (!line.trim() && !originalBlank) return;
+            }
+            kept.push(line);
+        });
+        return {
+            text: libNormalizeChapterParagraphBreaks(kept.join('\n')),
+            count: total
+        };
+    }
+    function applyReplaceLiteralToRawText(rawText, source, target, ignoreCase) {
+        const result = replaceLiteralInText(rawText, source, target, ignoreCase);
+        return {
+            text: libNormalizeChapterParagraphBreaks(result.text),
+            count: result.count
+        };
+    }
+    function applyExactRawOnlySelectionEdit(rawText, context, kind, source, target, ignoreCase) {
+        const info = context?.rawSelection;
+        if (!context?.isRawOnlyBook || !info || ignoreCase) return null;
+        if (!source || source !== String(info.sourceText || '').trim()) return null;
+        const content = String(rawText || '');
+        const start = Math.max(0, Math.min(Number(info.start) || 0, content.length));
+        const end = Math.max(start, Math.min(Number(info.end) || 0, content.length));
+        if (end <= start) return null;
+        const selectedSlice = content.slice(start, end);
+        if (selectedSlice !== info.exactText && selectedSlice.trim() !== source) return null;
+        const replacement = kind === 'junk' ? '' : String(target || '');
+        return {
+            text: libNormalizeChapterParagraphBreaks(content.slice(0, start) + replacement + content.slice(end)),
+            count: 1
+        };
+    }
+    async function saveReaderChapterRawText(context, nextRawText) {
+        if (!context?.chapter || !context?.book) throw new Error('Không tìm thấy chương hiện tại.');
+        const chapter = context.chapter;
+        const { raw, rawText } = await libGetNormalizedRawChapterContent(chapter);
+        if (!raw) throw new Error('Không tìm thấy raw của chương.');
+        const normalizedText = libNormalizeChapterParagraphBreaks(nextRawText);
+        if (normalizedText === rawText) return false;
+
+        const now = Date.now();
+        const oldRawKey = chapter.rawKey;
+        const oldTransKey = chapter.transKey;
+        const nextRawKey = libMakeRawKey(chapter.chapterId, normalizedText);
+        await libPutMany('tm_content', [{
+            ...raw,
+            key: nextRawKey,
+            text: normalizedText,
+            lang: raw.lang || context.book.langSource || 'zh',
+            createdAt: raw.createdAt || now,
+            updatedAt: now
+        }]);
+        if (oldRawKey && oldRawKey !== nextRawKey) libDeleteContent(oldRawKey);
+        if (oldTransKey) libDeleteContent(oldTransKey);
+
+        const updatedChapter = {
+            ...chapter,
+            rawKey: nextRawKey,
+            transKey: null,
+            updatedAt: now
+        };
+        await libPutMany('tm_chapters', [updatedChapter]);
+
+        if (libReaderState?.chapters) {
+            const index = context.chapterIndex >= 0
+                ? context.chapterIndex
+                : libReaderState.chapters.findIndex(ch => ch.chapterId === chapter.chapterId);
+            if (index >= 0) {
+                libReaderState.chapters[index] = updatedChapter;
+                libReaderState.currentIndex = index;
+            }
+        }
+
+        const ratio = libReaderGetCurrentScrollRatio();
+        if (libReaderState?.book) {
+            libReaderState.book.lastReadChapterId = updatedChapter.chapterId;
+            libReaderState.book.lastReadOrder = updatedChapter.order || ((libReaderState.currentIndex || 0) + 1);
+            libReaderState.book.lastReadScrollRatio = ratio;
+            libReaderState.lastScrollRatio = ratio;
+        }
+        libUpdateBookLastRead(context.book.bookId, updatedChapter.chapterId, ratio, updatedChapter.order || ((libReaderState?.currentIndex || 0) + 1));
+        await libReaderLoadCurrentChapter({ scrollTo: 'restore' });
+        return true;
+    }
+    async function applySelectionRawEdit(kind, context, values) {
+        if (!context?.chapter) {
+            showNotification('Không tìm thấy chương để sửa raw.');
+            return;
+        }
+        const source = String(values?.source || '').trim();
+        const target = String(values?.target || '');
+        const ignoreCase = !!values?.ignoreCase;
+        if (!source) {
+            showNotification(kind === 'junk' ? 'Nhập cụm cần xóa.' : 'Nhập từ cần thay.');
+            return;
+        }
+        if (kind === 'replace' && !target.trim()) {
+            showNotification('Nhập từ thay thế.');
+            return;
+        }
+        showLoading(kind === 'junk' ? 'Đang xóa rác khỏi raw...' : 'Đang thay thế raw...');
+        try {
+            const { rawText } = await libGetNormalizedRawChapterContent(context.chapter);
+            const result = applyExactRawOnlySelectionEdit(rawText, context, kind, source, target, ignoreCase) || (kind === 'junk'
+                ? applyJunkLiteralToRawText(rawText, source, ignoreCase)
+                : applyReplaceLiteralToRawText(rawText, source, target, ignoreCase));
+            if (result.count <= 0) {
+                showNotification(context.mode === 'trans'
+                    ? 'Không tìm thấy cụm này trong raw. Hãy sửa thành cụm Trung/raw rồi thử lại.'
+                    : 'Không tìm thấy cụm này trong raw.');
+                return;
+            }
+            const changed = await saveReaderChapterRawText(context, result.text);
+            if (!changed) {
+                showNotification('Không có thay đổi trong raw.');
+                return;
+            }
+            showNotification(kind === 'junk'
+                ? `Đã xóa ${result.count} lần trong raw.`
+                : `Đã thay thế ${result.count} lần trong raw.`);
+        } catch (err) {
+            console.error('[tm-translate] Không cập nhật được raw đoạn chọn:', err);
+            showNotification(kind === 'junk' ? 'Xóa rác thất bại.' : 'Thay thế từ thất bại.');
+        } finally {
+            removeLoading();
+        }
+    }
+    function applySelectionActionModalReaderTheme(wrapper, context) {
+        const readerRoot = context?.readerRoot || document.getElementById('tm-reader-overlay');
+        if (!wrapper || !readerRoot) return;
+        const readerStyles = getComputedStyle(readerRoot);
+        const themeBg = (readerStyles.getPropertyValue('--tm-reader-bg') || '#f7f4ee').trim();
+        const themeText = (readerStyles.getPropertyValue('--tm-reader-text') || '#1f1f1f').trim();
+        const themeSurface = (readerStyles.getPropertyValue('--tm-reader-surface') || '#fbf9f4').trim();
+        const themeBorder = (readerStyles.getPropertyValue('--tm-reader-border') || '#ddd').trim();
+        const themeFont = (readerStyles.getPropertyValue('--tm-reader-font') || '"Noto Serif", "Times New Roman", serif').trim();
+
+        wrapper.style.fontFamily = themeFont;
+        wrapper.style.color = themeText;
+        const modalBox = wrapper.querySelector('.tm-modal-box');
+        const modalHeader = wrapper.querySelector('.tm-modal-header');
+        const modalContent = wrapper.querySelector('.tm-modal-content');
+        const modalFooter = wrapper.querySelector('.tm-modal-footer');
+        if (modalBox) {
+            modalBox.style.background = themeBg;
+            modalBox.style.color = themeText;
+            modalBox.style.border = `1px solid ${themeBorder}`;
+        }
+        if (modalHeader) {
+            modalHeader.style.background = themeSurface;
+            modalHeader.style.borderBottomColor = themeBorder;
+        }
+        if (modalContent) {
+            modalContent.style.background = themeBg;
+            modalContent.style.color = themeText;
+        }
+        if (modalFooter) {
+            modalFooter.style.background = themeSurface;
+            modalFooter.style.borderTopColor = themeBorder;
+        }
+        wrapper.querySelectorAll('.tm-input, .tm-textarea').forEach(input => {
+            input.style.background = themeSurface;
+            input.style.color = themeText;
+            input.style.borderColor = themeBorder;
+        });
+        wrapper.querySelectorAll('.tm-btn').forEach(btn => {
+            btn.style.background = btn.classList.contains('tm-btn-primary') ? 'var(--tm-primary)' : 'transparent';
+            btn.style.color = btn.classList.contains('tm-btn-primary') ? '#fff' : themeText;
+            btn.style.borderColor = btn.classList.contains('tm-btn-primary') ? 'var(--tm-primary)' : themeBorder;
+        });
+    }
+    function showSelectionRawEditModal(kind, context, initialSource) {
+        removeElementById('tm-selection-action-modal');
+        const isJunk = kind === 'junk';
+        const wrapper = document.createElement('div');
+        wrapper.id = 'tm-selection-action-modal';
+        wrapper.className = 'tm-modal-wrapper';
+        wrapper.style.zIndex = '2147483664';
+        const title = isJunk ? 'Xóa rác' : 'Thay thế từ';
+        const sourceLabel = isJunk ? 'Cụm cần xóa trong raw' : 'Từ cần thay';
+        const confirmLabel = isJunk ? 'Xóa rác' : 'Thay thế';
+        const sourceControl = isJunk
+            ? `<textarea id="tm-selection-source-input" class="tm-textarea" rows="4" spellcheck="false">${escapeHtml(initialSource)}</textarea>`
+            : `<input id="tm-selection-source-input" class="tm-input" spellcheck="false" value="${escapeHtml(initialSource)}" />`;
+        const targetControl = isJunk ? '' : `
+                <label class="tm-label">Thay bằng</label>
+                <input id="tm-selection-target-input" class="tm-input" spellcheck="false" value="" />
+        `;
+        wrapper.innerHTML = `
+            <div class="tm-modal-backdrop"></div>
+            <form class="tm-modal-box">
+                <div class="tm-modal-header">
+                    <h3>${title}</h3>
+                    <button class="tm-btn" id="tm-selection-action-close" type="button">&times;</button>
+                </div>
+                <div class="tm-modal-content">
+                    <p class="tm-selection-action-note">${escapeHtml(buildSelectionRawEditNote(kind, context))}</p>
+                    <label class="tm-label">${sourceLabel}</label>
+                    ${sourceControl}
+                    ${targetControl}
+                    <label class="tm-selection-action-check">
+                        <input id="tm-selection-ignore-case" type="checkbox" />
+                        <span>Aa Không phân biệt hoa thường</span>
+                    </label>
+                </div>
+                <div class="tm-modal-footer">
+                    <button class="tm-btn" id="tm-selection-action-cancel" type="button">Hủy</button>
+                    <button class="tm-btn tm-btn-primary" type="submit">${confirmLabel}</button>
+                </div>
+            </form>
+        `;
+        tmUIRoot.appendChild(wrapper);
+        applySelectionActionModalReaderTheme(wrapper, context);
+
+        const close = () => wrapper.remove();
+        wrapper.querySelector('.tm-modal-backdrop')?.addEventListener('click', close);
+        wrapper.querySelector('#tm-selection-action-close')?.addEventListener('click', close);
+        wrapper.querySelector('#tm-selection-action-cancel')?.addEventListener('click', close);
+        wrapper.querySelector('form')?.addEventListener('submit', async (event) => {
+            event.preventDefault();
+            const sourceInput = wrapper.querySelector('#tm-selection-source-input');
+            const targetInput = wrapper.querySelector('#tm-selection-target-input');
+            const ignoreCase = !!wrapper.querySelector('#tm-selection-ignore-case')?.checked;
+            const source = String(sourceInput?.value || '').trim();
+            const target = String(targetInput?.value || '');
+            if (!source) {
+                showNotification(isJunk ? 'Nhập cụm cần xóa.' : 'Nhập từ cần thay.');
+                sourceInput?.focus();
+                return;
+            }
+            if (!isJunk && !target.trim()) {
+                showNotification('Nhập từ thay thế.');
+                targetInput?.focus();
+                return;
+            }
+            close();
+            await applySelectionRawEdit(kind, context, { source, target, ignoreCase });
+        });
+
+        const sourceInput = wrapper.querySelector('#tm-selection-source-input');
+        setTimeout(() => {
+            sourceInput?.focus();
+            try {
+                sourceInput?.setSelectionRange(0, sourceInput.value.length);
+            } catch (err) { /* ignore */ }
+        }, 10);
+    }
+    function openSelectionRawEditModalForSelection(kind, range = getActiveSelectionRangeForAction(), selectedText = getSelectionTextForAction()) {
+        const context = getSelectionReaderContext(range);
+        if (!context?.chapter) {
+            showNotification('Không tìm thấy chương để sửa raw.');
+            return;
+        }
+        const source = getSelectionSourceTextForRawEdit(range, selectedText, context);
+        if (!source) {
+            showNotification('Không tìm thấy đoạn chọn.');
+            return;
+        }
+        showSelectionRawEditModal(kind, context, source);
+    }
     async function activateSelectionAction(action, e) {
         stopSelectionActionEvent(e);
         const now = Date.now();
         if (now - selectionActionLastActivation < 220) return;
         selectionActionLastActivation = now;
         const selectedText = getSelectionTextForAction();
+        const range = getActiveSelectionRangeForAction();
         if (!selectedText && action !== 'edit') {
             hideSelectionEditButton();
             return;
         }
         if (action === 'edit') {
-            openEditModalForSelection();
+            const context = getSelectionReaderContext(range);
+            if (context?.isRawOnlyBook) {
+                openSelectionRawEditModalForSelection('replace', range, selectedText);
+            } else {
+                openEditModalForSelection();
+            }
             hideSelectionEditButton();
             return;
         }
@@ -1135,7 +1604,7 @@
             return;
         }
         if (action === 'junk') {
-            showNotification('Xóa rác chưa hỗ trợ trong TM Translate.');
+            openSelectionRawEditModalForSelection('junk', range, selectedText);
             hideSelectionEditButton();
         }
     }
@@ -1157,15 +1626,11 @@
     function shouldIgnoreSelectionForEdit(range) {
         const el = getSelectionContainer(range);
         if (!el) return true;
-        if (el.closest('#tm-settings-modal, #tm-edit-modal, #tm-style-panel, #tm-quick-translate-panel, #tm-ocr-result-modal')) return true;
+        if (el.closest('#tm-settings-modal, #tm-edit-modal, #tm-selection-action-modal, #tm-style-panel, #tm-quick-translate-panel, #tm-ocr-result-modal')) return true;
         if (el.closest('input, textarea, [contenteditable="true"]')) return true;
         return false;
     }
     function updateSelectionEditButton() {
-        if (!config.nameEditingEnabled) {
-            hideSelectionEditButton();
-            return;
-        }
         const sel = window.getSelection();
         if (!sel || sel.rangeCount === 0 || sel.isCollapsed) {
             hideSelectionEditButton();
@@ -1218,6 +1683,14 @@
             selectionActionBar.addEventListener('mousedown', stopSelectionActionEvent);
             selectionActionBar.addEventListener('click', handleAction);
             tmUIRoot.appendChild(selectionActionBar);
+        }
+        const context = getSelectionReaderContext(range);
+        const editBtn = selectionActionBar.querySelector('.tm-selection-action-btn[data-action="edit"]');
+        if (editBtn) {
+            const isReplaceAction = !!context?.isRawOnlyBook;
+            editBtn.textContent = isReplaceAction ? 'Thay thế từ' : 'Sửa tên';
+            editBtn.title = isReplaceAction ? 'Thay thế đoạn chọn trong raw' : 'Thêm hoặc sửa name';
+            editBtn.style.display = (isReplaceAction || config.nameEditingEnabled) ? '' : 'none';
         }
         selectionActionBar.style.visibility = 'hidden';
         selectionActionBar.style.left = '8px';
@@ -1319,7 +1792,7 @@
         const items = [];
         const seenNodes = new WeakSet();
         const skipTags = ['SCRIPT', 'STYLE', 'NOSCRIPT', 'PRE', 'CODE', 'TEXTAREA'];
-        const ignoreRootIds = ['tm-edit-pencil', 'tm-selection-edit-btn', 'tm-selection-action-bar', 'tm-style-button', 'tm-edit-modal', 'tm-settings-modal', 'tm-style-panel', 'tm-library-btn'];
+        const ignoreRootIds = ['tm-edit-pencil', 'tm-selection-edit-btn', 'tm-selection-action-bar', 'tm-selection-action-modal', 'tm-style-button', 'tm-edit-modal', 'tm-settings-modal', 'tm-style-panel', 'tm-library-btn'];
         const isFanqie = window.location.hostname.includes('fanqienovel.com');
         const hasMeaningfulTextRegex = isFanqie ? /\S/ : /[a-zA-Z\u4e00-\u9fa5\d]/;
 
@@ -3000,6 +3473,11 @@
         const readerRoot = document.getElementById('tm-reader-overlay');
         const rangeContainer = range.commonAncestorContainer?.nodeType === 3 ? range.commonAncestorContainer.parentElement : range.commonAncestorContainer;
         const isReaderSelection = !!(readerRoot && rangeContainer && readerRoot.contains(rangeContainer));
+        const selectedText = sel.toString().trim();
+        if (isReaderSelection && libReaderState?.book?.langSource === 'vi') {
+            openSelectionRawEditModalForSelection('replace', range, selectedText);
+            return;
+        }
         const targetSpan = findChunkFromRange(range);
 
         if (targetSpan) {
@@ -3017,7 +3495,6 @@
             return;
         }
 
-        const selectedText = sel.toString().trim();
         if (!selectedText) {
             alert('Không tìm thấy khối dữ liệu dịch tương ứng. Hãy thử bôi đen chính xác hơn một chút.');
             return;
