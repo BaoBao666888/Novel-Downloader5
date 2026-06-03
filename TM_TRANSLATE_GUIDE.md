@@ -108,10 +108,11 @@ Thanh điều khiển trong reader:
 **Tiến độ đọc**
 - Script tự lưu **chương đang đọc + vị trí cuộn** để lần sau mở truyện sẽ quay đúng chỗ.
 
-### 3.4 Xuất TXT/EPUB
+### 3.4 Xuất TXT/EPUB/HTML
 - Xuất sẽ dùng cache dịch (và Name-set hiện tại).
 - Nếu thiếu cache dịch: script sẽ hỏi có muốn dịch & cache trước khi xuất không, và có hiện tiến độ.
 - Quy trình đóng gói EPUB có thể lâu → script sẽ hiện thông báo “Đang xuất EPUB…”.
+- Nút **đề xuất** tự đổi: truyện nhỏ/vừa đề xuất **HTML**, truyện lớn đề xuất **EPUB** vì HTML nhúng toàn bộ data nên dễ lag khi mở/xem.
 
 ---
 

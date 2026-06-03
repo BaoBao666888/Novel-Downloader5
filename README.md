@@ -213,36 +213,6 @@ ovelDownloaderVietSub.user.js), bản beta và các phiên bản hồi quy (3.5.
 *   **chs2cht.js:** Bộ chuyển Giản thể ↔ Phồn thể, dùng khi cần xuất bản với chữ Hant hoặc chuyển từ nguồn zh-Hant.
 *   **SourceHanSansCN-Regular-Often.json:** Bản đồ glyph → ký tự được trích từ font Source Han Sans (dùng để giải mã icon font trong truyện).
 
-## Changelog
-
-### 2026-06-03 - TM Translate reader actions + TTS
-
-- TM Translate v3.5.5.5_beta: thêm thanh thao tác khi bôi đen text trong reader, ẩn menu chọn text mặc định trên mobile.
-- Thêm sửa raw trước dịch cho Xóa rác/Thay thế từ, fix Name-set không thay Việt → Việt quá tay.
-- Thêm shared TTS core mã hóa nhẹ khi publish, tab TTS đầy đủ trong Cài đặt và nút mở TTS từ reader.
-- TTS trong TM hỗ trợ Browser/TikTok/Google/Gemini/Bing/Zalo, popup cookie TikTok/API key Zalo, thay thế từ khi đọc, prefetch audio remote, retry/timeout/request gap và hẹn giờ ngủ.
-
-### 2026-05-31 - Quản lý tải xuống và dọn module
-
-- Tách `TaskManager` và UI quản lý tải xuống sang `nd-download-manager.js`.
-- Nối manager với luồng tải thật: tạo task, cập nhật progress, ghi lỗi chương và chuyển sang lịch sử khi kết thúc.
-- Thêm action trong manager: copy summary, copy lỗi, xóa lịch sử, hủy task đang chạy và retry trong phiên hiện tại.
-- Tách chọn thư mục/lưu file sang `nd-file-save.js`; main script chỉ còn gọi API lưu file.
-- Giữ UI script trong Shadow DOM để giảm ảnh hưởng CSS từ website.
-
-### Trước đó
-
-- Thêm panel console trong UI chính, có nút bật/tắt, copy, xóa/ẩn và hỗ trợ log có `%c`.
-- Bổ sung helper viết rule nhanh trong README và cải thiện nạp rule tùy chỉnh từ UI.
-- Sửa rule Truyenwikidich và một số lỗi tải/chia chương được user báo trong quá trình test.
-
-## Kế hoạch tương lai (TODO)
-
-*   **Ưu tiên:** Sửa lỗi giao diện không hiển thị và lỗi xử lý luồng tải.
-*   Cập nhật các rule hiện có nếu trang web thay đổi cấu trúc.
-*   Thêm rule cho các trang web mới theo yêu cầu hoặc đóng góp.
-*   Cải thiện hiệu năng và độ ổn định.
-
 ## Đóng góp
 
 Mọi đóng góp để cải thiện script (sửa lỗi, thêm rule mới, tối ưu code) đều được hoan nghênh! Vui lòng tạo **Pull Request** trên GitHub repository này.

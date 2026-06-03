@@ -839,11 +839,11 @@
         .tm-btn:hover { background: #e9e9e9; }
         .tm-btn-primary { background: var(--tm-primary); color: white; border-color: var(--tm-primary); }
         .tm-btn-primary:hover { background: #0056b3; }
-        .tm-lib-export-html {
+        .tm-lib-export-recommended {
             position: relative; overflow: visible; padding-right: 22px; border-color: #f59e0b;
             background: linear-gradient(135deg, #fff7ed 0%, #eff6ff 100%); color: #1f2937; font-weight: 600;
         }
-        .tm-lib-export-html:hover { background: linear-gradient(135deg, #ffedd5 0%, #dbeafe 100%); }
+        .tm-lib-export-recommended:hover { background: linear-gradient(135deg, #ffedd5 0%, #dbeafe 100%); }
         .tm-lib-export-badge {
             position: absolute; top: -8px; right: -7px; padding: 1px 5px; border-radius: 999px;
             background: linear-gradient(90deg, #f97316, #ec4899); color: #fff; font-size: 9px; line-height: 1.25;
@@ -8301,6 +8301,10 @@
     const LIB_INDEX_KEY = 'tm_lib_index_v1';
     const LIB_CHAPTERS_PREFIX = 'tm_lib_chapters_';
     const LIB_CONTENT_PREFIX = 'tm_lib_c_';
+    const LIB_EXPORT_HTML_RECOMMEND_MAX_CHAPTERS = 180;
+    const LIB_EXPORT_HTML_RECOMMEND_MAX_BYTES = 2 * 1024 * 1024;
+    const LIB_EXPORT_HTML_WARN_CHAPTERS = 260;
+    const LIB_EXPORT_HTML_WARN_BYTES = 4 * 1024 * 1024;
     const libTitleCache = new Map();
 
     // NEW: small hash helper for IDs
@@ -8589,6 +8593,48 @@
             unit++;
         }
         return `${size.toFixed(unit === 0 ? 0 : 1)} ${units[unit]}`;
+    }
+
+    function libEstimateExportBytes(book) {
+        const stored = Number(book?.contentBytes || book?.rawBytes || 0);
+        if (Number.isFinite(stored) && stored > 0) {
+            return { bytes: stored, estimated: false };
+        }
+        const chapterCount = Math.max(0, Number(book?.chapterCount || 0));
+        if (!chapterCount) return { bytes: 0, estimated: true };
+        return { bytes: chapterCount * 12000, estimated: true };
+    }
+
+    function libGetExportRecommendation(book) {
+        const chapterCount = Math.max(0, Number(book?.chapterCount || 0));
+        const sizeInfo = libEstimateExportBytes(book);
+        const tooLargeForHtml = chapterCount > LIB_EXPORT_HTML_RECOMMEND_MAX_CHAPTERS
+            || sizeInfo.bytes > LIB_EXPORT_HTML_RECOMMEND_MAX_BYTES;
+        const stronglyWarnHtml = chapterCount > LIB_EXPORT_HTML_WARN_CHAPTERS
+            || sizeInfo.bytes > LIB_EXPORT_HTML_WARN_BYTES;
+        const sizeText = sizeInfo.bytes > 0
+            ? `${sizeInfo.estimated ? '~' : ''}${libFormatBytes(sizeInfo.bytes)}`
+            : 'chưa rõ dung lượng';
+        const detail = `${chapterCount || 0} chương, ${sizeText}`;
+        return {
+            recommended: tooLargeForHtml ? 'epub' : 'html',
+            stronglyWarnHtml,
+            detail,
+            htmlTitle: tooLargeForHtml
+                ? `HTML nhúng toàn bộ data (${detail}) nên có thể lag khi mở/xem. Nên xuất EPUB.`
+                : `HTML phù hợp để đọc offline với truyện nhỏ/vừa (${detail}).`,
+            epubTitle: tooLargeForHtml
+                ? `Đề xuất cho truyện lớn (${detail}); nhẹ hơn khi đọc so với HTML nhúng toàn bộ data.`
+                : `EPUB vẫn phù hợp nếu muốn đọc bằng app/thiết bị đọc sách (${detail}).`
+        };
+    }
+
+    function libRenderExportButton(label, type, book) {
+        const rec = libGetExportRecommendation(book);
+        const isRecommended = rec.recommended === type;
+        const className = `tm-btn tm-lib-export-${type}${isRecommended ? ' tm-lib-export-recommended' : ''}`;
+        const title = type === 'html' ? rec.htmlTitle : rec.epubTitle;
+        return `<button class="${className}" data-book-id="${escapeHtml(book.bookId)}" title="${escapeHtml(title)}">${label}${isRecommended ? '<span class="tm-lib-export-badge">đề xuất</span>' : ''}</button>`;
     }
 
     async function libUpdateLibraryProgress(wrapper, books) {
@@ -9492,6 +9538,19 @@ body.tmx-fullscreen .tmx-scroll {
             return;
         }
 
+        const exportRecommendation = libGetExportRecommendation({
+            ...book,
+            chapterCount: chapters.length
+        });
+        if (exportRecommendation.recommended === 'epub') {
+            const levelText = exportRecommendation.stronglyWarnHtml ? 'rất lớn' : 'khá lớn';
+            const ok = confirm(`Truyện ${levelText} (${exportRecommendation.detail}). File HTML nhúng toàn bộ data nên mở/xem có thể lag mạnh; nên dùng EPUB cho bộ này.\n\nVẫn xuất HTML?`);
+            if (!ok) {
+                showNotification('Đã hủy xuất HTML. Nên chọn Xuất EPUB cho truyện lớn.');
+                return;
+            }
+        }
+
         const needsTranslate = await libCheckMissingTranslations(book, chapters);
         let ensureTranslated = false;
         if (needsTranslate) {
@@ -9662,10 +9721,13 @@ body.tmx-fullscreen .tmx-scroll {
 
         const chapterItems = [];
         const contentItems = [];
+        const encoder = new TextEncoder();
+        let contentBytes = 0;
 
         chapters.forEach((ch, idx) => {
             const chapterTitle = normalizeTextForTranslation((ch.title || `Chương ${idx + 1}`).trim()) || `Chương ${idx + 1}`;
             const chapterText = libNormalizeChapterParagraphBreaks(ch.text || '');
+            contentBytes += encoder.encode(chapterText).length;
             const chapterId = libMakeChapterId(bookId, idx + 1, chapterTitle);
             const rawKey = libMakeRawKey(chapterId, chapterText);
             contentItems.push({
@@ -9695,7 +9757,8 @@ body.tmx-fullscreen .tmx-scroll {
             langSource: lang,
             createdAt: now,
             updatedAt: now,
-            chapterCount: chapters.length
+            chapterCount: chapters.length,
+            contentBytes
         });
         index.nameSetVersion = config.nameSetVersion || 1;
         libSaveIndex(index);
@@ -10173,8 +10236,8 @@ body.tmx-fullscreen .tmx-scroll {
                 </div>
                 <div style="margin-top:8px; display:flex; gap:8px; flex-wrap:wrap;">
                     <button class="tm-btn tm-lib-export-txt" data-book-id="${b.bookId}">Xuất TXT</button>
-                    <button class="tm-btn tm-lib-export-epub" data-book-id="${b.bookId}">Xuất EPUB</button>
-                    <button class="tm-btn tm-lib-export-html" data-book-id="${b.bookId}">Xuất HTML<span class="tm-lib-export-badge">đề xuất</span></button>
+                    ${libRenderExportButton('Xuất EPUB', 'epub', b)}
+                    ${libRenderExportButton('Xuất HTML', 'html', b)}
                     <button class="tm-btn tm-lib-delete" data-book-id="${b.bookId}" style="border-color:#dc3545; color:#dc3545;">Xóa</button>
                 </div>
             </div>
@@ -11471,7 +11534,7 @@ body.tmx-fullscreen .tmx-scroll {
 - **Xóa rác** luôn mở popup để sửa đoạn raw trước khi xác nhận; có tùy chọn không phân biệt hoa thường khi cần.
 - Kiểu đọc cuộn dọc: chạm đầu/cuối chương rồi cuộn thêm một nhịp mới chuyển chương.
 - Tự lưu **tiến độ đọc** (chương + vị trí cuộn).
-- Xuất **TXT/EPUB/HTML** với cache dịch & Name-set hiện tại. HTML có giao diện đọc, cài đặt và fullscreen riêng.
+- Xuất **TXT/EPUB/HTML** với cache dịch & Name-set hiện tại. HTML có giao diện đọc, cài đặt và fullscreen riêng; truyện lớn sẽ được đề xuất xuất **EPUB** vì HTML nhúng toàn bộ data dễ lag khi mở/xem.
 
 ### 📷 OCR (Dịch Ảnh)
 - Chạy trên trình duyệt (không gửi ảnh lên server lạ).
@@ -11499,6 +11562,7 @@ body.tmx-fullscreen .tmx-scroll {
 - Fix Name-set không thay thế Việt → Việt quá tay, chỉ khớp cặp Trung → Việt để tránh lỗi kiểu “điềU sơn”.
 - Thêm shared TTS core đã mã hóa; nút **Phát** dùng core mới, tab **TTS** đầy đủ trong Cài đặt và nút mở nhanh TTS trong Reader.
 - Tab TTS hỗ trợ nguồn Browser/TikTok/Google/Gemini/Bing/Zalo, popup cookie TikTok/API key Zalo, thay thế từ khi đọc, prefetch audio remote, retry/timeout/request gap và hẹn giờ ngủ.
+- Badge **đề xuất** trên nút xuất tự chuyển giữa **HTML** và **EPUB** theo quy mô truyện; HTML sẽ cảnh báo khi data lớn vì dễ lag khi xem.
 
 ### 📦 Các bản trước (tóm tắt)
 - v3.5.5 - v3.5.5.3: gom các sửa Reader, fullscreen, mục lục, tiến độ đọc, xuất HTML, Edit Name mobile, import đoạn, provider dichngay, regex Name-set, import TXT và cuộn đổi chương.
