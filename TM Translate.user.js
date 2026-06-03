@@ -199,8 +199,8 @@
     let hanvietMap = null;
     let lastSelectionRange = null;
 
-    let selectionEditBtn = null;
-    let selectionEditBtnLastActivation = 0;
+    let selectionActionBar = null;
+    let selectionActionLastActivation = 0;
     let selectionEditRefreshTimer = null;
     let simplifiedActive = false;
     let originalBodyElement = null; // Giữ body gốc để khôi phục không cần reload
@@ -361,25 +361,9 @@
     }
     function restoreTranslatedNameCasing(text, nameSet) {
         if (typeof text !== 'string' || !text) return text || '';
-        const activeSet = nameSet || (() => {
-            try {
-                const cfg = config || loadConfig();
-                return cfg?.nameSets?.[cfg.activeNameSet] || {};
-            } catch (err) {
-                return {};
-            }
-        })();
-        const names = Object.values(activeSet)
-            .map(name => normalizeTextForTranslation(String(name || '')).trim())
-            .filter(Boolean)
-            .sort((a, b) => b.length - a.length);
-        let result = text;
-        names.forEach(canonical => {
-            const pattern = createTranslatedNameBoundaryRegExp(canonical);
-            if (!pattern) return;
-            result = result.replace(pattern, (match, prefix) => `${prefix}${canonical}`);
-        });
-        return result;
+        // Name chính đã được thay bằng placeholder từ Trung -> Việt trước khi dịch.
+        // Không quét lại Việt -> Việt, tránh lỗi kiểu "điều sơn" bị sửa thành "điềU sơn".
+        return text;
     }
     function normalizeTranslatedTypography(s) {
         if (typeof s !== 'string' || !s) return s || '';
@@ -483,26 +467,48 @@
             cursor: pointer; box-shadow: var(--tm-shadow); transition: all 0.2s ease-in-out;
         }
         .tm-float-btn:hover { transform: scale(1.1); }
-        #tm-selection-edit-btn {
+        #tm-selection-action-bar {
             position: fixed;
             z-index: 2147483661;
-            background-color: var(--tm-primary);
+            background: rgba(33, 37, 41, 0.96);
             color: var(--tm-white);
             border-radius: 999px;
-            padding: 6px 10px;
+            padding: 5px;
             font-size: 12px;
             display: flex;
             align-items: center;
-            gap: 6px;
-            cursor: pointer;
+            gap: 4px;
+            max-width: calc(100vw - 16px);
+            overflow-x: auto;
             box-shadow: var(--tm-shadow);
             user-select: none;
             -webkit-user-select: none;
+            -webkit-touch-callout: none;
             pointer-events: auto;
             touch-action: manipulation;
             -webkit-tap-highlight-color: transparent;
         }
-        #tm-selection-edit-btn svg { width: 14px; height: 14px; }
+        #tm-selection-action-bar::-webkit-scrollbar { display: none; }
+        .tm-selection-action-btn {
+            border: 0;
+            border-radius: 999px;
+            min-height: 30px;
+            padding: 5px 10px;
+            background: transparent;
+            color: inherit;
+            cursor: pointer;
+            white-space: nowrap;
+            font: inherit;
+            line-height: 1.1;
+            user-select: none;
+            -webkit-user-select: none;
+            -webkit-touch-callout: none;
+            touch-action: manipulation;
+        }
+        .tm-selection-action-btn:hover,
+        .tm-selection-action-btn:focus-visible { background: rgba(255,255,255,0.14); outline: none; }
+        .tm-selection-action-btn[data-action="edit"] { background: var(--tm-primary); }
+        .tm-selection-action-btn[disabled] { opacity: 0.52; cursor: not-allowed; }
         .tm-modal-wrapper {
             position: fixed; inset: 0; z-index: 2147483645;
             display: flex; align-items: center; justify-content: center; font-family: var(--tm-font);
@@ -635,6 +641,7 @@
             scroll-behavior: smooth;
             -webkit-user-select: text; user-select: text;
         }
+        .tm-reader-content, .tm-reader-content * { -webkit-touch-callout: none; }
         .tm-reader-text, .tm-reader-block-text, .tm-reader-text *, .tm-reader-block-text * { -webkit-user-select: text; user-select: text; }
         .tm-reader-header, .tm-reader-footer, .tm-reader-toc-drawer, .tm-reader-mini-head, .tm-reader-mini-foot { -webkit-user-select: none; user-select: none; }
         .tm-reader-content h2 { width: 100%; margin: 0 0 12px; font-size: clamp(20px, 3vw, 28px); line-height: 1.22; }
@@ -1026,8 +1033,8 @@
     /* ================== SELECTION TRACKING ================== */
 
     function hideSelectionEditButton() {
-        if (selectionEditBtn) selectionEditBtn.remove();
-        selectionEditBtn = null;
+        if (selectionActionBar) selectionActionBar.remove();
+        selectionActionBar = null;
     }
     function cacheSelectionRange(range) {
         if (!range || range.collapsed || !range.toString().trim()) return;
@@ -1041,17 +1048,96 @@
             updateSelectionEditButton();
         }, delay);
     }
-    function activateSelectionEditButton(e) {
+    function stopSelectionActionEvent(e) {
         if (e) {
             if (typeof e.preventDefault === 'function') e.preventDefault();
             if (typeof e.stopPropagation === 'function') e.stopPropagation();
             if (typeof e.stopImmediatePropagation === 'function') e.stopImmediatePropagation();
         }
+    }
+    function getSelectionTextForAction() {
+        const sel = window.getSelection();
+        const liveText = sel ? sel.toString().trim() : '';
+        if (liveText) return liveText;
+        return String(lastSelectionRange?._textSnapshot || '').trim();
+    }
+    async function copyTextToClipboard(text) {
+        const value = String(text || '');
+        if (!value) return false;
+        if (navigator.clipboard && typeof navigator.clipboard.writeText === 'function') {
+            try {
+                await navigator.clipboard.writeText(value);
+                return true;
+            } catch (err) {
+                console.warn('[tm-translate] Clipboard API bị chặn, thử fallback copy.', err);
+            }
+        }
+        const temp = document.createElement('textarea');
+        temp.value = value;
+        temp.setAttribute('readonly', 'readonly');
+        temp.style.position = 'fixed';
+        temp.style.left = '-9999px';
+        temp.style.top = '0';
+        temp.style.opacity = '0';
+        document.body.appendChild(temp);
+        temp.select();
+        const ok = document.execCommand('copy');
+        temp.remove();
+        return ok;
+    }
+    function speakSelectionText(text) {
+        const value = String(text || '').trim();
+        if (!value) return;
+        if (!('speechSynthesis' in window) || typeof SpeechSynthesisUtterance === 'undefined') {
+            showNotification('Trình duyệt chưa hỗ trợ phát đoạn chọn.');
+            return;
+        }
+        try {
+            window.speechSynthesis.cancel();
+            const utterance = new SpeechSynthesisUtterance(value);
+            utterance.lang = /[\u4e00-\u9fff]/.test(value) ? 'zh-CN' : 'vi-VN';
+            window.speechSynthesis.speak(utterance);
+            showNotification('Đang phát đoạn chọn.');
+        } catch (err) {
+            console.warn('[tm-translate] Không phát được đoạn chọn:', err);
+            showNotification('Không phát được đoạn chọn.');
+        }
+    }
+    async function activateSelectionAction(action, e) {
+        stopSelectionActionEvent(e);
         const now = Date.now();
-        if (now - selectionEditBtnLastActivation < 350) return;
-        selectionEditBtnLastActivation = now;
-        openEditModalForSelection();
-        hideSelectionEditButton();
+        if (now - selectionActionLastActivation < 220) return;
+        selectionActionLastActivation = now;
+        const selectedText = getSelectionTextForAction();
+        if (!selectedText && action !== 'edit') {
+            hideSelectionEditButton();
+            return;
+        }
+        if (action === 'edit') {
+            openEditModalForSelection();
+            hideSelectionEditButton();
+            return;
+        }
+        if (action === 'copy') {
+            try {
+                await copyTextToClipboard(selectedText);
+                showNotification('Đã sao chép đoạn chọn.');
+            } catch (err) {
+                console.warn('[tm-translate] Không sao chép được đoạn chọn:', err);
+                showNotification('Không sao chép được đoạn chọn.');
+            }
+            hideSelectionEditButton();
+            return;
+        }
+        if (action === 'speak') {
+            speakSelectionText(selectedText);
+            hideSelectionEditButton();
+            return;
+        }
+        if (action === 'junk') {
+            showNotification('Xóa rác chưa hỗ trợ trong TM Translate.');
+            hideSelectionEditButton();
+        }
     }
     function getSelectionRangeRect(range) {
         if (!range) return null;
@@ -1108,20 +1194,42 @@
             hideSelectionEditButton();
             return;
         }
-        if (!selectionEditBtn) {
-            selectionEditBtn = document.createElement('div');
-            selectionEditBtn.id = 'tm-selection-edit-btn';
-            selectionEditBtn.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z"/></svg><span>Sửa tên</span>`;
-            selectionEditBtn.addEventListener('pointerdown', activateSelectionEditButton, { passive: false });
-            selectionEditBtn.addEventListener('touchstart', activateSelectionEditButton, { passive: false });
-            selectionEditBtn.addEventListener('mousedown', activateSelectionEditButton);
-            selectionEditBtn.addEventListener('click', activateSelectionEditButton);
-            tmUIRoot.appendChild(selectionEditBtn);
+        if (!selectionActionBar) {
+            selectionActionBar = document.createElement('div');
+            selectionActionBar.id = 'tm-selection-action-bar';
+            selectionActionBar.setAttribute('role', 'toolbar');
+            selectionActionBar.setAttribute('aria-label', 'Tiện ích đoạn chọn');
+            selectionActionBar.innerHTML = `
+                <button class="tm-selection-action-btn" data-action="speak" type="button">Phát</button>
+                <button class="tm-selection-action-btn" data-action="edit" type="button">Sửa tên</button>
+                <button class="tm-selection-action-btn" data-action="junk" type="button">Xóa rác</button>
+                <button class="tm-selection-action-btn" data-action="copy" type="button">Sao chép</button>
+            `;
+            const handleAction = (event) => {
+                const btn = event.target.closest?.('.tm-selection-action-btn');
+                if (!btn) {
+                    stopSelectionActionEvent(event);
+                    return;
+                }
+                activateSelectionAction(btn.dataset.action || '', event);
+            };
+            selectionActionBar.addEventListener('pointerdown', handleAction, { passive: false });
+            selectionActionBar.addEventListener('touchstart', handleAction, { passive: false });
+            selectionActionBar.addEventListener('mousedown', stopSelectionActionEvent);
+            selectionActionBar.addEventListener('click', handleAction);
+            tmUIRoot.appendChild(selectionActionBar);
         }
-        const left = Math.min(window.innerWidth - 140, Math.max(8, rect.left + rect.width / 2 - 50));
-        const top = Math.max(8, rect.top - 42);
-        selectionEditBtn.style.left = `${left}px`;
-        selectionEditBtn.style.top = `${top}px`;
+        selectionActionBar.style.visibility = 'hidden';
+        selectionActionBar.style.left = '8px';
+        selectionActionBar.style.top = '8px';
+        const width = Math.max(160, selectionActionBar.offsetWidth || 0);
+        const height = Math.max(36, selectionActionBar.offsetHeight || 0);
+        const left = Math.min(window.innerWidth - width - 8, Math.max(8, rect.left + rect.width / 2 - width / 2));
+        let top = rect.top - height - 10;
+        if (top < 8) top = Math.min(window.innerHeight - height - 8, rect.bottom + 10);
+        selectionActionBar.style.left = `${Math.round(left)}px`;
+        selectionActionBar.style.top = `${Math.round(Math.max(8, top))}px`;
+        selectionActionBar.style.visibility = '';
     }
     document.addEventListener('selectionchange', () => {
         try {
@@ -1139,6 +1247,20 @@
     });
     document.addEventListener('mouseup', () => scheduleSelectionEditButtonUpdate(24));
     document.addEventListener('touchend', () => scheduleSelectionEditButtonUpdate(120), { passive: true });
+    document.addEventListener('contextmenu', (e) => {
+        try {
+            const sel = window.getSelection();
+            if (!sel || !sel.toString().trim() || sel.rangeCount === 0) return;
+            const range = sel.getRangeAt(0);
+            const readerRoot = document.getElementById('tm-reader-overlay');
+            const container = range.commonAncestorContainer?.nodeType === 3 ? range.commonAncestorContainer.parentElement : range.commonAncestorContainer;
+            if (readerRoot && container && readerRoot.contains(container)) {
+                e.preventDefault();
+                e.stopPropagation();
+                scheduleSelectionEditButtonUpdate(10);
+            }
+        } catch (err) { /* ignore */ }
+    }, true);
 
     document.addEventListener('click', function delegatedEditStyle(e) {
         const btn = e.target.closest('.tm-edit-style-btn') || e.target.closest('#editStyleBtn') || e.target.closest('[data-tm-action="edit-style"]');
@@ -1197,7 +1319,7 @@
         const items = [];
         const seenNodes = new WeakSet();
         const skipTags = ['SCRIPT', 'STYLE', 'NOSCRIPT', 'PRE', 'CODE', 'TEXTAREA'];
-        const ignoreRootIds = ['tm-edit-pencil', 'tm-selection-edit-btn', 'tm-style-button', 'tm-edit-modal', 'tm-settings-modal', 'tm-style-panel', 'tm-library-btn'];
+        const ignoreRootIds = ['tm-edit-pencil', 'tm-selection-edit-btn', 'tm-selection-action-bar', 'tm-style-button', 'tm-edit-modal', 'tm-settings-modal', 'tm-style-panel', 'tm-library-btn'];
         const isFanqie = window.location.hostname.includes('fanqienovel.com');
         const hasMeaningfulTextRegex = isFanqie ? /\S/ : /[a-zA-Z\u4e00-\u9fa5\d]/;
 
@@ -1844,10 +1966,12 @@
         }
     }
 
-    function highlightNamesInText(translatedText, nameSet) {
+    function highlightNamesInText(translatedText, nameSet, sourceText = '') {
+        const source = String(sourceText || '');
         const vietToOrigMap = {};
         const vietCanonicalMap = {};
         for (const orig in nameSet) {
+            if (!source || !source.includes(orig)) continue;
             const vietName = nameSet[orig];
             if (vietName) {
                 const key = String(vietName).toLocaleLowerCase('vi-VN');
@@ -1862,20 +1986,29 @@
         }
 
         const namePattern = vietNames
+            .sort((a, b) => b.length - a.length)
             .map(name => escapeRegExp(name))
             .join('|');
-        const regex = createSafeRegExp(`(${namePattern})`, 'gi', 'highlight-names');
+        const regex = createSafeRegExp(
+            `(^|[^\\p{L}\\p{N}\\p{M}])(${namePattern})(?=$|[^\\p{L}\\p{N}\\p{M}])`,
+            'giu',
+            'highlight-names'
+        ) || createSafeRegExp(
+            `(^|[^A-Za-z0-9_À-ÖØ-öø-ÿĀ-žƀ-ɏ\\u0300-\\u036f])(${namePattern})(?=$|[^A-Za-z0-9_À-ÖØ-öø-ÿĀ-žƀ-ɏ\\u0300-\\u036f])`,
+            'gi',
+            'highlight-names-fallback'
+        );
         if (!regex) {
             return escapeHtml(translatedText);
         }
 
-        return escapeHtml(translatedText).replace(regex, (matchedText) => {
-            const lowerCaseMatch = matchedText.toLocaleLowerCase('vi-VN');
+        return escapeHtml(translatedText).replace(regex, (matchedText, prefix, nameText) => {
+            const lowerCaseMatch = String(nameText || '').toLocaleLowerCase('vi-VN');
             const origName = vietToOrigMap[lowerCaseMatch];
 
             if (origName) {
-                const displayName = vietCanonicalMap[lowerCaseMatch] || matchedText;
-                return `<span class="tm-name" data-orig="${escapeHtml(origName)}">${escapeHtml(displayName)}</span>`;
+                const displayName = vietCanonicalMap[lowerCaseMatch] || nameText;
+                return `${prefix}<span class="tm-name" data-orig="${escapeHtml(origName)}">${escapeHtml(displayName)}</span>`;
             }
 
             return matchedText;
@@ -1993,7 +2126,7 @@
             const capitalizedText = capitalizeFirstLetter(finalRestoredText);
 
             if (returnType === 'html') {
-                const highlightedHtml = highlightNamesInText(capitalizedText, nameSet);
+                const highlightedHtml = highlightNamesInText(capitalizedText, nameSet, chunk.original);
                 const chunkHtml = `<span class="tm-chunk" data-orig="${escapeHtml(chunk.original)}">${highlightedHtml}</span>`;
                 finalResult += `<p>${chunkHtml}</p>`;
             } else {
@@ -2121,7 +2254,7 @@
                 }
                 else if (itemInClone.node && itemInClone.node.parentNode) {
                     const nameSet = config.nameSets[config.activeNameSet] || {};
-                    const highlightedHtml = highlightNamesInText(originalItem.translated, nameSet);
+                    const highlightedHtml = highlightNamesInText(originalItem.translated, nameSet, originalItem.decodedOriginal);
 
                     if (config.nameEditingEnabled) {
                         const chunkSpan = document.createElement('span');
@@ -2290,7 +2423,7 @@
                     const chunkSpan = document.createElement('span');
                     chunkSpan.className = 'tm-chunk';
                     chunkSpan.dataset.orig = originalTextToShow;
-                    chunkSpan.innerHTML = highlightNamesInText(finalTranslatedText, nameSet);
+                    chunkSpan.innerHTML = highlightNamesInText(finalTranslatedText, nameSet, originalTextToShow);
                     finalContent = chunkSpan;
                 } else {
                     finalContent = document.createTextNode(finalTranslatedText);
@@ -2478,7 +2611,7 @@
                 }
             }
             else if (it.node?.isConnected && it.node.parentNode) {
-                const highlightedHtml = highlightNamesInText(it.translated, nameSet);
+                const highlightedHtml = highlightNamesInText(it.translated, nameSet, it.decodedOriginal);
 
                 // Nếu type === 'link', it.node chính là thẻ <a> (không phải text node)
                 const isLinkElement = it.type === 'link';
@@ -3143,7 +3276,7 @@
 
                 // Chuẩn hóa và áp dụng highlight
                 const finalText = capitalizeFirstLetter(translatedText.trim());
-                const finalHtml = highlightNamesInText(finalText, newNameSet);
+                const finalHtml = highlightNamesInText(finalText, newNameSet, plan.originalChinese);
                 plan.chunk.innerHTML = finalHtml;
             });
 
@@ -9710,7 +9843,7 @@ body.tmx-fullscreen .tmx-scroll {
                 continue;
             }
             lastWasEmpty = false;
-            const highlighted = highlightNamesInText(transPara || '', nameSet);
+            const highlighted = highlightNamesInText(transPara || '', nameSet, rawPara);
             const chunkHtml = `<span class="tm-chunk" data-orig="${escapeHtml(rawPara)}">${highlighted || ''}</span>`;
             html += `<p>${chunkHtml}</p>`;
         }
