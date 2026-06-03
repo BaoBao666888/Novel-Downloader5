@@ -155,9 +155,9 @@ Bạn mở Cài đặt bằng Tampermonkey menu → **Cài đặt** (hoặc bấ
 
 ### 5.2 Tab TTS
 - Chọn nguồn **Browser / TikTok / Google / Gemini / Bing / Zalo** và giọng đọc tương ứng.
-- TikTok có popup nhập cookie; Zalo có popup nhập một hoặc nhiều API key.
+- TikTok có popup nhập cookie; Zalo có popup nhập một hoặc nhiều API key. Cookie/API key được lưu ngay khi bấm **Lưu** trong popup.
 - Gemini cần đăng nhập `gemini.google.com`; Bing có thể cần mở `bing.com/translator` một lần nếu lỗi token.
-- Chỉnh **tốc độ**, **cao độ**, **âm lượng**, **ký tự tối đa mỗi đoạn**, **delay giữa đoạn** và **hẹn giờ ngủ**.
+- Chỉnh **tốc độ**, **cao độ**, **âm lượng**, **ký tự tối đa mỗi đoạn**, **delay giữa đoạn** và **hẹn giờ ngủ**. Hẹn giờ ngủ chỉ chạy khi bật checkbox.
 - Remote TTS có **prefetch audio**, **timeout**, **retry** và **giãn request**.
 - Có **thay thế từ khi đọc**: mỗi dòng dùng `từ gốc => từ đọc`.
 - Có nút **Thử giọng**, **Dừng phát**, **Xóa cache audio**, **Mặc định**.
@@ -202,3 +202,4 @@ Trong Cài đặt → tab **Bộ Tên**:
 - Edit Name (Sửa Tên) cần bọc text trong `<span>` để map “gốc ↔ dịch”, có thể gây lỗi hiển thị ở một số web. Nếu web bị vỡ giao diện, hãy tắt trong tab **Chung**.
 - Name-set chỉ thay theo cặp **Trung → Việt**, không thay Việt → Việt để tránh lỗi khớp lố trong bản dịch.
 - Nếu thấy chậm/lag khi dịch: giảm `maxCharsPerRequest`, tăng `delayMs`, hoặc tăng `retry` hợp lý.
+- TTS trong TM dùng chung logic với TTS Reader; xem thêm [hướng dẫn TTS Reader](https://github.com/BaoBao666888/Novel-Downloader5/blob/main/tools/HUONG_DAN_SU_DUNG_TTS_READER.md).

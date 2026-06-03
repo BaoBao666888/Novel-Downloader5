@@ -263,6 +263,7 @@
         merged.includeTitle = !!merged.includeTitle;
         merged.autoScroll = !!merged.autoScroll;
         merged.autoStartOnNextChapter = !!merged.autoStartOnNextChapter;
+        merged.sleepTimerEnabled = !!merged.sleepTimerEnabled;
         merged.sleepTimerMinutes = tmTtsClampInt(merged.sleepTimerMinutes, TTS_LIMITS.sleepTimerMinutes[0], TTS_LIMITS.sleepTimerMinutes[1], TTS_DEFAULT_SETTINGS.sleepTimerMinutes);
         merged.panelCollapsed = !!merged.panelCollapsed;
         return merged;
@@ -485,6 +486,7 @@
         includeTitle: true,
         autoScroll: true,
         autoStartOnNextChapter: true,
+        sleepTimerEnabled: false,
         sleepTimerMinutes: 30,
         panelCollapsed: false
     };
@@ -1397,6 +1399,45 @@
         temp.remove();
         return ok;
     }
+
+    let ttsCoreErrorWatchTimer = 0;
+    function getTtsErrorWatchDuration(settings) {
+        const timeout = Number(settings?.remoteTimeoutMs) > 0 ? Number(settings.remoteTimeoutMs) : TTS_DEFAULT_SETTINGS.remoteTimeoutMs;
+        const retries = Number(settings?.remoteRetries) >= 0 ? Number(settings.remoteRetries) : TTS_DEFAULT_SETTINGS.remoteRetries;
+        return Math.min(120000, Math.max(15000, (timeout * (retries + 1)) + 5000));
+    }
+
+    function watchTtsCorePlaybackError(core, label = 'TTS lỗi', durationMs = 15000) {
+        if (!core || typeof core.getState !== 'function') return;
+        if (ttsCoreErrorWatchTimer) {
+            clearInterval(ttsCoreErrorWatchTimer);
+            ttsCoreErrorWatchTimer = 0;
+        }
+        const startedAt = Date.now();
+        ttsCoreErrorWatchTimer = setInterval(() => {
+            let state = null;
+            try {
+                state = core.getState();
+            } catch (err) {
+                clearInterval(ttsCoreErrorWatchTimer);
+                ttsCoreErrorWatchTimer = 0;
+                return;
+            }
+            const message = String(state?.lastError || '').trim();
+            if (message) {
+                clearInterval(ttsCoreErrorWatchTimer);
+                ttsCoreErrorWatchTimer = 0;
+                showNotification(`${label}: ${message}`, 4500);
+                return;
+            }
+            const elapsed = Date.now() - startedAt;
+            if ((!state?.playing && elapsed > 600) || elapsed > durationMs) {
+                clearInterval(ttsCoreErrorWatchTimer);
+                ttsCoreErrorWatchTimer = 0;
+            }
+        }, 350);
+    }
+
     async function speakSelectionText(text) {
         const value = String(text || '').trim();
         if (!value) return;
@@ -1406,6 +1447,7 @@
                 const settings = loadTtsSettings();
                 const result = core.speakText(value, {
                     provider: settings.provider || 'browser',
+                    settings,
                     lang: /[\u4e00-\u9fff]/.test(value) ? 'zh-CN' : 'vi-VN',
                     maxChars: settings.maxChars || TTS_DEFAULT_SETTINGS.maxChars,
                     title: 'TM Translate',
@@ -1413,6 +1455,7 @@
                 });
                 if (result && result.ok) {
                     showNotification('Đang phát đoạn chọn.');
+                    watchTtsCorePlaybackError(core, 'Không phát được TTS', getTtsErrorWatchDuration(settings));
                     return;
                 }
                 if (result && result.reason === 'unsupported') {
@@ -4814,8 +4857,11 @@
                         <input id="tm-tts-segment-delay" type="number" class="tm-input" min="${TTS_LIMITS.segmentDelayMs[0]}" max="${TTS_LIMITS.segmentDelayMs[1]}" step="50" value="${ttsSettings.segmentDelayMs}">
                     </div>
                     <div class="tm-col">
-                        <label class="tm-label">Hẹn giờ ngủ (phút)</label>
-                        <input id="tm-tts-sleep-timer" type="number" class="tm-input" min="${TTS_LIMITS.sleepTimerMinutes[0]}" max="${TTS_LIMITS.sleepTimerMinutes[1]}" step="1" value="${ttsSettings.sleepTimerMinutes}">
+                        <label class="tm-label" style="font-weight:normal;">
+                            <input type="checkbox" id="tm-tts-sleep-enabled" style="margin-right:6px;">
+                            Bật hẹn giờ ngủ
+                        </label>
+                        <input id="tm-tts-sleep-timer" type="number" class="tm-input" min="${TTS_LIMITS.sleepTimerMinutes[0]}" max="${TTS_LIMITS.sleepTimerMinutes[1]}" step="1" value="${ttsSettings.sleepTimerMinutes}" ${ttsSettings.sleepTimerEnabled ? '' : 'disabled'}>
                     </div>
                 </div>
                 <details open style="margin-top: 8px;">
@@ -5126,6 +5172,7 @@
         const ttsVolumeValue = wrapper.querySelector('#tm-tts-volume-value');
         const ttsMaxCharsInput = wrapper.querySelector('#tm-tts-max-chars');
         const ttsSegmentDelayInput = wrapper.querySelector('#tm-tts-segment-delay');
+        const ttsSleepEnabledInput = wrapper.querySelector('#tm-tts-sleep-enabled');
         const ttsSleepTimerInput = wrapper.querySelector('#tm-tts-sleep-timer');
         const ttsProviderNote = wrapper.querySelector('#tm-tts-provider-note');
         const ttsTikTokAuth = wrapper.querySelector('#tm-tts-tiktok-auth');
@@ -5189,6 +5236,7 @@
                 volume: readNumberInput('#tm-tts-volume', TTS_DEFAULT_SETTINGS.volume, TTS_LIMITS.volume[0], TTS_LIMITS.volume[1]),
                 maxChars: readNumberInput('#tm-tts-max-chars', TTS_DEFAULT_SETTINGS.maxChars, TTS_LIMITS.maxChars[0], TTS_LIMITS.maxChars[1], true),
                 segmentDelayMs: readNumberInput('#tm-tts-segment-delay', TTS_DEFAULT_SETTINGS.segmentDelayMs, TTS_LIMITS.segmentDelayMs[0], TTS_LIMITS.segmentDelayMs[1], true),
+                sleepTimerEnabled: !!ttsSleepEnabledInput?.checked,
                 sleepTimerMinutes: readNumberInput('#tm-tts-sleep-timer', TTS_DEFAULT_SETTINGS.sleepTimerMinutes, TTS_LIMITS.sleepTimerMinutes[0], TTS_LIMITS.sleepTimerMinutes[1], true),
                 prefetchEnabled: !!ttsPrefetchEnabledInput?.checked,
                 prefetchCount: readNumberInput('#tm-tts-prefetch-count', TTS_DEFAULT_SETTINGS.prefetchCount, TTS_LIMITS.prefetchCount[0], TTS_LIMITS.prefetchCount[1], true),
@@ -5287,7 +5335,9 @@
             if (ttsVolumeInput) ttsVolumeInput.value = normalized.volume;
             if (ttsMaxCharsInput) ttsMaxCharsInput.value = normalized.maxChars;
             if (ttsSegmentDelayInput) ttsSegmentDelayInput.value = normalized.segmentDelayMs;
+            if (ttsSleepEnabledInput) ttsSleepEnabledInput.checked = !!normalized.sleepTimerEnabled;
             if (ttsSleepTimerInput) ttsSleepTimerInput.value = normalized.sleepTimerMinutes;
+            if (ttsSleepTimerInput) ttsSleepTimerInput.disabled = !normalized.sleepTimerEnabled;
             if (ttsPrefetchEnabledInput) ttsPrefetchEnabledInput.checked = !!normalized.prefetchEnabled;
             if (ttsPrefetchCountInput) ttsPrefetchCountInput.value = normalized.prefetchCount;
             if (ttsRemoteTimeoutInput) ttsRemoteTimeoutInput.value = normalized.remoteTimeoutMs;
@@ -5336,6 +5386,11 @@
                     return;
                 }
                 ttsWorkingSettings = normalizeTtsSettings({ ...ttsWorkingSettings, zaloApiKeysText: raw });
+                try {
+                    saveTtsSettings({ ...loadTtsSettings(), zaloApiKeysText: raw });
+                } catch (err) {
+                    console.warn('[tm-translate] Không lưu API key Zalo ngay được:', err);
+                }
                 updateTtsProviderUi(ttsWorkingSettings);
                 closeTtsSecretModal();
                 showNotification('Đã cập nhật API key Zalo.');
@@ -5352,6 +5407,11 @@
                 return;
             }
             ttsWorkingSettings = normalizeTtsSettings({ ...ttsWorkingSettings, tiktokCookieText: raw });
+            try {
+                saveTtsSettings({ ...loadTtsSettings(), tiktokCookieText: raw });
+            } catch (err) {
+                console.warn('[tm-translate] Không lưu cookie TikTok ngay được:', err);
+            }
             updateTtsProviderUi(ttsWorkingSettings);
             closeTtsSecretModal();
             showNotification('Đã cập nhật cookie TikTok.');
@@ -5368,8 +5428,14 @@
             ttsWorkingSettings = settings;
             const core = getTtsCore();
             try {
-                if (core && typeof core.testVoice === 'function') {
-                    const result = core.testVoice('Xin chào. Đây là thử giọng TTS.', settings);
+                if (core && typeof core.speakText === 'function') {
+                    const result = core.speakText('Xin chào. Đây là thử giọng TTS.', {
+                        provider: settings.provider || 'browser',
+                        settings,
+                        maxChars: settings.maxChars || TTS_DEFAULT_SETTINGS.maxChars,
+                        title: 'TTS test',
+                        artist: 'TM Translate'
+                    });
                     if (!result || result.ok === false) throw new Error(result && result.reason ? result.reason : 'tts test failed');
                 } else {
                     if (!('speechSynthesis' in window) || typeof SpeechSynthesisUtterance === 'undefined') {
@@ -5387,6 +5453,9 @@
                     window.speechSynthesis.speak(utterance);
                 }
                 showNotification('Đang phát thử giọng.');
+                if (core && typeof core.getState === 'function') {
+                    watchTtsCorePlaybackError(core, 'Không phát thử TTS được', getTtsErrorWatchDuration(settings));
+                }
             } catch (err) {
                 console.warn('[tm-translate] Không phát thử TTS được:', err);
                 showNotification('Không phát thử TTS được.');
@@ -5452,6 +5521,10 @@
         ttsVoiceSelect?.addEventListener('change', () => {
             ttsWorkingSettings = readTtsSettingsFromUI();
         });
+        ttsSleepEnabledInput?.addEventListener('change', () => {
+            if (ttsSleepTimerInput) ttsSleepTimerInput.disabled = !ttsSleepEnabledInput.checked;
+            ttsWorkingSettings = readTtsSettingsFromUI();
+        });
         ttsRefreshVoicesBtn?.addEventListener('click', () => {
             const current = readTtsSettingsFromUI();
             populateTtsVoices(current.provider, getTtsVoiceValue(current, current.provider));
@@ -5460,13 +5533,15 @@
         ttsZaloApiBtn?.addEventListener('click', () => openTtsSecretModal('zalo'));
         ttsTikTokCookieClearBtn?.addEventListener('click', () => {
             ttsWorkingSettings = normalizeTtsSettings({ ...ttsWorkingSettings, tiktokCookieText: '' });
+            saveTtsSettings({ ...loadTtsSettings(), tiktokCookieText: '' });
             updateTtsProviderUi(ttsWorkingSettings);
-            showNotification('Đã xóa cookie TikTok trong cài đặt tạm.');
+            showNotification('Đã xóa cookie TikTok.');
         });
         ttsZaloApiClearBtn?.addEventListener('click', () => {
             ttsWorkingSettings = normalizeTtsSettings({ ...ttsWorkingSettings, zaloApiKeysText: '' });
+            saveTtsSettings({ ...loadTtsSettings(), zaloApiKeysText: '' });
             updateTtsProviderUi(ttsWorkingSettings);
-            showNotification('Đã xóa API key Zalo trong cài đặt tạm.');
+            showNotification('Đã xóa API key Zalo.');
         });
         ttsOpenTikTokBtn?.addEventListener('click', () => window.open('https://www.tiktok.com/', '_blank', 'noopener,noreferrer'));
         ttsSecretSaveBtn?.addEventListener('click', saveTtsSecretModal);
@@ -11546,7 +11621,9 @@ body.tmx-fullscreen .tmx-scroll {
 - **Tab Bộ Tên**: Tạo/Xóa bộ name, nhập file JSON/TXT, xuất, thêm/sửa nhanh.
 - **Tab Thư viện**: Hiển thị nút, prefetch, kiểu đọc, giao diện reader.
 - **Tab TTS**: Chọn nguồn Browser/TikTok/Google/Gemini/Bing/Zalo, giọng đọc, tốc độ/cao độ/âm lượng, độ dài đoạn, delay, hẹn giờ ngủ, prefetch remote, retry/timeout và thay thế từ trước khi đọc.
+- Hẹn giờ ngủ chỉ chạy khi bật checkbox; cookie TikTok/API key Zalo được lưu ngay khi bấm **Lưu** trong popup.
 - TikTok có popup nhập Cookie; Zalo có popup nhập một hoặc nhiều API key. Gemini cần đăng nhập gemini.google.com; Bing có thể cần mở bing.com/translator một lần nếu token hết hạn.
+- Hướng dẫn TTS chi tiết: [HUONG_DAN_SU_DUNG_TTS_READER.md](https://github.com/BaoBao666888/Novel-Downloader5/blob/main/tools/HUONG_DAN_SU_DUNG_TTS_READER.md).
 - **Tab Từ điển Local**: Tìm/sửa/xóa mục, khôi phục gốc.
 - **Tab Blacklist**: Chặn domain không muốn script chạy.
 - **Tab Nâng cao**: Provider dịch, delay, max ký tự, retry.
@@ -11562,6 +11639,7 @@ body.tmx-fullscreen .tmx-scroll {
 - Fix Name-set không thay thế Việt → Việt quá tay, chỉ khớp cặp Trung → Việt để tránh lỗi kiểu “điềU sơn”.
 - Thêm shared TTS core đã mã hóa; nút **Phát** dùng core mới, tab **TTS** đầy đủ trong Cài đặt và nút mở nhanh TTS trong Reader.
 - Tab TTS hỗ trợ nguồn Browser/TikTok/Google/Gemini/Bing/Zalo, popup cookie TikTok/API key Zalo, thay thế từ khi đọc, prefetch audio remote, retry/timeout/request gap và hẹn giờ ngủ.
+- Fix TikTok TTS trong TM không cần bấm lưu tổng sau khi nhập cookie; test/phát báo lỗi remote cụ thể và hẹn giờ ngủ chỉ chạy khi bật.
 - Badge **đề xuất** trên nút xuất tự chuyển giữa **HTML** và **EPUB** theo quy mô truyện; HTML sẽ cảnh báo khi data lớn vì dễ lag khi xem.
 
 ### 📦 Các bản trước (tóm tắt)
