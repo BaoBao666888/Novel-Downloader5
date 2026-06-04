@@ -972,6 +972,56 @@
         .tm-reader-progress { min-width: 110px; text-align: center; font-size: 12px; color: var(--tm-reader-muted, #5c5c5c); }
         .tm-reader-no-translate #tm-reader-raw-btn,
         .tm-reader-no-translate #tm-reader-trans-btn { display: none; }
+        .tm-reader-tts-segment {
+            border-radius: 5px;
+            transition: background 0.18s ease, box-shadow 0.18s ease;
+        }
+        .tm-reader-tts-active {
+            background: color-mix(in srgb, #ffd66b 46%, transparent);
+            box-shadow: 0 0 0 2px color-mix(in srgb, #ffd66b 42%, transparent);
+        }
+        .tm-reader-tts-player {
+            position: fixed;
+            right: max(12px, var(--tm-reader-safe-right));
+            bottom: max(74px, calc(var(--tm-reader-safe-bottom) + 62px));
+            z-index: 2147483654;
+            width: min(360px, calc(100vw - 24px));
+            min-height: 86px;
+            padding: 10px;
+            display: none;
+            align-items: center;
+            gap: 10px;
+            border: 1px solid color-mix(in srgb, var(--tm-reader-border, #ccc) 72%, transparent);
+            border-radius: 16px;
+            background: color-mix(in srgb, var(--tm-reader-surface, #fbf9f4) 90%, transparent);
+            color: var(--tm-reader-text, #1f1f1f);
+            box-shadow: 0 18px 46px rgba(0,0,0,0.18);
+            backdrop-filter: blur(18px);
+            font-family: var(--tm-reader-font, "Noto Serif", "Times New Roman", serif);
+            user-select: none;
+            -webkit-user-select: none;
+        }
+        .tm-reader-tts-player.open { display: flex; }
+        .tm-reader-tts-disc {
+            flex: 0 0 auto;
+            width: 48px;
+            height: 48px;
+            border-radius: 50%;
+            background:
+                radial-gradient(circle at center, var(--tm-reader-surface, #fbf9f4) 0 16%, transparent 17%),
+                conic-gradient(from 30deg, var(--tm-reader-text, #222), var(--tm-reader-muted, #777), var(--tm-reader-text, #222));
+            box-shadow: inset 0 0 0 7px color-mix(in srgb, var(--tm-reader-bg, #f7f4ee) 55%, transparent), 0 8px 20px rgba(0,0,0,0.16);
+        }
+        .tm-reader-tts-player.playing .tm-reader-tts-disc { animation: tm-reader-tts-spin 1.6s linear infinite; }
+        .tm-reader-tts-player.paused .tm-reader-tts-disc { opacity: 0.72; }
+        @keyframes tm-reader-tts-spin { to { transform: rotate(360deg); } }
+        .tm-reader-tts-main { min-width: 0; flex: 1 1 auto; display: flex; flex-direction: column; gap: 6px; }
+        .tm-reader-tts-title { min-width: 0; font-size: 12px; line-height: 1.25; font-weight: 800; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .tm-reader-tts-meta { min-width: 0; display: flex; justify-content: space-between; gap: 8px; color: var(--tm-reader-muted, #666); font-size: 11px; line-height: 1.25; }
+        .tm-reader-tts-status { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .tm-reader-tts-time { flex: 0 0 auto; font-variant-numeric: tabular-nums; }
+        .tm-reader-tts-controls { display: flex; align-items: center; gap: 6px; }
+        .tm-reader-tts-controls .tm-btn { min-height: 28px; padding: 4px 9px; font-size: 11px; }
         .tm-reader-backdrop {
             position: fixed; inset: 0; z-index: 2147483650; background: rgba(0,0,0,0.38);
             opacity: 0; pointer-events: none; transition: opacity 0.18s ease;
@@ -1059,6 +1109,15 @@
             .tm-reader-mini-foot { padding: 2px max(6px, var(--tm-reader-safe-right)) max(2px, var(--tm-reader-safe-bottom)) max(6px, var(--tm-reader-safe-left)); }
             .tm-reader-mini-title, .tm-reader-mini-item { font-size: 10px; }
             .tm-reader-fullscreen .tm-reader-header, .tm-reader-fullscreen .tm-reader-footer { left: max(4px, var(--tm-reader-safe-left)); right: max(4px, var(--tm-reader-safe-right)); border-radius: 10px; }
+            .tm-reader-tts-player {
+                right: max(8px, var(--tm-reader-safe-right));
+                left: max(8px, var(--tm-reader-safe-left));
+                bottom: max(82px, calc(var(--tm-reader-safe-bottom) + 70px));
+                width: auto;
+                min-height: 78px;
+                border-radius: 14px;
+            }
+            .tm-reader-tts-disc { width: 42px; height: 42px; }
         }
         @media (max-width: 420px) {
             .tm-reader-actions { grid-template-columns: repeat(2, minmax(0, 1fr)); }
@@ -1960,7 +2019,8 @@
             return;
         }
         if (action === 'speak') {
-            await speakSelectionText(selectedText);
+            const handledByReader = await libReaderTtsStartFromSelection(range);
+            if (!handledByReader) await speakSelectionText(selectedText);
             hideSelectionEditButton();
             return;
         }
@@ -4806,7 +4866,7 @@
                     <option value="bing">Bing</option>
                     <option value="zalo">Zalo AI</option>
                 </select>
-                <p id="tm-tts-provider-note" style="font-size:13px; color:#555">Dùng cho nút Phát trên thanh chọn text trong reader.</p>
+                <p id="tm-tts-provider-note" style="font-size:13px; color:#555">Dùng cho nút Phát trong reader: phát từ vị trí bôi đen tới hết chương/truyện.</p>
                 <div class="tm-row">
                     <div class="tm-col">
                         <label class="tm-label">Giọng đọc</label>
@@ -10449,6 +10509,7 @@ body.tmx-fullscreen .tmx-scroll {
     let libReaderState = null;
     let libReaderUI = null;
     let libReaderGlobalEventsBound = false;
+    let libReaderTtsState = null;
 
     async function libGetChaptersByBook(bookId) {
         let chapters = libLoadChaptersForBook(bookId);
@@ -10769,6 +10830,493 @@ body.tmx-fullscreen .tmx-scroll {
         if (libReaderUI.miniFoot) libReaderUI.miniFoot.hidden = !showMini;
     }
 
+    function libReaderTtsFormatDuration(ms) {
+        const total = Math.max(0, Math.ceil((Number(ms) || 0) / 1000));
+        const h = Math.floor(total / 3600);
+        const m = Math.floor((total % 3600) / 60);
+        const s = total % 60;
+        if (h > 0) return `${h}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+        return `${m}:${String(s).padStart(2, '0')}`;
+    }
+
+    function libReaderTtsEffectiveMaxChars(settings) {
+        const provider = String(settings?.provider || 'browser');
+        const caps = { tiktok: 200, google: 200, gemini: 600, bing: 600, zalo: 500 };
+        const configured = Number(settings?.maxChars) > 0 ? Number(settings.maxChars) : TTS_DEFAULT_SETTINGS.maxChars;
+        return Math.max(80, Math.min(configured, caps[provider] || configured || 260));
+    }
+
+    function libReaderTtsGetParagraphs(textRoot) {
+        if (!textRoot) return [];
+        const paragraphs = Array.from(textRoot.children || [])
+            .filter(el => (el.tagName || '').toLowerCase() === 'p');
+        return paragraphs.length ? paragraphs : [textRoot];
+    }
+
+    function libReaderTtsGetTextRootText(textRoot) {
+        return libReaderTtsGetParagraphs(textRoot)
+            .map(el => String(el.textContent || ''))
+            .join('\n');
+    }
+
+    function libReaderTtsSplitTextWithOffsets(text, startOffset, maxChars) {
+        const source = String(text || '');
+        const chunks = [];
+        const limit = Math.max(80, Number(maxChars) || 260);
+        const minCut = Math.max(30, Math.floor(limit * 0.45));
+        let pos = Math.max(0, Math.min(source.length, Number(startOffset) || 0));
+        const marks = ['\n', '。', '！', '？', '；', ';', '.', '!', '?', '，', ',', '、', ':', '：', ' '];
+
+        while (pos < source.length) {
+            while (pos < source.length && /\s/u.test(source[pos])) pos += 1;
+            if (pos >= source.length) break;
+
+            let end = Math.min(source.length, pos + limit);
+            if (end < source.length) {
+                const slice = source.slice(pos, end);
+                let cut = -1;
+                for (const mark of marks) {
+                    const idx = slice.lastIndexOf(mark);
+                    if (idx >= minCut && idx > cut) cut = idx + mark.length;
+                }
+                if (cut > 0) end = pos + cut;
+            }
+            while (end > pos && /\s/u.test(source[end - 1])) end -= 1;
+            if (end <= pos) end = Math.min(source.length, pos + limit);
+
+            const chunkText = source.slice(pos, end).trim();
+            if (chunkText) chunks.push({ text: chunkText, start: pos, end, type: 'body' });
+            pos = Math.max(end, pos + 1);
+        }
+        return chunks;
+    }
+
+    function libReaderTtsFindTextBoundary(root, offset) {
+        if (!root) return null;
+        const target = Math.max(0, Number(offset) || 0);
+        const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+        let remaining = target;
+        let last = null;
+        let node = walker.nextNode();
+        while (node) {
+            const len = String(node.nodeValue || '').length;
+            last = node;
+            if (remaining <= len) return { node, offset: remaining };
+            remaining -= len;
+            node = walker.nextNode();
+        }
+        return last ? { node: last, offset: String(last.nodeValue || '').length } : null;
+    }
+
+    function libReaderTtsWrapElementRange(root, start, end, segmentId) {
+        if (!root || end <= start) return;
+        const startPoint = libReaderTtsFindTextBoundary(root, start);
+        const endPoint = libReaderTtsFindTextBoundary(root, end);
+        if (!startPoint || !endPoint) return;
+        try {
+            const range = document.createRange();
+            range.setStart(startPoint.node, startPoint.offset);
+            range.setEnd(endPoint.node, endPoint.offset);
+            if (range.collapsed) return;
+            const span = document.createElement('span');
+            span.className = 'tm-reader-tts-segment';
+            span.dataset.ttsSegment = segmentId;
+            span.appendChild(range.extractContents());
+            range.insertNode(span);
+        } catch (err) {
+            console.warn('[tm-translate] Không highlight được đoạn TTS:', err);
+        }
+    }
+
+    function libReaderTtsClearHighlights() {
+        document.querySelectorAll('.tm-reader-tts-segment').forEach(span => {
+            const parent = span.parentNode;
+            if (!parent) return;
+            while (span.firstChild) parent.insertBefore(span.firstChild, span);
+            span.remove();
+            try { parent.normalize(); } catch (err) { /* ignore */ }
+        });
+    }
+
+    function libReaderTtsApplyHighlights(textRoot, segments) {
+        libReaderTtsClearHighlights();
+        const paragraphs = libReaderTtsGetParagraphs(textRoot);
+        if (!paragraphs.length) return;
+        const ranges = [];
+        let cursor = 0;
+        paragraphs.forEach((paragraph, paragraphIndex) => {
+            const length = String(paragraph.textContent || '').length;
+            for (const segment of segments || []) {
+                if (!segment.id || segment.type === 'title') continue;
+                const start = Math.max(segment.start - cursor, 0);
+                const end = Math.min(segment.end - cursor, length);
+                if (end > start) ranges.push({ paragraphIndex, start, end, id: segment.id });
+            }
+            cursor += length + 1;
+        });
+        ranges.sort((a, b) => (b.paragraphIndex - a.paragraphIndex) || (b.start - a.start));
+        for (const item of ranges) {
+            const paragraph = libReaderTtsGetParagraphs(textRoot)[item.paragraphIndex];
+            if (paragraph) libReaderTtsWrapElementRange(paragraph, item.start, item.end, item.id);
+        }
+    }
+
+    function libReaderTtsSetActiveHighlight(segment) {
+        document.querySelectorAll('.tm-reader-tts-segment').forEach(el => {
+            el.classList.toggle('tm-reader-tts-active', !!segment?.id && el.dataset.ttsSegment === segment.id);
+        });
+        if (!segment?.id || !libReaderTtsState?.settings?.autoScroll) return;
+        const active = Array.from(document.querySelectorAll('.tm-reader-tts-segment'))
+            .find(el => el.dataset.ttsSegment === segment.id);
+        if (active && typeof active.scrollIntoView === 'function') {
+            active.scrollIntoView({ block: 'center', inline: 'nearest', behavior: 'smooth' });
+        }
+    }
+
+    function libReaderTtsFindTextRootForChapter(index) {
+        if (!libReaderUI?.content || !libReaderState?.chapters?.[index]) return null;
+        const chapter = libReaderState.chapters[index];
+        const blocks = Array.from(libReaderUI.content.querySelectorAll('.tm-reader-block[data-chapter-id]'));
+        const block = blocks.find(el => el.dataset.chapterId === chapter.chapterId);
+        if (block) return block.querySelector('.tm-reader-block-text');
+        return libReaderUI.content.querySelector('.tm-reader-block-text') || libReaderUI.content;
+    }
+
+    function libReaderTtsEnsurePlayer() {
+        if (!libReaderUI?.root) return null;
+        let player = libReaderUI.root.querySelector('#tm-reader-tts-player');
+        if (player) return player;
+        player = document.createElement('div');
+        player.id = 'tm-reader-tts-player';
+        player.className = 'tm-reader-tts-player';
+        player.innerHTML = `
+            <div class="tm-reader-tts-disc" aria-hidden="true"></div>
+            <div class="tm-reader-tts-main">
+                <div id="tm-reader-tts-title" class="tm-reader-tts-title">TTS</div>
+                <div class="tm-reader-tts-meta">
+                    <div id="tm-reader-tts-status" class="tm-reader-tts-status">Đang chuẩn bị...</div>
+                    <div id="tm-reader-tts-time" class="tm-reader-tts-time"></div>
+                </div>
+                <div class="tm-reader-tts-controls">
+                    <button id="tm-reader-tts-toggle" class="tm-btn" type="button">Tạm dừng</button>
+                    <button id="tm-reader-tts-next" class="tm-btn" type="button">Tiếp</button>
+                    <button id="tm-reader-tts-stop" class="tm-btn" type="button">Dừng</button>
+                </div>
+            </div>
+        `;
+        player.querySelector('#tm-reader-tts-toggle')?.addEventListener('click', libReaderTtsTogglePause);
+        player.querySelector('#tm-reader-tts-next')?.addEventListener('click', () => libReaderTtsSkipSegment());
+        player.querySelector('#tm-reader-tts-stop')?.addEventListener('click', () => libReaderTtsStop({ notify: 'Đã dừng TTS.' }));
+        libReaderUI.root.appendChild(player);
+        return player;
+    }
+
+    function libReaderTtsUpdatePlayer() {
+        const state = libReaderTtsState;
+        const player = libReaderTtsEnsurePlayer();
+        if (!player) return;
+        const active = !!state?.active;
+        const paused = !!state?.paused;
+        player.classList.toggle('open', active);
+        player.classList.toggle('playing', active && !paused);
+        player.classList.toggle('paused', active && paused);
+        if (!active) return;
+
+        const chapterText = state.totalChapters
+            ? `Chương ${state.chapterIndex + 1}/${state.totalChapters}`
+            : 'TTS';
+        const segmentText = state.segments?.length
+            ? `Đoạn ${Math.min(state.segmentIndex + 1, state.segments.length)}/${state.segments.length}`
+            : 'Đang tải';
+        const titleEl = player.querySelector('#tm-reader-tts-title');
+        const statusEl = player.querySelector('#tm-reader-tts-status');
+        const timeEl = player.querySelector('#tm-reader-tts-time');
+        const toggleBtn = player.querySelector('#tm-reader-tts-toggle');
+        if (titleEl) titleEl.textContent = state.chapterTitle || chapterText;
+        if (statusEl) statusEl.textContent = state.status || `${chapterText} · ${segmentText}`;
+        if (timeEl) {
+            timeEl.textContent = state.sleepEndsAt
+                ? `Ngủ ${libReaderTtsFormatDuration(state.sleepEndsAt - Date.now())}`
+                : segmentText;
+        }
+        if (toggleBtn) toggleBtn.textContent = paused ? 'Phát' : 'Tạm dừng';
+    }
+
+    function libReaderTtsSetStatus(status) {
+        if (!libReaderTtsState) return;
+        libReaderTtsState.status = status;
+        libReaderTtsUpdatePlayer();
+    }
+
+    function libReaderTtsClearTimers() {
+        if (!libReaderTtsState) return;
+        if (libReaderTtsState.pollTimer) clearInterval(libReaderTtsState.pollTimer);
+        if (libReaderTtsState.sleepTimer) clearTimeout(libReaderTtsState.sleepTimer);
+        libReaderTtsState.pollTimer = 0;
+        libReaderTtsState.sleepTimer = 0;
+    }
+
+    function libReaderTtsStop({ notify = '', silent = false } = {}) {
+        const state = libReaderTtsState;
+        if (state?.core && typeof state.core.stop === 'function') {
+            try { state.core.stop(); } catch (err) { /* ignore */ }
+        }
+        libReaderTtsClearTimers();
+        libReaderTtsState = null;
+        libReaderTtsClearHighlights();
+        const player = libReaderUI?.root?.querySelector('#tm-reader-tts-player');
+        if (player) {
+            player.classList.remove('open', 'playing', 'paused');
+        }
+        if (notify && !silent) showNotification(notify, 2600);
+    }
+
+    function libReaderTtsStopBySleepTimer() {
+        libReaderTtsStop({ notify: 'Hẹn giờ ngủ đã dừng TTS.' });
+    }
+
+    function libReaderTtsShouldContinueChapters(settings) {
+        return !!(settings?.autoNext && settings?.autoStartOnNextChapter);
+    }
+
+    function libReaderTtsBuildCoreSettings(settings) {
+        return normalizeTtsSettings({
+            ...settings,
+            sleepTimerEnabled: false
+        });
+    }
+
+    async function libReaderTtsPrepareChapter(index, startOffset = 0) {
+        const state = libReaderTtsState;
+        if (!state?.active || !libReaderState?.chapters?.[index]) return false;
+        if (libReaderState.currentIndex !== index) {
+            await libReaderGoTo(index, { scrollTo: 'top', fromTts: true });
+        }
+        if (libReaderState.currentIndex !== index) return false;
+        if (!state.active) return false;
+
+        libReaderTtsClearHighlights();
+        const chapter = libReaderState.chapters[index];
+        const textRoot = libReaderTtsFindTextRootForChapter(index);
+        if (!textRoot) return false;
+        const bodyText = libReaderTtsGetTextRootText(textRoot);
+        const maxChars = libReaderTtsEffectiveMaxChars(state.settings);
+        const segments = [];
+        const shouldReadTitle = !!state.settings.includeTitle && Number(startOffset || 0) <= 0;
+        const title = (libReaderUI?.chapterTitle?.textContent || chapter.title || `Chương ${index + 1}`).trim();
+        if (shouldReadTitle && title) {
+            segments.push({ text: title, start: 0, end: 0, type: 'title', id: '' });
+        }
+        const bodySegments = libReaderTtsSplitTextWithOffsets(bodyText, startOffset, maxChars)
+            .map((segment, segmentIndex) => ({
+                ...segment,
+                id: `tts-${state.runId}-${index}-${segmentIndex}`
+            }));
+        segments.push(...bodySegments);
+        libReaderTtsApplyHighlights(textRoot, bodySegments);
+
+        state.chapterIndex = index;
+        state.chapterTitle = title || `Chương ${index + 1}`;
+        state.textRoot = textRoot;
+        state.segments = segments;
+        state.segmentIndex = 0;
+        state.totalChapters = libReaderState.chapters.length;
+        libReaderTtsSetStatus(`Đang chuẩn bị ${state.chapterTitle}...`);
+        return segments.length > 0;
+    }
+
+    function libReaderTtsPlayCurrentSegment() {
+        const state = libReaderTtsState;
+        if (!state?.active) return;
+        if (!state.segments || state.segmentIndex >= state.segments.length) {
+            libReaderTtsFinishChapter();
+            return;
+        }
+        const segment = state.segments[state.segmentIndex];
+        if (!segment?.text) {
+            state.segmentIndex += 1;
+            libReaderTtsPlayCurrentSegment();
+            return;
+        }
+
+        if (state.pollTimer) clearInterval(state.pollTimer);
+        state.pollTimer = 0;
+        state.paused = false;
+        state.segmentStartedAt = Date.now();
+        libReaderTtsSetActiveHighlight(segment);
+        libReaderTtsSetStatus(`Đang tải audio · Đoạn ${state.segmentIndex + 1}/${state.segments.length}`);
+
+        const result = state.core.speakText(segment.text, {
+            provider: state.settings.provider || 'browser',
+            settings: libReaderTtsBuildCoreSettings(state.settings),
+            maxChars: state.maxChars,
+            lang: /[\u4e00-\u9fff]/.test(segment.text) ? 'zh-CN' : 'vi-VN',
+            title: state.chapterTitle || 'TM Translate',
+            artist: state.bookTitle || 'TM Translate'
+        });
+        if (!result || result.ok === false) {
+            const reason = result?.reason || 'tts failed';
+            libReaderTtsStop({ notify: `Không phát TTS được: ${reason}` });
+            return;
+        }
+
+        state.pollTimer = setInterval(libReaderTtsPoll, 350);
+        libReaderTtsUpdatePlayer();
+    }
+
+    function libReaderTtsPoll() {
+        const state = libReaderTtsState;
+        if (!state?.active) return;
+        if (state.sleepEndsAt && Date.now() >= state.sleepEndsAt) {
+            libReaderTtsStopBySleepTimer();
+            return;
+        }
+        let coreState = null;
+        try {
+            coreState = state.core.getState();
+        } catch (err) {
+            libReaderTtsStop({ notify: 'TTS runtime bị dừng.' });
+            return;
+        }
+        const lastError = String(coreState?.lastError || '').trim();
+        if (lastError) {
+            libReaderTtsStop({ notify: `TTS lỗi: ${lastError}` });
+            return;
+        }
+        state.paused = !!coreState?.paused;
+        const elapsed = Date.now() - (state.segmentStartedAt || Date.now());
+        if (!coreState?.playing && elapsed > 650 && !state.paused) {
+            clearInterval(state.pollTimer);
+            state.pollTimer = 0;
+            state.segmentIndex += 1;
+            libReaderTtsPlayCurrentSegment();
+            return;
+        }
+        if (coreState?.playing && !coreState?.paused) {
+            libReaderTtsSetStatus(`Đang phát · Đoạn ${state.segmentIndex + 1}/${state.segments.length}`);
+        } else if (coreState?.paused) {
+            libReaderTtsSetStatus(`Tạm dừng · Đoạn ${state.segmentIndex + 1}/${state.segments.length}`);
+        } else {
+            libReaderTtsSetStatus(`Đang tải audio · Đoạn ${state.segmentIndex + 1}/${state.segments.length}`);
+        }
+        libReaderTtsUpdatePlayer();
+    }
+
+    async function libReaderTtsFinishChapter() {
+        const state = libReaderTtsState;
+        if (!state?.active) return;
+        const nextIndex = state.chapterIndex + 1;
+        const canContinue = libReaderTtsShouldContinueChapters(state.settings)
+            && nextIndex < (libReaderState?.chapters?.length || 0);
+        if (!canContinue) {
+            libReaderTtsStop({ notify: nextIndex < (libReaderState?.chapters?.length || 0) ? 'Đã phát hết chương.' : 'Đã phát hết truyện.' });
+            return;
+        }
+        libReaderTtsSetStatus(`Đang chuyển sang chương ${nextIndex + 1}...`);
+        try {
+            const ok = await libReaderTtsPrepareChapter(nextIndex, 0);
+            if (!ok) {
+                libReaderTtsStop({ notify: 'Không có nội dung TTS ở chương tiếp.' });
+                return;
+            }
+            libReaderTtsPlayCurrentSegment();
+        } catch (err) {
+            console.error(err);
+            libReaderTtsStop({ notify: 'Không chuyển chương TTS được.' });
+        }
+    }
+
+    function libReaderTtsTogglePause() {
+        const state = libReaderTtsState;
+        if (!state?.active) return;
+        try {
+            if (state.paused) {
+                state.core.resume();
+                state.paused = false;
+                libReaderTtsSetStatus(`Đang phát · Đoạn ${state.segmentIndex + 1}/${state.segments.length}`);
+            } else {
+                state.core.pause();
+                state.paused = true;
+                libReaderTtsSetStatus(`Tạm dừng · Đoạn ${state.segmentIndex + 1}/${state.segments.length}`);
+            }
+        } catch (err) {
+            libReaderTtsStop({ notify: 'Không điều khiển TTS được.' });
+        }
+        libReaderTtsUpdatePlayer();
+    }
+
+    function libReaderTtsSkipSegment() {
+        const state = libReaderTtsState;
+        if (!state?.active) return;
+        if (state.pollTimer) clearInterval(state.pollTimer);
+        state.pollTimer = 0;
+        try { state.core.stop(); } catch (err) { /* ignore */ }
+        state.segmentIndex += 1;
+        libReaderTtsPlayCurrentSegment();
+    }
+
+    async function libReaderTtsStartFromSelection(range = getActiveSelectionRangeForAction()) {
+        const context = getSelectionReaderContext(range);
+        if (!context?.chapter) return false;
+        const core = getTtsCore();
+        if (!core || typeof core.speakText !== 'function' || typeof core.getState !== 'function') {
+            showNotification('TTS core chưa sẵn sàng.');
+            return true;
+        }
+
+        const container = getSelectionContainer(range);
+        const textRoot = container?.closest?.('.tm-reader-block-text, .tm-reader-text');
+        let startOffset = 0;
+        if (textRoot) {
+            const offset = computeReaderTextRootOffset(textRoot, range.startContainer, range.startOffset);
+            if (offset != null) startOffset = offset;
+        }
+
+        libReaderTtsStop({ silent: true });
+        const settings = loadTtsSettings();
+        const sleepMinutes = Math.max(1, Number(settings.sleepTimerMinutes) || TTS_DEFAULT_SETTINGS.sleepTimerMinutes);
+        const runId = Date.now().toString(36);
+        libReaderTtsState = {
+            active: true,
+            paused: false,
+            runId,
+            core,
+            settings,
+            maxChars: libReaderTtsEffectiveMaxChars(settings),
+            bookTitle: libReaderUI?.bookTitle?.textContent || context.book?.title || 'TM Translate',
+            chapterIndex: context.chapterIndex,
+            totalChapters: libReaderState?.chapters?.length || 0,
+            segmentIndex: 0,
+            segments: [],
+            status: 'Đang chuẩn bị...',
+            sleepEndsAt: settings.sleepTimerEnabled ? Date.now() + (sleepMinutes * 60 * 1000) : 0,
+            pollTimer: 0,
+            sleepTimer: 0
+        };
+        if (libReaderTtsState.sleepEndsAt) {
+            libReaderTtsState.sleepTimer = setTimeout(libReaderTtsStopBySleepTimer, sleepMinutes * 60 * 1000);
+        }
+        libReaderTtsEnsurePlayer();
+        libReaderTtsUpdatePlayer();
+        showNotification('Đang chuẩn bị phát TTS từ đoạn chọn...', 1800);
+
+        try {
+            const ok = await libReaderTtsPrepareChapter(context.chapterIndex, startOffset);
+            if (!ok) {
+                libReaderTtsStop({ notify: 'Không có nội dung để phát TTS.' });
+                return true;
+            }
+            hideSelectionEditButton();
+            const selection = window.getSelection();
+            try { selection?.removeAllRanges?.(); } catch (err) { /* ignore */ }
+            libReaderTtsPlayCurrentSegment();
+        } catch (err) {
+            console.error(err);
+            libReaderTtsStop({ notify: 'Không khởi động TTS reader được.' });
+        }
+        return true;
+    }
+
     function libReaderRefreshFullscreenMode() {
         if (!libReaderUI?.root) return;
         if (libReaderFullscreenElement()) {
@@ -10950,6 +11498,7 @@ body.tmx-fullscreen .tmx-scroll {
     }
 
     function libReaderClose() {
+        libReaderTtsStop({ silent: true });
         libReaderSaveProgressNow();
         const el = document.getElementById('tm-reader-overlay');
         if (el) el.remove();
@@ -10961,6 +11510,7 @@ body.tmx-fullscreen .tmx-scroll {
     function libReaderSetMode(mode) {
         if (!libReaderState) return;
         if (libReaderState.book.langSource === 'vi') return;
+        libReaderTtsStop({ silent: true });
         libReaderState.mode = mode === 'raw' ? 'raw' : 'trans';
         libReaderUpdateModeButtons();
         libReaderLoadCurrentChapter();
@@ -11020,6 +11570,7 @@ body.tmx-fullscreen .tmx-scroll {
         if (!libReaderState || libReaderState.isSwitching) return;
         const nextIndex = libReaderState.currentIndex + offset;
         if (nextIndex < 0 || nextIndex >= libReaderState.chapters.length) return;
+        if (!options.fromTts) libReaderTtsStop({ silent: true });
         libReaderClearBoundaryGate();
         libReaderState.currentIndex = nextIndex;
         libReaderState.isSwitching = true;
@@ -11030,6 +11581,7 @@ body.tmx-fullscreen .tmx-scroll {
     async function libReaderGoTo(index, options = {}) {
         if (!libReaderState || libReaderState.isSwitching) return;
         if (index < 0 || index >= libReaderState.chapters.length) return;
+        if (!options.fromTts) libReaderTtsStop({ silent: true });
         libReaderClearBoundaryGate();
         libReaderState.currentIndex = index;
         libReaderState.isSwitching = true;
@@ -11605,6 +12157,8 @@ body.tmx-fullscreen .tmx-scroll {
 - Import **TXT/EPUB**, chọn ngôn ngữ nguồn (Trung → có RAW/DỊCH, Việt → chỉ đọc).
 - Reader có: RAW/DỊCH, Fullscreen, Mục lục, cache dịch + prefetch chương, nút mở nhanh Cài đặt/TTS.
 - Bôi đen text trong Reader sẽ hiện thanh **Phát / Sửa tên hoặc Thay thế từ / Xóa rác / Sao chép**. Trên mobile, menu copy/share mặc định của máy được ẩn trong Reader.
+- **Phát** mở mini-player TTS và đọc từ vị trí bôi đen tới hết chương; nếu bật **Tự qua đoạn/chương** + **Tự đọc chương kế** thì tự sang chương sau.
+- Mini-player có đĩa quay, Tạm dừng/Phát, Tiếp, Dừng, countdown hẹn giờ ngủ, highlight đoạn đang đọc và tự cuộn khi bật.
 - Truyện Trung RAW+DỊCH: **Sửa tên** dùng được cả khi chọn text ở RAW hoặc DỊCH. Truyện chỉ RAW: nút đổi thành **Thay thế từ**.
 - **Xóa rác** luôn mở popup để sửa đoạn raw trước khi xác nhận; có tùy chọn không phân biệt hoa thường khi cần.
 - Kiểu đọc cuộn dọc: chạm đầu/cuối chương rồi cuộn thêm một nhịp mới chuyển chương.
@@ -11622,6 +12176,7 @@ body.tmx-fullscreen .tmx-scroll {
 - **Tab Thư viện**: Hiển thị nút, prefetch, kiểu đọc, giao diện reader.
 - **Tab TTS**: Chọn nguồn Browser/TikTok/Google/Gemini/Bing/Zalo, giọng đọc, tốc độ/cao độ/âm lượng, độ dài đoạn, delay, hẹn giờ ngủ, prefetch remote, retry/timeout và thay thế từ trước khi đọc.
 - Hẹn giờ ngủ chỉ chạy khi bật checkbox; cookie TikTok/API key Zalo được lưu ngay khi bấm **Lưu** trong popup.
+- **Tự cuộn** sẽ highlight/cuộn theo đoạn đang đọc; **Tự qua đoạn/chương** + **Tự đọc chương kế** cho phép phát tiếp sang chương sau.
 - TikTok có popup nhập Cookie; Zalo có popup nhập một hoặc nhiều API key. Gemini cần đăng nhập gemini.google.com; Bing có thể cần mở bing.com/translator một lần nếu token hết hạn.
 - Hướng dẫn TTS chi tiết: [HUONG_DAN_SU_DUNG_TTS_READER.md](https://github.com/BaoBao666888/Novel-Downloader5/blob/main/tools/HUONG_DAN_SU_DUNG_TTS_READER.md).
 - **Tab Từ điển Local**: Tìm/sửa/xóa mục, khôi phục gốc.
@@ -11640,6 +12195,7 @@ body.tmx-fullscreen .tmx-scroll {
 - Thêm shared TTS core đã mã hóa; nút **Phát** dùng core mới, tab **TTS** đầy đủ trong Cài đặt và nút mở nhanh TTS trong Reader.
 - Tab TTS hỗ trợ nguồn Browser/TikTok/Google/Gemini/Bing/Zalo, popup cookie TikTok/API key Zalo, thay thế từ khi đọc, prefetch audio remote, retry/timeout/request gap và hẹn giờ ngủ.
 - Fix TikTok TTS trong TM không cần bấm lưu tổng sau khi nhập cookie; test/phát báo lỗi remote cụ thể và hẹn giờ ngủ chỉ chạy khi bật.
+- Nút **Phát** trong Reader mở mini-player phát từ vị trí chọn tới hết chương/truyện, có highlight/cuộn theo đoạn, Tạm dừng/Phát, Tiếp, Dừng và countdown hẹn giờ ngủ.
 - Badge **đề xuất** trên nút xuất tự chuyển giữa **HTML** và **EPUB** theo quy mô truyện; HTML sẽ cảnh báo khi data lớn vì dễ lag khi xem.
 
 ### 📦 Các bản trước (tóm tắt)

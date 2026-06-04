@@ -94,7 +94,8 @@ Thanh điều khiển trong reader:
 
 **Thanh thao tác khi bôi đen text**
 - Trên mobile, reader ẩn menu chọn text mặc định của máy như Copy/Share/Select all, chỉ hiện thanh thao tác của TM Translate.
-- **Phát:** đọc đoạn đang chọn bằng TTS core.
+- **Phát:** mở mini-player TTS và đọc từ vị trí bôi đen tới hết chương. Nếu bật **Tự qua đoạn/chương** + **Tự đọc chương kế**, TTS sẽ tự sang chương tiếp.
+- Mini-player TTS có đĩa quay, nút **Tạm dừng/Phát**, **Tiếp**, **Dừng**, countdown hẹn giờ ngủ và highlight đoạn đang đọc. Nếu bật tự cuộn, reader sẽ cuộn theo đoạn đang phát.
 - **Sửa tên:** chỉ dùng với truyện Trung có RAW+DỊCH, chọn ở RAW hay DỊCH đều được.
 - **Thay thế từ:** dùng cho truyện chỉ RAW, thay đoạn chọn bằng từ user nhập.
 - **Xóa rác:** sửa/xóa đoạn raw trước khi dịch; luôn có popup xác nhận và tùy chọn không phân biệt hoa thường.
@@ -158,6 +159,7 @@ Bạn mở Cài đặt bằng Tampermonkey menu → **Cài đặt** (hoặc bấ
 - TikTok có popup nhập cookie; Zalo có popup nhập một hoặc nhiều API key. Cookie/API key được lưu ngay khi bấm **Lưu** trong popup.
 - Gemini cần đăng nhập `gemini.google.com`; Bing có thể cần mở `bing.com/translator` một lần nếu lỗi token.
 - Chỉnh **tốc độ**, **cao độ**, **âm lượng**, **ký tự tối đa mỗi đoạn**, **delay giữa đoạn** và **hẹn giờ ngủ**. Hẹn giờ ngủ chỉ chạy khi bật checkbox.
+- **Tự cuộn** sẽ highlight/cuộn theo đoạn đang đọc trong reader; **Tự qua đoạn/chương** + **Tự đọc chương kế** cho phép phát tiếp sang chương sau.
 - Remote TTS có **prefetch audio**, **timeout**, **retry** và **giãn request**.
 - Có **thay thế từ khi đọc**: mỗi dòng dùng `từ gốc => từ đọc`.
 - Có nút **Thử giọng**, **Dừng phát**, **Xóa cache audio**, **Mặc định**.
