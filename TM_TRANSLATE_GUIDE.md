@@ -96,6 +96,8 @@ Thanh điều khiển trong reader:
 - Trên mobile, reader ẩn menu chọn text mặc định của máy như Copy/Share/Select all, chỉ hiện thanh thao tác của TM Translate.
 - **Phát:** mở mini-player TTS và đọc từ vị trí bôi đen tới hết chương. Nếu bật **Tự qua đoạn/chương** + **Tự đọc chương kế**, TTS sẽ tự sang chương tiếp.
 - Mini-player TTS có đĩa quay, nút **Tạm dừng/Phát**, **Tiếp**, **Dừng**, countdown hẹn giờ ngủ và highlight đoạn đang đọc. Nếu bật tự cuộn, reader sẽ cuộn theo đoạn đang phát.
+- Khi tới cuối chương mà chưa bật đủ **Tự qua đoạn/chương** + **Tự đọc chương kế**, TTS sẽ phát thông báo nhắc bật hai tùy chọn này rồi dừng; khi hết truyện sẽ phát thông báo đã tới cuối truyện.
+- TTS ưu tiên ngắt text ở dấu câu/xuống dòng gần nhất, prefetch trước các đoạn kế tiếp, và phát audio giữ media âm lượng rất thấp khi phải chờ remote audio.
 - **Sửa tên:** chỉ dùng với truyện Trung có RAW+DỊCH, chọn ở RAW hay DỊCH đều được.
 - **Thay thế từ:** dùng cho truyện chỉ RAW, thay đoạn chọn bằng từ user nhập.
 - **Xóa rác:** sửa/xóa đoạn raw trước khi dịch; luôn có popup xác nhận và tùy chọn không phân biệt hoa thường.
@@ -158,9 +160,10 @@ Bạn mở Cài đặt bằng Tampermonkey menu → **Cài đặt** (hoặc bấ
 - Chọn nguồn **Browser / TikTok / Google / Gemini / Bing / Zalo** và giọng đọc tương ứng.
 - TikTok có popup nhập cookie; Zalo có popup nhập một hoặc nhiều API key. Cookie/API key được lưu ngay khi bấm **Lưu** trong popup.
 - Gemini cần đăng nhập `gemini.google.com`; Bing có thể cần mở `bing.com/translator` một lần nếu lỗi token.
-- Chỉnh **tốc độ**, **cao độ**, **âm lượng**, **ký tự tối đa mỗi đoạn**, **delay giữa đoạn** và **hẹn giờ ngủ**. Hẹn giờ ngủ chỉ chạy khi bật checkbox.
+- Chỉnh **tốc độ**, **cao độ**, **âm lượng**, **ký tự tối đa mỗi đoạn**, **delay giữa đoạn** và **hẹn giờ ngủ**. Hẹn giờ ngủ chỉ chạy khi bật checkbox và sẽ giảm âm lượng dần vài giây trước khi dừng.
 - **Tự cuộn** sẽ highlight/cuộn theo đoạn đang đọc trong reader; **Tự qua đoạn/chương** + **Tự đọc chương kế** cho phép phát tiếp sang chương sau.
-- Remote TTS có **prefetch audio**, **timeout**, **retry** và **giãn request**.
+- Remote TTS có **prefetch audio**, **timeout**, **retry** và **giãn request**. Prefetch dùng ngưỡng an toàn riêng để tránh gọi quá dồn: timeout tối đa 16s, retry tối đa 1, request gap tối thiểu 320ms.
+- Khi remote audio chưa sẵn sàng, script phát audio giữ media ở âm lượng rất thấp rồi tắt ngay khi audio thật bắt đầu.
 - Có **thay thế từ khi đọc**: mỗi dòng dùng `từ gốc => từ đọc`.
 - Có nút **Thử giọng**, **Dừng phát**, **Xóa cache audio**, **Mặc định**.
 
