@@ -2,7 +2,7 @@
 // @name         TM Translate
 // @author       QuocBao
 // @namespace    http://tampermonkey.net/
-// @version      3.5.5.6_beta
+// @version      3.5.5.7_beta
 // @description  Dịch trang, quản lý name-sets, sửa tên, Thư viện đọc offline, OCR và TTS.
 // @icon         data:image/png;base64,AAABAAEAQEAAAAEAIAAoQgAAFgAAACgAAABAAAAAgAAAAAEAIAAAAAAAAEAAAAAAAAAAAAAAAAAAAAAAAAA+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/0CLNf9BjDb/QYw2/0GMNv9BjDb/QYw2/0GMNv9BjDb/QYw2/0GMNv9BjDb/QYw2/0GMNv9BjDb/QIs1/z+LNP8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z+KNP81hCn/L4Ek/zCCJf8wgiX/MIIl/zCCJf8wgiX/MIIl/zCCJf8wgiX/MIIk/zCCJP8xgiX/MoMm/zWFKv86hy7/Pooz/0GMNv9BjDb/P4s0/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/0CLNf83hiz/gbJ6/7HQrf+py6T/qsum/6rLpv+qy6b/qsum/6rLpv+qy6b/qsum/6jKo/+fxZr/kLuJ/36xd/9oo1//UJVH/zyJMf8xgiX/MoIm/zqIL/9BjDb/QIs1/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/9AizX/M4Mo/8DZvP///////P38//////////////////////////////////////////////////////////////////X59f/b6dr/tNGw/4CyeP9Ok0T/M4Mn/zSEKP8/izT/QYw2/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/QIs1/zOEKP+71rj///////n8+f/8/fz//P38//z9/P/8/fz//P38//z9/P/8/fz//P38//z9/P/8/fz//f79//7//v//////////////////////8/jz/7zWuf9wqGj/OIYt/zOEKP9AizX/P4s0/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/0CLNv8zgyj/vde6///////8/fz//////////////////v79//3+/f/9/v3//f79//7+/v/+/v7//v/+/////////////v/+//3+/f/8/fz//f79/////////////////9Pk0f9yqWr/M4Mo/zmHLv9BjDb/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/9Aizb/M4Mo/73Xuv///////P38///////////////////////////////////////////////////////9/v3//P38//z9/P/9/v3////////////+//7//P38//3+/f///////////8DYvP9Nk0P/MoMn/0GMNv8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/QIs2/zODKP+917r///////z9/P/////////////////h7N//1+fV/9vp2f/e69z/5/Dl//P48v/9/v3///////////////////////7//v/8/fz//v7+/////////////f79//3+/P//////7/Xu/3Wrbv8wgiT/QIs1/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/0CLNv8zgyj/vde6///////8/fz/////////////////Yp9Z/zODJ/89iTP/PYoy/0ONOP9Mk0L/WptR/3Gpaf+Qu4n/ttKy/+Ds3v/9/v3////////////9/vz//v7+/////////////P38//7+/v//////lL6O/zGCJv9AizX/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/9Aizb/M4Mo/73Xuv///////P38/////////////////2ShXP82hSv/QIs1/z6KM/88iTH/Oogv/zeGLP80hCj/MYIl/zKDJv8+ijP/Yp9Z/6THn//s8+v///////7+/f/9/v3////////////+/v3//P38//////+awpX/MYIl/0GMNv8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/QIs2/zODKP+917r///////z9/P////////////////9koVz/NoUr/0CLNf8+ijP/P4o0/z+LNP8/izX/QIs1/0GMNv9BjDb/Pooz/zaFK/8wgST/Ro88/5nBk//1+fT///////z9/P////////////7//v/8/fz//////4a2gP8xgiX/QYw2/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/0CLNv8zgyj/vde6///////8/fz/////////////////ZKFb/zaFKv9AizX/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/9AizX/QYw3/zyJMf8vgSP/VZhL/9Hjzv///////P38/////////////v7+///////6/Pr/YJ9Y/zaFKv9AizX/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/9Aizb/M4Mo/73Xuv///////P38/////////////////2ShW/82hSr/QIs1/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8/ijT/Qow3/zeGLP85hy7/udW2///////8/fz////////////9/v3//////9Pk0P87iDD/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/QIs2/zODKP+917r///////z9/P////////////////9koVv/NoUq/0CLNf8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/9BjDb/PYky/zWEKf+/2Lv///////39/P////////////z9/P//////hrV//zGCJf9BjDb/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/0CLNv8zgyj/vde6///////8/fz/////////////////ZKFb/zaFKv9AizX/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/0CLNf87iTD/QIs1/93q2////////f79///////+/v3//////93q2/8/ijT/PYoy/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/9Aizb/M4Mo/73Xuv///////P38/////////////////2ShW/82hSr/QIs1/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/QYw2/zOEKP9ppGH///////7//v////////////3+/f//////dqxv/zODJ/9AjDb/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/QIs2/zODKP+917r///////z9/P////////////////9koVv/NoUq/0CLNf8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/9BjDb/MYIm/7jUtP///////f38///////8/fz//////7nUtf8ygyf/QYw2/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/0CLNv8zgyj/vde6///////8/fz/////////////////ZKFb/zaFKv9AizX/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/QIs1/zaFKv9koVz//////////////////v7+///////p8uj/RY47/zyJMf8/ijT/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/9Aizb/M4Mo/73Xuv///////P38/////////////////2ShW/82hSr/QIs1/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8/ijT/O4gw/9ro1////////f79///////+//7//////2aiXv81hSr/QIs1/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/QIs2/zODKP+917r///////z9/P////////////////9koVv/NoUq/0CLNf8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/QYw2/zCCJP+oyqP///////z9/P///////P38//////+JuIP/MYIl/0GMNv8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/0CLNv8zgyj/vde6///////8/fz/////////////////ZKFb/zaFKv9AizX/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/0GMNv8ygyb/gbJ6///////9/vz///////z9/P//////qMqj/zGCJf9BjDb/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/9Aizb/M4Mo/73Xuv///////P38/////////////////2ShW/82hSr/QIs1/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/9AizX/NYUq/2ejX////////v/+///////8/fz//////7zWuf8zgyf/QIw2/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/QIs2/zODKP+917r///////z9/P////////////////9koVv/NoUq/0CLNf8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/P4s1/ziGLP9am1D/+/37///////+//7//f79///////K38f/NoUq/0CLNf8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/0CLNv8zgyj/vde6///////8/fz/////////////////ZKFb/zaFKv9AizX/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z+LNP85hy7/U5dJ//j7+P///////v/+//3+/f//////0+TR/zmHLf8/izT/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/9Aizb/M4Mo/73Xuv///////P38/////////////////2ShW/82hSr/QIs1/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8/izT/OYcu/1OWSf/3+vf///////7//v/9/v3//////9bm1P86hy7/P4o0/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/QIs2/zODKP+917r///////z9/P////////////////9koVv/NoUq/0CLNf8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/P4s0/ziGLf9XmU7/+vz6///////+//7//f79///////R487/OIYs/z+LNP8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/0CLNv8zgyj/vde6///////8/fz/////////////////ZKFb/zaFKv9AizX/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/0CLNf82hSv/YqBa//////////////////3+/f//////xtzD/zWEKf9AizX/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/9Aizb/M4Mo/73Xuv///////P38/////////////////2ShW/82hSr/QIs1/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/9BjDb/M4Mn/3itcf///////f79///////8/fz//////7bSsv8ygyb/QYw2/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/QIs2/zODKP+917r///////z9/P////////////////9koVv/NoUq/0CLNf8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/QYw2/zCCJP+bwpX///////z9/P///////P38//////+dw5f/MIIk/0GMNv8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/0CLNv8zgyj/vde6///////8/fz/////////////////ZKFb/zaFKv9AizX/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/0CLNf81hSr/yd7F///////9/v3///////3+/f//////fK90/zKDJ/9BjDb/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/9Aizb/M4Mo/73Xuv///////P38/////////////////2ShW/82hSr/QIs1/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z+LNP85hy7/UZZI//b69v///////v/+//7//v//////+vz6/1eZTf84hi3/P4s0/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/QIs2/zODKP+917r///////z9/P////////////////9koVv/NoUq/0CLNf8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/9CjDf/MIIk/5W/j////////P38///////9/v3//////9Xl0/86hy//P4o0/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/0CLNv8zgyj/vde6///////8/fz/////////////////ZKFb/zaFKv9AizX/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8/izT/O4gw/0ePPP/r8ur///////7+/v///////P38//////+XwJH/MIIl/0GMNv8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/9Aizb/M4Mo/73Xuv///////P38/////////////////2ShW/82hSr/QIs1/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Qow3/y+BI/+tzaj///////39/P///////v/+///////2+fX/VZdL/zmHLf8/izT/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/QIs2/zODKP+917r///////z9/P////////////////9koVv/NoUq/0CLNf8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8/ijT/Qo04/y2AIf+Cs3v///////3+/f////////////z9/P//////sM+r/zKCJv9BjDb/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/0CLNv8zgyj/vde6///////8/fz/////////////////ZKFb/zaFKv9AizX/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/9BjDb/Pooz/y2AIf99sHb//P38///////+//7///////7+/v//////8/fy/1KWSf85hy7/P4s0/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/9Aizb/M4Mo/73Xuv///////P38/////////////////2ShW/82hSr/QIs1/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/P4o0/0GMNv9AizX/M4Mn/zuIMP+gxZr//v/+//7+/v/+//7////////////8/fv//////4y5hf8xgiX/QYw2/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/QIs2/zODKP+917r///////z9/P////////////////9koVv/NoUq/0CLNf8+ijP/Pooz/z6KM/8+ijP/P4o0/0CLNf9BjDb/QYw2/zyJMf8ygyb/N4Yr/3Oqa//b6dn///////3+/P/+//7////////////7/fv//////7nUtf80hCn/QIs1/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/0CLNv8zgyj/vde6///////8/fz/////////////////Z6Je/zmHLv9DjTj/QYw2/0GMNv9AizX/Pooz/zuIMP82hSv/MYIl/zKDJ/9Gjzz/frF3/9Hjzv////////////3+/f/+//7////////////7/fv//////8zgyf89iTL/PIkx/z+LNP8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/9Aizb/M4Mo/73Xuv///////P38/////////////////1maUP8nfBv/MoMn/zGCJf8ygyb/NYQp/zuIMP9JkT//YZ9Z/4e2gf+51LX/7PPr/////////////f79//3+/f////////////7+/f/8/fz//////8fdxP8/ijT/O4gv/0CLNf8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/QIs2/zODKP+917r///////z9/P////////////////+71bf/psmh/6vMpv+uzqn/t9Oz/8jdxf/a6dj/8PXv//7//v/////////////////9/v3//f79/////////////v/+//z9/P/+//7//////6rLpf84hi3/O4gw/0CLNf8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/0CLNv8zgyj/vde6///////8/fz///////////////////////////////////////////////////////////////7//P38//z9/P/+/v7////////////+/v7//P38//7+/v//////6/Pq/3mucv8xgiX/Pooz/0CLNf8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/9Aizb/M4Mo/73Xuv///////P38//////////////////3+/P/8/fz//P38//z9/P/8/fz//f79//3+/f/+/v7//////////////////v7+//z9/P/9/v3////////////4+/f/qMqj/0ePPf8ygyb/QYw2/z+KNP8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/QIs2/zODKP+81rj///////v8+v/9/v3//f79//3+/f/9/v3//f79//3+/f/9/v3//f79//3+/f/9/vz//P38//z9/P/9/v3////////////+//7//////+vz6v+myaH/VZhL/zCCJP87iDD/QYw2/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/0CLNf8zgyj/wNi8///////8/fz///////////////////////////////////////////////////////////////////////3+/f/l7+P/t9Oz/3uvdP9Gjzv/MIIl/ziHLf9BjDb/P4s0/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/9AizX/NYQp/6HGnP/l7+T/2ejX/9vp2f/b6dn/2+nZ/9vp2f/b6dn/2+nZ/9vp2f/a6Nj/1OXS/8jdxf+10rH/ncSY/36xd/9enVX/Qow3/zKCJv8ygyb/PIkx/0GMNv8/izT/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/87iDD/PIgx/zyIMf88iDH/PIgx/zyIMf88iDH/PIgx/zyIMf88iTH/O4gw/ziGLf81hCn/MYIm/zCCJP8ygyb/N4Yr/z2JMv9BjDb/QYw2/z+KNP8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/P4o0/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8/izT/QIs1/0GMNv9BjDb/QYw2/0CLNf8+ijT/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=
 // @downloadURL  https://raw.githubusercontent.com/BaoBao666888/Novel-Downloader5/main/TM%20Translate.user.js
@@ -132,6 +132,7 @@
         showLibraryButton: true,
         showHelpButton: true,
         readerPrefetchPercent: 50,
+        libraryBackupIntervalHours: 6,
         readerMode: 'vertical', // single | vertical
         readerFullscreen: false,
         readerStyle: {
@@ -175,6 +176,12 @@
         }
         merged.simplifiedStyle = { ...DEFAULT_CONFIG.simplifiedStyle, ...(c.simplifiedStyle || {}) };
         merged.readerStyle = { ...DEFAULT_CONFIG.readerStyle, ...(c.readerStyle || {}) };
+        {
+            const backupHours = Number(merged.libraryBackupIntervalHours);
+            merged.libraryBackupIntervalHours = Number.isFinite(backupHours)
+                ? Math.min(168, Math.max(0.25, backupHours))
+                : DEFAULT_CONFIG.libraryBackupIntervalHours;
+        }
         merged.serverEndpoints = { ...SERVER_PROVIDER_DEFAULTS, ...(c.serverEndpoints || {}) };
         if (c.serverUrl && !merged.serverEndpoints.dichngay) {
             merged.serverEndpoints.dichngay = c.serverUrl;
@@ -457,7 +464,7 @@
     let translatedBodyClone = null;
 
     /* ================== VERSION ================== */
-    const CURRENT_VERSION = '3.5.5.6_beta';
+    const CURRENT_VERSION = '3.5.5.7_beta';
     const TM_VERSION_KEY = 'tm_translate_version';
     const TTS_STORAGE_KEY = 'twd_tts_reader_settings_v1';
     const TTS_DEFAULT_SETTINGS = {
@@ -851,6 +858,113 @@
             position: absolute; top: -8px; right: -7px; padding: 1px 5px; border-radius: 999px;
             background: linear-gradient(90deg, #f97316, #ec4899); color: #fff; font-size: 9px; line-height: 1.25;
             box-shadow: 0 3px 8px rgba(236,72,153,0.28); pointer-events: none;
+        }
+        #tm-lib-list-modal { align-items: stretch; justify-content: stretch; }
+        #tm-lib-list-modal .tm-modal-backdrop { background: rgba(15,23,42,0.72); }
+        .tm-library-shell {
+            position: relative; z-index: 1; width: 100vw; height: 100vh; height: 100dvh;
+            display: flex; flex-direction: column;
+            background: #f6f7f9; color: #172033; overflow: hidden; font-family: var(--tm-font);
+        }
+        .tm-library-titleblock { min-width: 0; display: grid; gap: 2px; }
+        .tm-library-titleblock h2 { margin: 0; font-size: 23px; line-height: 1.1; letter-spacing: 0; color: #111827; }
+        .tm-library-muted { color: #64748b; font-size: 12px; line-height: 1.35; }
+        .tm-library-close { flex: 0 0 auto; min-width: 38px; min-height: 34px; padding: 6px 10px; font-weight: 800; font-size: 18px; line-height: 1; }
+        .tm-library-searchbox { position: relative; display: grid; gap: 6px; min-width: 0; }
+        .tm-library-searchrow { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px; }
+        .tm-library-searchrow .tm-input { margin: 0; min-height: 38px; }
+        .tm-library-filter-pop {
+            position: absolute; top: calc(100% + 6px); right: 0; z-index: 8; width: min(260px, 84vw);
+            padding: 10px; border: 1px solid #d8dde6; border-radius: 10px; background: #fff;
+            box-shadow: 0 14px 34px rgba(15,23,42,0.16); display: none;
+        }
+        .tm-library-filter-pop.open { display: grid; gap: 8px; }
+        .tm-library-check { display: flex; align-items: center; gap: 8px; color: #334155; font-size: 13px; }
+        .tm-library-toolbar { display: flex; align-items: center; justify-content: flex-end; gap: 10px; flex-wrap: wrap; }
+        .tm-library-backup-status {
+            max-width: min(34vw, 300px); padding: 5px 9px; border: 1px solid #d8dde6; border-radius: 999px;
+            background: #fff; color: #475569; font-size: 12px; line-height: 1.25; white-space: nowrap;
+            overflow: hidden; text-overflow: ellipsis;
+        }
+        .tm-library-menu-wrap { position: relative; flex: 0 0 auto; }
+        .tm-library-menu-btn { min-width: 38px; min-height: 34px; padding: 6px 10px; font-size: 18px; line-height: 1; font-weight: 800; }
+        .tm-library-menu {
+            position: absolute; right: 0; top: calc(100% + 8px); z-index: 10; width: min(280px, 86vw);
+            display: none; grid-template-columns: 1fr; gap: 7px; padding: 10px; border: 1px solid #d8dde6;
+            border-radius: 10px; background: #fff; box-shadow: 0 16px 38px rgba(15,23,42,0.18);
+        }
+        .tm-library-menu.open { display: grid; }
+        .tm-library-menu .tm-btn { width: 100%; min-height: 36px; text-align: left; }
+        .tm-library-menu-row { display: grid; grid-template-columns: 1fr 1fr; gap: 7px; }
+        .tm-library-menu-row .tm-btn { text-align: center; }
+        .tm-library-main { flex: 1 1 auto; min-width: 0; min-height: 0; display: flex; flex-direction: column; overflow: hidden; }
+        .tm-library-topbar {
+            flex: 0 0 auto; display: grid; grid-template-columns: minmax(180px, 0.7fr) minmax(280px, 1.2fr) auto;
+            align-items: center; gap: 12px; padding: 14px 22px; border-bottom: 1px solid #d8dde6;
+            background: rgba(246,247,249,0.92);
+        }
+        .tm-library-result-meta { font-size: 12px; color: #64748b; }
+        .tm-library-load-hint { max-width: min(24vw, 280px); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .tm-library-scroll { flex: 1 1 auto; min-height: 0; overflow: auto; padding: 18px 22px 30px; }
+        .tm-library-grid {
+            display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 14px;
+            align-items: stretch;
+        }
+        .tm-library-card {
+            display: grid; grid-template-columns: 82px minmax(0, 1fr); gap: 12px; min-height: 146px;
+            padding: 10px; border: 1px solid #d8dde6; border-radius: 8px; background: #fff;
+            box-shadow: 0 8px 20px rgba(15,23,42,0.05);
+        }
+        .tm-library-cover-wrap { position: relative; width: 82px; min-width: 82px; }
+        .tm-library-cover {
+            width: 82px; height: 120px; object-fit: cover; border-radius: 6px; border: 1px solid #cbd5e1;
+            background: #e2e8f0; display: block;
+        }
+        .tm-library-cover-btn {
+            width: 100%; min-height: 24px; margin-top: 6px; padding: 3px 5px; font-size: 11px;
+        }
+        .tm-library-card-main { min-width: 0; display: flex; flex-direction: column; gap: 7px; }
+        .tm-library-title { font-weight: 800; font-size: 15px; line-height: 1.25; color: #111827; overflow-wrap: anywhere; }
+        .tm-library-author, .tm-library-meta, .tm-library-progress { font-size: 12px; line-height: 1.35; color: #64748b; }
+        .tm-library-progress { color: #334155; }
+        .tm-library-card-actions { display: flex; gap: 6px; flex-wrap: wrap; margin-top: auto; }
+        .tm-library-card-actions .tm-btn { min-height: 28px; padding: 5px 8px; font-size: 12px; }
+        .tm-library-empty {
+            padding: 36px 16px; border: 1px dashed #cbd5e1; border-radius: 10px; text-align: center;
+            color: #64748b; background: #fff;
+        }
+        .tm-library-loadmore { margin: 18px auto 0; display: block; min-width: 160px; }
+        .tm-library-loadmore[hidden], .tm-library-load-hint[hidden] { display: none !important; }
+        @media (max-width: 860px) {
+            .tm-library-titleblock h2 { font-size: 21px; }
+            .tm-library-close { min-width: 34px; min-height: 34px; padding: 5px 8px; }
+            .tm-library-searchbox { gap: 6px; }
+            .tm-library-searchrow { gap: 6px; }
+            .tm-library-searchrow .tm-input { min-height: 36px; padding: 6px 10px; font-size: 13px; }
+            .tm-library-searchrow .tm-btn { min-height: 36px; padding: 6px 10px; }
+            .tm-library-toolbar { justify-content: flex-end; gap: 6px; flex-wrap: nowrap; }
+            .tm-library-backup-status { max-width: 96px; padding: 4px 8px; font-size: 11px; }
+            .tm-library-menu-btn { min-width: 34px; min-height: 32px; padding: 5px 9px; }
+            .tm-library-menu { right: 0; }
+            .tm-library-topbar {
+                grid-template-columns: minmax(0, 1fr) auto; align-items: start; gap: 8px; padding: 9px 12px;
+            }
+            .tm-library-searchbox { grid-column: 1 / -1; grid-row: 2; }
+            .tm-library-filter-pop { left: 0; right: auto; width: min(320px, calc(100vw - 24px)); }
+            .tm-library-load-hint { max-width: 120px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+            .tm-library-scroll { padding: 12px; }
+            .tm-library-grid { grid-template-columns: 1fr; }
+            .tm-library-card { grid-template-columns: 70px minmax(0, 1fr); min-height: 126px; gap: 10px; padding: 8px; }
+            .tm-library-cover-wrap { width: 70px; min-width: 70px; }
+            .tm-library-cover { width: 70px; height: 102px; }
+            .tm-library-cover-btn { min-height: 22px; padding: 2px 4px; font-size: 10px; }
+            .tm-library-title { font-size: 14px; }
+            .tm-library-author, .tm-library-meta, .tm-library-progress { font-size: 11px; }
+            .tm-library-card-actions .tm-btn { min-height: 26px; padding: 4px 7px; font-size: 11px; }
+        }
+        @media (max-width: 560px) {
+            .tm-library-load-hint { display: none; }
+            .tm-library-backup-status { max-width: 90px; }
         }
         .tm-input, .tm-select, .tm-textarea { width: 100%; padding: 8px 12px; border: 1px solid var(--tm-border-color); border-radius: 6px; margin-top: 4px; margin-bottom: 12px; box-sizing: border-box; font-size: 14px; }
         .tm-label { font-weight: 600; font-size: 14px; display: block; margin-bottom: 4px; }
@@ -1808,6 +1922,7 @@
             libReaderState.lastScrollRatio = ratio;
         }
         libUpdateBookLastRead(context.book.bookId, updatedChapter.chapterId, ratio, updatedChapter.order || ((libReaderState?.currentIndex || 0) + 1));
+        libSetBackupStatus({ state: 'dirty', message: 'Raw truyện có thay đổi chưa sao lưu.' });
         await libReaderLoadCurrentChapter({ scrollTo: 'restore' });
         return true;
     }
@@ -4792,10 +4907,13 @@
                 <label class="tm-label" style="margin-top: 12px;">
                     <input type="checkbox" id="tm-show-library-btn" style="margin-right: 6px;" />
                     Hiển thị nút "Thư viện" trên trang
-                </label>
-                <p style="font-size:13px; color:#555">Hiển thị nút nổi để mở thư viện nhanh.</p>
-                <hr style="margin: 16px 0; border: none; border-top: 1px solid #eee;">
-                <label class="tm-label">Kiểu đọc chương</label>
+	                </label>
+	                <p style="font-size:13px; color:#555">Hiển thị nút nổi để mở thư viện nhanh.</p>
+	                <label class="tm-label" style="margin-top: 12px;">Chu kỳ tự sao lưu sau khi thư viện thay đổi (giờ)</label>
+	                <input id="tm-lib-backup-interval" type="number" min="0.25" max="168" step="0.25" class="tm-input" value="${config.libraryBackupIntervalHours ?? DEFAULT_CONFIG.libraryBackupIntervalHours}">
+	                <p style="font-size:13px; color:#555">Mặc định 6 giờ tính từ lần sao lưu gần nhất. Muốn sao lưu liền thì bấm nút <b>Sao lưu</b> trong Thư viện.</p>
+	                <hr style="margin: 16px 0; border: none; border-top: 1px solid #eee;">
+	                <label class="tm-label">Kiểu đọc chương</label>
                 <select id="tm-reader-mode" class="tm-select">
                     <option value="single">Theo chương (một chương một trang)</option>
                     <option value="vertical">Cuộn dọc liên tục</option>
@@ -5211,6 +5329,7 @@
         const libPrefetchRange = wrapper.querySelector('#tm-lib-prefetch');
         const libPrefetchValue = wrapper.querySelector('#tm-lib-prefetch-value');
         const showLibraryBtnCheckbox = wrapper.querySelector('#tm-show-library-btn');
+        const libBackupIntervalInput = wrapper.querySelector('#tm-lib-backup-interval');
         const readerModeSelect = wrapper.querySelector('#tm-reader-mode');
         const readerFontSelect = wrapper.querySelector('#tm-reader-font');
         const readerFontSizeInput = wrapper.querySelector('#tm-reader-font-size');
@@ -5532,6 +5651,7 @@
 
         if (readerModeSelect) readerModeSelect.value = config.readerMode || 'single';
         if (showLibraryBtnCheckbox) showLibraryBtnCheckbox.checked = !!config.showLibraryButton;
+        if (libBackupIntervalInput) libBackupIntervalInput.value = config.libraryBackupIntervalHours ?? DEFAULT_CONFIG.libraryBackupIntervalHours;
         if (readerFontSelect) readerFontSelect.value = config.readerStyle?.fontFamily || DEFAULT_CONFIG.readerStyle.fontFamily;
         if (readerFontSizeInput) readerFontSizeInput.value = config.readerStyle?.fontSize || DEFAULT_CONFIG.readerStyle.fontSize;
         if (readerLineHeightInput) readerLineHeightInput.value = config.readerStyle?.lineHeight || DEFAULT_CONFIG.readerStyle.lineHeight;
@@ -5546,6 +5666,7 @@
             readerResetBtn.addEventListener('click', () => {
                 if (readerModeSelect) readerModeSelect.value = DEFAULT_CONFIG.readerMode;
                 if (showLibraryBtnCheckbox) showLibraryBtnCheckbox.checked = DEFAULT_CONFIG.showLibraryButton;
+                if (libBackupIntervalInput) libBackupIntervalInput.value = DEFAULT_CONFIG.libraryBackupIntervalHours;
                 if (readerFontSelect) readerFontSelect.value = DEFAULT_CONFIG.readerStyle.fontFamily;
                 if (readerFontSizeInput) readerFontSizeInput.value = DEFAULT_CONFIG.readerStyle.fontSize;
                 if (readerLineHeightInput) readerLineHeightInput.value = DEFAULT_CONFIG.readerStyle.lineHeight;
@@ -6264,6 +6385,7 @@
             tempConfigCheck.ocrTextScaleFactor = parseFloat(wrapper.querySelector('#tm-ocr-scale').value) || 1.8;
             tempConfigCheck.readerPrefetchPercent = parseInt(wrapper.querySelector('#tm-lib-prefetch')?.value, 10) || 50;
             tempConfigCheck.showLibraryButton = !!wrapper.querySelector('#tm-show-library-btn')?.checked;
+            tempConfigCheck.libraryBackupIntervalHours = readNumberInput('#tm-lib-backup-interval', DEFAULT_CONFIG.libraryBackupIntervalHours, 0.25, 168);
             tempConfigCheck.readerMode = wrapper.querySelector('#tm-reader-mode')?.value || 'single';
             const readerFullscreenEl = wrapper.querySelector('#tm-reader-fullscreen');
             if (readerFullscreenEl) tempConfigCheck.readerFullscreen = !!readerFullscreenEl.checked;
@@ -6343,6 +6465,7 @@
             config.ocrTextScaleFactor = parseFloat(wrapper.querySelector('#tm-ocr-scale').value) || 1.8;
             config.readerPrefetchPercent = parseInt(wrapper.querySelector('#tm-lib-prefetch')?.value, 10) || 50;
             config.showLibraryButton = !!wrapper.querySelector('#tm-show-library-btn')?.checked;
+            config.libraryBackupIntervalHours = readNumberInput('#tm-lib-backup-interval', DEFAULT_CONFIG.libraryBackupIntervalHours, 0.25, 168);
             config.readerMode = wrapper.querySelector('#tm-reader-mode')?.value || 'single';
             const saveReaderFullscreenEl = wrapper.querySelector('#tm-reader-fullscreen');
             if (saveReaderFullscreenEl) config.readerFullscreen = !!saveReaderFullscreenEl.checked;
@@ -6366,6 +6489,9 @@
             config.activeNameSet = setSelect.value;
             saveTtsSettings(readTtsSettingsFromUI());
             saveConfig(config);
+            libScheduleAutoBackup({ status: libGetBackupStatus() }).catch(err => {
+                console.warn('[tm-translate] Không cập nhật lịch auto backup sau khi lưu cài đặt:', err);
+            });
 
             wrapper.remove(); // Đóng modal sau khi lưu
             if (isBlacklistChanged) {
@@ -8441,7 +8567,18 @@
     const LIB_EXPORT_HTML_RECOMMEND_MAX_BYTES = 2 * 1024 * 1024;
     const LIB_EXPORT_HTML_WARN_CHAPTERS = 260;
     const LIB_EXPORT_HTML_WARN_BYTES = 4 * 1024 * 1024;
+    const LIB_LIST_PAGE_SIZE = 24;
+    const LIB_BACKUP_DIR_NAME = 'tm-translate-library-backup';
+    const LIB_BACKUP_HANDLE_DB = 'tm_translate_library_backup_handles_v1';
+    const LIB_BACKUP_HANDLE_STORE = 'handles';
+    const LIB_BACKUP_HANDLE_KEY = 'libraryBackupDirectory';
+    const LIB_BACKUP_STATUS_KEY = 'tm_lib_backup_status_v1';
+    const LIB_BACKUP_MIN_INTERVAL_HOURS = 0.25;
+    const LIB_BACKUP_MAX_INTERVAL_HOURS = 168;
     const libTitleCache = new Map();
+    let libBackupTask = null;
+    let libBackupScheduleTimer = 0;
+    let libBackupScheduleStatusEl = null;
 
     // NEW: small hash helper for IDs
     function libHashString(str) {
@@ -8571,6 +8708,7 @@
             });
             if (changed) libSaveChaptersForBook(book.bookId, chapters);
         }
+        libSetBackupStatus({ state: 'dirty', message: 'Cache dịch đã thay đổi, chưa sao lưu.' });
     }
 
     async function libGetTranslatedCacheSizeBytes() {
@@ -8821,6 +8959,582 @@
 
     function libSaveIndex(index) {
         GM_setValue(LIB_INDEX_KEY, index);
+    }
+
+    function libFormatRelativeTime(timestamp) {
+        const t = Number(timestamp) || 0;
+        if (!t) return 'Chưa sao lưu';
+        const diff = Math.max(0, Date.now() - t);
+        const minute = 60 * 1000;
+        const hour = 60 * minute;
+        const day = 24 * hour;
+        if (diff < minute) return 'Vừa sao lưu';
+        if (diff < hour) return `Đã sao lưu ${Math.floor(diff / minute)} phút trước`;
+        if (diff < day) return `Đã sao lưu ${Math.floor(diff / hour)} tiếng trước`;
+        return `Đã sao lưu ${Math.floor(diff / day)} ngày trước`;
+    }
+
+    function libClampBackupIntervalHours(value) {
+        const n = Number(value);
+        if (!Number.isFinite(n)) return DEFAULT_CONFIG.libraryBackupIntervalHours;
+        return Math.min(LIB_BACKUP_MAX_INTERVAL_HOURS, Math.max(LIB_BACKUP_MIN_INTERVAL_HOURS, n));
+    }
+
+    function libGetBackupIntervalHours() {
+        const cfg = loadConfig();
+        return libClampBackupIntervalHours(cfg.libraryBackupIntervalHours);
+    }
+
+    function libGetBackupIntervalMs() {
+        return libGetBackupIntervalHours() * 60 * 60 * 1000;
+    }
+
+    function libFormatDuration(ms) {
+        const totalMinutes = Math.max(1, Math.ceil((Number(ms) || 0) / 60000));
+        if (totalMinutes < 60) return `${totalMinutes} phút`;
+        const hours = Math.floor(totalMinutes / 60);
+        const minutes = totalMinutes % 60;
+        if (hours < 24) return minutes ? `${hours} giờ ${minutes} phút` : `${hours} giờ`;
+        const days = Math.floor(hours / 24);
+        const restHours = hours % 24;
+        return restHours ? `${days} ngày ${restHours} giờ` : `${days} ngày`;
+    }
+
+    function libGetNextAutoBackupAt(status = libGetBackupStatus()) {
+        if (!status || status.state !== 'dirty') return 0;
+        const dirtyAt = Number(status.dirtyAt || status.updatedAt || 0) || Date.now();
+        const lastCompletedAt = Number(status.lastCompletedAt || 0) || 0;
+        if (!lastCompletedAt) return dirtyAt;
+        return Math.max(dirtyAt, lastCompletedAt + libGetBackupIntervalMs());
+    }
+
+    function libDescribeBackupStatus(status = libGetBackupStatus(), handleName = '') {
+        const dirText = handleName || status.dirName || '';
+        if (status.state === 'running') return status.message || 'Đang sao lưu...';
+        if (status.state === 'permission') return status.message || 'Cần cấp quyền thư mục để sao lưu.';
+        if (status.state === 'error') return status.message || 'Sao lưu lỗi.';
+        if (status.state === 'dirty') {
+            const base = status.message || 'Thư viện có thay đổi chưa sao lưu.';
+            if (!dirText) return `${base} Chưa chọn thư mục sao lưu.`;
+            const waitMs = libGetNextAutoBackupAt(status) - Date.now();
+            if (waitMs > 1000) return `${base} Tự sao lưu sau ${libFormatDuration(waitMs)}.`;
+            return `${base} Đang chờ tự sao lưu...`;
+        }
+        if (status.lastCompletedAt) {
+            return `${libFormatRelativeTime(status.lastCompletedAt)}${dirText ? ` · ${dirText}` : ''}`;
+        }
+        return dirText ? `Đã chọn ${dirText}, chưa sao lưu.` : 'Chưa sao lưu';
+    }
+
+    function libDescribeBackupNoHandle(status = libGetBackupStatus()) {
+        if (status.state === 'dirty') {
+            return `${status.message || 'Thư viện có thay đổi chưa sao lưu.'} Chưa chọn hoặc cần chọn lại thư mục sao lưu.`;
+        }
+        if (status.lastCompletedAt) {
+            return `${libFormatRelativeTime(status.lastCompletedAt)}. Chọn lại thư mục để tự sao lưu.`;
+        }
+        return 'Chưa sao lưu';
+    }
+
+    function libDescribeBackupStatusShort(status = libGetBackupStatus(), hasHandle = true) {
+        if (!status || !status.state) {
+            return status?.lastCompletedAt ? libFormatRelativeTime(status.lastCompletedAt) : 'Chưa sao lưu';
+        }
+        if (status.state === 'running') {
+            const progress = Number(status.progress);
+            return Number.isFinite(progress) ? `Sao lưu ${Math.max(0, Math.min(100, progress))}%` : 'Đang sao lưu';
+        }
+        if (status.state === 'permission') return 'Cần quyền';
+        if (status.state === 'error') return 'Sao lưu lỗi';
+        if (status.state === 'dirty') {
+            if (!hasHandle) return 'Chưa chọn thư mục';
+            const waitMs = libGetNextAutoBackupAt(status) - Date.now();
+            return waitMs > 1000 ? `Chờ ${libFormatDuration(waitMs)}` : 'Chờ sao lưu';
+        }
+        if (status.lastCompletedAt) return libFormatRelativeTime(status.lastCompletedAt);
+        return 'Chưa sao lưu';
+    }
+
+    function libSetBackupStatusDisplay(el, shortText, fullText) {
+        if (!el) return;
+        const shortValue = String(shortText || 'Chưa sao lưu');
+        const fullValue = String(fullText || shortValue);
+        el.textContent = shortValue;
+        el.title = fullValue;
+    }
+
+    function libGetBackupStatus() {
+        const status = GM_getValue(LIB_BACKUP_STATUS_KEY, null);
+        return status && typeof status === 'object' ? status : {};
+    }
+
+    function libSetBackupStatus(patch) {
+        const normalizedPatch = patch && typeof patch === 'object' ? { ...patch } : {};
+        const becameDirty = normalizedPatch.state === 'dirty';
+        if (becameDirty && !normalizedPatch.dirtyAt) {
+            normalizedPatch.dirtyAt = Date.now();
+        }
+        const next = {
+            ...libGetBackupStatus(),
+            ...normalizedPatch,
+            updatedAt: Date.now()
+        };
+        GM_setValue(LIB_BACKUP_STATUS_KEY, next);
+        if (becameDirty) {
+            libScheduleAutoBackup({ status: next }).catch(err => {
+                console.warn('[tm-translate] Không lên lịch auto backup:', err);
+            });
+        }
+        return next;
+    }
+
+    function libSortBooksForLibrary(books) {
+        return [...(books || [])].sort((a, b) => {
+            const aRead = Number(a?.lastReadAt || (a?.lastReadChapterId ? a?.updatedAt : 0)) || 0;
+            const bRead = Number(b?.lastReadAt || (b?.lastReadChapterId ? b?.updatedAt : 0)) || 0;
+            if (aRead !== bRead) return bRead - aRead;
+            return (Number(b?.createdAt || b?.updatedAt || 0) || 0) - (Number(a?.createdAt || a?.updatedAt || 0) || 0);
+        });
+    }
+
+    function libDefaultCoverDataUrl(book) {
+        const title = String(book?.title || 'TM Translate').trim() || 'TM Translate';
+        const author = String(book?.author || '').trim();
+        const seed = libHashString(`${book?.bookId || ''}|${title}`);
+        const palettes = [
+            ['#0f766e', '#f8fafc', '#f59e0b'],
+            ['#1d4ed8', '#f8fafc', '#22c55e'],
+            ['#be123c', '#fff7ed', '#0f172a'],
+            ['#334155', '#fef3c7', '#2563eb'],
+            ['#166534', '#ecfeff', '#ea580c']
+        ];
+        const palette = palettes[parseInt(seed.slice(-1), 36) % palettes.length] || palettes[0];
+        const shortTitle = title.length > 18 ? `${title.slice(0, 18)}...` : title;
+        const shortAuthor = author ? (author.length > 18 ? `${author.slice(0, 18)}...` : author) : 'TM Translate';
+        const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="180" height="260" viewBox="0 0 180 260">
+<defs><linearGradient id="g" x1="0" x2="1" y1="0" y2="1"><stop offset="0" stop-color="${palette[0]}"/><stop offset="1" stop-color="${palette[2]}"/></linearGradient></defs>
+<rect width="180" height="260" rx="14" fill="url(#g)"/>
+<rect x="16" y="18" width="148" height="224" rx="10" fill="${palette[1]}" opacity=".92"/>
+<path d="M45 58h90M45 78h74M45 174h90M45 192h62" stroke="${palette[0]}" stroke-width="5" stroke-linecap="round" opacity=".35"/>
+<text x="90" y="122" text-anchor="middle" font-family="Arial, sans-serif" font-size="17" font-weight="700" fill="#111827">${escapeHtml(shortTitle)}</text>
+<text x="90" y="146" text-anchor="middle" font-family="Arial, sans-serif" font-size="11" fill="#475569">${escapeHtml(shortAuthor)}</text>
+</svg>`;
+        return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
+    }
+
+    function libGetBookCoverSrc(book) {
+        return book?.coverDataUrl || book?.cover || libDefaultCoverDataUrl(book);
+    }
+
+    function libReadFileAsDataUrl(file) {
+        return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = () => resolve(String(reader.result || ''));
+            reader.onerror = () => reject(reader.error || new Error('Không đọc được file ảnh.'));
+            reader.readAsDataURL(file);
+        });
+    }
+
+    async function libSetBookCover(bookId, file) {
+        if (!file || !/^image\//i.test(file.type || '')) {
+            showNotification('Vui lòng chọn file ảnh.');
+            return false;
+        }
+        if (file.size > 3 * 1024 * 1024) {
+            showNotification('Ảnh bìa nên nhỏ hơn 3 MB.');
+            return false;
+        }
+        const dataUrl = await libReadFileAsDataUrl(file);
+        const index = libLoadIndex();
+        const book = (index.books || []).find(b => b.bookId === bookId);
+        if (!book) {
+            showNotification('Không tìm thấy truyện.');
+            return false;
+        }
+        book.coverDataUrl = dataUrl;
+        book.updatedAt = Date.now();
+        libSaveIndex(index);
+        libSetBackupStatus({ state: 'dirty', message: 'Có thay đổi ảnh bìa chưa sao lưu.' });
+        showNotification('Đã cập nhật ảnh bìa.');
+        return true;
+    }
+
+    function libNormalizeSearchText(text) {
+        return String(text || '').toLowerCase().normalize('NFKC');
+    }
+
+    async function libBookMatchesSearch(book, query, scopes) {
+        const q = libNormalizeSearchText(query).trim();
+        if (!q) return true;
+        const activeScopes = scopes && scopes.size ? scopes : new Set(['title', 'author']);
+        if (activeScopes.has('title') && libNormalizeSearchText(book?.title).includes(q)) return true;
+        if (activeScopes.has('author') && libNormalizeSearchText(book?.author).includes(q)) return true;
+        if (!activeScopes.has('raw') && !activeScopes.has('cache')) return false;
+
+        const chapters = libLoadChaptersForBook(book.bookId);
+        for (const chapter of chapters) {
+            if (activeScopes.has('raw') && chapter.rawKey) {
+                const raw = await libGet('tm_content', chapter.rawKey);
+                if (libNormalizeSearchText(raw?.text).includes(q)) return true;
+            }
+            if (activeScopes.has('cache') && chapter.transKey) {
+                const cached = await libGet('tm_content', chapter.transKey);
+                if (libNormalizeSearchText(cached?.text).includes(q)) return true;
+            }
+        }
+        return false;
+    }
+
+    function libOpenBackupHandleDb() {
+        return new Promise((resolve, reject) => {
+            const req = indexedDB.open(LIB_BACKUP_HANDLE_DB, 1);
+            req.onupgradeneeded = () => {
+                const db = req.result;
+                if (!db.objectStoreNames.contains(LIB_BACKUP_HANDLE_STORE)) {
+                    db.createObjectStore(LIB_BACKUP_HANDLE_STORE);
+                }
+            };
+            req.onsuccess = () => resolve(req.result);
+            req.onerror = () => reject(req.error);
+        });
+    }
+
+    async function libSaveBackupDirHandle(handle) {
+        const db = await libOpenBackupHandleDb();
+        await new Promise((resolve, reject) => {
+            const tx = db.transaction(LIB_BACKUP_HANDLE_STORE, 'readwrite');
+            tx.objectStore(LIB_BACKUP_HANDLE_STORE).put(handle, LIB_BACKUP_HANDLE_KEY);
+            tx.oncomplete = resolve;
+            tx.onerror = () => reject(tx.error);
+        });
+        db.close();
+    }
+
+    async function libRestoreBackupDirHandle() {
+        try {
+            const db = await libOpenBackupHandleDb();
+            const handle = await new Promise((resolve, reject) => {
+                const tx = db.transaction(LIB_BACKUP_HANDLE_STORE, 'readonly');
+                const req = tx.objectStore(LIB_BACKUP_HANDLE_STORE).get(LIB_BACKUP_HANDLE_KEY);
+                req.onsuccess = () => resolve(req.result || null);
+                req.onerror = () => reject(req.error);
+            });
+            db.close();
+            return handle || null;
+        } catch (err) {
+            console.warn('[tm-translate] Không khôi phục được backup handle:', err);
+            return null;
+        }
+    }
+
+    async function libEnsureDirectoryPermission(handle, mode = 'readwrite') {
+        if (!handle) return false;
+        const options = { mode };
+        if (typeof handle.queryPermission === 'function') {
+            const current = await handle.queryPermission(options);
+            if (current === 'granted') return true;
+        }
+        if (typeof handle.requestPermission === 'function') {
+            return await handle.requestPermission(options) === 'granted';
+        }
+        return true;
+    }
+
+    async function libChooseBackupDirectory() {
+        if (!window.showDirectoryPicker) {
+            showNotification('Trình duyệt chưa hỗ trợ chọn thư mục sao lưu.');
+            return null;
+        }
+        const handle = await window.showDirectoryPicker({ mode: 'readwrite' });
+        const ok = await libEnsureDirectoryPermission(handle, 'readwrite');
+        if (!ok) {
+            showNotification('Chưa được cấp quyền ghi thư mục.');
+            return null;
+        }
+        await libSaveBackupDirHandle(handle);
+        libSetBackupStatus({ dirName: handle.name || '', message: 'Đã chọn thư mục sao lưu.' });
+        return handle;
+    }
+
+    async function libEnsureBackupRoot(handle, create = true) {
+        if (!handle) return null;
+        if (!create) {
+            try {
+                await handle.getFileHandle('manifest.json');
+                return handle;
+            } catch (err) {
+                return await handle.getDirectoryHandle(LIB_BACKUP_DIR_NAME);
+            }
+        }
+        try {
+            await handle.removeEntry(LIB_BACKUP_DIR_NAME, { recursive: true });
+        } catch (err) {
+            /* ignore */
+        }
+        return await handle.getDirectoryHandle(LIB_BACKUP_DIR_NAME, { create: true });
+    }
+
+    async function libFsWriteJson(dir, name, value) {
+        const fileHandle = await dir.getFileHandle(name, { create: true });
+        const writable = await fileHandle.createWritable();
+        await writable.write(JSON.stringify(value, null, 2));
+        await writable.close();
+    }
+
+    async function libFsReadJson(dir, name) {
+        const fileHandle = await dir.getFileHandle(name);
+        const file = await fileHandle.getFile();
+        return JSON.parse(await file.text());
+    }
+
+    async function libCollectBackupData() {
+        const index = libLoadIndex();
+        const books = libSortBooksForLibrary(index.books || []);
+        const bookRecords = [];
+        const contentKeys = new Set();
+        for (const book of books) {
+            const chapters = libLoadChaptersForBook(book.bookId);
+            chapters.forEach(chapter => {
+                if (chapter.rawKey) contentKeys.add(chapter.rawKey);
+                if (chapter.transKey) contentKeys.add(chapter.transKey);
+            });
+            bookRecords.push({ book, chapters });
+        }
+        return { index: { ...index, books }, bookRecords, contentKeys: Array.from(contentKeys) };
+    }
+
+    async function libWriteBackupStatusFile(root, status) {
+        try {
+            await libFsWriteJson(root, 'status.json', status);
+        } catch (err) {
+            console.warn('[tm-translate] Không ghi được status backup:', err);
+        }
+    }
+
+    function libClearAutoBackupTimer() {
+        if (libBackupScheduleTimer) {
+            clearTimeout(libBackupScheduleTimer);
+            libBackupScheduleTimer = 0;
+        }
+    }
+
+    async function libScheduleAutoBackup({ status = null, statusEl = null } = {}) {
+        const currentStatus = status || libGetBackupStatus();
+        if (statusEl) libBackupScheduleStatusEl = statusEl;
+        const targetStatusEl = statusEl || libBackupScheduleStatusEl;
+
+        if (!currentStatus || currentStatus.state !== 'dirty') {
+            libSetBackupStatusDisplay(targetStatusEl, libDescribeBackupStatusShort(currentStatus), libDescribeBackupStatus(currentStatus));
+            return null;
+        }
+
+        const handle = await libRestoreBackupDirHandle();
+        if (!handle) {
+            libClearAutoBackupTimer();
+            libSetBackupStatusDisplay(targetStatusEl, libDescribeBackupStatusShort(currentStatus, false), libDescribeBackupNoHandle(currentStatus));
+            return null;
+        }
+
+        const waitMs = Math.max(0, libGetNextAutoBackupAt(currentStatus) - Date.now());
+        libSetBackupStatusDisplay(
+            targetStatusEl,
+            libDescribeBackupStatusShort(currentStatus, true),
+            libDescribeBackupStatus(currentStatus, handle.name || '')
+        );
+        libClearAutoBackupTimer();
+
+        const run = () => {
+            libBackupScheduleTimer = 0;
+            libRunLibraryBackup({ handle, silent: true, statusEl: libBackupScheduleStatusEl }).catch(err => {
+                console.warn('[tm-translate] Tự sao lưu thư viện thất bại:', err);
+                const next = libSetBackupStatus({ state: 'error', message: `Tự sao lưu lỗi: ${err.message || err}` });
+                libSetBackupStatusDisplay(
+                    libBackupScheduleStatusEl,
+                    libDescribeBackupStatusShort(next, true),
+                    libDescribeBackupStatus(next, handle.name || '')
+                );
+            });
+        };
+
+        if (waitMs <= 1000) {
+            run();
+            return { scheduled: false, waitMs: 0 };
+        }
+
+        libBackupScheduleTimer = setTimeout(run, Math.min(waitMs, 2147483647));
+        return { scheduled: true, waitMs };
+    }
+
+    async function libRunLibraryBackup({ handle = null, silent = false, statusEl = null } = {}) {
+        if (libBackupTask) return libBackupTask;
+        libBackupTask = (async () => {
+            let dirHandle = handle || await libRestoreBackupDirHandle();
+            if (!dirHandle) {
+                if (silent) return null;
+                dirHandle = await libChooseBackupDirectory();
+            }
+            if (!dirHandle) return null;
+            const permitted = await libEnsureDirectoryPermission(dirHandle, 'readwrite');
+            if (!permitted) {
+                const status = libSetBackupStatus({ state: 'permission', dirName: dirHandle.name || '', message: 'Cần cấp quyền thư mục để sao lưu.' });
+                libSetBackupStatusDisplay(statusEl, libDescribeBackupStatusShort(status, true), status.message);
+                if (!silent) showNotification('Cần cấp quyền thư mục để sao lưu.');
+                return null;
+            }
+            libClearAutoBackupTimer();
+            if (!silent) showNotification('Đang sao lưu thư viện. Đừng tắt/ngắt giữa chừng.', 6000);
+            const root = await libEnsureBackupRoot(dirHandle, true);
+            const startedStatus = libSetBackupStatus({ state: 'running', progress: 0, dirName: dirHandle.name || '', message: 'Đang sao lưu 0%...' });
+            libSetBackupStatusDisplay(statusEl, libDescribeBackupStatusShort(startedStatus, true), startedStatus.message);
+            await libWriteBackupStatusFile(root, startedStatus);
+
+            const data = await libCollectBackupData();
+            const booksDir = await root.getDirectoryHandle('books', { create: true });
+            const contentDir = await root.getDirectoryHandle('content', { create: true });
+            const total = Math.max(1, data.bookRecords.length + data.contentKeys.length + 2);
+            let done = 0;
+            const updateProgress = async (messagePrefix = 'Đang sao lưu') => {
+                done += 1;
+                const progress = Math.min(99, Math.floor((done / total) * 100));
+                const status = libSetBackupStatus({ state: 'running', progress, dirName: dirHandle.name || '', message: `${messagePrefix} ${progress}%...` });
+                libSetBackupStatusDisplay(statusEl, libDescribeBackupStatusShort(status, true), status.message);
+                await libWriteBackupStatusFile(root, status);
+            };
+
+            const manifest = {
+                version: 1,
+                app: 'TM Translate',
+                createdAt: Date.now(),
+                index: data.index,
+                books: data.bookRecords.map(item => item.book.bookId),
+                contentKeys: data.contentKeys
+            };
+            await libFsWriteJson(root, 'manifest.json', manifest);
+            await updateProgress();
+
+            for (const item of data.bookRecords) {
+                await libFsWriteJson(booksDir, `${item.book.bookId}.json`, item);
+                await updateProgress();
+            }
+            for (const key of data.contentKeys) {
+                const content = libLoadContent(key);
+                if (content) await libFsWriteJson(contentDir, `${key}.json`, content);
+                await updateProgress();
+            }
+
+            const completed = libSetBackupStatus({
+                state: 'done',
+                progress: 100,
+                dirName: dirHandle.name || '',
+                lastCompletedAt: Date.now(),
+                dirtyAt: null,
+                message: `Sao lưu xong: ${data.bookRecords.length} truyện, ${data.contentKeys.length} nội dung.`
+            });
+            libSetBackupStatusDisplay(
+                statusEl,
+                libDescribeBackupStatusShort(completed, true),
+                `${completed.message} ${libFormatRelativeTime(completed.lastCompletedAt)}.`
+            );
+            await libWriteBackupStatusFile(root, completed);
+            return completed;
+        })().finally(() => {
+            libBackupTask = null;
+        });
+        return libBackupTask;
+    }
+
+    async function libMaybeRunBackgroundBackup(statusEl = null) {
+        const status = libGetBackupStatus();
+        const handle = await libRestoreBackupDirHandle();
+        if (statusEl) libBackupScheduleStatusEl = statusEl;
+        if (!handle) {
+            libSetBackupStatusDisplay(statusEl, libDescribeBackupStatusShort(status, false), libDescribeBackupNoHandle(status));
+            return;
+        }
+        libSetBackupStatusDisplay(statusEl, libDescribeBackupStatusShort(status, true), libDescribeBackupStatus(status, handle.name || ''));
+        if (status.state === 'dirty') {
+            await libScheduleAutoBackup({ status, statusEl });
+        }
+    }
+
+    async function libClearLibraryAll() {
+        const allKeys = GM_listValues();
+        allKeys.forEach(key => {
+            if (key === LIB_INDEX_KEY || key.startsWith(LIB_CHAPTERS_PREFIX) || key.startsWith(LIB_CONTENT_PREFIX)) {
+                GM_deleteValue(key);
+            }
+        });
+        libSaveIndex({ books: [], nameSetVersion: config.nameSetVersion || 1, configVersion: 1 });
+    }
+
+    async function libRunLibraryRestore({ statusEl = null } = {}) {
+        if (!window.showDirectoryPicker) {
+            showNotification('Trình duyệt chưa hỗ trợ chọn thư mục khôi phục.');
+            return;
+        }
+        const selected = await window.showDirectoryPicker({ mode: 'read' });
+        const permitted = await libEnsureDirectoryPermission(selected, 'read');
+        if (!permitted) {
+            showNotification('Chưa được cấp quyền đọc thư mục.');
+            return;
+        }
+        const root = await libEnsureBackupRoot(selected, false);
+        const manifest = await libFsReadJson(root, 'manifest.json');
+        if (!manifest || !Array.isArray(manifest.books)) throw new Error('Thư mục backup không hợp lệ.');
+        const existing = libLoadIndex();
+        let mode = 'replace';
+        if ((existing.books || []).length > 0) {
+            const answer = prompt('Thư viện hiện có dữ liệu. Nhập G để gộp, T để thay thế, bỏ trống để hủy.', 'G');
+            if (!answer) return;
+            mode = /^g/i.test(answer.trim()) ? 'merge' : (/^t/i.test(answer.trim()) ? 'replace' : '');
+            if (!mode) return;
+        }
+        if (mode === 'replace') {
+            const ok = confirm('Thay thế sẽ xóa toàn bộ thư viện hiện tại trước khi khôi phục. Tiếp tục?');
+            if (!ok) return;
+            await libClearLibraryAll();
+        }
+
+        const booksDir = await root.getDirectoryHandle('books');
+        const contentDir = await root.getDirectoryHandle('content');
+        const total = Math.max(1, manifest.books.length + (manifest.contentKeys || []).length);
+        let done = 0;
+        const update = (label) => {
+            done += 1;
+            const progress = Math.min(100, Math.floor((done / total) * 100));
+            libSetBackupStatusDisplay(statusEl, `Khôi phục ${progress}%`, `${label} ${progress}%...`);
+        };
+
+        const restoredBooks = [];
+        for (const bookId of manifest.books) {
+            const record = await libFsReadJson(booksDir, `${bookId}.json`);
+            if (!record?.book) continue;
+            restoredBooks.push(record.book);
+            libSaveChaptersForBook(record.book.bookId, Array.isArray(record.chapters) ? record.chapters : []);
+            update('Đang khôi phục');
+        }
+        for (const key of (manifest.contentKeys || [])) {
+            try {
+                const content = await libFsReadJson(contentDir, `${key}.json`);
+                if (content?.key) libSaveContent(content.key, content);
+            } catch (err) {
+                console.warn('[tm-translate] Bỏ qua content backup lỗi:', key, err);
+            }
+            update('Đang khôi phục');
+        }
+
+        const nextIndex = mode === 'merge' ? libLoadIndex() : { books: [], nameSetVersion: config.nameSetVersion || 1, configVersion: 1 };
+        const map = new Map((nextIndex.books || []).map(book => [book.bookId, book]));
+        restoredBooks.forEach(book => map.set(book.bookId, book));
+        nextIndex.books = libSortBooksForLibrary(Array.from(map.values()));
+        nextIndex.nameSetVersion = manifest.index?.nameSetVersion || config.nameSetVersion || 1;
+        nextIndex.configVersion = 1;
+        libSaveIndex(nextIndex);
+
+        const restoredMessage = `Đã khôi phục ${restoredBooks.length} truyện. Thư viện mới chưa sao lưu lại.`;
+        const status = libSetBackupStatus({ state: 'dirty', message: restoredMessage, restoredAt: Date.now() });
+        libSetBackupStatusDisplay(statusEl, libDescribeBackupStatusShort(status, true), restoredMessage);
+        showNotification(`Đã khôi phục ${restoredBooks.length} truyện.`);
     }
 
     async function libTranslateLibraryTitles(wrapper, books) {
@@ -9491,6 +10205,7 @@ body.tmx-fullscreen .tmx-scroll {
             chapter.updatedAt = now;
             await libPutMany('tm_chapters', [chapter]);
         }
+        libSetBackupStatus({ state: 'dirty', message: 'Raw/cache truyện có thay đổi chưa sao lưu.' });
 
         return { raw, rawText: normalizedText, wasNormalized: true };
     }
@@ -9753,6 +10468,7 @@ body.tmx-fullscreen .tmx-scroll {
             const index = libLoadIndex();
             index.books = (index.books || []).filter(b => b.bookId !== bookId);
             libSaveIndex(index);
+            libSetBackupStatus({ state: 'dirty', message: 'Thư viện có thay đổi chưa sao lưu.' });
 
             showNotification('Đã xóa truyện.');
         } catch (err) {
@@ -9901,6 +10617,7 @@ body.tmx-fullscreen .tmx-scroll {
 
         await libPutMany('tm_content', contentItems);
         await libPutMany('tm_chapters', chapterItems);
+        libSetBackupStatus({ state: 'dirty', message: 'Có truyện mới chưa sao lưu.' });
 
         return { bookId, title, chapterCount: chapters.length };
     }
@@ -10250,6 +10967,7 @@ body.tmx-fullscreen .tmx-scroll {
         chapter.transKey = transKey;
         chapter.updatedAt = now;
         await libPutMany('tm_chapters', [chapter]);
+        libSetBackupStatus({ state: 'dirty', message: 'Cache dịch có thay đổi chưa sao lưu.' });
 
         return translated;
     }
@@ -10340,148 +11058,286 @@ body.tmx-fullscreen .tmx-scroll {
 
     function openLibraryListModal() {
         removeElementById('tm-lib-list-modal');
-        const index = libLoadIndex();
-
-        const formatProgressText = (book) => {
-            const total = book?.chapterCount || 0;
-            if (!total || !book?.lastReadChapterId) {
-                return 'Tiến độ: Chưa đọc';
-            }
-            const order = book.lastReadOrder;
-            if (!order) {
-                return 'Tiến độ: Đang đọc...';
-            }
-            const ratio = typeof book.lastReadScrollRatio === 'number' ? book.lastReadScrollRatio : 0;
-            const percent = Math.max(0, Math.min(100, (((order - 1) + ratio) / Math.max(1, total)) * 100));
-            return `Tiến độ: Chương ${order}/${total} (${percent.toFixed(1)}%)`;
-        };
-
-        const listHtml = (index.books || []).map(b => `
-            <div class="tm-card" style="padding:10px; margin-bottom:10px;" data-book-id="${b.bookId}">
-                <div style="display:flex; justify-content:space-between; align-items:center; gap:10px;">
-                    <div>
-                        <div class="tm-lib-book-title" data-raw-title="${escapeHtml(b.title || 'Untitled')}" style="font-weight:600;">${escapeHtml(b.title || 'Untitled')}</div>
-                        <div style="font-size:12px; color:#555;">
-                            Chương: ${b.chapterCount || 0} | Nguồn: ${b.langSource || 'zh'}
-                        </div>
-                        <div id="tm-lib-progress-${b.bookId}" style="font-size:12px; color:#777;">
-                            ${formatProgressText(b)}
-                        </div>
-                    </div>
-                    <button class="tm-btn tm-btn-primary tm-lib-open" data-book-id="${b.bookId}">Mở</button>
-                </div>
-                <div style="margin-top:8px; display:flex; gap:8px; flex-wrap:wrap;">
-                    <button class="tm-btn tm-lib-export-txt" data-book-id="${b.bookId}">Xuất TXT</button>
-                    ${libRenderExportButton('Xuất EPUB', 'epub', b)}
-                    ${libRenderExportButton('Xuất HTML', 'html', b)}
-                    <button class="tm-btn tm-lib-delete" data-book-id="${b.bookId}" style="border-color:#dc3545; color:#dc3545;">Xóa</button>
-                </div>
-            </div>
-        `).join('') || '<div>Chưa có truyện trong thư viện.</div>';
-
         const wrapper = document.createElement('div');
         wrapper.id = 'tm-lib-list-modal';
         wrapper.className = 'tm-modal-wrapper';
         wrapper.style.zIndex = '2147483661';
         wrapper.innerHTML = `
         <div class="tm-modal-backdrop"></div>
-        <div class="tm-modal-box" style="width: 520px;">
-            <div class="tm-modal-header">
-                <h3>Thư viện (Beta)</h3>
-                <button class="tm-btn" id="tm-lib-list-close">&times;</button>
-            </div>
-            <div class="tm-modal-content">
-                ${listHtml}
-            </div>
-            <div class="tm-modal-footer">
-                <button class="tm-btn" id="tm-lib-clear-cache">Xóa cache dịch</button>
-                <button class="tm-btn tm-btn-primary" id="tm-lib-import-open">Import</button>
-            </div>
+        <div class="tm-library-shell">
+            <section class="tm-library-main">
+                <div class="tm-library-topbar">
+                    <div class="tm-library-titleblock">
+                        <h2>Thư viện</h2>
+                        <div id="tm-lib-total" class="tm-library-muted">Đang tải...</div>
+                        <div id="tm-lib-result-meta" class="tm-library-result-meta"></div>
+                    </div>
+                    <div class="tm-library-searchbox">
+                        <div class="tm-library-searchrow">
+                            <input id="tm-lib-search" class="tm-input" placeholder="Tìm truyện..." autocomplete="off" />
+                            <button class="tm-btn" id="tm-lib-filter-btn" type="button">Lọc</button>
+                        </div>
+                        <div id="tm-lib-filter-pop" class="tm-library-filter-pop">
+                            <label class="tm-library-check"><input type="checkbox" data-scope="title" checked> Tên truyện</label>
+                            <label class="tm-library-check"><input type="checkbox" data-scope="author" checked> Tác giả</label>
+                            <label class="tm-library-check"><input type="checkbox" data-scope="raw"> Raw Trung</label>
+                            <label class="tm-library-check"><input type="checkbox" data-scope="cache"> Cache dịch</label>
+                        </div>
+                    </div>
+                    <div class="tm-library-toolbar">
+                        <div id="tm-lib-load-hint" class="tm-library-result-meta tm-library-load-hint" hidden></div>
+                        <div id="tm-lib-backup-status" class="tm-library-backup-status" title="Chưa sao lưu">Chưa sao lưu</div>
+                        <div class="tm-library-menu-wrap">
+                            <button class="tm-btn tm-library-menu-btn" id="tm-lib-menu-btn" type="button" title="Tùy chọn thư viện">☰</button>
+                            <div class="tm-library-menu" id="tm-lib-menu">
+                                <button class="tm-btn tm-btn-primary" id="tm-lib-import-open" type="button">Import TXT/EPUB</button>
+                                <button class="tm-btn" id="tm-lib-clear-cache" type="button">Xóa cache dịch</button>
+                                <div class="tm-library-menu-row">
+                                    <button class="tm-btn" id="tm-lib-backup" type="button">Sao lưu</button>
+                                    <button class="tm-btn" id="tm-lib-restore" type="button">Khôi phục</button>
+                                </div>
+                            </div>
+                        </div>
+                        <button class="tm-btn tm-library-close" id="tm-lib-list-close" title="Đóng">×</button>
+                    </div>
+                </div>
+                <div id="tm-lib-scroll" class="tm-library-scroll">
+                    <div id="tm-lib-migration-slot"></div>
+                    <div id="tm-lib-grid" class="tm-library-grid"></div>
+                    <button id="tm-lib-load-more" class="tm-btn tm-library-loadmore" type="button" hidden>Tải thêm</button>
+                </div>
+            </section>
         </div>
         `;
         tmUIRoot.appendChild(wrapper);
-        libTranslateLibraryTitles(wrapper, index.books || []);
-        libUpdateLibraryProgress(wrapper, index.books || []);
 
-        // Check for legacy IndexedDB data and show migration banner
-        libCheckLegacyDataExists().then(hasLegacy => {
-            if (!hasLegacy) return;
-            const modalContent = wrapper.querySelector('.tm-modal-content');
-            if (!modalContent) return;
-            const banner = document.createElement('div');
-            banner.id = 'tm-lib-migration-banner';
-            banner.style.cssText = 'padding:10px;margin-bottom:10px;background:#fff3cd;border:1px solid #ffc107;border-radius:6px;font-size:13px;color:#664d03;';
-            banner.innerHTML = `
-                <div style="margin-bottom:8px;">⚠️ <b>Phát hiện dữ liệu cũ</b> (lưu trữ theo domain) ở trang này. Nhấn <b>Chuyển đổi</b> để chuyển sang lưu trữ toàn cục (đọc được ở mọi domain).</div>
-                <button class="tm-btn tm-btn-primary" id="tm-lib-migrate-btn">Chuyển đổi</button>
-            `;
-            modalContent.insertBefore(banner, modalContent.firstChild);
-            banner.querySelector('#tm-lib-migrate-btn').addEventListener('click', async () => {
-                const btn = banner.querySelector('#tm-lib-migrate-btn');
-                btn.disabled = true;
-                btn.textContent = 'Đang chuyển đổi...';
-                try {
-                    const result = await libMigrateLegacyData();
-                    banner.style.background = '#d1e7dd';
-                    banner.style.borderColor = '#0f5132';
-                    banner.style.color = '#0f5132';
-                    banner.innerHTML = `✅ Chuyển đổi thành công! (${result.chapters} chương, ${result.content} nội dung). Hãy tải lại trang.`;
-                    setTimeout(() => {
-                        close();
-                        openLibraryListModal();
-                    }, 2000);
-                } catch (err) {
-                    console.error(err);
-                    btn.disabled = false;
-                    btn.textContent = 'Thử lại';
-                    banner.querySelector('div').textContent = '❌ Chuyển đổi thất bại: ' + (err.message || 'Lỗi không rõ');
-                }
-            });
-        }).catch(() => { });
-
+        const state = {
+            allBooks: libSortBooksForLibrary((libLoadIndex().books || [])),
+            filteredBooks: [],
+            visibleCount: LIB_LIST_PAGE_SIZE,
+            searchTimer: 0,
+            renderToken: 0
+        };
+        const grid = wrapper.querySelector('#tm-lib-grid');
+        const scrollEl = wrapper.querySelector('#tm-lib-scroll');
+        const totalEl = wrapper.querySelector('#tm-lib-total');
+        const metaEl = wrapper.querySelector('#tm-lib-result-meta');
+        const loadHintEl = wrapper.querySelector('#tm-lib-load-hint');
+        const searchInput = wrapper.querySelector('#tm-lib-search');
+        const filterBtn = wrapper.querySelector('#tm-lib-filter-btn');
+        const filterPop = wrapper.querySelector('#tm-lib-filter-pop');
+        const loadMoreBtn = wrapper.querySelector('#tm-lib-load-more');
+        const backupStatusEl = wrapper.querySelector('#tm-lib-backup-status');
+        const menuBtn = wrapper.querySelector('#tm-lib-menu-btn');
+        const menuEl = wrapper.querySelector('#tm-lib-menu');
         const close = () => wrapper.remove();
-        wrapper.querySelector('#tm-lib-list-close').addEventListener('click', close);
-        wrapper.querySelector('.tm-modal-backdrop').addEventListener('click', close);
-        wrapper.querySelectorAll('.tm-lib-open').forEach(btn => {
-            btn.addEventListener('click', () => {
-                const bookId = btn.getAttribute('data-book-id');
-                close();
-                if (bookId) openLibraryReader(bookId);
-            });
-        });
-        wrapper.querySelectorAll('.tm-lib-export-txt').forEach(btn => {
-            btn.addEventListener('click', async () => {
-                const bookId = btn.getAttribute('data-book-id');
-                if (bookId) await libExportBookTxt(bookId);
-            });
-        });
-        wrapper.querySelectorAll('.tm-lib-export-epub').forEach(btn => {
-            btn.addEventListener('click', async () => {
-                const bookId = btn.getAttribute('data-book-id');
-                if (bookId) await libExportBookEpub(bookId);
-            });
-        });
-        wrapper.querySelectorAll('.tm-lib-export-html').forEach(btn => {
-            btn.addEventListener('click', async () => {
-                const bookId = btn.getAttribute('data-book-id');
-                if (bookId) await libExportBookHtml(bookId);
-            });
-        });
-        wrapper.querySelectorAll('.tm-lib-delete').forEach(btn => {
-            btn.addEventListener('click', async () => {
-                const bookId = btn.getAttribute('data-book-id');
-                if (!bookId) return;
-                await libDeleteBook(bookId);
+        const closeMenu = () => menuEl?.classList.remove('open');
+        const closeFilter = () => filterPop?.classList.remove('open');
 
-                close();
-                openLibraryListModal();
+        const getScopes = () => new Set(Array.from(filterPop.querySelectorAll('input[type="checkbox"]'))
+            .filter(input => input.checked)
+            .map(input => input.dataset.scope)
+            .filter(Boolean));
+
+        const formatProgressText = (book) => {
+            const total = book?.chapterCount || 0;
+            if (!total || !book?.lastReadChapterId) return 'Chưa đọc';
+            const order = book.lastReadOrder;
+            if (!order) return 'Đang đọc...';
+            const ratio = typeof book.lastReadScrollRatio === 'number' ? book.lastReadScrollRatio : 0;
+            const percent = Math.max(0, Math.min(100, (((order - 1) + ratio) / Math.max(1, total)) * 100));
+            return `Chương ${order}/${total} · ${percent.toFixed(1)}%`;
+        };
+
+        const renderBookCard = (book) => `
+            <div class="tm-library-card tm-card" data-book-id="${escapeHtml(book.bookId)}">
+                <div class="tm-library-cover-wrap">
+                    <img class="tm-library-cover" src="${escapeHtml(libGetBookCoverSrc(book))}" alt="Bìa ${escapeHtml(book.title || 'truyện')}" loading="lazy">
+                    <button class="tm-btn tm-library-cover-btn tm-lib-cover-change" data-book-id="${escapeHtml(book.bookId)}" type="button">Đổi bìa</button>
+                </div>
+                <div class="tm-library-card-main">
+                    <div class="tm-library-title tm-lib-book-title" data-raw-title="${escapeHtml(book.title || 'Untitled')}">${escapeHtml(book.title || 'Untitled')}</div>
+                    <div class="tm-library-author">${book.author ? `Tác giả: ${escapeHtml(book.author)}` : 'Chưa có tác giả'}</div>
+                    <div class="tm-library-meta">${book.chapterCount || 0} chương · Nguồn: ${(book.langSource || 'zh').toUpperCase()} · ${libEstimateExportBytes(book).bytes ? libFormatBytes(libEstimateExportBytes(book).bytes) : 'chưa rõ dung lượng'}</div>
+                    <div id="tm-lib-progress-${escapeHtml(book.bookId)}" class="tm-library-progress">Tiến độ: ${formatProgressText(book)}</div>
+                    <div class="tm-library-card-actions">
+                        <button class="tm-btn tm-btn-primary tm-lib-open" data-book-id="${escapeHtml(book.bookId)}">Mở</button>
+                        <button class="tm-btn tm-lib-export-txt" data-book-id="${escapeHtml(book.bookId)}">TXT</button>
+                        ${libRenderExportButton('EPUB', 'epub', book)}
+                        ${libRenderExportButton('HTML', 'html', book)}
+                        <button class="tm-btn tm-lib-delete" data-book-id="${escapeHtml(book.bookId)}" style="border-color:#dc3545;color:#dc3545;">Xóa</button>
+                    </div>
+                </div>
+            </div>
+        `;
+
+        const bindCardActions = () => {
+            grid.querySelectorAll('.tm-lib-open').forEach(btn => {
+                btn.onclick = () => {
+                    const bookId = btn.getAttribute('data-book-id');
+                    close();
+                    if (bookId) openLibraryReader(bookId);
+                };
             });
+            grid.querySelectorAll('.tm-lib-export-txt').forEach(btn => {
+                btn.onclick = async () => {
+                    const bookId = btn.getAttribute('data-book-id');
+                    if (bookId) await libExportBookTxt(bookId);
+                };
+            });
+            grid.querySelectorAll('.tm-lib-export-epub').forEach(btn => {
+                btn.onclick = async () => {
+                    const bookId = btn.getAttribute('data-book-id');
+                    if (bookId) await libExportBookEpub(bookId);
+                };
+            });
+            grid.querySelectorAll('.tm-lib-export-html').forEach(btn => {
+                btn.onclick = async () => {
+                    const bookId = btn.getAttribute('data-book-id');
+                    if (bookId) await libExportBookHtml(bookId);
+                };
+            });
+            grid.querySelectorAll('.tm-lib-delete').forEach(btn => {
+                btn.onclick = async () => {
+                    const bookId = btn.getAttribute('data-book-id');
+                    if (!bookId) return;
+                    await libDeleteBook(bookId);
+                    state.allBooks = libSortBooksForLibrary((libLoadIndex().books || []));
+                    await applyFilter(true);
+                };
+            });
+            grid.querySelectorAll('.tm-lib-cover-change').forEach(btn => {
+                btn.onclick = () => {
+                    const bookId = btn.getAttribute('data-book-id');
+                    if (!bookId) return;
+                    const input = document.createElement('input');
+                    input.type = 'file';
+                    input.accept = 'image/*';
+                    input.onchange = async () => {
+                        const file = input.files && input.files[0];
+                        if (!file) return;
+                        try {
+                            const ok = await libSetBookCover(bookId, file);
+                            if (ok) {
+                                state.allBooks = libSortBooksForLibrary((libLoadIndex().books || []));
+                                await applyFilter(false);
+                            }
+                        } catch (err) {
+                            console.error(err);
+                            showNotification('Đổi ảnh bìa thất bại.');
+                        }
+                    };
+                    input.click();
+                };
+            });
+        };
+
+        const renderVisible = () => {
+            const books = state.filteredBooks.slice(0, state.visibleCount);
+            const shownCount = Math.min(state.visibleCount, state.filteredBooks.length);
+            const remainingCount = Math.max(0, state.filteredBooks.length - shownCount);
+            const hasMore = remainingCount > 0;
+            totalEl.textContent = `Tổng ${state.allBooks.length} truyện trong thư viện`;
+            metaEl.textContent = state.filteredBooks.length === state.allBooks.length
+                ? `Hiển thị ${shownCount}/${state.filteredBooks.length} truyện`
+                : `Tìm thấy ${state.filteredBooks.length}/${state.allBooks.length} truyện · đang hiển thị ${shownCount}`;
+            grid.innerHTML = books.length
+                ? books.map(renderBookCard).join('')
+                : '<div class="tm-library-empty">Không có truyện phù hợp.</div>';
+            loadMoreBtn.hidden = !hasMore;
+            if (loadHintEl) {
+                loadHintEl.hidden = !hasMore;
+                loadHintEl.textContent = hasMore ? `Còn ${remainingCount} truyện, cuộn xuống hoặc bấm Tải thêm` : '';
+            }
+            bindCardActions();
+            libTranslateLibraryTitles(wrapper, books);
+            libUpdateLibraryProgress(wrapper, books);
+        };
+
+        const applyFilter = async (resetOffset = true) => {
+            const token = ++state.renderToken;
+            const query = String(searchInput.value || '').trim();
+            const scopes = getScopes();
+            if (resetOffset) state.visibleCount = LIB_LIST_PAGE_SIZE;
+            metaEl.textContent = query ? 'Đang tìm...' : '';
+            const matched = [];
+            for (const book of state.allBooks) {
+                if (token !== state.renderToken) return;
+                if (await libBookMatchesSearch(book, query, scopes)) matched.push(book);
+            }
+            if (token !== state.renderToken) return;
+            state.filteredBooks = matched;
+            renderVisible();
+        };
+
+        wrapper.querySelector('#tm-lib-list-close').addEventListener('click', close);
+        menuBtn?.addEventListener('click', (event) => {
+            event.stopPropagation();
+            closeFilter();
+            menuEl?.classList.toggle('open');
+        });
+        menuEl?.addEventListener('click', event => event.stopPropagation());
+        filterBtn.addEventListener('click', (event) => {
+            event.stopPropagation();
+            closeMenu();
+            filterPop.classList.toggle('open');
+        });
+        filterPop.addEventListener('click', event => event.stopPropagation());
+        wrapper.addEventListener('click', event => {
+            if (!event.target.closest?.('#tm-lib-menu') && !event.target.closest?.('#tm-lib-menu-btn')) {
+                closeMenu();
+            }
+            if (!event.target.closest?.('#tm-lib-filter-pop') && !event.target.closest?.('#tm-lib-filter-btn')) {
+                closeFilter();
+            }
+        });
+        searchInput.addEventListener('input', () => {
+            clearTimeout(state.searchTimer);
+            state.searchTimer = setTimeout(() => applyFilter(true), 220);
+        });
+        filterPop.querySelectorAll('input').forEach(input => input.addEventListener('change', () => applyFilter(true)));
+        scrollEl.addEventListener('scroll', () => {
+            const nearBottom = scrollEl.scrollTop + scrollEl.clientHeight >= scrollEl.scrollHeight - 420;
+            if (!nearBottom || state.visibleCount >= state.filteredBooks.length) return;
+            state.visibleCount += LIB_LIST_PAGE_SIZE;
+            renderVisible();
+        }, { passive: true });
+        loadMoreBtn.addEventListener('click', () => {
+            state.visibleCount += LIB_LIST_PAGE_SIZE;
+            renderVisible();
         });
         wrapper.querySelector('#tm-lib-import-open').addEventListener('click', () => {
+            closeMenu();
             close();
             openLibraryImportModal();
         });
+        wrapper.querySelector('#tm-lib-backup').addEventListener('click', async () => {
+            closeMenu();
+            try {
+                const handle = await libChooseBackupDirectory();
+                if (handle) await libRunLibraryBackup({ handle, silent: false, statusEl: backupStatusEl });
+            } catch (err) {
+                if (err?.name !== 'AbortError') {
+                    console.error(err);
+                    showNotification('Sao lưu thất bại.');
+                }
+            }
+        });
+        wrapper.querySelector('#tm-lib-restore').addEventListener('click', async () => {
+            closeMenu();
+            try {
+                await libRunLibraryRestore({ statusEl: backupStatusEl });
+                state.allBooks = libSortBooksForLibrary((libLoadIndex().books || []));
+                await applyFilter(true);
+            } catch (err) {
+                if (err?.name !== 'AbortError') {
+                    console.error(err);
+                    showNotification('Khôi phục thất bại.');
+                }
+            }
+        });
         wrapper.querySelector('#tm-lib-clear-cache').addEventListener('click', async () => {
+            closeMenu();
             showLoading('Đang tính dung lượng cache...');
             let sizeText = '0 B';
             try {
@@ -10496,6 +11352,8 @@ body.tmx-fullscreen .tmx-scroll {
             showLoading('Đang xóa cache...');
             try {
                 await libClearTranslatedContent();
+                state.allBooks = libSortBooksForLibrary((libLoadIndex().books || []));
+                await applyFilter(false);
                 showNotification('Đã xóa cache dịch.');
             } catch (err) {
                 console.error(err);
@@ -10504,6 +11362,45 @@ body.tmx-fullscreen .tmx-scroll {
                 removeLoading();
             }
         });
+
+        libCheckLegacyDataExists().then(hasLegacy => {
+            if (!hasLegacy) return;
+            const slot = wrapper.querySelector('#tm-lib-migration-slot');
+            if (!slot) return;
+            slot.innerHTML = `
+                <div style="padding:10px;margin-bottom:12px;background:#fff3cd;border:1px solid #ffc107;border-radius:8px;font-size:13px;color:#664d03;">
+                    <div style="margin-bottom:8px;"><b>Phát hiện dữ liệu cũ</b> ở domain này. Chuyển sang lưu trữ toàn cục để đọc ở mọi domain.</div>
+                    <button class="tm-btn tm-btn-primary" id="tm-lib-migrate-btn">Chuyển đổi</button>
+                </div>
+            `;
+            slot.querySelector('#tm-lib-migrate-btn').addEventListener('click', async () => {
+                const btn = slot.querySelector('#tm-lib-migrate-btn');
+                btn.disabled = true;
+                btn.textContent = 'Đang chuyển đổi...';
+                try {
+                    const result = await libMigrateLegacyData();
+                    slot.textContent = `Chuyển đổi thành công: ${result.chapters} chương, ${result.content} nội dung.`;
+                    state.allBooks = libSortBooksForLibrary((libLoadIndex().books || []));
+                    await applyFilter(true);
+                } catch (err) {
+                    console.error(err);
+                    btn.disabled = false;
+                    btn.textContent = 'Thử lại';
+                    showNotification('Chuyển đổi thất bại.');
+                }
+            });
+        }).catch(() => { });
+
+        const status = libGetBackupStatus();
+        libSetBackupStatusDisplay(
+            backupStatusEl,
+            libDescribeBackupStatusShort(status, !!status.dirName),
+            status.message
+                ? `${status.message}${status.lastCompletedAt ? ` · ${libFormatRelativeTime(status.lastCompletedAt)}` : ''}`
+                : libFormatRelativeTime(status.lastCompletedAt)
+        );
+        applyFilter(true);
+        libMaybeRunBackgroundBackup(backupStatusEl);
     }
 
     /* ================== READER UI (NEW) ================== */
@@ -10552,8 +11449,12 @@ body.tmx-fullscreen .tmx-scroll {
         if (typeof scrollRatio === 'number' && !Number.isNaN(scrollRatio)) {
             book.lastReadScrollRatio = Math.max(0, Math.min(1, scrollRatio));
         }
+        book.lastReadAt = Date.now();
         book.updatedAt = Date.now();
         libSaveIndex(index);
+        if (libGetBackupStatus().state !== 'dirty') {
+            libSetBackupStatus({ state: 'dirty', message: 'Tiến độ đọc có thay đổi chưa sao lưu.' });
+        }
     }
 
     function libReaderEnsureUI() {
@@ -12253,6 +13154,7 @@ body.tmx-fullscreen .tmx-scroll {
         libReaderApplySettings();
         libReaderUpdateModeButtons();
         await libReaderLoadCurrentChapter();
+        libMaybeRunBackgroundBackup().catch(err => console.warn('[tm-translate] Sao lưu ngầm khi mở reader lỗi:', err));
     }
 
     /* ================== MENU & INIT ================== */
@@ -12304,9 +13206,9 @@ body.tmx-fullscreen .tmx-scroll {
 
     const welcomeHtml = `
 <div class="tm-welcome-title">🌸 Chào mừng đến với TM Translate 🌸</div>
-	<div class="tm-welcome-sub">TM Translate v${CURRENT_VERSION} • Dịch trang web Trung → Việt, quản lý Name-set, Thư viện đọc offline, OCR dịch ảnh và TTS</div>
-	<div class="tm-welcome-banner">
-	  <strong>✨ v${CURRENT_VERSION}:</strong> TTS reader cắt đoạn theo dấu câu tốt hơn, prefetch audio kế tiếp và giữ media khi chờ remote audio.
+		<div class="tm-welcome-sub">TM Translate v${CURRENT_VERSION} • Dịch trang web Trung → Việt, quản lý Name-set, Thư viện đọc offline, OCR dịch ảnh và TTS</div>
+		<div class="tm-welcome-banner">
+		  <strong>✨ v${CURRENT_VERSION}:</strong> Thư viện toàn màn hình, bìa truyện, tìm/lazy load và sao lưu/khôi phục bằng thư mục, có tự sao lưu theo chu kỳ.
 	</div>
 <div style="height:8px;"></div>
     `.trim();
@@ -12314,7 +13216,7 @@ body.tmx-fullscreen .tmx-scroll {
     const guideMarkdown = `
 ### 🟢 Nút Nổi (Floating Buttons)
 - **Dịch Trang** (xanh lá): Dịch toàn bộ trang. Có tự động dịch khi cuộn nếu bật trong Cài đặt.
-- **Thư viện** (xanh ngọc): Mở Thư viện import/đọc/export truyện.
+- **Thư viện** (xanh ngọc): Mở Thư viện toàn màn hình để import/đọc/export, tìm kiếm, đổi bìa và sao lưu/khôi phục truyện.
 - **Edit Name** (xanh dương, hình bút chì): Bôi đen đoạn đã dịch trên web → bấm bút chì để sửa tên.
 - **Dịch Nhanh** (xám): Dán text và dịch nhanh mà không cần dịch cả trang.
 - **OCR** (teal): Dịch chữ trong ảnh — khoanh vùng hoặc dịch ảnh.
@@ -12324,6 +13226,10 @@ body.tmx-fullscreen .tmx-scroll {
 ### 📚 Thư Viện & Đọc Truyện
 - Import **TXT/EPUB**, chọn ngôn ngữ nguồn (Trung → có RAW/DỊCH, Việt → chỉ đọc).
 - Reader có: RAW/DỊCH, Fullscreen, Mục lục, cache dịch + prefetch chương, nút mở nhanh Cài đặt/TTS.
+- Thư viện hiển thị dạng toàn màn hình, truyện vừa đọc nằm trước, có tổng số truyện, phân trang/lazy load khi cuộn và bìa mặc định cho từng truyện.
+- Có thể đổi ảnh bìa từng truyện bằng ảnh user chọn; ảnh bìa được lưu cùng metadata và đi theo backup.
+- Ô tìm kiếm hỗ trợ popup chọn phạm vi: tên truyện, tác giả, raw Trung và cache dịch.
+- **Sao lưu/Khôi phục** dùng thư mục user chọn; backup gồm index thư viện, raw, cache dịch và ảnh bìa. Khi data thư viện thay đổi, script tự sao lưu theo chu kỳ trong tab **Thư viện** (mặc định 6 giờ sau lần sao lưu trước); muốn sao lưu ngay thì bấm **Sao lưu**.
 - Bôi đen text trong Reader sẽ hiện thanh **Phát / Sửa tên hoặc Thay thế từ / Xóa rác / Sao chép**. Trên mobile, menu copy/share mặc định của máy được ẩn trong Reader.
 - **Phát** mở mini-player TTS và đọc từ vị trí bôi đen tới hết chương; nếu bật **Tự qua đoạn/chương** + **Tự đọc chương kế** thì tự sang chương sau.
 - Mini-player có đĩa quay, Tạm dừng/Phát, Tiếp, Dừng, countdown hẹn giờ ngủ, highlight đoạn đang đọc và tự cuộn khi bật.
@@ -12343,7 +13249,7 @@ body.tmx-fullscreen .tmx-scroll {
 ### ⚙️ Cài Đặt
 - **Tab Chung**: Chế độ dịch (Server/Local), bật/tắt nút, Simplified View, chặn JS.
 - **Tab Bộ Tên**: Tạo/Xóa bộ name, nhập file JSON/TXT, xuất, thêm/sửa nhanh.
-- **Tab Thư viện**: Hiển thị nút, prefetch, kiểu đọc, giao diện reader.
+- **Tab Thư viện**: Hiển thị nút, prefetch, chu kỳ tự sao lưu, kiểu đọc, giao diện reader.
 - **Tab TTS**: Chọn nguồn Browser/TikTok/Google/Gemini/Bing/Zalo, giọng đọc, tốc độ/cao độ/âm lượng, độ dài đoạn, delay, hẹn giờ ngủ, prefetch remote, retry/timeout/request gap và thay thế từ trước khi đọc.
 - Hẹn giờ ngủ chỉ chạy khi bật checkbox; cookie TikTok/API key Zalo được lưu ngay khi bấm **Lưu** trong popup.
 - Khi hẹn giờ ngủ gần dừng, TTS sẽ giảm âm lượng dần trong vài giây rồi mới ngắt.
@@ -12357,6 +13263,14 @@ body.tmx-fullscreen .tmx-scroll {
     `.trim();
 
     const changelogMarkdown = `
+### ✨ v3.5.5.7_beta
+- Đổi giao diện **Thư viện** sang toàn màn hình, cấu trúc lại danh sách truyện dạng grid có bìa.
+- Thêm bìa mặc định cho mỗi truyện và nút đổi ảnh bìa user chọn.
+- Thêm tìm kiếm theo tên truyện/tác giả/raw/cache dịch với popup chọn phạm vi tìm.
+- Thêm phân trang/lazy load khi cuộn, hiển thị tổng số truyện và ưu tiên truyện vừa đọc lên trước.
+- Thêm **Sao lưu/Khôi phục** bằng thư mục qua File System Access API, có progress/status và tự sao lưu ngầm khi mở Thư viện/Reader nếu đã cấp quyền.
+- Tự sao lưu khi data thư viện thay đổi theo chu kỳ có thể chỉnh trong tab **Thư viện**; mặc định 6 giờ sau lần sao lưu trước, nút **Sao lưu** vẫn chạy ngay.
+
 ### ✨ v3.5.5.6_beta
 - TTS ngắt text gửi lấy audio tại dấu câu/xuống dòng gần nhất, hạn chế cắt ngang câu.
 - Reader TTS gọi prefetch trước N đoạn kế tiếp theo cài đặt; prefetch dùng ngưỡng an toàn timeout tối đa 16s, retry tối đa 1 và request gap tối thiểu 320ms.
@@ -12421,10 +13335,10 @@ body.tmx-fullscreen .tmx-scroll {
 
     function openHelpModalUpdateOnly() {
         const updateBanner = `
-<div class="tm-update-banner">
-  <div style="font-size:15px;font-weight:700;">🌈 TM Translate v${CURRENT_VERSION} đã sẵn sàng!</div>
-  <div style="font-size:12px;color:#6a4f7a;">Bản gộp sửa Reader/UI đọc và import chương. Tóm tắt thay đổi ở bên dưới.</div>
-</div>`.trim();
+	<div class="tm-update-banner">
+	  <div style="font-size:15px;font-weight:700;">🌈 TM Translate v${CURRENT_VERSION} đã sẵn sàng!</div>
+	  <div style="font-size:12px;color:#6a4f7a;">Bản nâng cấp Thư viện fullscreen, bìa truyện, tìm kiếm và sao lưu/khôi phục.</div>
+	</div>`.trim();
         openHelpModal([updateBanner, renderHelpMarkdown(changelogMarkdown)].join('\n'));
     }
 
