@@ -12,8 +12,8 @@
 // @require     https://cdnjs.cloudflare.com/ajax/libs/jquery/3.1.0/jquery.js
 
 // @require     https://raw.githubusercontent.com/BaoBao666888/Novel-Downloader5/main/download-vietnamese.js?v=1.3.2
-// @require     https://raw.githubusercontent.com/BaoBao666888/Novel-Downloader5/main/nd-console-panel.js?v=1.0.2
-// @require     https://raw.githubusercontent.com/BaoBao666888/Novel-Downloader5/main/nd-download-manager.js?v=1.0.5
+// @require     https://raw.githubusercontent.com/BaoBao666888/Novel-Downloader5/main/nd-console-panel.js?v=1.0.3
+// @require     https://raw.githubusercontent.com/BaoBao666888/Novel-Downloader5/main/nd-download-manager.js?v=1.0.6
 // @require     https://raw.githubusercontent.com/BaoBao666888/Novel-Downloader5/main/nd-file-save.js?v=1.0.0
 
 // @require     https://raw.githubusercontent.com/BaoBao666888/Novel-Downloader5/main/chs2cht.js
@@ -135,6 +135,7 @@ function decryptDES(encrypted, key, iv) {
     const ND_VERSION_NOTICE_KEY = 'ND_MAIN_LAST_VERSION';
     const ND_LAUNCHER_ENABLED_KEY = 'ND_LAUNCHER_ENABLED';
     const ND_LAUNCHER_POSITION_KEY = 'ND_LAUNCHER_POSITION';
+    const ND_DEBUG_BRIDGE_CLIENT_URL = 'http://127.0.0.1:17888/nd-debug-bridge.js';
     function getNovelDownloaderUIRoot(create = false) {
         if (typeof window.__novelDownloaderGetUIRoot === 'function') {
             const root = window.__novelDownloaderGetUIRoot(create);
@@ -182,6 +183,7 @@ function decryptDES(encrypted, key, iv) {
     if (!fileSave || typeof fileSave.saveContent !== 'function') {
         throw new Error('[ND] nd-file-save.js chưa được tải đúng cách.');
     }
+    const debugBridge = window.NDDebugBridge || null;
 
     // ============================================================================
     // Floating Launcher & In-Script Documentation
@@ -224,6 +226,12 @@ function decryptDES(encrypted, key, iv) {
                 'Không còn cần cài thêm <b>NovelDownloader Helper - AntiClear</b>. Việc clear Console trong DevTools không xóa log đã nằm trong bảng UI.',
                 'Các log có định dạng <code>%c</code> được giữ màu cơ bản trong bảng Console để dễ nhìn các bước tải.'
             ]),
+            '<h3>Debug Bridge</h3>',
+            docList([
+                'Chạy server local bằng <code>node tools/nd-debug-bridge/server.js</code>, sau đó mở <b>Debug Bridge</b> trong tab Cài đặt của Quản lý tải xuống. Client bridge sẽ được tải từ server local khi bấm mở.',
+                'Dashboard local cho phép test selector, xem môi trường, xem rule/book/config, chạy <code>getChapters</code>, <code>deal</code> và eval JS ngay trong tab userscript thật.',
+                'Tính năng này mặc định tắt và dùng token local; chỉ bật khi cần debug rule.'
+            ]),
             '<h3>Rule tùy chỉnh</h3>',
             docList([
                 'Ô <b>Quy tắc tùy chỉnh</b> nhận <code>{...}</code>, <code>[{...}]</code> hoặc lệnh <code>Rule.special.push({...});</code>.',
@@ -246,7 +254,8 @@ function decryptDES(encrypted, key, iv) {
                 'Cải thiện bảng Console để nhận log từ ngữ cảnh thực thi phụ, giữ object/error và màu <code>%c</code> đầy đủ hơn.',
                 'Ổn định sandbox JS mở rộng bằng cách truyền thêm các API tiện ích cần thiết.',
                 'Giữ metadata chương khi dùng <b>Tiếp tục</b> trong Quản lý tải xuống.',
-                'Đồng bộ tiến độ thật cho Quản lý tải xuống, thêm xóa task treo và giữ task đang tải khi dùng <b>Buộc lưu</b>.'
+                'Đồng bộ tiến độ thật cho Quản lý tải xuống, thêm xóa task treo và giữ task đang tải khi dùng <b>Buộc lưu</b>.',
+                'Thêm thử nghiệm <b>Debug Bridge</b> qua WebSocket local để debug rule trong môi trường userscript thật.'
             ]),
             '<h3>Các bản trước (tóm tắt)</h3>',
             docList([
@@ -316,6 +325,61 @@ function decryptDES(encrypted, key, iv) {
 
     function openNovelDownloaderChangelog() {
         openNovelDownloaderDocModal('Changelog Novel Downloader', getNovelDownloaderChangelogHtml());
+    }
+
+    function loadNovelDownloaderDebugBridgeClient() {
+        const bridge = window.NDDebugBridge || debugBridge;
+        if (bridge && typeof bridge.openPanel === 'function') return Promise.resolve(bridge);
+        return new Promise((resolve, reject) => {
+            GM_xmlhttpRequest({
+                method: 'GET',
+                url: ND_DEBUG_BRIDGE_CLIENT_URL,
+                timeout: 10000,
+                onload: (res) => {
+                    if (res.status < 200 || res.status >= 300) {
+                        reject(new Error(`Debug Bridge server trả HTTP ${res.status}`));
+                        return;
+                    }
+                    try {
+                        const install = new Function(
+                            'window',
+                            'document',
+                            'GM_getValue',
+                            'GM_setValue',
+                            'GM_xmlhttpRequest',
+                            'unsafeWindow',
+                            'CryptoJS',
+                            `${res.responseText}\nreturn window.NDDebugBridge;`
+                        );
+                        const loadedBridge = install(window, document, GM_getValue, GM_setValue, GM_xmlhttpRequest, unsafeWindow, CryptoJS);
+                        registerNovelDownloaderDebugBridge();
+                        resolve(loadedBridge || window.NDDebugBridge);
+                    } catch (error) {
+                        reject(error);
+                    }
+                },
+                onerror: () => reject(new Error('Không tải được Debug Bridge client từ server local.')),
+                ontimeout: () => reject(new Error('Timeout khi tải Debug Bridge client từ server local.'))
+            });
+        });
+    }
+
+    async function openNovelDownloaderDebugBridge() {
+        const bridge = window.NDDebugBridge || debugBridge;
+        if (bridge && typeof bridge.openPanel === 'function') {
+            bridge.openPanel();
+            return;
+        }
+        try {
+            const loadedBridge = await loadNovelDownloaderDebugBridgeClient();
+            if (loadedBridge && typeof loadedBridge.openPanel === 'function') {
+                loadedBridge.openPanel();
+            } else {
+                throw new Error('Debug Bridge client không export đúng API.');
+            }
+        } catch (error) {
+            alert(`Không mở được Debug Bridge.\n\nChạy server trước:\nnode tools/nd-debug-bridge/server.js\n\nChi tiết: ${error.message || error}`);
+        }
     }
 
     function openNovelDownloaderGuideWithChangelog() {
@@ -552,6 +616,7 @@ function decryptDES(encrypted, key, iv) {
         openManager: openNovelDownloaderManagerUi,
         openGuide: openNovelDownloaderGuide,
         openChangelog: openNovelDownloaderChangelog,
+        openDebugBridge: openNovelDownloaderDebugBridge,
         updateLauncherVisibility: updateNovelDownloaderLauncherVisibility,
         isLauncherEnabled: isNovelDownloaderLauncherEnabled,
         setLauncherEnabled: setNovelDownloaderLauncherEnabled,
@@ -7900,6 +7965,35 @@ function decryptDES(encrypted, key, iv) {
         });
         return proxy;
     }
+
+    function getNovelDownloaderDebugContext() {
+        return {
+            Rule,
+            helpers: Rule.helpers,
+            utils: Rule.helpers,
+            xhr,
+            $,
+            sleep,
+            html2Text,
+            replaceWithDict,
+            getFromRule,
+            Storage,
+            Config,
+            unsafeWindow,
+            download: typeof download !== 'undefined' ? download : undefined,
+            saveAs: typeof saveAs !== 'undefined' ? saveAs : undefined,
+            CryptoJS: typeof CryptoJS !== 'undefined' ? CryptoJS : undefined
+        };
+    }
+
+    function registerNovelDownloaderDebugBridge() {
+        const bridge = window.NDDebugBridge || debugBridge;
+        if (bridge && typeof bridge.setRuntimeProvider === 'function') {
+            bridge.setRuntimeProvider(getNovelDownloaderDebugContext);
+        }
+    }
+
+    registerNovelDownloaderDebugBridge();
 
     function loadCustomRulesFromConfig(source) {
         const code = String(source || '').trim();

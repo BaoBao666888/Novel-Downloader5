@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name        nd-download-manager
-// @version     1.0.5
+// @version     1.0.6
 // @include     *
 // ==/UserScript==
 /* eslint-env browser */
@@ -676,6 +676,15 @@
                                     <button type="button" data-action="open-changelog">Mở Changelog</button>
                                 </div>
                             </div>
+                            <div class="nd-manager-setting-row">
+                                <div class="nd-manager-setting-main">
+                                    <div class="nd-manager-setting-title">Debug Bridge</div>
+                                    <div class="nd-manager-setting-desc">Kết nối dashboard local để chạy selector, rule và code debug trong môi trường userscript thật.</div>
+                                </div>
+                                <div class="nd-manager-doc-actions">
+                                    <button type="button" data-action="open-debug-bridge">Mở Debug Bridge</button>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -763,9 +772,13 @@
                     await TaskManager.clearHistory();
                     return;
                 }
-                if (action === 'open-guide' || action === 'open-changelog') {
+                if (action === 'open-guide' || action === 'open-changelog' || action === 'open-debug-bridge') {
                     const api = getMainUiApi();
-                    const method = action === 'open-guide' ? 'openGuide' : 'openChangelog';
+                    const method = {
+                        'open-guide': 'openGuide',
+                        'open-changelog': 'openChangelog',
+                        'open-debug-bridge': 'openDebugBridge'
+                    }[action];
                     if (api && typeof api[method] === 'function') {
                         api[method]();
                     } else {

@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name        nd-console-panel
-// @version     1.0.2
+// @version     1.0.3
 // @include     *
 // ==/UserScript==
 /* eslint-env browser */
@@ -26,6 +26,7 @@
     const entries = [];
     const originalConsole = {};
     const listeners = [];
+    const entryListeners = [];
     const consoleObject = window.console || {};
     let enabled = loadEnabled();
     let uiActive = false;
@@ -394,6 +395,14 @@
             text,
             html: text === formatted.text ? formatted.html : escapeHtml(text)
         });
+        const entry = entries[entries.length - 1];
+        entryListeners.slice().forEach((listener) => {
+            try {
+                listener(entry);
+            } catch (error) {
+                // Listener errors should not break console capturing.
+            }
+        });
         if (entries.length > MAX_ENTRIES) entries.splice(0, entries.length - MAX_ENTRIES);
         render();
         if (uiActive && (hiddenByUser || !isVisible())) show();
@@ -498,6 +507,15 @@
         };
     }
 
+    function onEntry(listener) {
+        if (typeof listener !== 'function') return function () {};
+        entryListeners.push(listener);
+        return function removeListener() {
+            const index = entryListeners.indexOf(listener);
+            if (index >= 0) entryListeners.splice(index, 1);
+        };
+    }
+
     function wrapConsole() {
         if (installed) return;
         installed = true;
@@ -544,7 +562,8 @@
         getEntries: () => entries.slice(),
         getText,
         capture,
-        onStateChange
+        onStateChange,
+        onEntry
     };
 
     window.NDConsole = api;
