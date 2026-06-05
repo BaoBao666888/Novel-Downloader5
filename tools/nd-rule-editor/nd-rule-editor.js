@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name        nd-rule-editor
-// @version     1.0.0
+// @version     1.0.1
 // @include     *
 // ==/UserScript==
 /* eslint-env browser */
@@ -10,12 +10,14 @@
 
     if (window.NDRuleEditor && window.NDRuleEditor.__installed) return;
 
-    const VERSION = '1.0.0';
+    const VERSION = '1.0.1';
     const UI_HOST_ID = 'novel-downloader-shadow-host';
     const OVERLAY_ID = 'ndRuleEditorOverlay';
     const STYLE_ID = 'ndRuleEditorStyle';
     const STORAGE_KEY = 'nd_rule_editor_state_v1';
     const AUTOSAVE_DELAY = 900;
+    const UI_FONT = '"Segoe UI", Arial, "Noto Sans", "Helvetica Neue", sans-serif';
+    const MONO_FONT = '"Cascadia Mono", Consolas, Menlo, Monaco, "Courier New", monospace';
 
     let state = null;
     let activeOptions = {};
@@ -462,9 +464,9 @@ cover: '.book-cover img',`
             root.appendChild(style);
         }
         style.textContent = [
-            ':host{all:initial;display:block;position:fixed;inset:0;z-index:2147483647;pointer-events:none;font-family:Arial,sans-serif;}',
+            `:host{all:initial;display:block;position:fixed;inset:0;z-index:2147483647;pointer-events:none;font-family:${UI_FONT};}`,
             '*,*:before,*:after{box-sizing:border-box;}',
-            `#${OVERLAY_ID}{position:fixed;inset:0;z-index:1000007;display:none;align-items:center;justify-content:center;background:rgba(15,23,42,.58);pointer-events:auto;color:#0f172a;font-family:Arial,sans-serif;}`,
+            `#${OVERLAY_ID}{position:fixed;inset:0;z-index:1000007;display:none;align-items:center;justify-content:center;background:rgba(15,23,42,.58);pointer-events:auto;color:#0f172a;font-family:${UI_FONT};}`,
             `#${OVERLAY_ID}.is-visible{display:flex;}`,
             `#${OVERLAY_ID} .nd-rule-window{width:min(1180px,calc(100vw - 24px));height:min(780px,calc(100vh - 24px));display:grid;grid-template-rows:auto 1fr;background:#f8fafc;border:1px solid #cbd5e1;border-radius:10px;box-shadow:0 24px 70px rgba(15,23,42,.38);overflow:hidden;}`,
             `#${OVERLAY_ID} .nd-rule-header{display:flex;align-items:center;gap:10px;padding:11px 14px;background:linear-gradient(135deg,#111827,#0f766e 56%,#7f1d1d);color:#fff;}`,
@@ -478,8 +480,8 @@ cover: '.book-cover img',`
             `#${OVERLAY_ID} .nd-rule-panel{padding:10px;display:grid;gap:9px;align-content:start;}`,
             `#${OVERLAY_ID} .nd-rule-main{display:grid;grid-template-rows:auto 1fr auto;min-height:0;background:#fff;}`,
             `#${OVERLAY_ID} .nd-rule-toolbar{display:flex;flex-wrap:wrap;gap:7px;align-items:center;padding:10px;border-bottom:1px solid #e2e8f0;background:#fff;}`,
-            `#${OVERLAY_ID} input,#${OVERLAY_ID} textarea{border:1px solid #cbd5e1;border-radius:6px;background:#fff;color:#0f172a;padding:7px 8px;font:13px/1.35 Arial,sans-serif;}`,
-            `#${OVERLAY_ID} textarea{resize:none;width:100%;height:100%;font-family:Consolas,Menlo,Monaco,"Courier New",monospace;font-size:12px;line-height:1.45;tab-size:2;border:0;border-radius:0;border-bottom:1px solid #e2e8f0;}`,
+            `#${OVERLAY_ID} input,#${OVERLAY_ID} textarea{border:1px solid #cbd5e1;border-radius:6px;background:#fff;color:#0f172a;padding:7px 8px;font:13px/1.35 ${UI_FONT};}`,
+            `#${OVERLAY_ID} textarea{resize:none;width:100%;height:100%;font-family:${MONO_FONT};font-size:12px;line-height:1.45;tab-size:2;border:0;border-radius:0;border-bottom:1px solid #e2e8f0;}`,
             `#${OVERLAY_ID} button{border:1px solid #cbd5e1;border-radius:6px;background:#fff;color:#0f172a;padding:6px 9px;cursor:pointer;font-size:12px;font-weight:700;}`,
             `#${OVERLAY_ID} button:hover{background:#eff6ff;border-color:#93c5fd;}`,
             `#${OVERLAY_ID} button.primary{background:#0f766e;border-color:#14b8a6;color:#fff;}`,
@@ -493,10 +495,10 @@ cover: '.book-cover img',`
             `#${OVERLAY_ID} .nd-rule-editor-meta{display:flex;gap:8px;align-items:center;flex-wrap:wrap;}`,
             `#${OVERLAY_ID} .nd-rule-name{flex:1 1 240px;min-width:160px;}`,
             `#${OVERLAY_ID} .nd-rule-switch{display:inline-flex;align-items:center;gap:5px;font-size:12px;font-weight:700;color:#334155;}`,
-            `#${OVERLAY_ID} .nd-rule-status{padding:9px 10px;background:#f8fafc;border-top:1px solid #e2e8f0;font:12px/1.45 Consolas,Menlo,monospace;white-space:pre-wrap;overflow:auto;max-height:120px;color:#334155;}`,
+            `#${OVERLAY_ID} .nd-rule-status{padding:9px 10px;background:#f8fafc;border-top:1px solid #e2e8f0;font:12px/1.45 ${MONO_FONT};white-space:pre-wrap;overflow:auto;max-height:120px;color:#334155;}`,
             `#${OVERLAY_ID} .nd-rule-status.ok{color:#166534;background:#f0fdf4;}`,
             `#${OVERLAY_ID} .nd-rule-status.error{color:#991b1b;background:#fff1f2;}`,
-            `#${OVERLAY_ID} .nd-rule-section-title{font-weight:800;font-size:12px;color:#334155;text-transform:uppercase;letter-spacing:.02em;}`,
+            `#${OVERLAY_ID} .nd-rule-section-title{font-weight:800;font-size:12px;color:#334155;letter-spacing:0;}`,
             `#${OVERLAY_ID} .nd-rule-snippets{display:flex;flex-wrap:wrap;gap:6px;}`,
             `#${OVERLAY_ID} .nd-rule-builtins{display:grid;gap:6px;max-height:210px;overflow:auto;}`,
             `#${OVERLAY_ID} .nd-rule-builtins button{text-align:left;font-weight:600;}`,
@@ -545,9 +547,9 @@ cover: '.book-cover img',`
         renderTools(overlay);
     }
 
-    function renderSidebar(overlay) {
+    function renderSidebar(overlay, options = {}) {
         const sidebar = overlay.querySelector('[data-role="sidebar"]');
-        const query = sidebar.querySelector('[name="rule-search"]')?.value || '';
+        const query = options.query !== undefined ? options.query : (sidebar.querySelector('[name="rule-search"]')?.value || '');
         const rules = state.rules.filter(rule => !query || rule.name.toLowerCase().includes(query.toLowerCase()) || rule.code.toLowerCase().includes(query.toLowerCase()));
         sidebar.innerHTML = [
             '<button type="button" class="primary" data-action="new-rule">Tạo rule</button>',
@@ -605,9 +607,9 @@ cover: '.book-cover img',`
         ].join('');
     }
 
-    function renderTools(overlay) {
+    function renderTools(overlay, options = {}) {
         const tools = overlay.querySelector('[data-role="tools"]');
-        const builtInSearch = tools.querySelector('[name="builtin-search"]')?.value || '';
+        const builtInSearch = options.query !== undefined ? options.query : (tools.querySelector('[name="builtin-search"]')?.value || '');
         const builtIns = getBuiltInRules()
             .filter(rule => !rule.__ndCustomRule)
             .filter(rule => {
@@ -689,8 +691,18 @@ cover: '.book-cover img',`
 
     function handleOverlayInput(event) {
         const target = event.target;
-        if (target.name === 'rule-search' || target.name === 'builtin-search') {
-            renderAll();
+        if (target.name === 'rule-search') {
+            if (event.isComposing) return;
+            const caret = getInputCaret(target);
+            renderSidebar(event.currentTarget, { query: target.value });
+            restoreInputCaret(event.currentTarget, 'rule-search', caret);
+            return;
+        }
+        if (target.name === 'builtin-search') {
+            if (event.isComposing) return;
+            const caret = getInputCaret(target);
+            renderTools(event.currentTarget, { query: target.value });
+            restoreInputCaret(event.currentTarget, 'builtin-search', caret);
             return;
         }
         const rule = getActiveRule();
@@ -705,6 +717,28 @@ cover: '.book-cover img',`
             rule.updatedAt = nowIso();
             rule.lastValidation = null;
             queueSaveState();
+        }
+    }
+
+    function getInputCaret(input) {
+        return {
+            value: input.value || '',
+            start: Number.isFinite(input.selectionStart) ? input.selectionStart : String(input.value || '').length,
+            end: Number.isFinite(input.selectionEnd) ? input.selectionEnd : String(input.value || '').length
+        };
+    }
+
+    function restoreInputCaret(overlay, name, caret) {
+        const input = overlay.querySelector(`[name="${name}"]`);
+        if (!input) return;
+        input.focus();
+        const length = input.value.length;
+        const start = Math.min(caret.start, length);
+        const end = Math.min(caret.end, length);
+        try {
+            input.setSelectionRange(start, end);
+        } catch (error) {
+            // Search inputs may reject selection in unusual browser states.
         }
     }
 

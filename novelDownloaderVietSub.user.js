@@ -2,7 +2,7 @@
 // ==UserScript==
 // @name        novelDownloaderVietSub
 // @description Menu Download Novel hoặc nhấp đúp vào cạnh trái của trang để hiển thị bảng điều khiển
-// @version     3.5.448.5
+// @version     3.5.448.5.1
 // @author      dodying | BaoBao
 // @namespace   https://github.com/BaoBao666888/Novel-Downloader5
 // @supportURL  https://github.com/BaoBao666888/Novel-Downloader5/issues
@@ -15,7 +15,7 @@
 // @require     https://raw.githubusercontent.com/BaoBao666888/Novel-Downloader5/main/nd-console-panel.js?v=1.0.3
 // @require     https://raw.githubusercontent.com/BaoBao666888/Novel-Downloader5/main/nd-download-manager.js?v=1.0.7
 // @require     https://raw.githubusercontent.com/BaoBao666888/Novel-Downloader5/main/nd-file-save.js?v=1.0.0
-// @require     https://raw.githubusercontent.com/BaoBao666888/Novel-Downloader5/main/tools/nd-rule-editor/nd-rule-editor.js?v=1.0.0
+// @require     https://raw.githubusercontent.com/BaoBao666888/Novel-Downloader5/main/tools/nd-rule-editor/nd-rule-editor.js?v=1.0.1
 
 // @require     https://raw.githubusercontent.com/BaoBao666888/Novel-Downloader5/main/chs2cht.js
 // @require     https://cdnjs.cloudflare.com/ajax/libs/jszip/3.0.0/jszip.min.js
@@ -138,7 +138,7 @@ function decryptDES(encrypted, key, iv) {
     const ND_LAUNCHER_POSITION_KEY = 'ND_LAUNCHER_POSITION';
     const ND_DEBUG_BRIDGE_CLIENT_URL = 'http://127.0.0.1:17888/nd-debug-bridge.js';
     const ND_RULE_EDITOR_CLIENT_URL = 'http://127.0.0.1:17888/nd-rule-editor.js';
-    const ND_RULE_EDITOR_REMOTE_URL = 'https://raw.githubusercontent.com/BaoBao666888/Novel-Downloader5/main/tools/nd-rule-editor/nd-rule-editor.js?v=1.0.0';
+    const ND_RULE_EDITOR_REMOTE_URL = 'https://raw.githubusercontent.com/BaoBao666888/Novel-Downloader5/main/tools/nd-rule-editor/nd-rule-editor.js?v=1.0.1';
     function getNovelDownloaderUIRoot(create = false) {
         if (typeof window.__novelDownloaderGetUIRoot === 'function') {
             const root = window.__novelDownloaderGetUIRoot(create);
@@ -260,6 +260,8 @@ function decryptDES(encrypted, key, iv) {
             docList([
                 'Thêm <b>Rule Editor</b> để quản lý nhiều rule tùy chỉnh theo từng mục riêng, có tìm kiếm, bật/tắt, template, chèn hàm nhanh, kiểm tra cấu trúc, export/import và autosave draft.',
                 'Rule Editor có thể mở từ UI tải chính hoặc tab Cài đặt của Quản lý tải xuống; khi áp dụng vẫn sinh về <code>Config.customize</code> nên tương thích cơ chế nạp rule cũ.',
+                'Sửa Rule Editor: tìm kiếm không mất focus khi đang gõ, chỉnh font/tiêu đề section để hiển thị tiếng Việt rõ hơn.',
+                'Thêm rule gốc cho <b>爱丽丝书屋</b>.',
                 'Hoàn thiện <b>Debug Bridge</b> local: test selector/rule, chạy <code>getChapters</code>, <code>deal</code>, eval JS và xem đúng môi trường Tampermonkey thật.',
                 'Debug server có thêm endpoint phục vụ Rule Editor để test local bằng bản trong repo hiện tại.',
                 'Cải thiện bảng Console và Quản lý tải xuống: giữ log object/error/%c, lưu tiếp tục ổn hơn, đồng bộ tiến độ thật, xóa task treo và giữ task đang tải khi dùng <b>Buộc lưu</b>.'
@@ -2129,6 +2131,61 @@ function decryptDES(encrypted, key, iv) {
             elementRemove: 'script,style,iframe,ins',
             chapterPrev: '.page1 a:contains("上一章")',
             chapterNext: '.page1 a:contains("下一章")'
+        },
+
+        {
+            siteName: '爱丽丝书屋',
+            url: '://www.alicesw.com/(?:novel/\\d+|other/chapters/id/\\d+)\\.html',
+            chapterUrl: '://www.alicesw.com/book/\\d+/[a-z0-9]+\\.html',
+            infoPage: (doc = document) => {
+                if (/\/novel\/\d+\.html/.test(location.pathname)) return location.href;
+                const link = doc.querySelector('.bread-crumbs a[href^="/novel/"], .infos a[href^="/novel/"], .text-info a[href^="/novel/"], .book-wrap a[href^="/novel/"]');
+                return link ? Rule.helpers.absoluteUrl(link.getAttribute('href'), location.href) : '';
+            },
+            title: '.novel_title, h1',
+            writer: (doc = document) => (doc.querySelector('.novel_info p:first-child a') || doc.querySelector('.infos span:first-child a'))?.textContent.trim() || '',
+            intro: '.jianjie p:first',
+            cover: (doc = document) => {
+                const img = doc.querySelector('.pic img');
+                const src = img ? (img.getAttribute('data-src') || img.getAttribute('src') || img.src || '') : '';
+                return src ? Rule.helpers.absoluteUrl(src, location.href) : '';
+            },
+            getChapterDoc: async (doc = document) => {
+                if (doc.querySelector('.mulu_list a')) {
+                    doc.__ndBaseUrl = doc.__ndBaseUrl || location.href;
+                    return doc;
+                }
+                const rule = Rule.special.find(item => item.siteName === '爱丽丝书屋');
+                let infoDoc = doc;
+                let infoUrl = location.href;
+                if (!infoDoc.querySelector('.book_newchap')) {
+                    infoUrl = rule.infoPage(doc) || location.href;
+                    if (infoUrl) {
+                        infoDoc = await Rule.helpers.requestDoc(infoUrl);
+                        infoDoc.__ndBaseUrl = infoUrl;
+                    }
+                }
+                const link = infoDoc.querySelector('.book_newchap .tit a[href*="/other/chapters/id/"], a[href*="/other/chapters/id/"]');
+                if (!link) return doc;
+                const chapterListUrl = Rule.helpers.absoluteUrl(link.getAttribute('href'), infoDoc.__ndBaseUrl || infoUrl || location.href);
+                const chapterDoc = await Rule.helpers.requestDoc(chapterListUrl);
+                chapterDoc.__ndBaseUrl = chapterListUrl;
+                return chapterDoc;
+            },
+            getChapters: async (doc = document) => {
+                const rule = Rule.special.find(item => item.siteName === '爱丽丝书屋');
+                const chapterDoc = await rule.getChapterDoc(doc);
+                const baseUrl = chapterDoc.__ndBaseUrl || location.href;
+                return Array.from(chapterDoc.querySelectorAll('.mulu_list a[href]')).map((a) => ({
+                    title: a.textContent.trim().replace(/\s+/g, ' '),
+                    url: Rule.helpers.absoluteUrl(a.getAttribute('href'), baseUrl)
+                })).filter(chapter => chapter.title && chapter.url);
+            },
+            chapterTitle: '.j_chapterName',
+            content: '.j_readContent',
+            elementRemove: 'script,style,.la-ball-pulse,.chapter-control,.read-login,.quick-nav,.left-bar-list,.right-bar-list,.panel-wrap,.float-wrap,.book-wrap',
+            chapterPrev: '#j_chapterPrev',
+            chapterNext: '#j_chapterNext'
         },
 
         {
