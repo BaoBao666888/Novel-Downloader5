@@ -2,7 +2,7 @@
 // ==UserScript==
 // @name        novelDownloaderVietSub
 // @description Menu Download Novel hoặc nhấp đúp vào cạnh trái của trang để hiển thị bảng điều khiển
-// @version     3.5.448.3
+// @version     3.5.448.5
 // @author      dodying | BaoBao
 // @namespace   https://github.com/BaoBao666888/Novel-Downloader5
 // @supportURL  https://github.com/BaoBao666888/Novel-Downloader5/issues
@@ -13,8 +13,9 @@
 
 // @require     https://raw.githubusercontent.com/BaoBao666888/Novel-Downloader5/main/download-vietnamese.js?v=1.3.2
 // @require     https://raw.githubusercontent.com/BaoBao666888/Novel-Downloader5/main/nd-console-panel.js?v=1.0.3
-// @require     https://raw.githubusercontent.com/BaoBao666888/Novel-Downloader5/main/nd-download-manager.js?v=1.0.6
+// @require     https://raw.githubusercontent.com/BaoBao666888/Novel-Downloader5/main/nd-download-manager.js?v=1.0.7
 // @require     https://raw.githubusercontent.com/BaoBao666888/Novel-Downloader5/main/nd-file-save.js?v=1.0.0
+// @require     https://raw.githubusercontent.com/BaoBao666888/Novel-Downloader5/main/tools/nd-rule-editor/nd-rule-editor.js?v=1.0.0
 
 // @require     https://raw.githubusercontent.com/BaoBao666888/Novel-Downloader5/main/chs2cht.js
 // @require     https://cdnjs.cloudflare.com/ajax/libs/jszip/3.0.0/jszip.min.js
@@ -136,6 +137,8 @@ function decryptDES(encrypted, key, iv) {
     const ND_LAUNCHER_ENABLED_KEY = 'ND_LAUNCHER_ENABLED';
     const ND_LAUNCHER_POSITION_KEY = 'ND_LAUNCHER_POSITION';
     const ND_DEBUG_BRIDGE_CLIENT_URL = 'http://127.0.0.1:17888/nd-debug-bridge.js';
+    const ND_RULE_EDITOR_CLIENT_URL = 'http://127.0.0.1:17888/nd-rule-editor.js';
+    const ND_RULE_EDITOR_REMOTE_URL = 'https://raw.githubusercontent.com/BaoBao666888/Novel-Downloader5/main/tools/nd-rule-editor/nd-rule-editor.js?v=1.0.0';
     function getNovelDownloaderUIRoot(create = false) {
         if (typeof window.__novelDownloaderGetUIRoot === 'function') {
             const root = window.__novelDownloaderGetUIRoot(create);
@@ -190,7 +193,7 @@ function decryptDES(encrypted, key, iv) {
     // ============================================================================
 
     function getNovelDownloaderScriptVersion() {
-        return GM_info && GM_info.script && GM_info.script.version ? GM_info.script.version : '3.5.448.3';
+        return GM_info && GM_info.script && GM_info.script.version ? GM_info.script.version : '3.5.448.5';
     }
 
     function docList(items) {
@@ -230,11 +233,15 @@ function decryptDES(encrypted, key, iv) {
             docList([
                 'Chạy server local bằng <code>node tools/nd-debug-bridge/server.js</code>, sau đó mở <b>Debug Bridge</b> trong tab Cài đặt của Quản lý tải xuống. Client bridge sẽ được tải từ server local khi bấm mở.',
                 'Dashboard local cho phép test selector, xem môi trường, xem rule/book/config, chạy <code>getChapters</code>, <code>deal</code> và eval JS ngay trong tab userscript thật.',
+                'Server local cũng phục vụ Rule Editor để test nhanh khi cần chạy bản trong repo hiện tại.',
                 'Tính năng này mặc định tắt và dùng token local; chỉ bật khi cần debug rule.'
             ]),
             '<h3>Rule tùy chỉnh</h3>',
             docList([
-                'Ô <b>Quy tắc tùy chỉnh</b> nhận <code>{...}</code>, <code>[{...}]</code> hoặc lệnh <code>Rule.special.push({...});</code>.',
+                'Bấm <b>Quản lý rule</b> trong phần cài đặt nâng cao hoặc tab Cài đặt của Quản lý tải xuống để mở Rule Editor.',
+                'Mỗi rule có tên riêng, trạng thái bật/tắt, vùng code riêng, autosave draft, nút kiểm tra cấu trúc và nút áp dụng vào <code>Config.customize</code>.',
+                'Rule Editor có template selector/getChapters/deal, chèn nhanh các hàm thường dùng, tìm rule tự tạo và tìm/copy rule gốc để sửa lại.',
+                'Dữ liệu áp dụng vẫn tương thích cơ chế cũ: nhận <code>{...}</code>, <code>[{...}]</code> hoặc lệnh <code>Rule.special.push({...});</code>.',
                 'Có thể dùng lại helper như <code>helpers.requestDoc</code>, <code>helpers.requestJson</code>, <code>helpers.mapChapters</code>, <code>helpers.absoluteUrl</code> để viết rule nhanh hơn.',
                 'Nếu rule cần Cloudflare/cookie, ưu tiên dùng helper tải trang có sẵn thay vì tự viết fetch rời rạc.'
             ]),
@@ -251,20 +258,17 @@ function decryptDES(encrypted, key, iv) {
         return [
             `<h3>v${getNovelDownloaderScriptVersion()}</h3>`,
             docList([
-                'Cải thiện bảng Console để nhận log từ ngữ cảnh thực thi phụ, giữ object/error và màu <code>%c</code> đầy đủ hơn.',
-                'Ổn định sandbox JS mở rộng bằng cách truyền thêm các API tiện ích cần thiết.',
-                'Giữ metadata chương khi dùng <b>Tiếp tục</b> trong Quản lý tải xuống.',
-                'Đồng bộ tiến độ thật cho Quản lý tải xuống, thêm xóa task treo và giữ task đang tải khi dùng <b>Buộc lưu</b>.',
-                'Thêm thử nghiệm <b>Debug Bridge</b> qua WebSocket local để debug rule trong môi trường userscript thật.'
+                'Thêm <b>Rule Editor</b> để quản lý nhiều rule tùy chỉnh theo từng mục riêng, có tìm kiếm, bật/tắt, template, chèn hàm nhanh, kiểm tra cấu trúc, export/import và autosave draft.',
+                'Rule Editor có thể mở từ UI tải chính hoặc tab Cài đặt của Quản lý tải xuống; khi áp dụng vẫn sinh về <code>Config.customize</code> nên tương thích cơ chế nạp rule cũ.',
+                'Hoàn thiện <b>Debug Bridge</b> local: test selector/rule, chạy <code>getChapters</code>, <code>deal</code>, eval JS và xem đúng môi trường Tampermonkey thật.',
+                'Debug server có thêm endpoint phục vụ Rule Editor để test local bằng bản trong repo hiện tại.',
+                'Cải thiện bảng Console và Quản lý tải xuống: giữ log object/error/%c, lưu tiếp tục ổn hơn, đồng bộ tiến độ thật, xóa task treo và giữ task đang tải khi dùng <b>Buộc lưu</b>.'
             ]),
             '<h3>Các bản trước (tóm tắt)</h3>',
             docList([
-                'v3.5.448.2: cho thanh tiến độ <b>x / y</b> hiện thường trực, cập nhật tổng chương ngay khi load mục lục và giữ sticky khi panel thấp.',
-                'v3.5.448.1: đưa thanh tiến độ lên trước cụm nút tải và giữ sticky trong UI chính.',
-                'v3.5.448: bỏ phụ thuộc AntiClear, thêm nút nổi Novel Downloader, tab Cài đặt, Hướng dẫn và Changelog trong script.',
-                'v3.5.447.x: đưa UI script vào Shadow Root, thêm bảng Console trong UI, cải thiện bảng tiến độ tải và quản lý hàng đợi/lịch sử.',
-                'v3.5.447.x: thêm lưu dữ liệu tiếp tục khi tab bị đóng giữa chừng, nút <b>Tiếp tục</b> trong hàng đợi, dọn thẻ cũ sau 30 ngày.',
-                'v3.5.447.x: sửa rule 69shuba, xử lý encoding trang reader/txt và khôi phục thanh tiến độ x/y của UI tải chính.',
+                'v3.5.448.x: bỏ phụ thuộc AntiClear, thêm nút nổi Novel Downloader, Hướng dẫn/Changelog trong script, tab Cài đặt, thanh tiến độ sticky <b>x / y</b> và xử lý UI ngắn.',
+                'v3.5.447.x: đưa UI vào Shadow Root, thêm bảng Console trong UI, cải thiện Quản lý tải xuống, queue/history/resume, dọn thẻ cũ sau 30 ngày.',
+                'v3.5.447.x: sửa rule 69shuba, TruyenWikiDich, STV custom rule, xử lý encoding trang reader/txt và ưu tiên rule user paste trước rule gốc.',
                 'Các bản cũ hơn: bổ sung rule web, cải thiện tải thủ công, tải ảnh/EPUB/TEXT/ZIP và helper viết rule tùy chỉnh.'
             ])
         ].join('');
@@ -379,6 +383,103 @@ function decryptDES(encrypted, key, iv) {
             }
         } catch (error) {
             alert(`Không mở được Debug Bridge.\n\nChạy server trước:\nnode tools/nd-debug-bridge/server.js\n\nChi tiết: ${error.message || error}`);
+        }
+    }
+
+    function getNovelDownloaderRuleEditor() {
+        return window.NDRuleEditor
+            || (typeof unsafeWindow !== 'undefined' && unsafeWindow.NDRuleEditor)
+            || null;
+    }
+
+    function fetchNovelDownloaderRuleEditorScript(url, timeout = 10000) {
+        return new Promise((resolve, reject) => {
+            GM_xmlhttpRequest({
+                method: 'GET',
+                url,
+                timeout,
+                onload: (res) => {
+                    if (res.status < 200 || res.status >= 300) {
+                        reject(new Error(`${url} trả HTTP ${res.status}`));
+                        return;
+                    }
+                    resolve(res.responseText || res.response || '');
+                },
+                onerror: () => reject(new Error(`Không tải được ${url}`)),
+                ontimeout: () => reject(new Error(`Timeout khi tải ${url}`))
+            });
+        });
+    }
+
+    async function loadNovelDownloaderRuleEditorClient() {
+        const existingEditor = getNovelDownloaderRuleEditor();
+        if (existingEditor && typeof existingEditor.open === 'function') return existingEditor;
+
+        const urls = [
+            { url: ND_RULE_EDITOR_CLIENT_URL, timeout: 2500 },
+            { url: ND_RULE_EDITOR_REMOTE_URL, timeout: 10000 }
+        ];
+        let lastError = null;
+        for (const item of urls) {
+            try {
+                const code = await fetchNovelDownloaderRuleEditorScript(item.url, item.timeout);
+                const install = new Function(
+                    'window',
+                    'document',
+                    'GM_getValue',
+                    'GM_setValue',
+                    'unsafeWindow',
+                    `${code}\nreturn window.NDRuleEditor;`
+                );
+                const loadedEditor = install(window, document, GM_getValue, GM_setValue, unsafeWindow);
+                const editor = loadedEditor || getNovelDownloaderRuleEditor();
+                if (editor && typeof editor.open === 'function') return editor;
+                lastError = new Error(`${item.url} không export đúng API.`);
+            } catch (error) {
+                lastError = error;
+            }
+        }
+        throw lastError || new Error('Không tải được Rule Editor.');
+    }
+
+    function getCustomRuleSummaryText() {
+        const customize = typeof Config !== 'undefined' ? String(Config.customize || '').trim() : '';
+        const editor = getNovelDownloaderRuleEditor();
+        if (editor && typeof editor.getSummary === 'function') {
+            return editor.getSummary(customize);
+        }
+        if (!customize || customize === '[]') return 'Chưa có rule tùy chỉnh';
+        if (customize.includes('Generated by Novel Downloader Rule Editor')) return 'Đang dùng Rule Editor';
+        return 'Đang dùng rule tùy chỉnh cũ';
+    }
+
+    function syncCustomRuleEditorUi(container) {
+        if (!container) return;
+        const $container = container.jquery ? container : $(container);
+        $container.find('[name="config"] [name="customize"]').val(Config.customize || '[]');
+        $container.find('[name="customize-summary"]').text(getCustomRuleSummaryText());
+    }
+
+    async function openNovelDownloaderRuleEditor(options = {}) {
+        try {
+            const editor = await loadNovelDownloaderRuleEditorClient();
+            if (!editor || typeof editor.open !== 'function') {
+                throw new Error('Rule Editor không export đúng API.');
+            }
+            editor.open({
+                currentCustomize: Config.customize,
+                getBuiltInRules: () => Array.isArray(Rule.special)
+                    ? Rule.special.filter(rule => rule && !rule.__ndCustomRule)
+                    : [],
+                onApply: (customize, meta = {}) => {
+                    Config.customize = customize || '[]';
+                    GM_setValue('config', Config);
+                    if (options.container) syncCustomRuleEditorUi(options.container);
+                    console.log(`[ND] Đã áp dụng ${meta.enabledCount || 0}/${meta.totalCount || 0} rule tùy chỉnh từ Rule Editor.`);
+                }
+            });
+        } catch (error) {
+            alert(`Không mở được Rule Editor.\n\nNếu muốn test bằng server local, chạy:\nnode tools/nd-debug-bridge/server.js\n\nChi tiết: ${error.message || error}`);
         }
     }
 
@@ -617,6 +718,7 @@ function decryptDES(encrypted, key, iv) {
         openGuide: openNovelDownloaderGuide,
         openChangelog: openNovelDownloaderChangelog,
         openDebugBridge: openNovelDownloaderDebugBridge,
+        openRuleEditor: openNovelDownloaderRuleEditor,
         updateLauncherVisibility: updateNovelDownloaderLauncherVisibility,
         isLauncherEnabled: isNovelDownloaderLauncherEnabled,
         setLauncherEnabled: setNovelDownloaderLauncherEnabled,
@@ -8259,7 +8361,9 @@ function decryptDES(encrypted, key, iv) {
             '  <br>',
             '  Epub CSS: <textarea name="css" placeholder="" style="line-height:1;resize:both;"></textarea>',
             '  <br>',
-            '  Quy tắc tùy chỉnh: <textarea name="customize" placeholder="Dán [{...}], {...} hoặc lệnh Rule.special.push({...}); có thể dùng helpers.requestDoc/requestJson/mapChapters..." style="line-height:1;resize:both;"></textarea>',
+            '  Quy tắc tùy chỉnh: <button type="button" name="open-rule-editor" data-nd-action="open-rule-editor">Quản lý rule</button>',
+            '  <span name="customize-summary" class="nd-customize-summary">Chưa có rule tùy chỉnh</span>',
+            '  <input type="hidden" name="customize">',
             '</div>',
 
             '<div name="config">',
@@ -8317,6 +8421,7 @@ function decryptDES(encrypted, key, iv) {
                 event.preventDefault();
                 event.stopPropagation();
                 if (actionButton.dataset.ndAction === 'open-guide') openNovelDownloaderGuide();
+                if (actionButton.dataset.ndAction === 'open-rule-editor') openNovelDownloaderRuleEditor({ container });
                 return;
             }
             const button = event.target && event.target.closest ? event.target.closest('button[name="toggle"]') : null;
@@ -8375,6 +8480,7 @@ function decryptDES(encrypted, key, iv) {
                 e.value = Config[e.name];
             }
         });
+        syncCustomRuleEditorUi(container);
 
         // === Chọn thư mục lưu (File System Access + IDB lưu handle) ===
         Storage.downloadDirHandle = Storage.downloadDirHandle || null;
@@ -9374,6 +9480,9 @@ function decryptDES(encrypted, key, iv) {
             '.novel-downloader-v3>.useless[name="config"]{display:none;}',
             '.novel-downloader-v3>.useless[name="config"].is-visible{display:block;}',
             '.novel-downloader-v3>[name="config"] [name="vip"]:checked+span{color:red;}',
+            '.novel-downloader-v3 .nd-customize-summary{display:inline-block;margin-left:6px;color:#475569;font-size:12px;vertical-align:middle;}',
+            '.novel-downloader-v3 button[name="open-rule-editor"]{border:1px solid #0f766e!important;background:#ecfdf5!important;color:#134e4a!important;border-radius:5px;padding:3px 8px;font-weight:700;}',
+            '.novel-downloader-v3 button[name="open-rule-editor"]:hover{background:#ccfbf1!important;border-color:#14b8a6!important;}',
 
             '.novel-downloader-v3>[name="progress"]{display:block;position:sticky;top:0;z-index:3;padding:3px 4px;border:1px solid #93c5fd;background:#eff6ff!important;}',
             '.novel-downloader-v3>[name="progress"]>[name="progress-text"]{display:inline-block;min-width:48px;text-align:right;font-weight:bold;}',

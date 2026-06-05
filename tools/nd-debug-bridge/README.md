@@ -2,6 +2,8 @@
 
 Debug Bridge dùng WebSocket local để dashboard gửi lệnh vào đúng tab userscript đang chạy. Server chỉ relay message; selector, rule, `deal`, `getChapters` và eval JS đều chạy trong môi trường Tampermonkey thật.
 
+Server này cũng phục vụ `/nd-debug-bridge.js` và `/nd-rule-editor.js`, nên có thể test Rule Editor local bằng bản trong repo hiện tại.
+
 ## Chạy server
 
 ```bash

@@ -410,6 +410,10 @@ const server = http.createServer((req, res) => {
         jsResponse(res, fs.readFileSync(path.join(__dirname, 'nd-debug-bridge.js'), 'utf8'));
         return;
     }
+    if (url.pathname === '/nd-rule-editor.js') {
+        jsResponse(res, fs.readFileSync(path.join(__dirname, '..', 'nd-rule-editor', 'nd-rule-editor.js'), 'utf8'));
+        return;
+    }
     if (url.pathname === '/health') {
         jsonResponse(res, 200, { ok: true, clients: clients.size });
         return;

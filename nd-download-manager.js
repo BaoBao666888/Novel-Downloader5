@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name        nd-download-manager
-// @version     1.0.6
+// @version     1.0.7
 // @include     *
 // ==/UserScript==
 /* eslint-env browser */
@@ -685,6 +685,15 @@
                                     <button type="button" data-action="open-debug-bridge">Mở Debug Bridge</button>
                                 </div>
                             </div>
+                            <div class="nd-manager-setting-row">
+                                <div class="nd-manager-setting-main">
+                                    <div class="nd-manager-setting-title">Rule Editor</div>
+                                    <div class="nd-manager-setting-desc">Quản lý rule tùy chỉnh theo từng mục riêng, có tìm kiếm, template, kiểm tra cấu trúc và autosave draft.</div>
+                                </div>
+                                <div class="nd-manager-doc-actions">
+                                    <button type="button" data-action="open-rule-editor">Mở Rule Editor</button>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -772,12 +781,13 @@
                     await TaskManager.clearHistory();
                     return;
                 }
-                if (action === 'open-guide' || action === 'open-changelog' || action === 'open-debug-bridge') {
+                if (action === 'open-guide' || action === 'open-changelog' || action === 'open-debug-bridge' || action === 'open-rule-editor') {
                     const api = getMainUiApi();
                     const method = {
                         'open-guide': 'openGuide',
                         'open-changelog': 'openChangelog',
-                        'open-debug-bridge': 'openDebugBridge'
+                        'open-debug-bridge': 'openDebugBridge',
+                        'open-rule-editor': 'openRuleEditor'
                     }[action];
                     if (api && typeof api[method] === 'function') {
                         api[method]();
