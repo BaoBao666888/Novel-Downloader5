@@ -2,7 +2,7 @@
 // ==UserScript==
 // @name        novelDownloaderVietSub
 // @description Menu Download Novel hoặc nhấp đúp vào cạnh trái của trang để hiển thị bảng điều khiển
-// @version     3.5.448.6
+// @version     3.5.448.7
 // @author      dodying | BaoBao
 // @namespace   https://github.com/BaoBao666888/Novel-Downloader5
 // @supportURL  https://github.com/BaoBao666888/Novel-Downloader5/issues
@@ -132,6 +132,8 @@ function decryptDES(encrypted, key, iv) {
 
     const ND_UI_HOST_ID = 'novel-downloader-shadow-host';
     const ND_DOC_MODAL_ID = 'ndNovelDownloaderDocs';
+    const ND_VERIFY_MODAL_ID = 'ndNovelDownloaderVerify';
+    const ND_RESUME_CHOICE_MODAL_ID = 'ndNovelDownloaderResumeChoice';
     const ND_LAUNCHER_ID = 'ndNovelDownloaderLauncher';
     const ND_VERSION_NOTICE_KEY = 'ND_MAIN_LAST_VERSION';
     const ND_LAUNCHER_ENABLED_KEY = 'ND_LAUNCHER_ENABLED';
@@ -193,7 +195,7 @@ function decryptDES(encrypted, key, iv) {
     // ============================================================================
 
     function getNovelDownloaderScriptVersion() {
-        return GM_info && GM_info.script && GM_info.script.version ? GM_info.script.version : '3.5.448.5';
+        return GM_info && GM_info.script && GM_info.script.version ? GM_info.script.version : '3.5.448.7';
     }
 
     function docList(items) {
@@ -261,7 +263,8 @@ function decryptDES(encrypted, key, iv) {
                 'Thêm <b>Rule Editor</b> để quản lý nhiều rule tùy chỉnh theo từng mục riêng, có tìm kiếm, bật/tắt, template, chèn hàm nhanh, kiểm tra cấu trúc, export/import và autosave draft.',
                 'Rule Editor có thể mở từ UI tải chính hoặc tab Cài đặt của Quản lý tải xuống; khi áp dụng vẫn sinh về <code>Config.customize</code> nên tương thích cơ chế nạp rule cũ.',
                 'Sửa Rule Editor: tìm kiếm không mất focus khi đang gõ, chỉnh font/tiêu đề section để hiển thị tiếng Việt rõ hơn.',
-                'Thêm rule gốc cho <b>爱丽丝书屋</b>.',
+                'Thêm rule gốc cho <b>爱丽丝书屋</b>, tự dừng và mở popup nhập mã khi web yêu cầu xác minh đọc nhanh.',
+                'Khi mở UI tải trên một truyện đang có dữ liệu tải dở, script hỏi có muốn nạp lại các chương đã tải không; nếu chọn dùng thì chỉ nạp dữ liệu, không tự bấm tải.',
                 'Hoàn thiện <b>Debug Bridge</b> local: test selector/rule, chạy <code>getChapters</code>, <code>deal</code>, eval JS và xem đúng môi trường Tampermonkey thật.',
                 'Debug server có thêm endpoint phục vụ Rule Editor để test local bằng bản trong repo hiện tại.',
                 'Cải thiện bảng Console và Quản lý tải xuống: giữ log object/error/%c, lưu tiếp tục ổn hơn, đồng bộ tiến độ thật, xóa task treo và giữ task đang tải khi dùng <b>Buộc lưu</b>.'
@@ -331,6 +334,181 @@ function decryptDES(encrypted, key, iv) {
 
     function openNovelDownloaderChangelog() {
         openNovelDownloaderDocModal('Changelog Novel Downloader', getNovelDownloaderChangelogHtml());
+    }
+
+    function ensureNovelDownloaderVerifyModal() {
+        const root = getNovelDownloaderUIRoot(true) || document.body;
+        ensureNovelDownloaderUIStyle('ndNovelDownloaderVerifyStyle', [
+            `#${ND_VERIFY_MODAL_ID}{position:fixed;inset:0;z-index:1000008;display:none;align-items:center;justify-content:center;padding:18px;background:rgba(15,23,42,.55);pointer-events:auto;font-family:"Segoe UI",Arial,"Noto Sans",sans-serif;color:#111827;}`,
+            `#${ND_VERIFY_MODAL_ID}.is-visible{display:flex;}`,
+            `#${ND_VERIFY_MODAL_ID} .nd-verify-window{width:min(430px,calc(100vw - 28px));background:#f8fafc;border:1px solid rgba(148,163,184,.65);border-radius:12px;box-shadow:0 22px 60px rgba(15,23,42,.34);overflow:hidden;}`,
+            `#${ND_VERIFY_MODAL_ID} .nd-verify-header{display:flex;align-items:center;gap:10px;padding:12px 14px;background:linear-gradient(135deg,#111827,#0f766e);color:#fff;}`,
+            `#${ND_VERIFY_MODAL_ID} .nd-verify-title{font-size:15px;font-weight:800;line-height:1.3;}`,
+            `#${ND_VERIFY_MODAL_ID} .nd-verify-body{display:grid;gap:12px;padding:15px;}`,
+            `#${ND_VERIFY_MODAL_ID} .nd-verify-message{font-size:13px;line-height:1.5;color:#334155;}`,
+            `#${ND_VERIFY_MODAL_ID} .nd-verify-image-row{display:flex;gap:8px;align-items:center;}`,
+            `#${ND_VERIFY_MODAL_ID} .nd-verify-image{height:46px;min-width:112px;border:1px solid #cbd5e1;border-radius:7px;background:#fff;object-fit:contain;}`,
+            `#${ND_VERIFY_MODAL_ID} input{width:100%;height:40px;border:1px solid #cbd5e1;border-radius:7px;background:#fff;color:#0f172a;padding:0 10px;font-size:15px;}`,
+            `#${ND_VERIFY_MODAL_ID} .nd-verify-actions{display:flex;justify-content:flex-end;gap:8px;}`,
+            `#${ND_VERIFY_MODAL_ID} button{border:1px solid #cbd5e1;border-radius:7px;background:#fff;color:#0f172a;padding:7px 10px;cursor:pointer;font-size:12px;font-weight:700;}`,
+            `#${ND_VERIFY_MODAL_ID} button:hover{background:#eff6ff;border-color:#93c5fd;}`,
+            `#${ND_VERIFY_MODAL_ID} button.primary{background:#0f766e;border-color:#14b8a6;color:#fff;}`
+        ].join(''));
+        let modal = root.querySelector(`#${ND_VERIFY_MODAL_ID}`);
+        if (!modal) {
+            modal = document.createElement('div');
+            modal.id = ND_VERIFY_MODAL_ID;
+            modal.innerHTML = [
+                '<form class="nd-verify-window" data-role="form">',
+                '  <div class="nd-verify-header">',
+                '    <span class="nd-verify-title" data-role="title">Xác minh truy cập</span>',
+                '  </div>',
+                '  <div class="nd-verify-body">',
+                '    <div class="nd-verify-message" data-role="message"></div>',
+                '    <div class="nd-verify-image-row">',
+                '      <img class="nd-verify-image" data-role="image" alt="captcha">',
+                '      <button type="button" data-action="refresh">Đổi ảnh</button>',
+                '    </div>',
+                '    <input data-role="code" autocomplete="off" placeholder="Nhập mã trong ảnh">',
+                '    <div class="nd-verify-actions">',
+                '      <button type="button" data-action="cancel">Hủy</button>',
+                '      <button type="submit" class="primary">Tiếp tục</button>',
+                '    </div>',
+                '  </div>',
+                '</form>'
+            ].join('');
+            root.appendChild(modal);
+        }
+        return modal;
+    }
+
+    function refreshNovelDownloaderVerifyImage(img, imageUrl) {
+        try {
+            const url = new URL(imageUrl, window.location.href);
+            url.searchParams.set('t', Date.now());
+            img.src = url.href;
+        } catch (error) {
+            img.src = imageUrl;
+        }
+    }
+
+    function requestNovelDownloaderVerificationCode(options = {}) {
+        return new Promise((resolve, reject) => {
+            const modal = ensureNovelDownloaderVerifyModal();
+            const form = modal.querySelector('[data-role="form"]');
+            const title = modal.querySelector('[data-role="title"]');
+            const message = modal.querySelector('[data-role="message"]');
+            const img = modal.querySelector('[data-role="image"]');
+            const input = modal.querySelector('[data-role="code"]');
+            const imageUrl = options.imageUrl || '';
+            const cleanup = () => {
+                form.removeEventListener('submit', onSubmit);
+                modal.removeEventListener('click', onClick);
+                modal.classList.remove('is-visible');
+            };
+            const onSubmit = (event) => {
+                event.preventDefault();
+                const code = input.value.trim();
+                if (!code) {
+                    input.focus();
+                    return;
+                }
+                cleanup();
+                resolve(code);
+            };
+            const onClick = (event) => {
+                const action = event.target && event.target.closest ? event.target.closest('[data-action]') : null;
+                if (!action || !modal.contains(action)) return;
+                if (action.dataset.action === 'refresh') {
+                    event.preventDefault();
+                    refreshNovelDownloaderVerifyImage(img, imageUrl);
+                } else if (action.dataset.action === 'cancel') {
+                    event.preventDefault();
+                    cleanup();
+                    const error = new Error('Đã hủy nhập mã xác minh.');
+                    error.ndVerificationCancelled = true;
+                    reject(error);
+                }
+            };
+            title.textContent = options.title || 'Xác minh truy cập';
+            message.textContent = options.message || 'Trang yêu cầu nhập mã xác minh trước khi tiếp tục tải.';
+            input.value = '';
+            refreshNovelDownloaderVerifyImage(img, imageUrl);
+            form.addEventListener('submit', onSubmit);
+            modal.addEventListener('click', onClick);
+            modal.classList.add('is-visible');
+            window.setTimeout(() => input.focus(), 0);
+        });
+    }
+
+    function ensureNovelDownloaderResumeChoiceModal() {
+        const root = getNovelDownloaderUIRoot(true) || document.body;
+        ensureNovelDownloaderUIStyle('ndNovelDownloaderResumeChoiceStyle', [
+            `#${ND_RESUME_CHOICE_MODAL_ID}{position:fixed;inset:0;z-index:1000007;display:none;align-items:center;justify-content:center;padding:18px;background:rgba(15,23,42,.52);pointer-events:auto;font-family:"Segoe UI",Arial,"Noto Sans",sans-serif;color:#111827;}`,
+            `#${ND_RESUME_CHOICE_MODAL_ID}.is-visible{display:flex;}`,
+            `#${ND_RESUME_CHOICE_MODAL_ID} .nd-resume-window{width:min(460px,calc(100vw - 28px));background:#f8fafc;border:1px solid rgba(148,163,184,.7);border-radius:12px;box-shadow:0 22px 60px rgba(15,23,42,.32);overflow:hidden;}`,
+            `#${ND_RESUME_CHOICE_MODAL_ID} .nd-resume-header{padding:12px 14px;background:linear-gradient(135deg,#0f172a,#2563eb);color:#fff;font-size:15px;font-weight:800;line-height:1.35;}`,
+            `#${ND_RESUME_CHOICE_MODAL_ID} .nd-resume-body{display:grid;gap:10px;padding:15px;}`,
+            `#${ND_RESUME_CHOICE_MODAL_ID} .nd-resume-message{font-size:13px;line-height:1.5;color:#334155;}`,
+            `#${ND_RESUME_CHOICE_MODAL_ID} .nd-resume-meta{display:grid;gap:5px;padding:10px;border:1px solid #dbeafe;border-radius:8px;background:#eff6ff;color:#1e3a8a;font-size:12px;line-height:1.45;word-break:break-word;}`,
+            `#${ND_RESUME_CHOICE_MODAL_ID} .nd-resume-meta b{color:#0f172a;}`,
+            `#${ND_RESUME_CHOICE_MODAL_ID} .nd-resume-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:2px;}`,
+            `#${ND_RESUME_CHOICE_MODAL_ID} button{border:1px solid #cbd5e1;border-radius:7px;background:#fff;color:#0f172a;padding:8px 11px;cursor:pointer;font-size:12px;font-weight:800;}`,
+            `#${ND_RESUME_CHOICE_MODAL_ID} button:hover{background:#eff6ff;border-color:#93c5fd;}`,
+            `#${ND_RESUME_CHOICE_MODAL_ID} button.primary{background:#2563eb;border-color:#2563eb;color:#fff;}`
+        ].join(''));
+        let modal = root.querySelector(`#${ND_RESUME_CHOICE_MODAL_ID}`);
+        if (!modal) {
+            modal = document.createElement('div');
+            modal.id = ND_RESUME_CHOICE_MODAL_ID;
+            modal.innerHTML = [
+                '<div class="nd-resume-window" role="dialog" aria-modal="true">',
+                '  <div class="nd-resume-header">Có dữ liệu tải dở</div>',
+                '  <div class="nd-resume-body">',
+                '    <div class="nd-resume-message" data-role="message"></div>',
+                '    <div class="nd-resume-meta">',
+                '      <div><b>Sách:</b> <span data-role="book"></span></div>',
+                '      <div><b>Tiến độ đã lưu:</b> <span data-role="progress"></span></div>',
+                '      <div><b>Nguồn:</b> <span data-role="source"></span></div>',
+                '    </div>',
+                '    <div class="nd-resume-actions">',
+                '      <button type="button" data-action="new">Tải mới</button>',
+                '      <button type="button" class="primary" data-action="use">Dùng dữ liệu</button>',
+                '    </div>',
+                '  </div>',
+                '</div>'
+            ].join('');
+            root.appendChild(modal);
+        }
+        return modal;
+    }
+
+    function requestNovelDownloaderResumeChoice(candidate = {}) {
+        return new Promise((resolve) => {
+            const modal = ensureNovelDownloaderResumeChoiceModal();
+            const task = candidate.task || {};
+            const data = candidate.data || {};
+            const bookTitle = (data.book && data.book.title) || task.bookTitle || Storage.book.title || document.title || 'Chưa có tên sách';
+            const total = candidate.total || (data.chapters && data.chapters.length) || (task.progress && task.progress.total) || 0;
+            const loaded = candidate.loadedCount || 0;
+            const sourceUrl = task.sourceUrl || data.sourceUrl || window.location.href;
+            modal.querySelector('[data-role="message"]').textContent = 'Truyện này có dữ liệu tải dở trước đó. Chọn "Dùng dữ liệu" để nạp các chương đã tải vào UI hiện tại, rồi tự chỉnh thiết lập và tự bấm tải tiếp.';
+            modal.querySelector('[data-role="book"]').textContent = bookTitle;
+            modal.querySelector('[data-role="progress"]').textContent = `${loaded}/${total} chương`;
+            modal.querySelector('[data-role="source"]').textContent = sourceUrl;
+            const cleanup = () => {
+                modal.removeEventListener('click', onClick);
+                modal.classList.remove('is-visible');
+            };
+            const onClick = (event) => {
+                const action = event.target && event.target.closest ? event.target.closest('[data-action]') : null;
+                if (!action || !modal.contains(action)) return;
+                cleanup();
+                resolve(action.dataset.action === 'use');
+            };
+            modal.addEventListener('click', onClick);
+            modal.classList.add('is-visible');
+        });
     }
 
     function loadNovelDownloaderDebugBridgeClient() {
@@ -2180,6 +2358,70 @@ function decryptDES(encrypted, key, iv) {
                     title: a.textContent.trim().replace(/\s+/g, ' '),
                     url: Rule.helpers.absoluteUrl(a.getAttribute('href'), baseUrl)
                 })).filter(chapter => chapter.title && chapter.url);
+            },
+            isVerifyDoc: (doc = document) => {
+                const title = (doc.querySelector('title')?.textContent || '').trim();
+                return title.includes('访问验证') || !!doc.querySelector('form[action*="/home/chapter/check_code"] input[name="code"]');
+            },
+            submitVerifyCode: async (verifyDoc, chapterUrl, attempt = 0) => {
+                const form = verifyDoc.querySelector('form[action*="/home/chapter/check_code"]');
+                if (!form) throw new Error('AliceSW yêu cầu xác minh nhưng không tìm thấy form nhập mã.');
+                const actionUrl = Rule.helpers.absoluteUrl(form.getAttribute('action') || '/home/chapter/check_code.html', chapterUrl);
+                const image = form.querySelector('img[src*="/home/chapter/verify"], img[src*="verify"]') || verifyDoc.querySelector('img[src*="/home/chapter/verify"], img[src*="verify"]');
+                const imageUrl = image ? Rule.helpers.absoluteUrl(image.getAttribute('src') || image.src || '', chapterUrl) : '';
+                const code = await requestNovelDownloaderVerificationCode({
+                    title: 'AliceSW yêu cầu mã xác minh',
+                    message: attempt
+                        ? 'Mã vừa nhập chưa qua được xác minh. Nhập lại mã mới để tiếp tục tải chương hiện tại.'
+                        : 'Web đang chặn đọc/tải nhanh. Nhập mã trong ảnh để script tiếp tục từ chương hiện tại.',
+                    imageUrl
+                });
+                const params = new URLSearchParams();
+                Array.from(form.querySelectorAll('input[name]')).forEach((input) => {
+                    if (input.name && input.name !== 'code') params.set(input.name, input.value || '');
+                });
+                params.set('code', code);
+                const res = await fetch(actionUrl, {
+                    method: 'POST',
+                    credentials: 'include',
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8'
+                    },
+                    body: params.toString()
+                });
+                const html = await res.text();
+                const doc = Rule.helpers.parseHtml(html);
+                doc.__ndBaseUrl = res.url || chapterUrl;
+                return doc;
+            },
+            getVerifiedChapterDoc: async (chapterUrl) => {
+                const rule = Rule.special.find(item => item.siteName === '爱丽丝书屋');
+                let html = await Rule.helpers.requestText(chapterUrl, { cache: false });
+                let doc = Rule.helpers.parseHtml(html);
+                doc.__ndBaseUrl = chapterUrl;
+                for (let attempt = 0; attempt < 5 && rule.isVerifyDoc(doc); attempt++) {
+                    console.warn('[AliceSW] Trang yêu cầu mã xác minh, tạm dừng tải để user nhập mã.', { chapterUrl, attempt: attempt + 1 });
+                    doc = await rule.submitVerifyCode(doc, chapterUrl, attempt);
+                    if (!rule.isVerifyDoc(doc)) return doc;
+                }
+                if (rule.isVerifyDoc(doc)) {
+                    const error = new Error('AliceSW vẫn yêu cầu mã xác minh sau nhiều lần nhập mã.');
+                    error.ndVerificationCancelled = true;
+                    throw error;
+                }
+                return doc;
+            },
+            deal: async (chapter) => {
+                const rule = Rule.special.find(item => item.siteName === '爱丽丝书屋');
+                const doc = await rule.getVerifiedChapterDoc(chapter.url);
+                if (rule.isVerifyDoc(doc)) throw new Error('AliceSW yêu cầu mã xác minh trước khi tải chương.');
+                const title = $(rule.chapterTitle, doc).first().text().trim() || chapter.title || '';
+                const contentNode = $(rule.content, doc).first().clone();
+                if (!contentNode.length) throw new Error('AliceSW không tìm thấy nội dung chương.');
+                contentNode.find(`${rule.elementRemove},script,style,iframe`).remove();
+                const content = (contentNode.html() || '').trim();
+                if (!content) throw new Error('AliceSW nội dung chương rỗng.');
+                return { title, content };
             },
             chapterTitle: '.j_chapterName',
             content: '.j_readContent',
@@ -8326,6 +8568,87 @@ function decryptDES(encrypted, key, iv) {
     // Main Panel UI & Download Pipeline
     // ============================================================================
 
+    function normalizeDownloadResumeUrl(url) {
+        try {
+            const parsed = new URL(url, window.location.href);
+            parsed.hash = '';
+            return parsed.href;
+        } catch (error) {
+            return String(url || '').split('#')[0];
+        }
+    }
+
+    function normalizeDownloadResumeTitle(title) {
+        return String(title || '').replace(/\s+/g, ' ').trim().toLowerCase();
+    }
+
+    async function findDownloadResumeCandidateForCurrentPage(currentChapters = [], currentBook = {}) {
+        if (!TaskManager || typeof TaskManager.getState !== 'function' || typeof TaskManager.getResumeData !== 'function') return null;
+        let state;
+        try {
+            state = await TaskManager.getState();
+        } catch (error) {
+            console.warn('[ND] Không thể đọc hàng đợi để tìm dữ liệu tải dở:', error);
+            return null;
+        }
+        const queue = Array.isArray(state && state.queue) ? state.queue : [];
+        if (!queue.length) return null;
+        const currentUrl = normalizeDownloadResumeUrl(window.location.href);
+        const currentTitle = normalizeDownloadResumeTitle(currentBook.title || Storage.book.title || document.title);
+        const currentChapterUrls = new Set((currentChapters || []).map(chapter => normalizeDownloadResumeUrl(chapter && chapter.url)).filter(Boolean));
+        let best = null;
+        for (const task of queue) {
+            if (!task || !task.id || !task.meta || !task.meta.resumeAvailable) continue;
+            let data;
+            try {
+                data = await TaskManager.getResumeData(task.id);
+            } catch (error) {
+                console.warn('[ND] Không thể đọc dữ liệu tải dở:', task.id, error);
+                continue;
+            }
+            const savedChapters = Array.isArray(data && data.chapters) ? data.chapters : [];
+            if (!data || !savedChapters.length) continue;
+            const loadedCount = savedChapters.filter(chapter => chapter && (chapter.contentRaw || chapter.content)).length;
+            if (!loadedCount) continue;
+            const taskUrls = [
+                task.sourceUrl,
+                data.sourceUrl,
+                task.meta && task.meta.resumeSourceUrl
+            ].map(normalizeDownloadResumeUrl).filter(Boolean);
+            let score = taskUrls.includes(currentUrl) ? 100 : 0;
+            if (task.domain && task.domain === window.location.hostname) score += 10;
+            const savedTitle = normalizeDownloadResumeTitle((data.book && data.book.title) || task.bookTitle);
+            if (savedTitle && currentTitle && savedTitle === currentTitle) score += 30;
+            let overlap = 0;
+            if (currentChapterUrls.size) {
+                const seen = new Set();
+                for (const chapter of savedChapters) {
+                    const key = normalizeDownloadResumeUrl(chapter && chapter.url);
+                    if (key && currentChapterUrls.has(key) && !seen.has(key)) {
+                        seen.add(key);
+                        overlap++;
+                    }
+                }
+            }
+            if (overlap) score += 40 + Math.min(20, overlap);
+            if (score < 50) continue;
+            const candidate = {
+                task,
+                data,
+                loadedCount,
+                total: savedChapters.length || (data.progress && data.progress.total) || (task.progress && task.progress.total) || 0,
+                overlap,
+                score
+            };
+            const candidateTime = new Date((data && data.savedAt) || task.updatedAt || task.createdAt || 0).getTime() || 0;
+            const bestTime = best ? (new Date((best.data && best.data.savedAt) || best.task.updatedAt || best.task.createdAt || 0).getTime() || 0) : 0;
+            if (!best || candidate.score > best.score || (candidate.score === best.score && candidateTime > bestTime)) {
+                best = candidate;
+            }
+        }
+        return best;
+    }
+
     async function showUI(options = {}) {
         const uiRoot = getNovelDownloaderUIRoot(true) || document.body;
         const existingPanel = ndUI$('.novel-downloader-v3');
@@ -8353,6 +8676,7 @@ function decryptDES(encrypted, key, iv) {
         const chaptersDownloaded = [];
         let pendingResumeTaskId = options.resumeRequest && options.resumeRequest.task && options.resumeRequest.task.id;
         let pendingResumeData = options.resumeRequest && options.resumeRequest.data;
+        let pendingResumeAutoStart = Boolean(pendingResumeTaskId && pendingResumeData);
 
         const issueBody = [
             `- Script: \`novelDownloader5 v${GM_info.script.version}\``,
@@ -9332,6 +9656,10 @@ function decryptDES(encrypted, key, iv) {
                             chapter.content = '';
                             chapter.document = '';
                             await recordDownloadManagerError(chapter, error, 'deal');
+                            if (error && error.ndVerificationCancelled) {
+                                downloadManagerCancelled = true;
+                                console.warn('Đã dừng tải vì user hủy hoặc chưa vượt qua mã xác minh.');
+                            }
                             try {
                                 if (taskIndex !== null && xhr.manual && typeof xhr.manual.fail === 'function') {
                                     xhr.manual.fail(taskIndex, { title: chapter.title || '' });
@@ -9687,10 +10015,38 @@ function decryptDES(encrypted, key, iv) {
                 return chapterRawKey === rawKey || normalizeChapterUrlKey(chapterRawKey) === normalizedKey;
             });
         };
-        const mergeResumeChapters = (resumeChapters, currentChapters) => resumeChapters.map((savedChapter) => {
-            const currentChapter = findChapterByResumeUrl(currentChapters, savedChapter && savedChapter.url);
-            return Object.assign({}, currentChapter || {}, savedChapter || {});
-        });
+        const mergeResumeChapters = (resumeChapters, currentChapters) => {
+            const savedKeys = new Set();
+            const merged = (resumeChapters || []).map((savedChapter) => {
+                const currentChapter = findChapterByResumeUrl(currentChapters, savedChapter && savedChapter.url);
+                const key = normalizeChapterUrlKey((savedChapter && savedChapter.url) || (currentChapter && currentChapter.url));
+                if (key) savedKeys.add(key);
+                return Object.assign({}, currentChapter || {}, savedChapter || {});
+            });
+            (currentChapters || []).forEach((currentChapter) => {
+                const key = normalizeChapterUrlKey(currentChapter && currentChapter.url);
+                if (key && !savedKeys.has(key)) {
+                    savedKeys.add(key);
+                    merged.push(currentChapter);
+                }
+            });
+            return merged;
+        };
+
+        if (!pendingResumeData && !pendingResumeTaskId && !options.resumeRequest) {
+            const resumeCandidate = await findDownloadResumeCandidateForCurrentPage(chapters, Storage.book);
+            if (resumeCandidate) {
+                const shouldUseResume = await requestNovelDownloaderResumeChoice(resumeCandidate);
+                if (shouldUseResume) {
+                    pendingResumeTaskId = resumeCandidate.task.id;
+                    pendingResumeData = resumeCandidate.data;
+                    pendingResumeAutoStart = false;
+                    console.log(`[ND] User chọn nạp dữ liệu tải dở task ${pendingResumeTaskId}: ${resumeCandidate.loadedCount}/${resumeCandidate.total} chương đã có nội dung.`);
+                } else {
+                    console.log(`[ND] User chọn tải mới, bỏ qua dữ liệu tải dở task ${resumeCandidate.task.id}.`);
+                }
+            }
+        }
 
         if (pendingResumeData && Array.isArray(pendingResumeData.chapters) && pendingResumeData.chapters.length) {
             Storage.book = Object.assign(Storage.book, pendingResumeData.book || {});
@@ -9713,7 +10069,7 @@ function decryptDES(encrypted, key, iv) {
 
         container.find('[name="rememberDownloadDir"]').prop('checked', !!Config.rememberDownloadDir);
 
-        if (pendingResumeTaskId && pendingResumeData) {
+        if (pendingResumeAutoStart && pendingResumeTaskId && pendingResumeData) {
             window.setTimeout(() => {
                 const format = pendingResumeData.format || 'text';
                 const button = container.find(`[name="download"][format="${format}"]`).get(0)
