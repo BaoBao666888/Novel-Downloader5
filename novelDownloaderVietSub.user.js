@@ -134,6 +134,7 @@ function decryptDES(encrypted, key, iv) {
     const ND_DOC_MODAL_ID = 'ndNovelDownloaderDocs';
     const ND_VERIFY_MODAL_ID = 'ndNovelDownloaderVerify';
     const ND_RESUME_CHOICE_MODAL_ID = 'ndNovelDownloaderResumeChoice';
+    const ND_NOTICE_MODAL_ID = 'ndNovelDownloaderNotice';
     const ND_LAUNCHER_ID = 'ndNovelDownloaderLauncher';
     const ND_VERSION_NOTICE_KEY = 'ND_MAIN_LAST_VERSION';
     const ND_LAUNCHER_ENABLED_KEY = 'ND_LAUNCHER_ENABLED';
@@ -263,7 +264,7 @@ function decryptDES(encrypted, key, iv) {
                 'Thêm <b>Rule Editor</b> để quản lý nhiều rule tùy chỉnh theo từng mục riêng, có tìm kiếm, bật/tắt, template, chèn hàm nhanh, kiểm tra cấu trúc, export/import và autosave draft.',
                 'Rule Editor có thể mở từ UI tải chính hoặc tab Cài đặt của Quản lý tải xuống; khi áp dụng vẫn sinh về <code>Config.customize</code> nên tương thích cơ chế nạp rule cũ.',
                 'Sửa Rule Editor: tìm kiếm không mất focus khi đang gõ, chỉnh font/tiêu đề section để hiển thị tiếng Việt rõ hơn.',
-                'Thêm rule gốc cho <b>爱丽丝书屋</b>, tự dừng và mở popup nhập mã khi web yêu cầu xác minh đọc nhanh.',
+                'Thêm rule gốc cho <b>爱丽丝书屋</b>, tự dừng và mở popup khi web yêu cầu nhập mã hoặc chặn cooldown do đọc/tải quá nhanh.',
                 'Khi mở UI tải trên một truyện đang có dữ liệu tải dở, script hỏi có muốn nạp lại các chương đã tải không; nếu chọn dùng thì chỉ nạp dữ liệu, không tự bấm tải.',
                 'Hoàn thiện <b>Debug Bridge</b> local: test selector/rule, chạy <code>getChapters</code>, <code>deal</code>, eval JS và xem đúng môi trường Tampermonkey thật.',
                 'Debug server có thêm endpoint phục vụ Rule Editor để test local bằng bản trong repo hiện tại.',
@@ -505,6 +506,60 @@ function decryptDES(encrypted, key, iv) {
                 if (!action || !modal.contains(action)) return;
                 cleanup();
                 resolve(action.dataset.action === 'use');
+            };
+            modal.addEventListener('click', onClick);
+            modal.classList.add('is-visible');
+        });
+    }
+
+    function ensureNovelDownloaderNoticeModal() {
+        const root = getNovelDownloaderUIRoot(true) || document.body;
+        ensureNovelDownloaderUIStyle('ndNovelDownloaderNoticeStyle', [
+            `#${ND_NOTICE_MODAL_ID}{position:fixed;inset:0;z-index:1000009;display:none;align-items:center;justify-content:center;padding:18px;background:rgba(15,23,42,.55);pointer-events:auto;font-family:"Segoe UI",Arial,"Noto Sans",sans-serif;color:#111827;}`,
+            `#${ND_NOTICE_MODAL_ID}.is-visible{display:flex;}`,
+            `#${ND_NOTICE_MODAL_ID} .nd-notice-window{width:min(460px,calc(100vw - 28px));background:#f8fafc;border:1px solid rgba(148,163,184,.7);border-radius:12px;box-shadow:0 22px 60px rgba(15,23,42,.34);overflow:hidden;}`,
+            `#${ND_NOTICE_MODAL_ID} .nd-notice-header{padding:12px 14px;background:linear-gradient(135deg,#7f1d1d,#b45309);color:#fff;font-size:15px;font-weight:800;line-height:1.35;}`,
+            `#${ND_NOTICE_MODAL_ID} .nd-notice-body{display:grid;gap:12px;padding:15px;}`,
+            `#${ND_NOTICE_MODAL_ID} .nd-notice-message{font-size:13px;line-height:1.55;color:#334155;white-space:pre-wrap;word-break:break-word;}`,
+            `#${ND_NOTICE_MODAL_ID} .nd-notice-actions{display:flex;justify-content:flex-end;gap:8px;}`,
+            `#${ND_NOTICE_MODAL_ID} button{border:1px solid #cbd5e1;border-radius:7px;background:#fff;color:#0f172a;padding:8px 11px;cursor:pointer;font-size:12px;font-weight:800;}`,
+            `#${ND_NOTICE_MODAL_ID} button:hover{background:#fffbeb;border-color:#f59e0b;}`,
+            `#${ND_NOTICE_MODAL_ID} button.primary{background:#b45309;border-color:#b45309;color:#fff;}`
+        ].join(''));
+        let modal = root.querySelector(`#${ND_NOTICE_MODAL_ID}`);
+        if (!modal) {
+            modal = document.createElement('div');
+            modal.id = ND_NOTICE_MODAL_ID;
+            modal.innerHTML = [
+                '<div class="nd-notice-window" role="dialog" aria-modal="true">',
+                '  <div class="nd-notice-header" data-role="title">Thông báo</div>',
+                '  <div class="nd-notice-body">',
+                '    <div class="nd-notice-message" data-role="message"></div>',
+                '    <div class="nd-notice-actions">',
+                '      <button type="button" class="primary" data-action="ok">Đã hiểu</button>',
+                '    </div>',
+                '  </div>',
+                '</div>'
+            ].join('');
+            root.appendChild(modal);
+        }
+        return modal;
+    }
+
+    function showNovelDownloaderNotice(options = {}) {
+        return new Promise((resolve) => {
+            const modal = ensureNovelDownloaderNoticeModal();
+            modal.querySelector('[data-role="title"]').textContent = options.title || 'Thông báo';
+            modal.querySelector('[data-role="message"]').textContent = options.message || '';
+            const cleanup = () => {
+                modal.removeEventListener('click', onClick);
+                modal.classList.remove('is-visible');
+            };
+            const onClick = (event) => {
+                const action = event.target && event.target.closest ? event.target.closest('[data-action]') : null;
+                if (!action || !modal.contains(action)) return;
+                cleanup();
+                resolve(action.dataset.action || 'ok');
             };
             modal.addEventListener('click', onClick);
             modal.classList.add('is-visible');
@@ -2363,6 +2418,38 @@ function decryptDES(encrypted, key, iv) {
                 const title = (doc.querySelector('title')?.textContent || '').trim();
                 return title.includes('访问验证') || !!doc.querySelector('form[action*="/home/chapter/check_code"] input[name="code"]');
             },
+            getAccessBlockMessage: (doc = document) => {
+                const title = (doc.querySelector('title')?.textContent || '').trim();
+                const scripts = Array.from(doc.querySelectorAll('script')).map(script => script.textContent || '').join('\n');
+                const msgMatch = scripts.match(/\bmsg\s*=\s*("(?:(?:\\.)|[^"\\])*"|'(?:(?:\\.)|[^'\\])*')/);
+                let message = '';
+                if (msgMatch) {
+                    try {
+                        message = JSON.parse(msgMatch[1]);
+                    } catch (error) {
+                        message = msgMatch[1].slice(1, -1).replace(/\\(["'\\])/g, '$1');
+                    }
+                }
+                if (!message) {
+                    message = (doc.body && doc.body.textContent || '').replace(/\s+/g, ' ').trim();
+                }
+                if (title.includes('提示信息') && /访问异常|请稍后再试|后再试|访问过于频繁|禁止访问|验证/.test(message)) {
+                    return message || 'AliceSW đang chặn truy cập.';
+                }
+                return '';
+            },
+            raiseAccessBlock: async (doc, chapterUrl) => {
+                const rule = Rule.special.find(item => item.siteName === '爱丽丝书屋');
+                const message = rule.getAccessBlockMessage(doc) || 'AliceSW đang chặn truy cập, cần thử lại sau.';
+                await showNovelDownloaderNotice({
+                    title: 'AliceSW đang chặn tải',
+                    message: `${message}\n\nScript đã dừng ở chương hiện tại để tránh ghi lỗi hàng loạt. Khi hết thời gian chặn, mở lại UI và dùng dữ liệu tải dở để tiếp tục.`
+                });
+                const error = new Error(message);
+                error.ndVerificationCancelled = true;
+                error.url = chapterUrl;
+                throw error;
+            },
             submitVerifyCode: async (verifyDoc, chapterUrl, attempt = 0) => {
                 const form = verifyDoc.querySelector('form[action*="/home/chapter/check_code"]');
                 if (!form) throw new Error('AliceSW yêu cầu xác minh nhưng không tìm thấy form nhập mã.');
@@ -2399,9 +2486,11 @@ function decryptDES(encrypted, key, iv) {
                 let html = await Rule.helpers.requestText(chapterUrl, { cache: false });
                 let doc = Rule.helpers.parseHtml(html);
                 doc.__ndBaseUrl = chapterUrl;
+                if (rule.getAccessBlockMessage(doc)) await rule.raiseAccessBlock(doc, chapterUrl);
                 for (let attempt = 0; attempt < 5 && rule.isVerifyDoc(doc); attempt++) {
                     console.warn('[AliceSW] Trang yêu cầu mã xác minh, tạm dừng tải để user nhập mã.', { chapterUrl, attempt: attempt + 1 });
                     doc = await rule.submitVerifyCode(doc, chapterUrl, attempt);
+                    if (rule.getAccessBlockMessage(doc)) await rule.raiseAccessBlock(doc, chapterUrl);
                     if (!rule.isVerifyDoc(doc)) return doc;
                 }
                 if (rule.isVerifyDoc(doc)) {
@@ -2415,12 +2504,19 @@ function decryptDES(encrypted, key, iv) {
                 const rule = Rule.special.find(item => item.siteName === '爱丽丝书屋');
                 const doc = await rule.getVerifiedChapterDoc(chapter.url);
                 if (rule.isVerifyDoc(doc)) throw new Error('AliceSW yêu cầu mã xác minh trước khi tải chương.');
+                if (rule.getAccessBlockMessage(doc)) await rule.raiseAccessBlock(doc, chapter.url);
                 const title = $(rule.chapterTitle, doc).first().text().trim() || chapter.title || '';
                 const contentNode = $(rule.content, doc).first().clone();
-                if (!contentNode.length) throw new Error('AliceSW không tìm thấy nội dung chương.');
+                if (!contentNode.length) {
+                    if (rule.getAccessBlockMessage(doc)) await rule.raiseAccessBlock(doc, chapter.url);
+                    throw new Error('AliceSW không tìm thấy nội dung chương.');
+                }
                 contentNode.find(`${rule.elementRemove},script,style,iframe`).remove();
                 const content = (contentNode.html() || '').trim();
-                if (!content) throw new Error('AliceSW nội dung chương rỗng.');
+                if (!content) {
+                    if (rule.getAccessBlockMessage(doc)) await rule.raiseAccessBlock(doc, chapter.url);
+                    throw new Error('AliceSW nội dung chương rỗng.');
+                }
                 return { title, content };
             },
             chapterTitle: '.j_chapterName',
