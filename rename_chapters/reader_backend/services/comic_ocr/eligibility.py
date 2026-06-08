@@ -35,7 +35,7 @@ def normalize_comic_ocr_settings(raw: Any, *, parse_bool) -> dict[str, Any]:
     max_concurrency = _safe_int(cfg.get("max_concurrency"), default=1, min_value=1, max_value=4)
     max_pages_per_job = _safe_int(cfg.get("max_pages_per_job"), default=80, min_value=1, max_value=200)
     return {
-        "enabled": bool(parse_bool(cfg.get("enabled"), False)),
+        "enabled": bool(parse_bool(cfg.get("enabled"), True)),
         "engine": engine,
         "target_lang": target_lang,
         "supported_source_langs": supported_source_langs,
@@ -48,7 +48,7 @@ def normalize_comic_ocr_settings(raw: Any, *, parse_bool) -> dict[str, Any]:
 
 def build_default_comic_ocr_config() -> dict[str, Any]:
     return {
-        "enabled": False,
+        "enabled": True,
         "engine": "paddleocr",
         "target_lang": DEFAULT_TARGET_LANG,
         "supported_source_langs": list(DEFAULT_SUPPORTED_SOURCE_LANGS),
@@ -115,4 +115,3 @@ def _safe_int(value: Any, *, default: int, min_value: int, max_value: int) -> in
     except Exception:
         number = default
     return max(min_value, min(max_value, number))
-

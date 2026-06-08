@@ -1,5 +1,3 @@
 """Core business logic that is UI-agnostic."""
 
-from . import renamer, text_ops, translator
-
-__all__ = ["renamer", "text_ops", "translator"]
+__all__ = ["ocr_service", "renamer", "text_ops", "translator", "vbook_ext", "vbook_local_translate"]

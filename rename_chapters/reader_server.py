@@ -5515,12 +5515,19 @@ class ReaderService:
             settings=self.comic_ocr_settings,
             normalize_lang_source=normalize_lang_source,
         )
-        status = comic_ocr_engine_support.engine_status(self.comic_ocr_settings)
+        status_source_lang = str(capabilities.get("default_source_lang") or "").strip()
+        status = comic_ocr_engine_support.engine_status(self.comic_ocr_settings, source_lang=status_source_lang)
         capabilities["engine_ready"] = bool(status.get("ready"))
         capabilities["engine_version"] = str(status.get("version") or "")
+        capabilities["engine_message"] = str(status.get("message") or "")
+        if status.get("model_key"):
+            capabilities["model_key"] = str(status.get("model_key") or "")
+        if status.get("model_label"):
+            capabilities["model_label"] = str(status.get("model_label") or "")
         if capabilities.get("eligible") and not status.get("ready"):
             capabilities["eligible"] = False
             capabilities["reason"] = str(status.get("reason") or "OCR_ENGINE_NOT_READY")
+            capabilities["message"] = str(status.get("message") or "")
         return capabilities
 
     def start_comic_ocr_chapter_translation(self, payload: dict[str, Any]) -> dict[str, Any]:
@@ -5666,18 +5673,21 @@ class ReaderService:
             build_vbook_image_proxy_path=build_vbook_image_proxy_path,
             vbook_image_cache_key=vbook_image_cache_key,
         )
-        engine_status = comic_ocr_engine_support.engine_status(self.comic_ocr_settings)
+        engine_status = comic_ocr_engine_support.engine_status(self.comic_ocr_settings, source_lang=source_lang)
         if not engine_status.get("ready"):
             raise ApiError(
                 HTTPStatus.BAD_REQUEST,
                 str(engine_status.get("reason") or "OCR_ENGINE_NOT_READY"),
-                "OCR engine chưa sẵn sàng.",
+                str(engine_status.get("message") or "OCR engine chưa sẵn sàng."),
                 engine_status,
             )
         translate_mode = self.resolve_translate_mode(body.get("translation_mode") or "server")
         translation_signature = self.translator.translation_signature(mode=translate_mode)
         engine = str(engine_status.get("engine") or self.comic_ocr_settings.get("engine") or "paddleocr")
-        engine_version = str(engine_status.get("version") or comic_ocr_engine_support.engine_version(self.comic_ocr_settings))
+        engine_version = str(
+            engine_status.get("version")
+            or comic_ocr_engine_support.engine_version(self.comic_ocr_settings, source_lang=source_lang)
+        )
         page_keys = {
             source.index: comic_ocr_cache_support.page_cache_key(
                 book_id=book_id,

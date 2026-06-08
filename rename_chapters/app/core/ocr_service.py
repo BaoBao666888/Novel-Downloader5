@@ -320,11 +320,13 @@ def _run_runtime_json(args: list[str], *, meta: dict[str, Any] | None = None, ti
     env["PYTHONIOENCODING"] = "utf-8"
     model_cache_dir = ocr_model_cache_dir()
     os.makedirs(model_cache_dir, exist_ok=True)
-    env["NOVEL_STUDIO_OCR_MODEL_DIR"] = model_cache_dir
-    env["PADDLE_PDX_CACHE_HOME"] = model_cache_dir
+    runtime_model_cache_dir = _runtime_path_arg(model_cache_dir, exe_path)
+    runtime_args = _runtime_args_for_exe(args, exe_path)
+    env["NOVEL_STUDIO_OCR_MODEL_DIR"] = runtime_model_cache_dir
+    env["PADDLE_PDX_CACHE_HOME"] = runtime_model_cache_dir
     env.setdefault("PADDLE_PDX_DISABLE_MODEL_SOURCE_CHECK", "True")
     proc = subprocess.run(
-        [exe_path, "--cache-dir", model_cache_dir, *args],
+        [exe_path, "--cache-dir", runtime_model_cache_dir, *runtime_args],
         cwd=os.path.dirname(exe_path) or BASE_DIR,
         text=True,
         encoding="utf-8",
@@ -347,6 +349,33 @@ def _run_runtime_json(args: list[str], *, meta: dict[str, Any] | None = None, ti
     if payload.get("ok") is False:
         raise OCRError(str(payload.get("error") or "OCR runtime thất bại."))
     return payload
+
+
+def _runtime_args_for_exe(args: list[str], exe_path: str) -> list[str]:
+    out: list[str] = []
+    path_value_flags = {"--input", "--cache-dir"}
+    expects_path = False
+    for arg in args or []:
+        text = str(arg)
+        if expects_path:
+            out.append(_runtime_path_arg(text, exe_path))
+            expects_path = False
+            continue
+        out.append(text)
+        expects_path = text in path_value_flags
+    return out
+
+
+def _runtime_path_arg(path: str, exe_path: str) -> str:
+    text = str(path or "")
+    if not text or os.name == "nt" or not str(exe_path or "").lower().endswith(".exe"):
+        return text
+    normalized = text.replace("\\", "/")
+    if normalized.startswith("/mnt/") and len(normalized) > 6 and normalized[6] == "/":
+        drive = normalized[5:6].upper()
+        rest = normalized[7:].replace("/", "\\")
+        return f"{drive}:\\{rest}" if rest else f"{drive}:\\"
+    return text
 
 
 def _parse_json_output(output: str) -> dict[str, Any] | None:

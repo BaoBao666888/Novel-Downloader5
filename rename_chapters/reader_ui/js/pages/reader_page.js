@@ -738,6 +738,17 @@ function comicOcrText(key, fallback = "") {
   return fallback || key;
 }
 
+function comicOcrCapabilityMessage(caps) {
+  const data = caps || {};
+  const explicit = String(data.message || data.engine_message || "").trim();
+  if (explicit) return explicit;
+  const reason = String(data.reason || "").trim();
+  if (reason === "OCR_MODEL_NOT_READY") return comicOcrText("comicOcrNeedModel", "Chưa có model OCR. Mở OCR > Quản lý model để tải model PaddleOCR.");
+  if (reason === "OCR_RUNTIME_NOT_READY" || reason === "OCR_ENGINE_NOT_READY") return comicOcrText("comicOcrNeedRuntime", "Chưa cài OCR runtime. Mở OCR > Quản lý model để cài runtime.");
+  if (reason === "COMIC_OCR_DISABLED") return comicOcrText("comicOcrDisabled", "OCR ảnh comic đang tắt trong cấu hình.");
+  return "";
+}
+
 function resolveComicOcrSourceLang() {
   const caps = state.comicOcrCapabilities || {};
   const supported = Array.isArray(caps.supported_source_langs) ? caps.supported_source_langs.map((x) => String(x || "").trim()).filter(Boolean) : ["en"];
@@ -1007,7 +1018,7 @@ async function refreshComicOcrCapabilities({ fetchCached = true } = {}) {
       }
     } else {
       state.comicOcrResult = null;
-      state.comicOcrStatusText = "";
+      state.comicOcrStatusText = comicOcrCapabilityMessage(caps);
     }
     syncComicOcrControls();
     return caps || null;
@@ -1046,7 +1057,7 @@ async function startComicOcrTranslation() {
   if (!state.bookId || !state.chapterId || state.chapterContentType !== "images") return;
   const caps = state.comicOcrCapabilities || await refreshComicOcrCapabilities({ fetchCached: false });
   if (!caps || !caps.eligible) {
-    state.shell.showToast(state.shell.t("comicOcrUnavailable"));
+    state.shell.showToast(comicOcrCapabilityMessage(caps) || state.shell.t("comicOcrUnavailable"));
     return;
   }
   const sourceLang = resolveComicOcrSourceLang();
