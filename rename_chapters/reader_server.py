@@ -6054,6 +6054,7 @@ class ReaderService:
             "engine": engine,
             "engine_version": engine_version,
             "settings": dict(self.comic_ocr_settings or {}),
+            "page_concurrency": max(1, min(4, int(self.comic_ocr_settings.get("page_concurrency") or 2))),
             "translation_signature": translation_signature,
             "translate_mode": translate_mode,
             "translator": translator,
@@ -6208,58 +6209,92 @@ class ReaderService:
                     if not block:
                         continue
 
-            with ThreadPoolExecutor(max_workers=1, thread_name_prefix=f"ComicOcrTranslate-{job_id[:8]}") as translate_executor:
-                for source in context["sources"]:
-                    drain_translations(translate_executor, block=False)
-                    page_key = context["page_keys"].get(source.index)
-                    page = comic_ocr_cache_support.read_page(CACHE_DIR, page_key) if page_key else None
-                    if page is None:
-                        self._update_comic_ocr_job(
-                            job_id,
-                            status="running",
-                            done_pages=done,
-                            message=f"OCR trang {source.index + 1}/{max(total, 1)}",
-                        )
-                        data, _content_type = self.fetch_vbook_image(
-                            image_url=source.image_url,
-                            plugin_id=source.plugin_id,
-                            referer=source.referer,
-                            use_cache=True,
-                        )
-                        width, height = comic_ocr_image_source_support.image_size_from_bytes(data)
-                        blocks = comic_ocr_engine_support.recognize(
-                            data,
-                            source_lang=context["source_lang"],
-                            settings=context["settings"],
-                            width=width,
-                            height=height,
-                        )
-                        blocks = comic_ocr_translate_support.merge_nearby_blocks(blocks)
-                        for idx, block in enumerate(blocks):
-                            block["id"] = f"p{source.index}_b{idx}"
-                            block["order"] = idx + 1
-                        page = {
-                            "index": source.index,
-                            "image_url": source.display_url,
-                            "image_key": source.image_key,
-                            "width": width,
-                            "height": height,
-                            "blocks": source_only_blocks(blocks),
-                        }
-                        result_pages_by_index[source.index] = page
-                        queue_translation(page_key=str(page_key or ""), page=page)
-                        start_translation_batch(translate_executor)
-                    else:
-                        result_pages_by_index[source.index] = page
-                    done += 1
-                    drain_translations(translate_executor, block=False)
+            def recognize_page(source: Any) -> tuple[int, str, dict[str, Any], bool]:
+                page_key = str(context["page_keys"].get(source.index) or "")
+                page = comic_ocr_cache_support.read_page(CACHE_DIR, page_key) if page_key else None
+                if page is not None:
+                    return int(source.index), page_key, page, False
+                data, _content_type = self.fetch_vbook_image(
+                    image_url=source.image_url,
+                    plugin_id=source.plugin_id,
+                    referer=source.referer,
+                    use_cache=True,
+                )
+                width, height = comic_ocr_image_source_support.image_size_from_bytes(data)
+                blocks = comic_ocr_engine_support.recognize(
+                    data,
+                    source_lang=context["source_lang"],
+                    settings=context["settings"],
+                    width=width,
+                    height=height,
+                )
+                blocks = comic_ocr_translate_support.merge_nearby_blocks(blocks)
+                for idx, block in enumerate(blocks):
+                    block["id"] = f"p{source.index}_b{idx}"
+                    block["order"] = idx + 1
+                return (
+                    int(source.index),
+                    page_key,
+                    {
+                        "index": source.index,
+                        "image_url": source.display_url,
+                        "image_key": source.image_key,
+                        "width": width,
+                        "height": height,
+                        "blocks": source_only_blocks(blocks),
+                    },
+                    True,
+                )
+
+            page_concurrency = max(1, min(4, int(context.get("page_concurrency") or 2)))
+            source_iter = iter(context["sources"])
+            pending_ocr: dict[Future[tuple[int, str, dict[str, Any], bool]], Any] = {}
+
+            def submit_ocr_pages(executor: ThreadPoolExecutor) -> None:
+                while len(pending_ocr) < page_concurrency:
+                    try:
+                        source = next(source_iter)
+                    except StopIteration:
+                        return
                     self._update_comic_ocr_job(
                         job_id,
                         status="running",
                         done_pages=done,
-                        message=f"Đã OCR {done}/{max(total, 1)} trang",
-                        result=partial_result(complete=False),
+                        message=f"OCR trang {source.index + 1}/{max(total, 1)}",
                     )
+                    pending_ocr[executor.submit(recognize_page, source)] = source
+
+            with (
+                ThreadPoolExecutor(max_workers=1, thread_name_prefix=f"ComicOcrTranslate-{job_id[:8]}") as translate_executor,
+                ThreadPoolExecutor(max_workers=page_concurrency, thread_name_prefix=f"ComicOcrPage-{job_id[:8]}") as ocr_executor,
+            ):
+                submit_ocr_pages(ocr_executor)
+                while pending_ocr:
+                    drain_translations(translate_executor, block=False)
+                    done_futures, _pending = wait(
+                        set(pending_ocr.keys()),
+                        timeout=0.08,
+                        return_when=FIRST_COMPLETED,
+                    )
+                    if not done_futures:
+                        continue
+                    for future in done_futures:
+                        pending_ocr.pop(future, None)
+                        page_index, page_key, page, needs_translation = future.result()
+                        result_pages_by_index[page_index] = page
+                        if needs_translation:
+                            queue_translation(page_key=page_key, page=page)
+                            start_translation_batch(translate_executor)
+                        done += 1
+                        drain_translations(translate_executor, block=False)
+                        self._update_comic_ocr_job(
+                            job_id,
+                            status="running",
+                            done_pages=done,
+                            message=f"Đã OCR {done}/{max(total, 1)} trang",
+                            result=partial_result(complete=False),
+                        )
+                    submit_ocr_pages(ocr_executor)
 
                 drain_translations(translate_executor, block=True)
 

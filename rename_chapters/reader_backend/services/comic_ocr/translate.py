@@ -4,9 +4,11 @@ import re
 from typing import Any
 
 
-POSTPROCESS_VERSION = "merge-v2-batch-v1"
+POSTPROCESS_VERSION = "merge-v3-batch-v1"
 _MERGE_MARGIN_X = 0.008
 _MERGE_MARGIN_Y = 0.018
+_MERGE_MAX_UNION_W = 0.34
+_MERGE_MAX_UNION_H = 0.42
 _BATCH_MAX_ITEMS = 8
 _BATCH_MAX_CHARS = 1400
 _MARKER_RE = re.compile(r"\[\[\s*ND5OCR_(\d{4})\s*\]\]")
@@ -268,6 +270,8 @@ def _boxes_should_merge(a: list[float], b: list[float]) -> bool:
         return False
 
     union = _union_box(a, b)
+    if union[2] > _MERGE_MAX_UNION_W or union[3] > _MERGE_MAX_UNION_H:
+        return False
     if union[2] > max(aw, bw) * 2.1 and h_overlap_ratio < 0.55:
         return False
     if union[3] > (ah + bh + _MERGE_MARGIN_Y):

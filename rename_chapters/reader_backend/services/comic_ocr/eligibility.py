@@ -36,6 +36,7 @@ def normalize_comic_ocr_settings(raw: Any, *, parse_bool) -> dict[str, Any]:
     if overlay_mode not in {"overlay", "rendered_image"}:
         overlay_mode = "overlay"
     max_concurrency = _safe_int(cfg.get("max_concurrency"), default=1, min_value=1, max_value=4)
+    page_concurrency = _safe_int(cfg.get("page_concurrency"), default=2, min_value=1, max_value=4)
     max_pages_per_job = _safe_int(cfg.get("max_pages_per_job"), default=80, min_value=1, max_value=200)
     return {
         "enabled": bool(parse_bool(cfg.get("enabled"), True)),
@@ -43,6 +44,7 @@ def normalize_comic_ocr_settings(raw: Any, *, parse_bool) -> dict[str, Any]:
         "target_lang": target_lang,
         "supported_source_langs": supported_source_langs,
         "max_concurrency": max_concurrency,
+        "page_concurrency": page_concurrency,
         "max_pages_per_job": max_pages_per_job,
         "overlay_mode": overlay_mode,
         "rendered_image_enabled": bool(parse_bool(cfg.get("rendered_image_enabled"), False)),
@@ -56,6 +58,7 @@ def build_default_comic_ocr_config() -> dict[str, Any]:
         "target_lang": DEFAULT_TARGET_LANG,
         "supported_source_langs": list(DEFAULT_SUPPORTED_SOURCE_LANGS),
         "max_concurrency": 1,
+        "page_concurrency": 2,
         "max_pages_per_job": 80,
         "overlay_mode": "overlay",
         "rendered_image_enabled": False,
@@ -86,6 +89,7 @@ def comic_ocr_capabilities_for_book(
         "mode": str(settings.get("overlay_mode") or "overlay").strip() or "overlay",
         "enabled": bool(settings.get("enabled")),
         "engine": str(settings.get("engine") or "").strip() or "paddleocr",
+        "page_concurrency": _safe_int(settings.get("page_concurrency"), default=2, min_value=1, max_value=4),
     }
     if not book:
         base["reason"] = "BOOK_NOT_FOUND"
