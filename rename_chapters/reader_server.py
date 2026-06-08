@@ -5904,12 +5904,40 @@ class ReaderService:
                 engine_status,
             )
         translate_mode = self.resolve_translate_mode(body.get("translation_mode") or "server")
+        if source_lang and not is_lang_zh(source_lang) and translate_mode != "vbook_ext":
+            raise ApiError(
+                HTTPStatus.BAD_REQUEST,
+                "COMIC_OCR_TRANSLATE_EXTENSION_REQUIRED",
+                "Nguồn ảnh không phải tiếng Trung. Hãy chọn extension dịch vBook trong Dịch & xử lý để dịch OCR ngôn ngữ này.",
+            )
+        if translate_mode == "vbook_ext":
+            reader_cfg = self.app_config.get("reader_translation") if isinstance(self.app_config, dict) else {}
+            ext_cfg = service_user_state_support.normalize_vbook_ext_translate_settings(
+                reader_cfg.get("vbook_ext") if isinstance(reader_cfg, dict) else None
+            )
+            plugin_id = str(ext_cfg.get("plugin_id") or "").strip()
+            if not plugin_id:
+                raise ApiError(
+                    HTTPStatus.BAD_REQUEST,
+                    "VBOOK_TRANSLATE_EXTENSION_NOT_SELECTED",
+                    "Chưa chọn extension dịch vBook. Cài/chọn plugin Translate trong Dịch & xử lý.",
+                )
+            plugin = self._require_vbook_plugin(plugin_id)
+            if str(getattr(plugin, "type", "") or "").strip().lower() != "translate":
+                raise ApiError(HTTPStatus.BAD_REQUEST, "VBOOK_TRANSLATE_EXTENSION_INVALID", "Plugin đã chọn không phải extension dịch vBook.")
+            if not self._resolve_translate_plugin_script(plugin):
+                raise ApiError(HTTPStatus.BAD_REQUEST, "VBOOK_TRANSLATE_EXTENSION_INVALID", "Extension dịch vBook thiếu script `translate`.")
+            if not callable(self.vbook_translate_callback):
+                raise ApiError(HTTPStatus.BAD_REQUEST, "VBOOK_TRANSLATE_NOT_READY", "vBook Translate chưa sẵn sàng. Kiểm tra vBook runner trong Quản lý nguồn.")
         translation_signature = self.translator.translation_signature(mode=translate_mode)
         engine = str(engine_status.get("engine") or self.comic_ocr_settings.get("engine") or "paddleocr")
         engine_version = str(
             engine_status.get("version")
             or comic_ocr_engine_support.engine_version(self.comic_ocr_settings, source_lang=source_lang)
         )
+        postprocess_version = str(getattr(comic_ocr_translate_support, "POSTPROCESS_VERSION", "") or "").strip()
+        if postprocess_version:
+            engine_version = f"{engine_version}:{postprocess_version}"
         page_keys = {
             source.index: comic_ocr_cache_support.page_cache_key(
                 book_id=book_id,
@@ -5995,6 +6023,7 @@ class ReaderService:
                         width=width,
                         height=height,
                     )
+                    blocks = comic_ocr_translate_support.merge_nearby_blocks(blocks)
                     for idx, block in enumerate(blocks):
                         block["id"] = f"p{source.index}_b{idx}"
                         block["order"] = idx + 1
@@ -6003,6 +6032,7 @@ class ReaderService:
                         translator=self.translator,
                         translate_mode=context["translate_mode"],
                         normalize_vi_display_text=normalize_vi_display_text,
+                        strict=context["translate_mode"] == "vbook_ext",
                     )
                     page = {
                         "index": source.index,

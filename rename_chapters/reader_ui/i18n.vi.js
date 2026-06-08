@@ -288,6 +288,7 @@ export const STRINGS = {
   modeLocal: "Dịch local",
   modeDichNgayLocal: "Mô phỏng",
   modeHanviet: "Hán Việt",
+  modeVbookExt: "Extension",
   readerBookInfo: "Thông tin truyện",
   readerRawEditor: "Chỉnh raw",
   reloadChapter: "Tải lại chương",

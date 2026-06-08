@@ -451,6 +451,7 @@ function normalizeTranslateMode(raw) {
   if (mode === "local") return "local";
   if (mode === "dichngay_local") return "dichngay_local";
   if (mode === "hanviet") return "hanviet";
+  if (mode === "vbook_ext") return "vbook_ext";
   return "server";
 }
 
@@ -705,6 +706,7 @@ function syncModeButtons() {
     if (state.translateMode === "local") refs.btnTranslateMode.textContent = state.shell.t("modeLocal");
     else if (state.translateMode === "dichngay_local") refs.btnTranslateMode.textContent = state.shell.t("modeDichNgayLocal");
     else if (state.translateMode === "hanviet") refs.btnTranslateMode.textContent = state.shell.t("modeHanviet");
+    else if (state.translateMode === "vbook_ext") refs.btnTranslateMode.textContent = state.shell.t("modeVbookExt");
     else refs.btnTranslateMode.textContent = state.shell.t("modeServer");
   }
   syncComicOcrControls();
@@ -1098,7 +1100,7 @@ async function startComicOcrTranslation() {
         target_lang: state.comicOcrTargetLang || "vi",
         mode: "overlay",
         pages: [],
-        translation_mode: "server",
+        translation_mode: state.translateMode || "server",
       }),
     });
     if (data && data.cached && data.result) {
@@ -2195,6 +2197,90 @@ function comicOcrBlocksForPage(pageIndex) {
   return page && Array.isArray(page.blocks) ? page.blocks : [];
 }
 
+function normalizeComicOcrOverlayText(value) {
+  return String(value || "").replace(/\s+/g, " ").trim();
+}
+
+function comicOcrBlockBox(block) {
+  const box = Array.isArray(block && block.box) ? block.box : [];
+  if (box.length < 4) return null;
+  const x = clamp01(Number(box[0]) || 0);
+  const y = clamp01(Number(box[1]) || 0);
+  const w = clamp01(Number(box[2]) || 0);
+  const h = clamp01(Number(box[3]) || 0);
+  if (!(w > 0) || !(h > 0)) return null;
+  return [x, y, w, h];
+}
+
+function comicOcrBoxesNear(a, b) {
+  const [ax, ay, aw, ah] = a;
+  const [bx, by, bw, bh] = b;
+  const marginX = Math.max(0.025, Math.min(Math.max(aw, bw) * 0.28, 0.045));
+  const marginY = Math.max(0.025, Math.min(Math.max(ah, bh) * 0.85, 0.05));
+  return !(
+    ax + aw + marginX < bx
+    || bx + bw + marginX < ax
+    || ay + ah + marginY < by
+    || by + bh + marginY < ay
+  );
+}
+
+function unionComicOcrBoxes(a, b) {
+  const left = Math.min(a[0], b[0]);
+  const top = Math.min(a[1], b[1]);
+  const right = Math.max(a[0] + a[2], b[0] + b[2]);
+  const bottom = Math.max(a[1] + a[3], b[1] + b[3]);
+  return [clamp01(left), clamp01(top), clamp01(right - left), clamp01(bottom - top)];
+}
+
+function comicOcrBoxSortKey(box) {
+  return [Math.round((Number(box[1]) || 0) / 0.025) * 0.025, Number(box[0]) || 0];
+}
+
+function mergeComicOcrBlocksForOverlay(blocks) {
+  const rows = [];
+  for (const block of blocks || []) {
+    const box = comicOcrBlockBox(block);
+    const text = normalizeComicOcrOverlayText(block && (block.translated_text || block.source_text));
+    if (!box || !text) continue;
+    rows.push({ box, parts: [{ box, text }] });
+  }
+  let changed = true;
+  while (changed) {
+    changed = false;
+    for (let i = 0; i < rows.length && !changed; i += 1) {
+      for (let j = i + 1; j < rows.length; j += 1) {
+        if (!comicOcrBoxesNear(rows[i].box, rows[j].box)) continue;
+        rows[i] = {
+          box: unionComicOcrBoxes(rows[i].box, rows[j].box),
+          parts: rows[i].parts.concat(rows[j].parts),
+        };
+        rows.splice(j, 1);
+        changed = true;
+        break;
+      }
+    }
+  }
+  return rows
+    .map((row) => ({
+      box: row.box,
+      text: row.parts
+        .slice()
+        .sort((a, b) => {
+          const ak = comicOcrBoxSortKey(a.box);
+          const bk = comicOcrBoxSortKey(b.box);
+          return (ak[0] - bk[0]) || (ak[1] - bk[1]);
+        })
+        .map((part) => part.text)
+        .join(" "),
+    }))
+    .sort((a, b) => {
+      const ak = comicOcrBoxSortKey(a.box);
+      const bk = comicOcrBoxSortKey(b.box);
+      return (ak[0] - bk[0]) || (ak[1] - bk[1]);
+    });
+}
+
 function clearComicOcrOverlays(root = refs.readerContentBody) {
   if (!root) return;
   root.querySelectorAll(".reader-comic-ocr-layer").forEach((node) => node.remove());
@@ -2206,14 +2292,14 @@ function renderComicOcrOverlayForSlot(slot, pageIndex) {
   if (!state.comicOcrOverlayEnabled || !state.comicOcrResult) return;
   const img = slot.querySelector(".reader-comic-image");
   if (!img) return;
-  const blocks = comicOcrBlocksForPage(pageIndex);
+  const blocks = mergeComicOcrBlocksForOverlay(comicOcrBlocksForPage(pageIndex));
   if (!blocks.length) return;
   const imageHeight = Math.max(1, img.clientHeight || img.naturalHeight || 1);
   const layer = document.createElement("div");
   layer.className = "reader-comic-ocr-layer";
   layer.setAttribute("aria-hidden", "true");
   for (const block of blocks) {
-    const text = String((block && (block.translated_text || block.source_text)) || "").trim();
+    const text = normalizeComicOcrOverlayText(block && block.text);
     const box = Array.isArray(block && block.box) ? block.box : [];
     if (!text || box.length < 4) continue;
     const x = clamp01(Number(box[0]) || 0);
@@ -6657,12 +6743,14 @@ async function init() {
     if (state.translateMode === "server") state.translateMode = "local";
     else if (state.translateMode === "local") state.translateMode = "dichngay_local";
     else if (state.translateMode === "dichngay_local") state.translateMode = "hanviet";
+    else if (state.translateMode === "hanviet") state.translateMode = "vbook_ext";
     else state.translateMode = "server";
     clearChapterCache();
     cancelPrefetch();
     if (state.translateMode === "local") refs.btnTranslateMode.textContent = state.shell.t("modeLocal");
     else if (state.translateMode === "dichngay_local") refs.btnTranslateMode.textContent = state.shell.t("modeDichNgayLocal");
     else if (state.translateMode === "hanviet") refs.btnTranslateMode.textContent = state.shell.t("modeHanviet");
+    else if (state.translateMode === "vbook_ext") refs.btnTranslateMode.textContent = state.shell.t("modeVbookExt");
     else refs.btnTranslateMode.textContent = state.shell.t("modeServer");
     await loadBook();
     await loadChapter();
