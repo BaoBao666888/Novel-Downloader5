@@ -412,7 +412,7 @@ function insertMarkupAfter(referenceNode, markup) {
   }
 }
 
-function ensureSettingsEnhancements(settingsForm) {
+function ensureSettingsEnhancements(settingsForm, { bookScopedTranslation = false } = {}) {
   if (!settingsForm) return;
   const translationModeSelect = qs("translation-mode-select");
   if (translationModeSelect && !translationModeSelect.querySelector(`option[value="${VBOOK_EXT_TRANSLATION_MODE}"]`)) {
@@ -479,7 +479,7 @@ function ensureSettingsEnhancements(settingsForm) {
       ],
     },
     {
-      title: t("settingsSectionTranslation"),
+      title: t(bookScopedTranslation ? "settingsSectionTranslationBookOnly" : "settingsSectionTranslation"),
       nodes: [
         qs("translation-enabled-select") && qs("translation-enabled-select").closest("label"),
         qs("translation-mode-select") && qs("translation-mode-select").closest("label"),
@@ -2359,6 +2359,13 @@ function fillStaticTexts() {
 export async function initShell({ page, onSearchSubmit, onImported, onImportUrl, onSearch, onPrepareImport } = {}) {
   fillStaticTexts();
   setNavActive(page || "library");
+  const query = parseQuery();
+  const readerSettingsBookId = String(page || "") === "reader" ? String(query.book_id || "").trim() : "";
+  const readerSettingsScoped = Boolean(readerSettingsBookId);
+  const readerSettingsUrl = () => {
+    const base = "/api/reader/settings";
+    return readerSettingsScoped ? `${base}?book_id=${encodeURIComponent(readerSettingsBookId)}` : base;
+  };
 
   const state = {
     serverThemes: [],
@@ -2438,7 +2445,7 @@ export async function initShell({ page, onSearchSubmit, onImported, onImportUrl,
 
   const settingsForm = qs("settings-form");
   const themeSelect = qs("theme-select");
-  if (settingsForm) ensureSettingsEnhancements(settingsForm);
+  if (settingsForm) ensureSettingsEnhancements(settingsForm, { bookScopedTranslation: readerSettingsScoped });
   const fontFamilySelect = qs("font-family-select");
   const starStyleSelect = qs("star-style-select");
   const backgroundMotionSelect = qs("background-motion-select");
@@ -3749,6 +3756,7 @@ export async function initShell({ page, onSearchSubmit, onImported, onImportUrl,
     const hanvietCfg = normalizeLocalTranslationSettings(state.readerTranslationHanviet || {});
     const mode = normalizeTranslationMode(state.settings.translationMode);
     const payload = {
+      ...(readerSettingsScoped ? { book_id: readerSettingsBookId } : {}),
       debug: {
         enabled: readerDebugSelect ? String(readerDebugSelect.value || "off").toLowerCase() === "on" : state.readerDebug.enabled === true,
       },
@@ -3763,7 +3771,7 @@ export async function initShell({ page, onSearchSubmit, onImported, onImportUrl,
         vbook_ext: vbookExtCfg,
       },
     };
-    const data = await api("/api/reader/settings", {
+    const data = await api(readerSettingsUrl(), {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload),
@@ -3778,7 +3786,7 @@ export async function initShell({ page, onSearchSubmit, onImported, onImportUrl,
   const persistReaderTranslationSettings = debounceAsync(persistReaderTranslationSettingsNow, 250);
 
   try {
-    const readerSettings = await api("/api/reader/settings");
+    const readerSettings = await api(readerSettingsUrl());
     const translation = readerSettings && readerSettings.translation && typeof readerSettings.translation === "object"
       ? readerSettings.translation
       : null;
@@ -3796,7 +3804,6 @@ export async function initShell({ page, onSearchSubmit, onImported, onImportUrl,
     loadVbookTranslatePlugins().catch(() => {});
   }
 
-  const query = parseQuery();
   const searchInput = qs("search-input");
   const searchButton = qs("btn-go-search");
   const submitSearch = (raw) => {

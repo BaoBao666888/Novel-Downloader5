@@ -204,20 +204,27 @@ def set_import_settings(
     )
 
 
-def get_reader_settings(service, *, normalize_name_set, vbook_local_translate) -> dict[str, Any]:
-    local_settings = service.reader_translation_settings.get("local")
+def build_reader_settings_response(
+    service,
+    translation_settings: dict[str, Any] | None,
+    *,
+    normalize_name_set,
+    vbook_local_translate,
+) -> dict[str, Any]:
+    settings = translation_settings if isinstance(translation_settings, dict) else {}
+    local_settings = settings.get("local")
     if not isinstance(local_settings, dict):
         local_settings = vbook_local_translate.normalize_local_settings(
             {},
             default_base_dir="reader_ui/translate/vbook_local",
         )
-    sim_local_settings = service.reader_translation_settings.get(SIMULATED_LOCAL_MODE)
+    sim_local_settings = settings.get(SIMULATED_LOCAL_MODE)
     if not isinstance(sim_local_settings, dict):
         sim_local_settings = vbook_local_translate.normalize_local_settings(
             {},
             default_base_dir=SIMULATED_LOCAL_BASE_DIR,
         )
-    hanviet_settings = service.reader_translation_settings.get(HANVIET_MODE)
+    hanviet_settings = settings.get(HANVIET_MODE)
     hanviet_settings = vbook_local_translate.normalize_local_settings(
         _normalize_hanviet_payload(hanviet_settings if isinstance(hanviet_settings, dict) else {}),
         default_base_dir=HANVIET_BASE_DIR,
@@ -229,25 +236,111 @@ def get_reader_settings(service, *, normalize_name_set, vbook_local_translate) -
             "log_path": str(getattr(service, "reader_debug_log_path", "") or ""),
         },
         "translation": {
-            "enabled": bool(service.reader_translation_settings.get("enabled", True)),
-            "mode": normalize_translate_mode(service.reader_translation_settings.get("mode"), "local"),
-            "title_cache_auto": parse_bool(service.reader_translation_settings.get("title_cache_auto"), True),
+            "enabled": bool(settings.get("enabled", True)),
+            "mode": normalize_translate_mode(settings.get("mode"), "local"),
+            "title_cache_auto": parse_bool(settings.get("title_cache_auto"), True),
             "server": normalized_server_translate_settings(
                 service,
-                service.reader_translation_settings.get("server"),
+                settings.get("server"),
                 service.app_config,
             ),
             "local": local_settings,
             SIMULATED_LOCAL_MODE: sim_local_settings,
             HANVIET_MODE: hanviet_settings,
             VBOOK_EXT_MODE: normalize_vbook_ext_translate_settings(
-                service.reader_translation_settings.get(VBOOK_EXT_MODE)
+                settings.get(VBOOK_EXT_MODE)
             ),
             "global_dicts": normalized_global_local_dicts(
-                service.reader_translation_settings.get("global_dicts"),
+                settings.get("global_dicts"),
                 normalize_name_set=normalize_name_set,
             ),
         },
+    }
+
+
+def get_reader_settings(service, *, normalize_name_set, vbook_local_translate) -> dict[str, Any]:
+    return build_reader_settings_response(
+        service,
+        service.reader_translation_settings,
+        normalize_name_set=normalize_name_set,
+        vbook_local_translate=vbook_local_translate,
+    )
+
+
+def merge_reader_translation_settings(
+    service,
+    existing: dict[str, Any],
+    patch: dict[str, Any],
+    cfg: dict[str, Any] | None,
+    *,
+    normalize_name_set,
+    vbook_local_translate,
+) -> dict[str, Any]:
+    patch_local = patch.get("local")
+    patch_sim_local = patch.get(SIMULATED_LOCAL_MODE)
+    patch_hanviet = patch.get(HANVIET_MODE)
+    patch_vbook_ext = patch.get(VBOOK_EXT_MODE)
+    patch_server = patch.get("server")
+    patch_global_dicts = patch.get("global_dicts")
+    if isinstance(patch_local, dict):
+        merged_local = dict(existing.get("local") or {})
+        merged_local.update(patch_local)
+    else:
+        merged_local = existing.get("local") or {}
+    if isinstance(patch_sim_local, dict):
+        merged_sim_local = dict(existing.get(SIMULATED_LOCAL_MODE) or {})
+        merged_sim_local.update(patch_sim_local)
+    else:
+        merged_sim_local = existing.get(SIMULATED_LOCAL_MODE) or {}
+    if isinstance(patch_hanviet, dict):
+        merged_hanviet = dict(existing.get(HANVIET_MODE) or {})
+        merged_hanviet.update(patch_hanviet)
+    else:
+        merged_hanviet = existing.get(HANVIET_MODE) or {}
+    merged_hanviet = _normalize_hanviet_payload(merged_hanviet)
+    if isinstance(patch_vbook_ext, dict):
+        merged_vbook_ext = dict(existing.get(VBOOK_EXT_MODE) or {})
+        merged_vbook_ext.update(patch_vbook_ext)
+    else:
+        merged_vbook_ext = existing.get(VBOOK_EXT_MODE) or {}
+    if isinstance(patch_server, dict):
+        merged_server = dict(existing.get("server") or {})
+        merged_server.update(patch_server)
+    else:
+        merged_server = existing.get("server") or {}
+    merged_global_dicts = normalized_global_local_dicts(existing.get("global_dicts"), normalize_name_set=normalize_name_set)
+    if isinstance(patch_global_dicts, dict):
+        for key in ("name", "vp"):
+            if key in patch_global_dicts:
+                merged_global_dicts[key] = normalize_name_set(patch_global_dicts.get(key))
+    local_with_global = dict(merged_local)
+    local_with_global["global_name_overrides"] = dict(merged_global_dicts.get("name") or {})
+    local_with_global["global_vp_overrides"] = dict(merged_global_dicts.get("vp") or {})
+    sim_local_with_global = dict(merged_sim_local)
+    sim_local_with_global["global_name_overrides"] = dict(merged_global_dicts.get("name") or {})
+    sim_local_with_global["global_vp_overrides"] = dict(merged_global_dicts.get("vp") or {})
+    hanviet_with_global = dict(merged_hanviet)
+    hanviet_with_global["global_name_overrides"] = dict(merged_global_dicts.get("name") or {})
+    hanviet_with_global["global_vp_overrides"] = dict(merged_global_dicts.get("vp") or {})
+    return {
+        "enabled": parse_bool(patch.get("enabled"), existing["enabled"]),
+        "mode": normalize_translate_mode(patch.get("mode"), existing["mode"]),
+        "title_cache_auto": parse_bool(patch.get("title_cache_auto"), existing.get("title_cache_auto", True)),
+        "server": normalized_server_translate_settings(service, merged_server, cfg),
+        "local": vbook_local_translate.normalize_local_settings(
+            local_with_global,
+            default_base_dir="reader_ui/translate/vbook_local",
+        ),
+        SIMULATED_LOCAL_MODE: vbook_local_translate.normalize_local_settings(
+            sim_local_with_global,
+            default_base_dir=SIMULATED_LOCAL_BASE_DIR,
+        ),
+        HANVIET_MODE: vbook_local_translate.normalize_local_settings(
+            hanviet_with_global,
+            default_base_dir=HANVIET_BASE_DIR,
+        ),
+        VBOOK_EXT_MODE: normalize_vbook_ext_translate_settings(merged_vbook_ext),
+        "global_dicts": merged_global_dicts,
     }
 
 
@@ -278,72 +371,14 @@ def set_reader_settings(
             normalize_name_set=normalize_name_set,
             vbook_local_translate=vbook_local_translate,
         )
-        patch_local = patch.get("local")
-        patch_sim_local = patch.get(SIMULATED_LOCAL_MODE)
-        patch_hanviet = patch.get(HANVIET_MODE)
-        patch_vbook_ext = patch.get(VBOOK_EXT_MODE)
-        patch_server = patch.get("server")
-        patch_global_dicts = patch.get("global_dicts")
-        if isinstance(patch_local, dict):
-            merged_local = dict(existing.get("local") or {})
-            merged_local.update(patch_local)
-        else:
-            merged_local = existing.get("local") or {}
-        if isinstance(patch_sim_local, dict):
-            merged_sim_local = dict(existing.get(SIMULATED_LOCAL_MODE) or {})
-            merged_sim_local.update(patch_sim_local)
-        else:
-            merged_sim_local = existing.get(SIMULATED_LOCAL_MODE) or {}
-        if isinstance(patch_hanviet, dict):
-            merged_hanviet = dict(existing.get(HANVIET_MODE) or {})
-            merged_hanviet.update(patch_hanviet)
-        else:
-            merged_hanviet = existing.get(HANVIET_MODE) or {}
-        merged_hanviet = _normalize_hanviet_payload(merged_hanviet)
-        if isinstance(patch_vbook_ext, dict):
-            merged_vbook_ext = dict(existing.get(VBOOK_EXT_MODE) or {})
-            merged_vbook_ext.update(patch_vbook_ext)
-        else:
-            merged_vbook_ext = existing.get(VBOOK_EXT_MODE) or {}
-        if isinstance(patch_server, dict):
-            merged_server = dict(existing.get("server") or {})
-            merged_server.update(patch_server)
-        else:
-            merged_server = existing.get("server") or {}
-        merged_global_dicts = normalized_global_local_dicts(existing.get("global_dicts"), normalize_name_set=normalize_name_set)
-        if isinstance(patch_global_dicts, dict):
-            for key in ("name", "vp"):
-                if key in patch_global_dicts:
-                    merged_global_dicts[key] = normalize_name_set(patch_global_dicts.get(key))
-        local_with_global = dict(merged_local)
-        local_with_global["global_name_overrides"] = dict(merged_global_dicts.get("name") or {})
-        local_with_global["global_vp_overrides"] = dict(merged_global_dicts.get("vp") or {})
-        sim_local_with_global = dict(merged_sim_local)
-        sim_local_with_global["global_name_overrides"] = dict(merged_global_dicts.get("name") or {})
-        sim_local_with_global["global_vp_overrides"] = dict(merged_global_dicts.get("vp") or {})
-        hanviet_with_global = dict(merged_hanviet)
-        hanviet_with_global["global_name_overrides"] = dict(merged_global_dicts.get("name") or {})
-        hanviet_with_global["global_vp_overrides"] = dict(merged_global_dicts.get("vp") or {})
-        next_settings = {
-            "enabled": parse_bool(patch.get("enabled"), existing["enabled"]),
-            "mode": normalize_translate_mode(patch.get("mode"), existing["mode"]),
-            "title_cache_auto": parse_bool(patch.get("title_cache_auto"), existing.get("title_cache_auto", True)),
-            "server": normalized_server_translate_settings(service, merged_server, cfg),
-            "local": vbook_local_translate.normalize_local_settings(
-                local_with_global,
-                default_base_dir="reader_ui/translate/vbook_local",
-            ),
-            SIMULATED_LOCAL_MODE: vbook_local_translate.normalize_local_settings(
-                sim_local_with_global,
-                default_base_dir=SIMULATED_LOCAL_BASE_DIR,
-            ),
-            HANVIET_MODE: vbook_local_translate.normalize_local_settings(
-                hanviet_with_global,
-                default_base_dir=HANVIET_BASE_DIR,
-            ),
-            VBOOK_EXT_MODE: normalize_vbook_ext_translate_settings(merged_vbook_ext),
-            "global_dicts": merged_global_dicts,
-        }
+        next_settings = merge_reader_translation_settings(
+            service,
+            existing,
+            patch,
+            cfg,
+            normalize_name_set=normalize_name_set,
+            vbook_local_translate=vbook_local_translate,
+        )
         cfg["reader_translation"] = next_settings
         if isinstance(debug_payload, dict):
             cfg["reader_debug"] = {

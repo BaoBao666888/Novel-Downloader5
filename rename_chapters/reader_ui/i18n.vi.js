@@ -402,6 +402,7 @@ export const STRINGS = {
   settingsSectionTypography: "Chữ & bố cục",
   settingsSectionReaderUi: "Thanh mini & mục lục",
   settingsSectionTranslation: "Dịch & xử lý",
+  settingsSectionTranslationBookOnly: "Dịch & xử lý (chỉ bộ này)",
   settingsSectionDebug: "Debug",
   theme: "Theme",
   panelTransparency: "Độ trong panel",

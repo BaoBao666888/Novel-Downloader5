@@ -47,12 +47,12 @@ def _get_name_set_state(handler, book_id: str):
     )
 
 
-def _get_translate_mode_from_query(handler, query: dict[str, list[str]]) -> str:
+def _get_translate_mode_from_query(handler, query: dict[str, list[str]], book_id: str | None = None) -> str:
     if "translation_mode" in query:
         raw = (query.get("translation_mode", ["server"])[0] or "server").strip().lower()
     else:
-        raw = handler.service.reader_translation_mode()
-    return handler.service.resolve_translate_mode(raw)
+        raw = handler.service.reader_translation_mode_for_book(book_id)
+    return handler.service.resolve_translate_mode_for_book(raw, book_id=book_id)
 
 
 def _normalize_client_reader_text(value: Any) -> str:
@@ -343,9 +343,10 @@ def handle_api(handler, method: str, path: str, query: dict[str, list[str]], *, 
         mode = (query.get("mode", ["raw"])[0] or "raw").strip().lower()
         if mode not in ("raw", "trans"):
             mode = "raw"
-        if mode == "trans" and not service.translation_allowed_for_book(book_found):
+        if mode == "trans" and not service.translation_allowed_for_book_scope(book_found, book_id):
             mode = "raw"
-        translate_mode = _get_translate_mode_from_query(handler, query)
+        translate_mode = _get_translate_mode_from_query(handler, query, book_id=book_id)
+        translator = service.translator_for_book(book_id)
         _, active_name_set, _ = _get_active_name_set(handler, book_id)
         active_vp_set, _ = storage.get_book_vp_set(book_id)
         data = storage.list_chapters_paged(
@@ -354,7 +355,7 @@ def handle_api(handler, method: str, path: str, query: dict[str, list[str]], *, 
             page_size=page_size,
             volume_id=volume_id,
             mode=mode,
-            translator=service.translator,
+            translator=translator,
             translate_mode=translate_mode,
             name_set_override=active_name_set,
             vp_set_override=active_vp_set,
@@ -410,15 +411,16 @@ def handle_api(handler, method: str, path: str, query: dict[str, list[str]], *, 
         book_found = storage.find_book(book_id)
         if not book_found:
             raise api_error(http_status.NOT_FOUND, "NOT_FOUND", "Không tìm thấy truyện.")
-        if not service.translation_allowed_for_book(book_found):
+        if not service.translation_allowed_for_book_scope(book_found, book_id):
             return {"ok": True, "skipped": True, "reason": "TRANSLATION_NOT_SUPPORTED"}
         payload = handler._read_json_body()
-        translate_mode = service.resolve_translate_mode(payload.get("translation_mode"))
+        translate_mode = service.resolve_translate_mode_for_book(payload.get("translation_mode"), book_id=book_id)
+        translator = service.translator_for_book(book_id)
         _, active_name_set, _ = _get_active_name_set(handler, book_id)
         active_vp_set, _ = storage.get_book_vp_set(book_id)
         storage.translate_book_titles(
             book_id,
-            service.translator,
+            translator,
             translate_mode,
             name_set_override=active_name_set,
             vp_set_override=active_vp_set,
@@ -566,7 +568,8 @@ def handle_api(handler, method: str, path: str, query: dict[str, list[str]], *, 
         mode = (query.get("mode", ["raw"])[0] or "raw").strip().lower()
         if mode not in ("raw", "trans"):
             mode = "raw"
-        translate_mode = _get_translate_mode_from_query(handler, query)
+        translate_mode = _get_translate_mode_from_query(handler, query, book_id=book_id)
+        translator = service.translator_for_book(book_id)
         if refresh_online:
             try:
                 service.refresh_library_book_detail_from_source(book_id)
@@ -575,13 +578,13 @@ def handle_api(handler, method: str, path: str, query: dict[str, list[str]], *, 
         _, active_name_set, _ = _get_active_name_set(handler, book_id)
         active_vp_set, _ = storage.get_book_vp_set(book_id)
         book_preview = storage.find_book(book_id)
-        allow_translate = service.translation_allowed_for_book(book_preview)
+        allow_translate = service.translation_allowed_for_book_scope(book_preview, book_id)
         if mode == "trans" and not allow_translate:
             mode = "raw"
         if translate_titles and allow_translate:
             storage.translate_book_titles(
                 book_id,
-                service.translator,
+                translator,
                 translate_mode,
                 name_set_override=active_name_set,
                 vp_set_override=active_vp_set,
@@ -790,14 +793,15 @@ def handle_api(handler, method: str, path: str, query: dict[str, list[str]], *, 
         book = storage.find_book(chapter["book_id"])
         if not book:
             raise api_error(http_status.NOT_FOUND, "NOT_FOUND", "Không tìm thấy truyện.")
-        if not service.translation_allowed_for_book(book):
+        if not service.translation_allowed_for_book_scope(book, chapter["book_id"]):
             raise api_error(
                 http_status.BAD_REQUEST,
                 "TRANSLATION_NOT_SUPPORTED",
                 "Nguồn truyện này không hỗ trợ dịch/name map.",
             )
         payload = handler._read_json_body()
-        translate_mode = service.resolve_translate_mode(payload.get("translation_mode"))
+        translate_mode = service.resolve_translate_mode_for_book(payload.get("translation_mode"), book_id=chapter["book_id"])
+        translator = service.translator_for_book(chapter["book_id"])
         override_name_set = payload.get("name_set")
         if override_name_set is not None and not isinstance(override_name_set, dict):
             raise api_error(http_status.BAD_REQUEST, "BAD_REQUEST", "name_set phải là object.")
@@ -808,19 +812,19 @@ def handle_api(handler, method: str, path: str, query: dict[str, list[str]], *, 
             chapter,
             book,
             mode="raw",
-            translator=service.translator,
+            translator=translator,
             translate_mode=translate_mode,
             name_set_override=override_name_set if isinstance(override_name_set, dict) else None,
             vp_set_override=active_vp_set,
         )
-        detail = service.translator.translate_detailed(
+        detail = translator.translate_detailed(
             raw_text,
             mode=translate_mode,
             name_set_override=override_name_set if isinstance(override_name_set, dict) else None,
             vp_set_override=active_vp_set,
         )
         detail.pop("unit_map", None)
-        title_detail = service.translator.translate_detailed(
+        title_detail = translator.translate_detailed(
             chapter.get("title_raw") or "",
             mode=translate_mode,
             name_set_override=override_name_set if isinstance(override_name_set, dict) else None,
@@ -846,7 +850,7 @@ def handle_api(handler, method: str, path: str, query: dict[str, list[str]], *, 
         book = storage.find_book(chapter["book_id"])
         if not book:
             raise api_error(http_status.NOT_FOUND, "NOT_FOUND", "Không tìm thấy truyện.")
-        if not service.translation_allowed_for_book(book):
+        if not service.translation_allowed_for_book_scope(book, chapter["book_id"]):
             raise api_error(
                 http_status.BAD_REQUEST,
                 "TRANSLATION_NOT_SUPPORTED",
@@ -863,14 +867,15 @@ def handle_api(handler, method: str, path: str, query: dict[str, list[str]], *, 
             end_offset = int(payload.get("end_offset"))
         except Exception as exc:
             raise api_error(http_status.BAD_REQUEST, "BAD_REQUEST", "start_offset/end_offset phải là số nguyên.") from exc
-        translate_mode = service.resolve_translate_mode(payload.get("translation_mode"))
+        translate_mode = service.resolve_translate_mode_for_book(payload.get("translation_mode"), book_id=chapter["book_id"])
+        translator = service.translator_for_book(chapter["book_id"])
         _, active_name_set, version = _get_active_name_set(handler, chapter["book_id"])
         active_vp_set, active_vp_version = storage.get_book_vp_set(chapter["book_id"])
         raw_text = storage.get_chapter_text(
             chapter,
             book,
             mode="raw",
-            translator=service.translator,
+            translator=translator,
             translate_mode=translate_mode,
             name_set_override=active_name_set,
             vp_set_override=active_vp_set,
@@ -900,12 +905,12 @@ def handle_api(handler, method: str, path: str, query: dict[str, list[str]], *, 
                 chapter,
                 book,
                 mode="trans",
-                translator=service.translator,
+                translator=translator,
                 translate_mode=translate_mode,
                 name_set_override=active_name_set,
                 vp_set_override=active_vp_set,
             )
-            base_sig = service.translator.translation_signature(
+            base_sig = translator.translation_signature(
                 mode=translate_mode,
                 name_set_override=active_name_set,
                 vp_set_override=active_vp_set,
@@ -914,7 +919,7 @@ def handle_api(handler, method: str, path: str, query: dict[str, list[str]], *, 
             current_sig = storage.chapter_trans_signature(base_sig, junk_version=junk_version)
             unit_map = storage.get_translation_unit_map(chapter["chapter_id"], current_sig, translate_mode)
             if not unit_map:
-                detail = service.translator.translate_detailed(
+                detail = translator.translate_detailed(
                     raw_text,
                     mode=translate_mode,
                     name_set_override=active_name_set,
@@ -930,7 +935,7 @@ def handle_api(handler, method: str, path: str, query: dict[str, list[str]], *, 
                 if translate_mode in {"local", "hanviet", "dichngay_local"}:
                     token_map = detail.get("token_map") if isinstance(detail.get("token_map"), list) else []
             elif translate_mode in {"local", "hanviet", "dichngay_local"}:
-                detail = service.translator.translate_detailed(
+                detail = translator.translate_detailed(
                     raw_text,
                     mode=translate_mode,
                     name_set_override=active_name_set,
@@ -939,9 +944,9 @@ def handle_api(handler, method: str, path: str, query: dict[str, list[str]], *, 
                 token_map = detail.get("token_map") if isinstance(detail.get("token_map"), list) else []
         state = _get_name_set_state(handler, chapter["book_id"])
         if translate_mode == "server":
-            effective_name_set = name_set_for_mapping if isinstance(name_set_for_mapping, dict) else service.translator._server_name_set_for_use(active_name_set)
+            effective_name_set = name_set_for_mapping if isinstance(name_set_for_mapping, dict) else translator._server_name_set_for_use(active_name_set)
         else:
-            effective_name_set = service.translator._name_set_for_use(active_name_set)
+            effective_name_set = translator._name_set_for_use(active_name_set)
         mapped = deps.map_selection_to_name_source(
             raw_text=raw_text,
             translated_text=translated_text,
@@ -987,20 +992,21 @@ def handle_api(handler, method: str, path: str, query: dict[str, list[str]], *, 
         selected_mode = str(payload.get("mode") or "raw").strip().lower()
         if selected_mode not in {"raw", "trans"}:
             selected_mode = "raw"
-        translate_mode = service.resolve_translate_mode(payload.get("translation_mode"))
+        translate_mode = service.resolve_translate_mode_for_book(payload.get("translation_mode"), book_id=chapter["book_id"])
+        translator = service.translator_for_book(chapter["book_id"])
         _, active_name_set, _ = _get_active_name_set(handler, chapter["book_id"])
         active_vp_set, _ = storage.get_book_vp_set(chapter["book_id"])
         raw_text = storage.get_chapter_text(
             chapter,
             book,
             mode="raw",
-            translator=service.translator,
+            translator=translator,
             translate_mode=translate_mode,
             name_set_override=active_name_set,
             vp_set_override=active_vp_set,
             allow_remote_fetch=False,
         )
-        if selected_mode == "raw" or not service.translation_allowed_for_book(book):
+        if selected_mode == "raw" or not service.translation_allowed_for_book_scope(book, chapter["book_id"]):
             idx = raw_text.find(selected_text)
             return {
                 "ok": True,
@@ -1032,12 +1038,12 @@ def handle_api(handler, method: str, path: str, query: dict[str, list[str]], *, 
                 chapter,
                 book,
                 mode="trans",
-                translator=service.translator,
+                translator=translator,
                 translate_mode=translate_mode,
                 name_set_override=active_name_set,
                 vp_set_override=active_vp_set,
             )
-            base_sig = service.translator.translation_signature(
+            base_sig = translator.translation_signature(
                 mode=translate_mode,
                 name_set_override=active_name_set,
                 vp_set_override=active_vp_set,
@@ -1046,7 +1052,7 @@ def handle_api(handler, method: str, path: str, query: dict[str, list[str]], *, 
             current_sig = storage.chapter_trans_signature(base_sig, junk_version=junk_version)
             unit_map = storage.get_translation_unit_map(chapter["chapter_id"], current_sig, translate_mode)
             if not unit_map or translate_mode in {"local", "hanviet", "dichngay_local"}:
-                detail = service.translator.translate_detailed(
+                detail = translator.translate_detailed(
                     raw_text,
                     mode=translate_mode,
                     name_set_override=active_name_set,
@@ -1089,11 +1095,12 @@ def handle_api(handler, method: str, path: str, query: dict[str, list[str]], *, 
         book = storage.find_book(chapter["book_id"])
         if not book:
             raise api_error(http_status.NOT_FOUND, "NOT_FOUND", "Không tìm thấy truyện.")
-        trans_supported = service.translation_allowed_for_book(book)
+        trans_supported = service.translation_allowed_for_book_scope(book, chapter["book_id"])
         mode = (query.get("mode", ["raw"])[0] or "raw").strip().lower()
         if mode not in ("raw", "trans"):
             mode = "raw"
-        translate_mode = _get_translate_mode_from_query(handler, query)
+        translate_mode = _get_translate_mode_from_query(handler, query, book_id=chapter["book_id"])
+        translator = service.translator_for_book(chapter["book_id"])
         if mode == "trans" and not trans_supported:
             mode = "raw"
         _, active_name_set, _ = _get_active_name_set(handler, chapter["book_id"])
@@ -1103,7 +1110,7 @@ def handle_api(handler, method: str, path: str, query: dict[str, list[str]], *, 
             chapter,
             book,
             mode=mode,
-            translator=service.translator,
+            translator=translator,
             translate_mode=translate_mode,
             name_set_override=active_name_set,
             vp_set_override=active_vp_set,
@@ -1117,12 +1124,12 @@ def handle_api(handler, method: str, path: str, query: dict[str, list[str]], *, 
                 chapter,
                 book,
                 mode="raw",
-                translator=service.translator,
+                translator=translator,
                 translate_mode=translate_mode,
                 name_set_override=active_name_set,
                 vp_set_override=active_vp_set,
             )
-            name_preview = service.translator.translate_detailed(
+            name_preview = translator.translate_detailed(
                 raw_text,
                 mode=translate_mode,
                 name_set_override=active_name_set,
@@ -1159,13 +1166,13 @@ def handle_api(handler, method: str, path: str, query: dict[str, list[str]], *, 
         title_vi = deps.normalize_vi_display_text(chapter.get("title_vi") or "")
         response_title = chapter["title_raw"]
         if output_mode == "trans":
-            response_title = service._translate_ui_text_with_dicts(
-                chapter["title_raw"],
-                single_line=True,
+            title_detail = translator.translate_detailed(
+                chapter.get("title_raw") or "",
                 mode=translate_mode,
                 name_set_override=active_name_set,
                 vp_set_override=active_vp_set,
-            ) or title_vi or chapter["title_raw"]
+            )
+            response_title = deps.normalize_vi_display_text(title_detail.get("translated") or "") or title_vi or chapter["title_raw"]
         raw_state = storage.get_chapter_raw_edit_state(chapter["chapter_id"])
         response = {
             "chapter_id": chapter["chapter_id"],
@@ -1186,7 +1193,7 @@ def handle_api(handler, method: str, path: str, query: dict[str, list[str]], *, 
             "raw_edit_updated_at": str(raw_state.get("updated_at") or ""),
         }
         if output_mode == "trans":
-            base_sig = service.translator.translation_signature(
+            base_sig = translator.translation_signature(
                 mode=translate_mode,
                 name_set_override=active_name_set,
                 vp_set_override=active_vp_set,
@@ -1230,19 +1237,20 @@ def handle_api(handler, method: str, path: str, query: dict[str, list[str]], *, 
         started = time.perf_counter()
         chapter_id = path.removeprefix("/api/library/chapter/").removesuffix("/translate").strip("/")
         payload = handler._read_json_body()
-        translate_mode = service.resolve_translate_mode(payload.get("translation_mode"))
         chapter = storage.find_chapter(chapter_id)
         if not chapter:
             raise api_error(http_status.NOT_FOUND, "NOT_FOUND", "Không tìm thấy chương.")
+        translate_mode = service.resolve_translate_mode_for_book(payload.get("translation_mode"), book_id=chapter["book_id"])
+        translator = service.translator_for_book(chapter["book_id"])
         book = storage.find_book(chapter["book_id"])
         if not book:
             raise api_error(http_status.NOT_FOUND, "NOT_FOUND", "Không tìm thấy truyện.")
-        if not service.translation_allowed_for_book(book):
+        if not service.translation_allowed_for_book_scope(book, chapter["book_id"]):
             raw_text = storage.get_chapter_text(
                 chapter,
                 book,
                 mode="raw",
-                translator=service.translator,
+                translator=translator,
                 translate_mode=translate_mode,
             )
             _debug_log(
@@ -1270,7 +1278,7 @@ def handle_api(handler, method: str, path: str, query: dict[str, list[str]], *, 
             chapter,
             book,
             mode="trans",
-            translator=service.translator,
+            translator=translator,
             translate_mode=translate_mode,
             name_set_override=active_name_set,
             vp_set_override=active_vp_set,

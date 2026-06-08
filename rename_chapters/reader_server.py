@@ -129,6 +129,7 @@ APP_STATE_NAME_SET_STATE_KEY = "reader.name_set_state"
 APP_STATE_BOOK_VP_SET_KEY_PREFIX = "reader.book_vp_set"
 APP_STATE_GLOBAL_JUNK_STATE_KEY = "reader.global_junk_state"
 APP_STATE_BOOK_REPLACE_STATE_KEY_PREFIX = "reader.book_replace_state"
+APP_STATE_BOOK_TRANSLATION_SETTINGS_KEY_PREFIX = "reader.book_translation_settings"
 APP_STATE_CHAPTER_RAW_EDIT_KEY_PREFIX = "reader.chapter_raw_edit"
 APP_STATE_EXPORT_JOBS_STATE_KEY = "reader.export_jobs_state"
 APP_STATE_NOTIFICATIONS_STATE_KEY = "reader.notifications_state"
@@ -4411,7 +4412,7 @@ class ReaderService:
             jar_rel = self._vbook_runner_default_rel()
         jar_path = resolve_existing_path(jar_rel, base_dir, bundle_dir)
         self.vbook_runner = self._build_vbook_runner_client(jar_path)
-        self.translator.vbook_translate_callback = self._translate_with_vbook_extension
+        self.translator.vbook_translate_callback = self._make_vbook_translate_callback(self.reader_translation_settings)
 
     def _import_preview_root(self) -> Path:
         return service_local_import_support.import_preview_root(
@@ -5124,6 +5125,73 @@ class ReaderService:
             vbook_local_translate=vbook_local_translate,
         )
 
+    def _book_translation_settings_key(self, book_id: str) -> str:
+        bid = str(book_id or "").strip()
+        return f"{APP_STATE_BOOK_TRANSLATION_SETTINGS_KEY_PREFIX}.{bid}"
+
+    def _load_book_translation_settings(self, book_id: str) -> dict[str, Any]:
+        bid = str(book_id or "").strip()
+        if not bid:
+            return {}
+        raw = self.storage._get_app_state_value(self._book_translation_settings_key(bid))
+        if not raw:
+            return {}
+        try:
+            parsed = json.loads(raw)
+        except Exception:
+            return {}
+        return parsed if isinstance(parsed, dict) else {}
+
+    def _normalize_reader_translation_payload(self, payload: dict[str, Any] | None) -> dict[str, Any]:
+        base = payload if isinstance(payload, dict) else {}
+        return self._normalized_reader_translation_settings({"reader_translation": base})
+
+    def reader_translation_settings_for_book(self, book_id: str | None = None) -> dict[str, Any]:
+        bid = str(book_id or "").strip()
+        if not bid:
+            return self.reader_translation_settings
+        raw = self._load_book_translation_settings(bid)
+        if not raw:
+            return self._normalize_reader_translation_payload(self.reader_translation_settings)
+        return self._normalize_reader_translation_payload(raw)
+
+    def _build_translation_adapter(self, app_config: dict[str, Any]) -> TranslationAdapter:
+        adapter = TranslationAdapter(
+            app_config,
+            active_name_set=self.translator.active_name_set,
+            active_set_name=self.translator.active_set_name,
+            name_set_version=int(self.translator.name_set_version or 1),
+            cache_lookup_batch=self.storage.get_translation_memory_batch,
+            cache_store_batch=self.storage.set_translation_memory_batch,
+            debug_logger=self.debug_log,
+        )
+        reader_cfg = app_config.get("reader_translation") if isinstance(app_config, dict) else {}
+        adapter.vbook_translate_callback = self._make_vbook_translate_callback(reader_cfg if isinstance(reader_cfg, dict) else {})
+        return adapter
+
+    def translator_for_book(self, book_id: str | None = None) -> TranslationAdapter:
+        bid = str(book_id or "").strip()
+        if not bid:
+            return self.translator
+        cfg = dict(self.app_config or {}) if isinstance(self.app_config, dict) else {}
+        cfg["reader_translation"] = self.reader_translation_settings_for_book(bid)
+        return self._build_translation_adapter(cfg)
+
+    def reader_translation_mode_for_book(self, book_id: str | None = None) -> str:
+        settings = self.reader_translation_settings_for_book(book_id)
+        return self._normalize_translate_mode(settings.get("mode"), "local")
+
+    def resolve_translate_mode_for_book(self, preferred: Any = None, book_id: str | None = None) -> str:
+        return self._normalize_translate_mode(preferred, self.reader_translation_mode_for_book(book_id))
+
+    def is_reader_translation_enabled_for_book(self, book_id: str | None = None) -> bool:
+        settings = self.reader_translation_settings_for_book(book_id)
+        return bool(settings.get("enabled", True))
+
+    def translation_allowed_for_book_scope(self, book: dict[str, Any] | None, book_id: str | None = None) -> bool:
+        bid = str(book_id or ((book or {}).get("book_id") if isinstance(book, dict) else "") or "").strip()
+        return bool(self.is_reader_translation_enabled_for_book(bid) and book_supports_translation(book))
+
     def _normalized_reader_import_settings(self, cfg: dict[str, Any] | None = None) -> dict[str, Any]:
         return service_user_state_support.normalized_reader_import_settings(
             self,
@@ -5148,23 +5216,86 @@ class ReaderService:
             import_settings_presets=import_settings_presets,
         )
 
-    def get_reader_settings(self) -> dict[str, Any]:
-        return service_user_state_support.get_reader_settings(
+    def get_reader_settings(self, book_id: str | None = None) -> dict[str, Any]:
+        bid = str(book_id or "").strip()
+        if not bid:
+            return service_user_state_support.get_reader_settings(
+                self,
+                normalize_name_set=normalize_name_set,
+                vbook_local_translate=vbook_local_translate,
+            )
+        if not self.storage.find_book(bid):
+            raise ApiError(HTTPStatus.NOT_FOUND, "NOT_FOUND", "Không tìm thấy truyện.")
+        raw = self._load_book_translation_settings(bid)
+        inherited = not bool(raw)
+        settings = self._normalize_reader_translation_payload(raw or self.reader_translation_settings)
+        response = service_user_state_support.build_reader_settings_response(
             self,
+            settings,
             normalize_name_set=normalize_name_set,
             vbook_local_translate=vbook_local_translate,
         )
+        response["scope"] = {"type": "book", "book_id": bid, "inherited": inherited}
+        response["translation"]["scope"] = "book"
+        response["translation"]["book_id"] = bid
+        response["translation"]["inherited_from_global"] = inherited
+        return response
 
-    def set_reader_settings(self, payload: dict[str, Any]) -> dict[str, Any]:
-        return service_user_state_support.set_reader_settings(
+    def _set_reader_debug_settings(self, debug_payload: dict[str, Any] | None) -> None:
+        if not isinstance(debug_payload, dict):
+            return
+        with _APP_CONFIG_LOCK:
+            cfg = load_app_config()
+            if not isinstance(cfg, dict):
+                cfg = {}
+            existing_debug = cfg.get("reader_debug") if isinstance(cfg.get("reader_debug"), dict) else {}
+            cfg["reader_debug"] = {
+                "enabled": service_user_state_support.parse_bool(
+                    debug_payload.get("enabled"),
+                    bool(existing_debug.get("enabled", False)),
+                ),
+            }
+            save_app_config(cfg)
+        self.refresh_config()
+
+    def set_reader_settings(self, payload: dict[str, Any], book_id: str | None = None) -> dict[str, Any]:
+        bid = str(book_id or "").strip()
+        if not bid:
+            return service_user_state_support.set_reader_settings(
+                self,
+                payload,
+                app_config_lock=_APP_CONFIG_LOCK,
+                load_app_config=load_app_config,
+                save_app_config=save_app_config,
+                normalize_name_set=normalize_name_set,
+                vbook_local_translate=vbook_local_translate,
+            )
+        if not self.storage.find_book(bid):
+            raise ApiError(HTTPStatus.NOT_FOUND, "NOT_FOUND", "Không tìm thấy truyện.")
+        if not isinstance(payload, dict):
+            payload = {}
+        self._set_reader_debug_settings(payload.get("debug") if isinstance(payload.get("debug"), dict) else None)
+        translation_payload = payload.get("translation")
+        patch = translation_payload if isinstance(translation_payload, dict) else payload
+        raw = self._load_book_translation_settings(bid)
+        existing = self._normalize_reader_translation_payload(raw or self.reader_translation_settings)
+        next_settings = service_user_state_support.merge_reader_translation_settings(
             self,
-            payload,
-            app_config_lock=_APP_CONFIG_LOCK,
-            load_app_config=load_app_config,
-            save_app_config=save_app_config,
+            existing,
+            patch if isinstance(patch, dict) else {},
+            {"reader_translation": existing},
             normalize_name_set=normalize_name_set,
             vbook_local_translate=vbook_local_translate,
         )
+        self.storage._set_app_state_value(
+            self._book_translation_settings_key(bid),
+            json.dumps(next_settings, ensure_ascii=False, sort_keys=True, separators=(",", ":")),
+        )
+        try:
+            vbook_local_translate.clear_bundle_cache()
+        except Exception:
+            pass
+        return self.get_reader_settings(book_id=bid)
 
     def get_local_global_dicts(self) -> dict[str, dict[str, str]]:
         return service_user_state_support.get_local_global_dicts(
@@ -10129,10 +10260,32 @@ class ReaderService:
             items.append(item)
         return items
 
+    def _make_vbook_translate_callback(self, reader_translation_settings: dict[str, Any] | None):
+        cfg = service_user_state_support.normalize_vbook_ext_translate_settings(
+            (reader_translation_settings or {}).get("vbook_ext") if isinstance(reader_translation_settings, dict) else None
+        )
+        return lambda text, source_lang, target_lang, api_key="": self._translate_with_vbook_extension_config(
+            cfg,
+            text,
+            source_lang,
+            target_lang,
+            api_key,
+        )
+
     def _translate_with_vbook_extension(self, text: str, source_lang: str, target_lang: str, api_key: str = "") -> str:
         cfg = service_user_state_support.normalize_vbook_ext_translate_settings(
             (self.reader_translation_settings or {}).get("vbook_ext")
         )
+        return self._translate_with_vbook_extension_config(cfg, text, source_lang, target_lang, api_key)
+
+    def _translate_with_vbook_extension_config(
+        self,
+        cfg: dict[str, Any],
+        text: str,
+        source_lang: str,
+        target_lang: str,
+        api_key: str = "",
+    ) -> str:
         plugin_id = str(cfg.get("plugin_id") or "").strip()
         if not plugin_id:
             raise RuntimeError("Chưa chọn extension dịch vBook. Cài/chọn plugin Translate trong Dịch & xử lý.")

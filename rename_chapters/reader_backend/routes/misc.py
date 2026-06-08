@@ -33,7 +33,8 @@ def handle_api(handler, method: str, path: str, query: dict[str, list[str]], *, 
         }
 
     if method == "GET" and path == "/api/reader/settings":
-        return handler.service.get_reader_settings()
+        book_id = (query.get("book_id", [""])[0] or "").strip()
+        return handler.service.get_reader_settings(book_id=book_id)
 
     if method == "GET" and path == "/api/reader/update-status":
         force_raw = str((query.get("force", [""])[0] or "")).strip().lower()
@@ -42,7 +43,9 @@ def handle_api(handler, method: str, path: str, query: dict[str, list[str]], *, 
 
     if method == "POST" and path == "/api/reader/settings":
         payload = handler._read_json_body()
-        return handler.service.set_reader_settings(payload)
+        body_book_id = str((payload or {}).get("book_id") or "").strip() if isinstance(payload, dict) else ""
+        query_book_id = (query.get("book_id", [""])[0] or "").strip()
+        return handler.service.set_reader_settings(payload, book_id=body_book_id or query_book_id)
 
     if method == "GET" and path == "/api/library/import/settings":
         return handler.service.get_import_settings()
