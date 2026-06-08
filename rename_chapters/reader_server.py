@@ -7274,10 +7274,98 @@ class ReaderService:
             keep_days=NOTIFICATION_RETENTION_DAYS,
         )
 
+    def _extract_import_notification_source_url(self, item: dict[str, Any]) -> str:
+        meta = dict(item.get("meta") or {}) if isinstance(item.get("meta"), dict) else {}
+        for key in ("source_url", "url"):
+            value = str(meta.get(key) or "").strip()
+            if value.startswith(("http://", "https://")):
+                return value
+        text = "\n".join(
+            str(item.get(key) or "")
+            for key in ("detail", "preview")
+            if str(item.get(key) or "").strip()
+        )
+        for line in text.splitlines():
+            raw = str(line or "").strip()
+            if raw.lower().startswith("url:"):
+                value = raw.split(":", 1)[1].strip()
+                if value.startswith(("http://", "https://")):
+                    return value
+        match = re.search(r"https?://[^\s]+", text)
+        if not match:
+            return ""
+        return match.group(0).rstrip(".,;)")
+
+    def _reconcile_import_notifications_locked(self) -> bool:
+        changed = False
+        for notif_id, item in list(self._notifications.items()):
+            if not isinstance(item, dict):
+                continue
+            if str(item.get("topic") or "").strip().lower() != "import":
+                continue
+            if str(item.get("kind") or "").strip().lower() != "import_url":
+                continue
+            status = notification_center_support.normalize_notification_status(item.get("status"))
+            preview_text = normalize_vbook_display_text(str(item.get("preview") or ""), single_line=True)
+            looks_stale = status == "warning" and preview_text.startswith("Đang ")
+            if (not notification_center_support.notification_status_is_active(status)) and not looks_stale:
+                continue
+            # Import jobs backed by server snapshots sync themselves; this fallback is for
+            # frontend-created URL import cards that lost their final success update.
+            if str(item.get("job_id") or "").strip():
+                continue
+            source_url = self._extract_import_notification_source_url(item)
+            if not source_url:
+                continue
+            books = self.storage.find_books_by_source(source_url, include_session=False)
+            if not books:
+                continue
+            book = books[0]
+            book_id = str(book.get("book_id") or "").strip()
+            book_title = normalize_vbook_display_text(
+                str(book.get("title_display") or book.get("title_vi") or book.get("title") or ""),
+                single_line=True,
+            )
+            if not book_id:
+                continue
+            now = utc_now_iso()
+            meta = dict(item.get("meta") or {}) if isinstance(item.get("meta"), dict) else {}
+            meta["source_url"] = source_url
+            meta["book_ids_csv"] = book_id
+            meta["reconciled_from_library"] = True
+            payload = {
+                **item,
+                "id": notif_id,
+                "status": "success",
+                "preview": "Hoàn tất: thành công 1 • lỗi 0",
+                "detail": (
+                    f"URL: {source_url}\n"
+                    f"Tên truyện: {book_title or 'Không rõ'}\n"
+                    "Kết quả: thành công 1 • lỗi 0"
+                ),
+                "progress_current": 1,
+                "progress_total": 1,
+                "progress_percent": 100,
+                "book_id": book_id,
+                "book_title": book_title,
+                "updated_at": now,
+                "meta": meta,
+            }
+            normalized = notification_center_support.normalize_notification_record(
+                payload,
+                now_iso=now,
+                existing=item,
+            )
+            if normalized is not None:
+                self._notifications[notif_id] = normalized
+                changed = True
+        return changed
+
     def _list_notifications_locked(self, *, limit: int = 120) -> dict[str, Any]:
         changed = self._ensure_system_notifications_locked()
+        reconcile_changed = self._reconcile_import_notifications_locked()
         cleanup_changed = self._cleanup_notifications_locked()
-        changed = bool(changed or cleanup_changed)
+        changed = bool(changed or reconcile_changed or cleanup_changed)
         if changed:
             self._persist_notifications_locked()
         return notification_center_support.build_notifications_listing(
