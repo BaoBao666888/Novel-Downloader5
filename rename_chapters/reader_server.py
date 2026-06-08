@@ -80,6 +80,7 @@ from reader_backend.services.vbook import image_headers as service_vbook_image_h
 from reader_backend.services.vbook import importing as service_vbook_importing_support
 from reader_backend.services.vbook import lists as service_vbook_lists_support
 from reader_backend.services.vbook import normalize as service_vbook_normalize_support
+from reader_backend.services.vbook import types as service_vbook_types_support
 from reader_backend.storage import book_categories as storage_book_categories_support
 from reader_backend.storage import book_change as storage_book_change_support
 from reader_backend.storage import book_cleanup as storage_book_cleanup_support
@@ -4640,6 +4641,11 @@ class ReaderService:
         detail = dict(payload.get("detail") or {})
         plugin_obj = payload.get("plugin") or plugin
         plugin_type = str(getattr(plugin_obj, "type", "") or "").strip().lower()
+        raw_detail_type = detail.get("detail_type") if "detail_type" in detail else detail.get("type")
+        detail_type = service_vbook_types_support.normalize_vbook_content_type(
+            raw_detail_type
+        )
+        content_type = service_vbook_types_support.resolve_vbook_content_type(plugin_obj, detail)
         locale_norm = normalize_lang_source(str(getattr(plugin_obj, "locale", "") or ""))
         lang_source = locale_norm or "zh"
         title_raw = normalize_vbook_display_text(str(detail.get("title_raw") or ""), single_line=True) or source_url
@@ -4661,11 +4667,7 @@ class ReaderService:
             cache=True,
         )
         token = uuid.uuid4().hex
-        source_type = "vbook_session_comic" if ("comic" in plugin_type and history_only) else (
-            "vbook_session" if history_only else (
-                "vbook_comic" if "comic" in plugin_type else "vbook"
-            )
-        )
+        source_type = service_vbook_types_support.vbook_source_type(content_type, history_only=history_only)
         state = {
             "token": token,
             "kind": "import_url",
@@ -4686,8 +4688,10 @@ class ReaderService:
                 "source_type": source_type,
                 "plugin_name": str(getattr(plugin_obj, "name", "") or "").strip(),
                 "plugin_type": plugin_type,
+                "detail_type": detail_type,
+                "type": content_type,
                 "source_url": source_url,
-                "is_comic": "comic" in plugin_type,
+                "is_comic": content_type == "comic",
             },
         }
         self._save_import_preview_state(token, state)
@@ -4742,11 +4746,8 @@ class ReaderService:
         ) or source_url
         author = normalize_vbook_display_text(str(detail.get("author_raw") or ""), single_line=True)
         cover_path = str(detail.get("cover_raw") or "").strip()
-        plugin_type = str(plugin.type or "").strip().lower()
-        if history_only:
-            source_type = "vbook_session_comic" if "comic" in plugin_type else "vbook_session"
-        else:
-            source_type = "vbook_comic" if "comic" in plugin_type else "vbook"
+        content_type = service_vbook_types_support.resolve_vbook_content_type(plugin, detail)
+        source_type = service_vbook_types_support.vbook_source_type(content_type, history_only=history_only)
         summary = normalize_vbook_display_text(
             str(detail.get("description_raw") or ""),
             single_line=False,
@@ -10471,6 +10472,7 @@ class ReaderService:
                                 result.get("message")
                                 or result.get("msg")
                                 or result.get("error")
+                                or result.get("data2")
                                 or ""
                             ),
                             single_line=False,
@@ -10552,7 +10554,10 @@ class ReaderService:
             flight_key=flight_key,
             flight_token=flight_token,
         )
-        return result.get("data"), result.get("next")
+        next_value = result.get("next")
+        if next_value is None:
+            next_value = result.get("data2")
+        return result.get("data"), next_value
 
     def _vbook_singleflight_key(self, scope: str, plugin: Any) -> str:
         scope_norm = re.sub(r"[^a-z0-9._-]+", "_", str(scope or "").strip().lower()).strip("._-") or "browse"

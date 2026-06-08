@@ -3,6 +3,8 @@ from __future__ import annotations
 from collections.abc import Callable
 from typing import Any
 
+from .types import resolve_vbook_content_type, vbook_source_type
+
 
 def normalize_prefetched_toc_rows(
     prefetched_toc: list[dict[str, Any]] | None,
@@ -54,11 +56,8 @@ def build_import_fields(
         cover_candidate = str(detail.get("cover") or "").strip()
         if cover_candidate.startswith(("http://", "https://", "data:")):
             cover_path = cover_candidate
-    plugin_type = str(getattr(plugin, "type", "") or "").strip().lower()
-    if history_only:
-        source_type = "vbook_session_comic" if "comic" in plugin_type else "vbook_session"
-    else:
-        source_type = "vbook_comic" if "comic" in plugin_type else "vbook"
+    content_type = resolve_vbook_content_type(plugin, detail)
+    source_type = vbook_source_type(content_type, history_only=history_only)
     summary = normalize_vbook_display_text(
         str(detail.get("description_raw") or detail.get("description") or ""),
         single_line=False,

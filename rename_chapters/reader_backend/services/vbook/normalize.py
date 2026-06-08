@@ -6,6 +6,8 @@ import json
 from collections.abc import Callable
 from typing import Any
 
+from .types import resolve_vbook_content_type, vbook_source_type
+
 
 def extract_vbook_list_rows(data: Any) -> list[Any]:
     if isinstance(data, list):
@@ -320,9 +322,10 @@ def normalize_vbook_search_item(
         str(item.get("author") or item.get("writer") or ""),
         single_line=True,
     )
-    is_comic = "comic" in str(getattr(plugin, "type", "") or "").lower()
+    content_type = resolve_vbook_content_type(plugin, item)
+    is_comic = content_type == "comic"
     locale_norm = normalize_lang_source(str(getattr(plugin, "locale", "") or ""))
-    source_tag = "vbook_comic" if is_comic else "vbook"
+    source_tag = vbook_source_type(content_type)
     title_raw = title
     author_raw = author
     description_raw = description
@@ -345,6 +348,7 @@ def normalize_vbook_search_item(
         "plugin_id": plugin_id,
         "plugin_name": str(getattr(plugin, "name", "") or ""),
         "plugin_type": str(getattr(plugin, "type", "") or ""),
+        "type": content_type,
         "locale": str(getattr(plugin, "locale", "") or ""),
         "source_type": source_tag,
         "is_comic": is_comic,

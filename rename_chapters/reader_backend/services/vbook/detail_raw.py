@@ -3,6 +3,8 @@ from __future__ import annotations
 from collections.abc import Callable
 from typing import Any
 
+from .types import normalize_vbook_content_type, resolve_vbook_content_type, vbook_source_type
+
 
 SUGGEST_CANDIDATE_KEYS = (
     "items",
@@ -60,7 +62,10 @@ def build_detail_raw_payload(
     host = str(detail.get("host") or "").strip()
     if cover and host and not cover.startswith("http"):
         cover = join_vbook_url(host, cover)
-    is_comic = "comic" in str(getattr(plugin, "type", "") or "").lower()
+    detail_type = normalize_vbook_content_type(detail.get("type"))
+    plugin_type = normalize_vbook_content_type(getattr(plugin, "type", ""))
+    content_type = resolve_vbook_content_type(plugin, detail)
+    is_comic = content_type == "comic"
     ongoing_raw = detail.get("ongoing")
     ongoing = parse_ongoing(ongoing_raw)
     if ongoing is True:
@@ -124,8 +129,11 @@ def build_detail_raw_payload(
             "description_raw": description,
             "url": source_url,
             "host": host,
+            "type": content_type,
+            "detail_type": detail_type,
+            "plugin_type": plugin_type,
             "is_comic": is_comic,
-            "source_type": "vbook_comic" if is_comic else "vbook",
+            "source_type": vbook_source_type(content_type),
             "ongoing": ongoing,
             "status_text_raw": status_text,
             "info_text_raw": info_text,
