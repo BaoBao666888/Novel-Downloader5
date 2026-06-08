@@ -6081,7 +6081,11 @@ class ReaderService:
             translated_done = 0
             submitted_translations = 0
             result_pages_by_index: dict[int, dict[str, Any]] = {}
-            pending_translations: dict[Future[list[dict[str, Any]]], tuple[int, str, dict[str, Any]]] = {}
+            translation_queue: list[tuple[int, str, dict[str, Any]]] = []
+            pending_translations: dict[
+                Future[list[tuple[int, str, dict[str, Any]]]],
+                list[tuple[int, str, dict[str, Any]]],
+            ] = {}
 
             def partial_result(*, complete: bool = False) -> dict[str, Any]:
                 return self._build_comic_ocr_result(
@@ -6098,45 +6102,87 @@ class ReaderService:
                     out.append(item)
                 return out
 
-            def submit_translation(
-                executor: ThreadPoolExecutor,
-                *,
-                page_key: str,
-                page: dict[str, Any],
-            ) -> None:
+            def page_blocks(page: dict[str, Any]) -> list[dict[str, Any]]:
+                return [dict(block or {}) for block in (page.get("blocks") or []) if isinstance(block, dict)]
+
+            def queue_translation(*, page_key: str, page: dict[str, Any]) -> None:
                 nonlocal submitted_translations
-                blocks = [dict(block or {}) for block in (page.get("blocks") or []) if isinstance(block, dict)]
-                if not blocks:
+                if not page_blocks(page):
                     if page_key:
                         comic_ocr_cache_support.write_page(CACHE_DIR, page_key, page)
                     return
                 submitted_translations += 1
-                future = executor.submit(
-                    comic_ocr_translate_support.translate_blocks,
-                    blocks,
+                translation_queue.append((int(page.get("index") or 0), page_key, page))
+
+            def take_translation_batch() -> list[tuple[int, str, dict[str, Any]]]:
+                batch: list[tuple[int, str, dict[str, Any]]] = []
+                block_count = 0
+                char_count = 0
+                while translation_queue:
+                    index, page_key, page = translation_queue[0]
+                    blocks = page_blocks(page)
+                    next_blocks = len(blocks)
+                    next_chars = sum(len(str(block.get("source_text") or "")) + 18 for block in blocks)
+                    if batch and (
+                        len(batch) >= 3
+                        or block_count + next_blocks > 24
+                        or char_count + next_chars > 5000
+                    ):
+                        break
+                    translation_queue.pop(0)
+                    batch.append((index, page_key, page))
+                    block_count += next_blocks
+                    char_count += next_chars
+                return batch
+
+            def translate_page_batch(
+                batch: list[tuple[int, str, dict[str, Any]]],
+            ) -> list[tuple[int, str, dict[str, Any]]]:
+                flat_blocks: list[dict[str, Any]] = []
+                slices: list[tuple[int, str, dict[str, Any], int, int]] = []
+                for index, page_key, page in batch:
+                    blocks = page_blocks(page)
+                    start = len(flat_blocks)
+                    flat_blocks.extend(blocks)
+                    slices.append((index, page_key, page, start, len(blocks)))
+                translated_flat = comic_ocr_translate_support.translate_blocks_batched(
+                    flat_blocks,
                     translator=context.get("translator") or self.translator,
                     translate_mode=context["translate_mode"],
                     source_lang=str(context.get("source_lang_override") or ""),
                     normalize_vi_display_text=normalize_vi_display_text,
                     strict=context["translate_mode"] == "vbook_ext",
                 )
-                pending_translations[future] = (int(page.get("index") or 0), page_key, page)
+                translated_pages: list[tuple[int, str, dict[str, Any]]] = []
+                for index, page_key, page, start, count in slices:
+                    translated_page = dict(page)
+                    translated_page["blocks"] = translated_flat[start:start + count]
+                    translated_pages.append((index, page_key, translated_page))
+                return translated_pages
 
-            def finish_translation(future: Future[list[dict[str, Any]]]) -> None:
+            def start_translation_batch(executor: ThreadPoolExecutor) -> None:
+                if pending_translations or not translation_queue:
+                    return
+                batch = take_translation_batch()
+                if not batch:
+                    return
+                future = executor.submit(translate_page_batch, batch)
+                pending_translations[future] = batch
+
+            def finish_translation(future: Future[list[tuple[int, str, dict[str, Any]]]]) -> None:
                 nonlocal translated_done
-                index, page_key, page = pending_translations.pop(future)
+                pending_translations.pop(future)
                 try:
-                    translated_blocks = future.result()
+                    translated_pages = future.result()
                 except Exception:
                     for other in list(pending_translations.keys()):
                         other.cancel()
                     raise
-                translated_page = dict(page)
-                translated_page["blocks"] = translated_blocks
-                result_pages_by_index[index] = translated_page
-                if page_key:
-                    comic_ocr_cache_support.write_page(CACHE_DIR, page_key, translated_page)
-                translated_done += 1
+                for index, page_key, translated_page in translated_pages:
+                    result_pages_by_index[index] = translated_page
+                    if page_key:
+                        comic_ocr_cache_support.write_page(CACHE_DIR, page_key, translated_page)
+                    translated_done += 1
                 self._update_comic_ocr_job(
                     job_id,
                     status="running",
@@ -6145,8 +6191,11 @@ class ReaderService:
                     result=partial_result(complete=False),
                 )
 
-            def drain_translations(*, block: bool = False) -> None:
-                while pending_translations:
+            def drain_translations(executor: ThreadPoolExecutor, *, block: bool = False) -> None:
+                while pending_translations or translation_queue:
+                    start_translation_batch(executor)
+                    if not pending_translations:
+                        return
                     done_futures, _pending = wait(
                         set(pending_translations.keys()),
                         timeout=None if block else 0,
@@ -6161,7 +6210,7 @@ class ReaderService:
 
             with ThreadPoolExecutor(max_workers=1, thread_name_prefix=f"ComicOcrTranslate-{job_id[:8]}") as translate_executor:
                 for source in context["sources"]:
-                    drain_translations(block=False)
+                    drain_translations(translate_executor, block=False)
                     page_key = context["page_keys"].get(source.index)
                     page = comic_ocr_cache_support.read_page(CACHE_DIR, page_key) if page_key else None
                     if page is None:
@@ -6198,11 +6247,12 @@ class ReaderService:
                             "blocks": source_only_blocks(blocks),
                         }
                         result_pages_by_index[source.index] = page
-                        submit_translation(translate_executor, page_key=str(page_key or ""), page=page)
+                        queue_translation(page_key=str(page_key or ""), page=page)
+                        start_translation_batch(translate_executor)
                     else:
                         result_pages_by_index[source.index] = page
                     done += 1
-                    drain_translations(block=False)
+                    drain_translations(translate_executor, block=False)
                     self._update_comic_ocr_job(
                         job_id,
                         status="running",
@@ -6211,7 +6261,7 @@ class ReaderService:
                         result=partial_result(complete=False),
                     )
 
-                drain_translations(block=True)
+                drain_translations(translate_executor, block=True)
 
             result = self._build_comic_ocr_result_from_cache(context)
             if result is None:

@@ -4,9 +4,12 @@ import re
 from typing import Any
 
 
-POSTPROCESS_VERSION = "merge-v1"
-_MERGE_MARGIN_X = 0.025
-_MERGE_MARGIN_Y = 0.025
+POSTPROCESS_VERSION = "merge-v2-batch-v1"
+_MERGE_MARGIN_X = 0.008
+_MERGE_MARGIN_Y = 0.018
+_BATCH_MAX_ITEMS = 8
+_BATCH_MAX_CHARS = 1400
+_MARKER_RE = re.compile(r"\[\[\s*ND5OCR_(\d{4})\s*\]\]")
 
 
 def merge_nearby_blocks(blocks: list[dict[str, Any]]) -> list[dict[str, Any]]:
@@ -66,27 +69,162 @@ def translate_blocks(
     normalize_vi_display_text,
     strict: bool = False,
 ) -> list[dict[str, Any]]:
+    return translate_blocks_batched(
+        blocks,
+        translator=translator,
+        translate_mode=translate_mode,
+        source_lang=source_lang,
+        normalize_vi_display_text=normalize_vi_display_text,
+        strict=strict,
+        batch_max_items=1,
+        batch_max_chars=_BATCH_MAX_CHARS,
+    )
+
+
+def translate_blocks_batched(
+    blocks: list[dict[str, Any]],
+    *,
+    translator,
+    translate_mode: str,
+    source_lang: str = "",
+    normalize_vi_display_text,
+    strict: bool = False,
+    batch_max_items: int = _BATCH_MAX_ITEMS,
+    batch_max_chars: int = _BATCH_MAX_CHARS,
+) -> list[dict[str, Any]]:
     out: list[dict[str, Any]] = []
     for block in blocks or []:
         item = dict(block or {})
         source_text = normalize_ocr_text(item.get("source_text") or "")
         item["source_text"] = source_text
-        translated = ""
-        if source_text:
+        item["translated_text"] = source_text
+        out.append(item)
+
+    indexes = [idx for idx, item in enumerate(out) if str(item.get("source_text") or "").strip()]
+    for batch in _iter_translation_batches(indexes, out, batch_max_items=batch_max_items, batch_max_chars=batch_max_chars):
+        translated_map: dict[int, str] | None = None
+        if len(batch) > 1:
             try:
-                detail = translator.translate_detailed(
-                    source_text,
-                    mode=translate_mode,
-                    source_lang_override=source_lang,
+                translated_map = _translate_batch_with_markers(
+                    batch,
+                    out,
+                    translator=translator,
+                    translate_mode=translate_mode,
+                    source_lang=source_lang,
+                    normalize_vi_display_text=normalize_vi_display_text,
                 )
-                translated = normalize_vi_display_text(str(detail.get("translated") or "").strip())
             except Exception:
                 if strict:
                     raise
-                translated = ""
-        item["translated_text"] = translated or source_text
-        out.append(item)
+                translated_map = None
+        if translated_map is None:
+            translated_map = {}
+            for idx in batch:
+                try:
+                    translated_map[idx] = _translate_one(
+                        str(out[idx].get("source_text") or ""),
+                        translator=translator,
+                        translate_mode=translate_mode,
+                        source_lang=source_lang,
+                        normalize_vi_display_text=normalize_vi_display_text,
+                    )
+                except Exception:
+                    if strict:
+                        raise
+                    translated_map[idx] = ""
+        for idx in batch:
+            translated = str(translated_map.get(idx) or "").strip()
+            out[idx]["translated_text"] = translated or str(out[idx].get("source_text") or "")
     return out
+
+
+def _translate_one(
+    source_text: str,
+    *,
+    translator,
+    translate_mode: str,
+    source_lang: str,
+    normalize_vi_display_text,
+) -> str:
+    if not source_text:
+        return ""
+    detail = translator.translate_detailed(
+        source_text,
+        mode=translate_mode,
+        source_lang_override=source_lang,
+    )
+    return normalize_vi_display_text(str(detail.get("translated") or "").strip())
+
+
+def _translate_batch_with_markers(
+    batch: list[int],
+    out: list[dict[str, Any]],
+    *,
+    translator,
+    translate_mode: str,
+    source_lang: str,
+    normalize_vi_display_text,
+) -> dict[int, str] | None:
+    markers: dict[str, int] = {}
+    parts: list[str] = []
+    for seq, idx in enumerate(batch, start=1):
+        marker_id = f"{seq:04d}"
+        marker = f"[[ND5OCR_{marker_id}]]"
+        markers[marker_id] = idx
+        parts.append(f"{marker}\n{str(out[idx].get('source_text') or '').strip()}")
+    payload = "\n".join(parts)
+    detail = translator.translate_detailed(
+        payload,
+        mode=translate_mode,
+        source_lang_override=source_lang,
+    )
+    translated_payload = str(detail.get("translated") or "").strip()
+    parsed = _parse_marked_translation(translated_payload, markers)
+    if parsed is None:
+        return None
+    return {idx: normalize_vi_display_text(text.strip()) for idx, text in parsed.items()}
+
+
+def _parse_marked_translation(value: str, markers: dict[str, int]) -> dict[int, str] | None:
+    matches = list(_MARKER_RE.finditer(str(value or "")))
+    if len(matches) != len(markers):
+        return None
+    parsed: dict[int, str] = {}
+    for pos, match in enumerate(matches):
+        marker_id = match.group(1)
+        if marker_id not in markers:
+            return None
+        start = match.end()
+        end = matches[pos + 1].start() if pos + 1 < len(matches) else len(value)
+        text = _MARKER_RE.sub("", value[start:end]).strip()
+        parsed[markers[marker_id]] = text
+    return parsed if len(parsed) == len(markers) else None
+
+
+def _iter_translation_batches(
+    indexes: list[int],
+    out: list[dict[str, Any]],
+    *,
+    batch_max_items: int,
+    batch_max_chars: int,
+) -> list[list[int]]:
+    batches: list[list[int]] = []
+    current: list[int] = []
+    current_chars = 0
+    max_items = max(1, int(batch_max_items or _BATCH_MAX_ITEMS))
+    max_chars = max(200, int(batch_max_chars or _BATCH_MAX_CHARS))
+    for idx in indexes:
+        source_text = str(out[idx].get("source_text") or "").strip()
+        next_chars = current_chars + len(source_text) + 18
+        if current and (len(current) >= max_items or next_chars > max_chars):
+            batches.append(current)
+            current = []
+            current_chars = 0
+        current.append(idx)
+        current_chars += len(source_text) + 18
+    if current:
+        batches.append(current)
+    return batches
 
 
 def _block_box(block: dict[str, Any]) -> list[float] | None:
@@ -113,14 +251,28 @@ def _boxes_should_merge(a: list[float], b: list[float]) -> bool:
     ab = ay + ah
     br = bx + bw
     bb = by + bh
-    margin_x = max(_MERGE_MARGIN_X, min(max(aw, bw) * 0.28, 0.045))
-    margin_y = max(_MERGE_MARGIN_Y, min(max(ah, bh) * 0.85, 0.05))
-    return not (
-        ar + margin_x < bx
-        or br + margin_x < ax
-        or ab + margin_y < by
-        or bb + margin_y < ay
-    )
+    h_overlap = max(0.0, min(ar, br) - max(ax, bx))
+    v_overlap = max(0.0, min(ab, bb) - max(ay, by))
+    h_gap = max(0.0, max(ax, bx) - min(ar, br))
+    v_gap = max(0.0, max(ay, by) - min(ab, bb))
+    min_w = max(0.0001, min(aw, bw))
+    min_h = max(0.0001, min(ah, bh))
+    h_overlap_ratio = h_overlap / min_w
+    v_overlap_ratio = v_overlap / min_h
+
+    if h_gap > _MERGE_MARGIN_X and h_overlap_ratio < 0.35:
+        return False
+    if h_overlap_ratio < 0.22:
+        return False
+    if v_gap > max(_MERGE_MARGIN_Y, min(max(ah, bh) * 0.55, 0.038)):
+        return False
+
+    union = _union_box(a, b)
+    if union[2] > max(aw, bw) * 2.1 and h_overlap_ratio < 0.55:
+        return False
+    if union[3] > (ah + bh + _MERGE_MARGIN_Y):
+        return False
+    return bool(v_gap <= _MERGE_MARGIN_Y or v_overlap_ratio > 0.05)
 
 
 def _merge_two_blocks(a: dict[str, Any], b: dict[str, Any]) -> dict[str, Any]:
