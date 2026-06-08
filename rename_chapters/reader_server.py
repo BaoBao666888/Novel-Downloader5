@@ -71,6 +71,7 @@ from reader_backend.services import library as service_library_support
 from reader_backend.services import local_import as service_local_import_support
 from reader_backend.services import name_filter as service_name_filter_support
 from reader_backend.services import user_state as service_user_state_support
+from reader_backend.services.comic_ocr import eligibility as comic_ocr_eligibility_support
 from reader_backend.services.vbook import detail_raw as service_vbook_detail_raw_support
 from reader_backend.services.vbook import detail_response as service_vbook_detail_response_support
 from reader_backend.services.vbook import detail_sections as service_vbook_detail_sections_support
@@ -4120,6 +4121,7 @@ class ReaderService:
         self._vbook_bridge_state_cache: dict[str, Any] = {}
         self._vbook_bridge_state_mtime: float | None = None
         self.reader_translation_settings: dict[str, Any] = {"enabled": True, "mode": "local"}
+        self.comic_ocr_settings: dict[str, Any] = comic_ocr_eligibility_support.build_default_comic_ocr_config()
         self.reader_import_settings: dict[str, Any] = normalize_reader_import_settings({})
         self.reader_debug_enabled = False
         self.reader_debug_log_path = str(_reader_debug_log_path_for_now())
@@ -4214,6 +4216,14 @@ class ReaderService:
         if current_import != normalized_import:
             cfg["reader_import"] = normalized_import
             changed = True
+        current_comic_ocr = cfg.get("comic_ocr") if isinstance(cfg.get("comic_ocr"), dict) else {}
+        normalized_comic_ocr = comic_ocr_eligibility_support.normalize_comic_ocr_settings(
+            current_comic_ocr,
+            parse_bool=self._parse_bool,
+        )
+        if current_comic_ocr != normalized_comic_ocr:
+            cfg["comic_ocr"] = normalized_comic_ocr
+            changed = True
         if changed:
             save_app_config(cfg)
             self.app_config = cfg
@@ -4269,6 +4279,10 @@ class ReaderService:
         self.app_config = load_app_config()
         self._ensure_reader_config_defaults_persisted()
         self.reader_translation_settings = self._normalized_reader_translation_settings(self.app_config)
+        self.comic_ocr_settings = comic_ocr_eligibility_support.normalize_comic_ocr_settings(
+            self.app_config.get("comic_ocr") if isinstance(self.app_config, dict) else {},
+            parse_bool=self._parse_bool,
+        )
         self.reader_import_settings = self._normalized_reader_import_settings(self.app_config)
         debug_cfg = self.app_config.get("reader_debug") if isinstance(self.app_config.get("reader_debug"), dict) else {}
         self.reader_debug_enabled = service_user_state_support.parse_bool(debug_cfg.get("enabled"), False)
@@ -5480,6 +5494,17 @@ class ReaderService:
 
     def translation_allowed_for_book(self, book: dict[str, Any] | None) -> bool:
         return bool(self.is_reader_translation_enabled() and book_supports_translation(book))
+
+    def get_comic_ocr_capabilities(self, book_id: str) -> dict[str, Any]:
+        bid = str(book_id or "").strip()
+        if not bid:
+            raise ApiError(HTTPStatus.BAD_REQUEST, "BAD_REQUEST", "Thiếu book_id.")
+        book = self.storage.find_book(bid)
+        return comic_ocr_eligibility_support.comic_ocr_capabilities_for_book(
+            book,
+            settings=self.comic_ocr_settings,
+            normalize_lang_source=normalize_lang_source,
+        )
 
     def _contains_cjk_text(self, text: str) -> bool:
         return bool(re.search(r"[\u3400-\u9fff]", str(text or "")))

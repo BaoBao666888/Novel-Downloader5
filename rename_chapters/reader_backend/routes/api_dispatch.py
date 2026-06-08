@@ -7,6 +7,7 @@ from typing import Any
 from urllib.parse import parse_qs
 
 from reader_backend.routes import export_download as http_export_download_support
+from reader_backend.routes import comic_ocr as http_comic_ocr_support
 from reader_backend.routes import library_reader as http_library_reader_support
 from reader_backend.routes import misc as http_misc_support
 from reader_backend.routes import name_filter as http_name_filter_support
@@ -94,6 +95,17 @@ def handle_api(handler: Any, method: str, parsed: Any, *, deps: ApiDispatchDeps)
     )
     if tts_result is not None:
         return tts_result
+
+    comic_ocr_result = http_comic_ocr_support.handle_api(
+        handler,
+        method,
+        path,
+        query,
+        api_error_cls=deps.api_error_cls,
+        http_status=deps.http_status,
+    )
+    if comic_ocr_result is not None:
+        return comic_ocr_result
 
     library_reader_result = http_library_reader_support.handle_api(
         handler,
