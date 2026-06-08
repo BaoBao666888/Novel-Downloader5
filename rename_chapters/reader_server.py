@@ -5970,6 +5970,7 @@ class ReaderService:
 
             total = len(context["sources"])
             done = 0
+            result_pages: list[dict[str, Any]] = []
             for source in context["sources"]:
                 page_key = context["page_keys"].get(source.index)
                 page = comic_ocr_cache_support.read_page(CACHE_DIR, page_key) if page_key else None
@@ -6014,11 +6015,13 @@ class ReaderService:
                     if page_key:
                         comic_ocr_cache_support.write_page(CACHE_DIR, page_key, page)
                 done += 1
+                result_pages.append(page)
                 self._update_comic_ocr_job(
                     job_id,
                     status="running",
                     done_pages=done,
                     message=f"Đã OCR {done}/{max(total, 1)} trang",
+                    result=self._build_comic_ocr_result(context, result_pages, complete=False),
                 )
 
             result = self._build_comic_ocr_result_from_cache(context)
@@ -6079,6 +6082,32 @@ class ReaderService:
             return None
         return result
 
+    def _build_comic_ocr_result(
+        self,
+        context: dict[str, Any],
+        pages: list[dict[str, Any]],
+        *,
+        complete: bool,
+    ) -> dict[str, Any]:
+        now = utc_now_iso()
+        normalized_pages = [
+            dict(page)
+            for page in (pages or [])
+            if isinstance(page, dict)
+        ]
+        return {
+            "chapter_id": context["chapter_id"],
+            "source_lang": context["source_lang"],
+            "target_lang": context["target_lang"],
+            "engine": context["engine"],
+            "engine_version": context["engine_version"],
+            "pages": sorted(normalized_pages, key=lambda item: int(item.get("index") or 0)),
+            "complete": bool(complete),
+            "total_pages": len(context["sources"]),
+            "created_at": now,
+            "updated_at": now,
+        }
+
     def _build_comic_ocr_result_from_cache(self, context: dict[str, Any]) -> dict[str, Any] | None:
         pages: list[dict[str, Any]] = []
         for source in context["sources"]:
@@ -6087,16 +6116,7 @@ class ReaderService:
             if page is None:
                 return None
             pages.append(page)
-        result = {
-            "chapter_id": context["chapter_id"],
-            "source_lang": context["source_lang"],
-            "target_lang": context["target_lang"],
-            "engine": context["engine"],
-            "engine_version": context["engine_version"],
-            "pages": sorted(pages, key=lambda item: int(item.get("index") or 0)),
-            "created_at": utc_now_iso(),
-            "updated_at": utc_now_iso(),
-        }
+        result = self._build_comic_ocr_result(context, pages, complete=True)
         comic_ocr_cache_support.write_chapter(CACHE_DIR, context["chapter_key"], result)
         return result
 

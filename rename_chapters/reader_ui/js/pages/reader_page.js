@@ -1136,9 +1136,15 @@ function pollComicOcrJob(jobId) {
       const status = String((data && data.status) || "").trim();
       state.comicOcrStatusText = String((data && data.message) || "").trim()
         || state.shell.t("comicOcrProgress", { done, total: Math.max(total, 1) });
+      const result = data && data.result && Array.isArray(data.result.pages) ? data.result : null;
+      if (result && result.pages.length) {
+        state.comicOcrResult = result;
+        state.comicOcrOverlayEnabled = true;
+        renderComicOcrOverlays();
+      }
       if (status === "completed") {
         state.comicOcrBusy = false;
-        state.comicOcrResult = data.result || null;
+        state.comicOcrResult = result || null;
         state.comicOcrOverlayEnabled = true;
         state.comicOcrStatusText = state.shell.t("comicOcrDone");
         syncComicOcrControls();
