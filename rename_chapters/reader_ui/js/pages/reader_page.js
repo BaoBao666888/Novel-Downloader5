@@ -745,6 +745,7 @@ function comicOcrCapabilityMessage(caps) {
   const reason = String(data.reason || "").trim();
   if (reason === "OCR_MODEL_NOT_READY") return comicOcrText("comicOcrNeedModel", "Chưa có model OCR. Mở OCR > Quản lý model để tải model PaddleOCR.");
   if (reason === "OCR_RUNTIME_NOT_READY" || reason === "OCR_ENGINE_NOT_READY") return comicOcrText("comicOcrNeedRuntime", "Chưa cài OCR runtime. Mở OCR > Quản lý model để cài runtime.");
+  if (reason === "OCR_IMAGE_DEPENDENCY_NOT_READY") return comicOcrText("comicOcrNeedImageDependency", "Thiếu Pillow/PIL để xử lý ảnh OCR. Cài requirements cho Python đang chạy reader_server.py.");
   if (reason === "COMIC_OCR_DISABLED") return comicOcrText("comicOcrDisabled", "OCR ảnh comic đang tắt trong cấu hình.");
   return "";
 }
@@ -1011,7 +1012,7 @@ async function fetchRawEditorContent(chapterId) {
   return state.shell.api(`/api/library/chapter/${encodeURIComponent(chapterId)}/raw`);
 }
 
-async function refreshComicOcrCapabilities({ fetchCached = true } = {}) {
+async function refreshComicOcrCapabilities({ fetchCached = true, syncControls = true } = {}) {
   if (!state.bookId || state.chapterContentType !== "images") {
     resetComicOcrState();
     return null;
@@ -1030,13 +1031,13 @@ async function refreshComicOcrCapabilities({ fetchCached = true } = {}) {
       state.comicOcrResult = null;
       state.comicOcrStatusText = comicOcrCapabilityMessage(caps);
     }
-    syncComicOcrControls();
+    if (syncControls) syncComicOcrControls();
     return caps || null;
   } catch (error) {
     state.comicOcrCapabilities = null;
     state.comicOcrResult = null;
     state.comicOcrStatusText = "";
-    syncComicOcrControls();
+    if (syncControls) syncComicOcrControls();
     return null;
   }
 }
@@ -1065,17 +1066,25 @@ async function fetchComicOcrCachedResult() {
 
 async function startComicOcrTranslation() {
   if (!state.bookId || !state.chapterId || state.chapterContentType !== "images") return;
-  const caps = await refreshComicOcrCapabilities({ fetchCached: false });
+  state.comicOcrBusy = true;
+  state.comicOcrStatusText = state.shell.t("comicOcrChecking");
+  syncComicOcrControls();
+  const caps = await refreshComicOcrCapabilities({ fetchCached: false, syncControls: false });
   if (!caps || !caps.eligible) {
+    state.comicOcrBusy = false;
+    state.comicOcrStatusText = comicOcrCapabilityMessage(caps);
+    syncComicOcrControls();
     state.shell.showToast(comicOcrCapabilityMessage(caps) || state.shell.t("comicOcrUnavailable"));
     return;
   }
   const sourceLang = resolveComicOcrSourceLang();
   if (!sourceLang) {
+    state.comicOcrBusy = false;
+    state.comicOcrStatusText = "";
+    syncComicOcrControls();
     state.shell.showToast(state.shell.t("comicOcrNeedSourceLang"));
     return;
   }
-  state.comicOcrBusy = true;
   state.comicOcrStatusText = state.shell.t("comicOcrQueued");
   syncComicOcrControls();
   try {

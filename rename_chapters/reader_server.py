@@ -5740,6 +5740,8 @@ class ReaderService:
         capabilities["runtime_installed"] = bool(status.get("runtime_installed"))
         capabilities["runtime_path"] = str(status.get("runtime_path") or "")
         capabilities["model_cache_dir"] = str(status.get("model_cache_dir") or "")
+        capabilities["image_dependency_installed"] = bool(status.get("image_dependency_installed"))
+        capabilities["image_dependency_version"] = str(status.get("image_dependency_version") or "")
         if status.get("model_key"):
             capabilities["model_key"] = str(status.get("model_key") or "")
         if status.get("model_label"):

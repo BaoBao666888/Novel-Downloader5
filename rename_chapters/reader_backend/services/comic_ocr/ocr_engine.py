@@ -49,10 +49,7 @@ def engine_version(settings: dict[str, Any], *, source_lang: str = "") -> str:
         return "stub-0"
     if engine in {"paddleocr", "paddle"}:
         status = ocr_service.get_ocr_runtime_status(query_version=True)
-        version = str(status.get("version") or status.get("target_version") or "runtime").strip()
-        model_key = _select_model_key(source_lang, settings=settings, require_downloaded=False)
-        suffix = f":{model_key}" if model_key else ""
-        return f"paddle-runtime-{version}{suffix}"
+        return _paddle_engine_version(settings, source_lang=source_lang, runtime_status=status)
     return f"{engine}-unknown"
 
 
@@ -61,20 +58,27 @@ def engine_status(settings: dict[str, Any], *, source_lang: str = "") -> dict[st
     if engine == "stub":
         return {"engine": engine, "ready": True, "version": engine_version(settings, source_lang=source_lang), "reason": ""}
     if engine in {"paddleocr", "paddle"}:
-        runtime_status = ocr_service.get_ocr_runtime_status(query_version=True)
+        runtime_status = ocr_service.get_ocr_runtime_status(query_version=False)
+        image_dependency = image_dependency_status()
         base = {
             "engine": "paddleocr",
             "ready": False,
-            "version": engine_version(settings, source_lang=source_lang),
+            "version": _paddle_engine_version(settings, source_lang=source_lang, runtime_status=runtime_status),
             "reason": "",
             "message": "",
             "runtime_installed": bool(runtime_status.get("installed")),
             "runtime_path": str(runtime_status.get("exe_path") or ""),
             "model_cache_dir": str(runtime_status.get("model_cache_dir") or ocr_service.ocr_model_cache_dir()),
+            "image_dependency_installed": bool(image_dependency.get("installed")),
+            "image_dependency_version": str(image_dependency.get("version") or ""),
         }
         if not runtime_status.get("installed"):
             base["reason"] = "OCR_RUNTIME_NOT_READY"
             base["message"] = "Chưa cài OCR runtime. Mở OCR > Quản lý model để cài runtime trước."
+            return base
+        if not image_dependency.get("installed"):
+            base["reason"] = "OCR_IMAGE_DEPENDENCY_NOT_READY"
+            base["message"] = str(image_dependency.get("message") or "Thiếu Pillow/PIL để xử lý ảnh OCR.")
             return base
         model_key = _select_model_key(source_lang, settings=settings, require_downloaded=True)
         if not model_key:
@@ -98,6 +102,34 @@ def engine_status(settings: dict[str, Any], *, source_lang: str = "") -> dict[st
         )
         return base
     return {"engine": engine, "ready": False, "version": engine_version(settings, source_lang=source_lang), "reason": "OCR_ENGINE_UNSUPPORTED"}
+
+
+def image_dependency_status() -> dict[str, Any]:
+    try:
+        import PIL
+        from PIL import Image  # noqa: F401
+    except Exception as exc:
+        return {
+            "installed": False,
+            "version": "",
+            "reason": "OCR_IMAGE_DEPENDENCY_NOT_READY",
+            "message": "Thiếu Pillow/PIL để xử lý ảnh OCR. Cài requirements cho Python đang chạy reader_server.py.",
+            "error": str(exc),
+        }
+    return {
+        "installed": True,
+        "version": str(getattr(PIL, "__version__", "") or ""),
+        "reason": "",
+        "message": "",
+    }
+
+
+def _paddle_engine_version(settings: dict[str, Any], *, source_lang: str = "", runtime_status: dict[str, Any] | None = None) -> str:
+    status = runtime_status or {}
+    version = str(status.get("version") or status.get("target_version") or "runtime").strip()
+    model_key = _select_model_key(source_lang, settings=settings, require_downloaded=False)
+    suffix = f":{model_key}" if model_key else ""
+    return f"paddle-runtime-{version}{suffix}"
 
 
 def _select_model_key(
@@ -231,10 +263,13 @@ def _recognize_paddleocr(
     width: int,
     height: int,
 ) -> list[dict[str, Any]]:
-    try:
-        from PIL import Image
-    except Exception as exc:
-        raise ComicOcrEngineError("OCR_ENGINE_NOT_READY", "Dependency ảnh chưa được cài.") from exc
+    dependency = image_dependency_status()
+    if not dependency.get("installed"):
+        raise ComicOcrEngineError(
+            str(dependency.get("reason") or "OCR_IMAGE_DEPENDENCY_NOT_READY"),
+            str(dependency.get("message") or "Thiếu Pillow/PIL để xử lý ảnh OCR."),
+        )
+    from PIL import Image
 
     status = engine_status(settings, source_lang=source_lang)
     if not status.get("ready"):
