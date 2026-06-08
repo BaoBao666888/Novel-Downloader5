@@ -795,6 +795,8 @@ export const STRINGS = {
   explorePluginSource: "Nguồn",
   explorePluginDescription: "Mô tả",
   explorePluginDescriptionEmpty: "Extension chưa có mô tả.",
+  exploreOpenSourcePage: "Trang nguồn",
+  exploreSourcePageUnavailable: "Nguồn này chưa có link trang nguồn.",
   explorePluginSettingsTitle: "Cài đặt riêng extension",
   explorePluginEffective: "Áp dụng: nghỉ {delay}ms • luồng {threads} • prefetch {prefetch} • retry {retry}",
   exploreHomeTitle: "Home",

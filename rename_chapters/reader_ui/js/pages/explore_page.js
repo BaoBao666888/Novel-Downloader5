@@ -13,6 +13,7 @@ const refs = {
   btnVbookSearchRun: document.getElementById("btn-vbook-search-run"),
   btnVbookSearchReset: document.getElementById("btn-vbook-search-reset"),
   btnExploreTogglePlugin: document.getElementById("btn-explore-toggle-plugin"),
+  btnExploreOpenSource: document.getElementById("btn-explore-open-source"),
   btnExploreLoadHome: document.getElementById("btn-explore-load-home"),
   btnExploreLoadGenre: document.getElementById("btn-explore-load-genre"),
   explorePluginPanel: document.getElementById("explore-plugin-panel"),
@@ -361,6 +362,13 @@ function pluginDisplayName(plugin) {
   return String((plugin && (plugin.name || plugin.plugin_id)) || "").trim() || state.shell.t("vbookUnknownPlugin");
 }
 
+function selectedPluginSourceUrl() {
+  const plugin = getSelectedPlugin();
+  const source = String((plugin && plugin.source) || "").trim();
+  if (!/^https?:\/\//i.test(source)) return "";
+  return source;
+}
+
 function renderPluginPicker() {
   const hasPlugins = Array.isArray(state.online.plugins) && state.online.plugins.length > 0;
   const selectedPlugin = getSelectedPlugin();
@@ -674,6 +682,9 @@ function renderExploreMeta() {
     ? formatPluginLabel(plugin)
     : state.shell.t("exploreMetaIdle");
   refs.btnVbookSearchRun.disabled = !plugin;
+  if (refs.btnExploreOpenSource) {
+    refs.btnExploreOpenSource.disabled = !selectedPluginSourceUrl();
+  }
   refs.btnExploreLoadHome.disabled = !plugin || !pluginSupports("home");
   refs.btnExploreLoadGenre.disabled = !plugin || !pluginSupports("genre");
 }
@@ -2700,6 +2711,7 @@ async function init() {
   refs.btnVbookSearchRun.textContent = state.shell.t("vbookSearchRun");
   refs.btnVbookSearchReset.textContent = state.shell.t("exploreSearchClear");
   refs.btnExploreTogglePlugin.textContent = state.shell.t("exploreShowPluginPanel");
+  if (refs.btnExploreOpenSource) refs.btnExploreOpenSource.textContent = state.shell.t("exploreOpenSourcePage");
   refs.btnExploreLoadHome.textContent = state.shell.t("exploreLoadHome");
   refs.btnExploreLoadGenre.textContent = state.shell.t("exploreLoadGenre");
   refs.explorePluginTitle.textContent = state.shell.t("explorePluginInfoEmpty");
@@ -2830,6 +2842,17 @@ async function init() {
     state.pluginPanelVisible = !state.pluginPanelVisible;
     renderPluginPanelVisibility();
   });
+
+  if (refs.btnExploreOpenSource) {
+    refs.btnExploreOpenSource.addEventListener("click", () => {
+      const url = selectedPluginSourceUrl();
+      if (!url) {
+        state.shell.showToast(state.shell.t("exploreSourcePageUnavailable"));
+        return;
+      }
+      window.open(url, "_blank", "noopener");
+    });
+  }
 
   refs.btnVbookSearchRun.addEventListener("click", async () => {
     await runSearch(getCurrentQuery(), { updateUrl: true });
