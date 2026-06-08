@@ -12,6 +12,24 @@ DEFAULT_VBOOK_IMAGE_USER_AGENT = (
 )
 
 
+def _host_matches_domain(host: str, domain: str) -> bool:
+    h = str(host or "").strip().lower().lstrip(".")
+    d = str(domain or "").strip().lower().lstrip(".")
+    if not h or not d:
+        return False
+    return h == d or h.endswith("." + d)
+
+
+def _sec_fetch_site(image_host: str, referer_host: str) -> str:
+    if not image_host or not referer_host:
+        return "none"
+    if image_host == referer_host:
+        return "same-origin"
+    if _host_matches_domain(image_host, referer_host) or _host_matches_domain(referer_host, image_host):
+        return "same-site"
+    return "cross-site"
+
+
 def build_vbook_image_headers(
     *,
     image_url: str,
@@ -52,19 +70,22 @@ def build_vbook_image_headers(
         parsed_ref = urlparse(resolved_referer)
         if parsed_ref.scheme and parsed_ref.netloc:
             headers["Origin"] = f"{parsed_ref.scheme}://{parsed_ref.netloc}"
+        referer_host = normalize_host(parsed_ref.netloc)
+    else:
+        referer_host = ""
     headers["Accept-Language"] = "zh-CN,zh;q=0.9,en;q=0.8,vi;q=0.7"
     headers["Sec-Fetch-Dest"] = "image"
     headers["Sec-Fetch-Mode"] = "no-cors"
-    headers["Sec-Fetch-Site"] = "cross-site"
+    headers["Sec-Fetch-Site"] = _sec_fetch_site(host, referer_host)
 
     user_agent = ""
     cookie_header = ""
     if host and bridge_enabled:
         state = load_bridge_state()
         entry = pick_bridge_host_entry(state, host)
-        user_agent = str(entry.get("user_agent") or "").strip()
+        user_agent = str(entry.get("user_agent") or state.get("default_user_agent") or "").strip()
         cookie_header = str(entry.get("cookie_header") or "").strip()
-        if (not cookie_header) and entry:
+        if not cookie_header:
             cookie_header = fallback_cookie_header_from_bridge_state(host, state)
 
     headers["User-Agent"] = user_agent or DEFAULT_VBOOK_IMAGE_USER_AGENT

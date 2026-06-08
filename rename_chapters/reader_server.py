@@ -10828,7 +10828,19 @@ class ReaderService:
         host_norm = normalize_host(host)
         if not host_norm:
             return ""
-        like_pattern = "%" + host_norm.lstrip("www.")
+
+        host_base = host_norm.lstrip("www.")
+        host_parts = [part for part in host_base.split(".") if part]
+        domain_suffixes: list[str] = []
+        for idx in range(max(1, len(host_parts) - 1)):
+            suffix = ".".join(host_parts[idx:])
+            if suffix and "." in suffix and suffix not in domain_suffixes:
+                domain_suffixes.append(suffix)
+        if host_base not in domain_suffixes:
+            domain_suffixes.insert(0, host_base)
+
+        rows: list[sqlite3.Row] = []
+        seen_rows: set[tuple[str, str]] = set()
         pairs: list[str] = []
         seen: set[str] = set()
         conn: sqlite3.Connection | None = None
@@ -10836,10 +10848,18 @@ class ReaderService:
             conn = sqlite3.connect(str(db_path))
             conn.row_factory = sqlite3.Row
             cursor = conn.cursor()
-            for row in cursor.execute(
-                "SELECT host_key, name, value FROM cookies WHERE lower(host_key) LIKE ?",
-                (like_pattern,),
-            ):
+            for suffix in domain_suffixes:
+                for row in cursor.execute(
+                    "SELECT host_key, name, value FROM cookies WHERE lower(host_key) LIKE ?",
+                    ("%" + suffix.lower(),),
+                ):
+                    key = (str(row["host_key"] or ""), str(row["name"] or ""))
+                    if key in seen_rows:
+                        continue
+                    seen_rows.add(key)
+                    rows.append(row)
+            rows.sort(key=lambda row: len(str(row["host_key"] or "").lstrip(".")), reverse=True)
+            for row in rows:
                 domain = str(row["host_key"] or "")
                 name = str(row["name"] or "").strip()
                 value = str(row["value"] or "")
