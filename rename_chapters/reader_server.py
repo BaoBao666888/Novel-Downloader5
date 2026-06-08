@@ -72,6 +72,7 @@ from reader_backend.services import local_import as service_local_import_support
 from reader_backend.services import name_filter as service_name_filter_support
 from reader_backend.services import user_state as service_user_state_support
 from reader_backend.services.comic_ocr import eligibility as comic_ocr_eligibility_support
+from reader_backend.services.comic_ocr import ocr_engine as comic_ocr_engine_support
 from reader_backend.services.vbook import detail_raw as service_vbook_detail_raw_support
 from reader_backend.services.vbook import detail_response as service_vbook_detail_response_support
 from reader_backend.services.vbook import detail_sections as service_vbook_detail_sections_support
@@ -5500,11 +5501,18 @@ class ReaderService:
         if not bid:
             raise ApiError(HTTPStatus.BAD_REQUEST, "BAD_REQUEST", "Thiếu book_id.")
         book = self.storage.find_book(bid)
-        return comic_ocr_eligibility_support.comic_ocr_capabilities_for_book(
+        capabilities = comic_ocr_eligibility_support.comic_ocr_capabilities_for_book(
             book,
             settings=self.comic_ocr_settings,
             normalize_lang_source=normalize_lang_source,
         )
+        status = comic_ocr_engine_support.engine_status(self.comic_ocr_settings)
+        capabilities["engine_ready"] = bool(status.get("ready"))
+        capabilities["engine_version"] = str(status.get("version") or "")
+        if capabilities.get("eligible") and not status.get("ready"):
+            capabilities["eligible"] = False
+            capabilities["reason"] = str(status.get("reason") or "OCR_ENGINE_NOT_READY")
+        return capabilities
 
     def _contains_cjk_text(self, text: str) -> bool:
         return bool(re.search(r"[\u3400-\u9fff]", str(text or "")))
