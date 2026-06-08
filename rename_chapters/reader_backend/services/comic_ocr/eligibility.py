@@ -3,7 +3,7 @@ from __future__ import annotations
 from typing import Any
 
 
-DEFAULT_SUPPORTED_SOURCE_LANGS = ("en",)
+DEFAULT_SUPPORTED_SOURCE_LANGS = ("zh", "en", "ja", "ko")
 DEFAULT_TARGET_LANG = "vi"
 
 
@@ -22,10 +22,13 @@ def _string_list(value: Any, *, default: tuple[str, ...]) -> list[str]:
 
 def normalize_comic_ocr_settings(raw: Any, *, parse_bool) -> dict[str, Any]:
     cfg = raw if isinstance(raw, dict) else {}
+    raw_supported = cfg.get("supported_source_langs")
     supported_source_langs = _string_list(
-        cfg.get("supported_source_langs"),
+        raw_supported,
         default=DEFAULT_SUPPORTED_SOURCE_LANGS,
     )
+    if supported_source_langs == ["en"]:
+        supported_source_langs = list(DEFAULT_SUPPORTED_SOURCE_LANGS)
     target_lang = str(cfg.get("target_lang") or DEFAULT_TARGET_LANG).strip().lower() or DEFAULT_TARGET_LANG
     target_lang = target_lang.replace("_", "-").split("-", 1)[0] or DEFAULT_TARGET_LANG
     engine = str(cfg.get("engine") or "paddleocr").strip().lower() or "paddleocr"

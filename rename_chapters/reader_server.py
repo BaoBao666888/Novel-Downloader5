@@ -5717,10 +5717,29 @@ class ReaderService:
             normalize_lang_source=normalize_lang_source,
         )
         status_source_lang = str(capabilities.get("default_source_lang") or "").strip()
-        status = comic_ocr_engine_support.engine_status(self.comic_ocr_settings, source_lang=status_source_lang)
+        if capabilities.get("source_lang_required") and not status_source_lang:
+            statuses = [
+                (
+                    str(lang or "").strip(),
+                    comic_ocr_engine_support.engine_status(self.comic_ocr_settings, source_lang=str(lang or "").strip()),
+                )
+                for lang in (capabilities.get("supported_source_langs") or [])
+                if str(lang or "").strip()
+            ]
+            ready_status = next(((lang, row) for lang, row in statuses if row.get("ready")), None)
+            if ready_status is not None:
+                capabilities["default_source_lang"] = ready_status[0]
+                status = ready_status[1]
+            else:
+                status = statuses[0][1] if statuses else comic_ocr_engine_support.engine_status(self.comic_ocr_settings, source_lang="")
+        else:
+            status = comic_ocr_engine_support.engine_status(self.comic_ocr_settings, source_lang=status_source_lang)
         capabilities["engine_ready"] = bool(status.get("ready"))
         capabilities["engine_version"] = str(status.get("version") or "")
         capabilities["engine_message"] = str(status.get("message") or "")
+        capabilities["runtime_installed"] = bool(status.get("runtime_installed"))
+        capabilities["runtime_path"] = str(status.get("runtime_path") or "")
+        capabilities["model_cache_dir"] = str(status.get("model_cache_dir") or "")
         if status.get("model_key"):
             capabilities["model_key"] = str(status.get("model_key") or "")
         if status.get("model_label"):

@@ -749,6 +749,15 @@ function comicOcrCapabilityMessage(caps) {
   return "";
 }
 
+function comicOcrLangLabel(lang) {
+  const value = String(lang || "").trim().toLowerCase();
+  if (value === "zh") return "Tiếng Trung";
+  if (value === "en") return "Tiếng Anh";
+  if (value === "ja") return "Tiếng Nhật";
+  if (value === "ko") return "Tiếng Hàn";
+  return value || "—";
+}
+
 function resolveComicOcrSourceLang() {
   const caps = state.comicOcrCapabilities || {};
   const supported = Array.isArray(caps.supported_source_langs) ? caps.supported_source_langs.map((x) => String(x || "").trim()).filter(Boolean) : ["en"];
@@ -761,6 +770,7 @@ function resolveComicOcrSourceLang() {
         value = "";
       }
     }
+    if (!value) value = String(caps.default_source_lang || "").trim();
   } else {
     value = String(caps.default_source_lang || value || supported[0] || "en").trim();
   }
@@ -787,7 +797,7 @@ function syncComicOcrControls() {
         if (!value) continue;
         const opt = document.createElement("option");
         opt.value = value;
-        opt.textContent = value === "en" ? "English" : value;
+        opt.textContent = comicOcrLangLabel(value);
         refs.comicOcrSourceLangSelect.appendChild(opt);
       }
       refs.comicOcrSourceLangSelect.value = current;
