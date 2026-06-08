@@ -399,7 +399,8 @@ def book_cover_url(
                 cache=True,
             )
         return cover
-    return f"/media/cover/{quote_url_path(Path(cover).name)}"
+    filename = Path(cover.replace("\\", "/")).name
+    return f"/media/cover/{quote_url_path(filename)}" if filename else ""
 
 
 def _normalize_book_query_value(raw: Any) -> str:

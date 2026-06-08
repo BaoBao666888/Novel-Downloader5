@@ -1387,10 +1387,20 @@ class RenamerApp(
             }
 
         bridge = getattr(self, "_browser_rpc_bridge", None)
+        previous_default_ua = ""
+        try:
+            state_path = self._browser_bridge_state_path()
+            if os.path.isfile(state_path):
+                with open(state_path, "r", encoding="utf-8") as f:
+                    previous_payload = json.load(f)
+                if isinstance(previous_payload, dict):
+                    previous_default_ua = str(previous_payload.get("default_user_agent") or "").strip()
+        except Exception:
+            previous_default_ua = ""
         state = {
             "version": 1,
             "updated_at": datetime.utcnow().isoformat(),
-            "default_user_agent": str(self._browser_user_agent or ""),
+            "default_user_agent": str(self._browser_user_agent or previous_default_ua or ""),
             "cookie_db_path": self._browser_bridge_current_cookie_db_path(),
             "profile_dir": self._browser_bridge_current_profile_dir(),
             "rpc_endpoint": str(getattr(bridge, "endpoint", "") or ""),

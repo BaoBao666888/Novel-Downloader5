@@ -56,6 +56,21 @@ def _resolve_disk_media(path: str, deps: MediaDeps) -> tuple[str, Path] | None:
     return None
 
 
+def _guess_media_content_type(file_path: Path, deps: MediaDeps) -> str:
+    guessed = deps.mimetypes_module.guess_type(str(file_path))[0]
+    if guessed:
+        return guessed
+    suffix = file_path.suffix.lower()
+    return {
+        ".avif": "image/avif",
+        ".gif": "image/gif",
+        ".jpg": "image/jpeg",
+        ".jpeg": "image/jpeg",
+        ".png": "image/png",
+        ".webp": "image/webp",
+    }.get(suffix, "application/octet-stream")
+
+
 def serve_media(handler, parsed_or_path, *, deps: MediaDeps) -> None:
     api_error = deps.api_error_cls
     http_status = deps.http_status
@@ -146,7 +161,7 @@ def serve_media(handler, parsed_or_path, *, deps: MediaDeps) -> None:
         handler._send_error_json(api_error(http_status.NOT_FOUND, "NOT_FOUND", "Không tìm thấy file."))
         return
 
-    content_type = deps.mimetypes_module.guess_type(str(file_path))[0] or "application/octet-stream"
+    content_type = _guess_media_content_type(file_path, deps)
     content_disposition = None
     if path.startswith("/media/export/") and filename:
         safe_ascii = deps.re_module.sub(r"[^A-Za-z0-9._-]+", "_", filename).strip("._") or "export.bin"

@@ -22,6 +22,18 @@ def build_vbook_image_proxy_path(
     url = str(image_url or "").strip()
     if not url:
         return ""
+    if url.startswith("/media/vbook-image?") or url.startswith("media/vbook-image?"):
+        parsed = urlparse(url if url.startswith("/") else f"/{url}")
+        query = parse_qs(parsed.query)
+        inner_url = str((query.get("url") or [""])[0] or "").strip()
+        if inner_url.startswith(("http://", "https://")):
+            return build_vbook_image_proxy_path(
+                inner_url,
+                plugin_id=str((query.get("plugin_id") or [plugin_id])[0] or "").strip(),
+                referer=str((query.get("referer") or [referer])[0] or "").strip(),
+                cache=cache or str((query.get("cache") or [""])[0] or "").strip().lower() in {"1", "true", "yes", "on"},
+            )
+        return url if url.startswith("/") else f"/{url}"
     if not (url.startswith("http://") or url.startswith("https://")):
         return url
     parts = [f"url={common.quote_url_path(url)}"]
