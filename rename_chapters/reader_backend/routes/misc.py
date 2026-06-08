@@ -144,7 +144,7 @@ def handle_api(handler, method: str, path: str, query: dict[str, list[str]], *, 
         if not text:
             raise api_error(http_status.BAD_REQUEST, "BAD_REQUEST", "Thiếu text cần preview.")
         translate_mode = (payload.get("translation_mode") or "local").strip().lower()
-        if translate_mode not in {"local", "server", "hanviet", "dichngay_local"}:
+        if translate_mode not in {"local", "server", "hanviet", "dichngay_local", "vbook_ext"}:
             translate_mode = "local"
         override_name_set = payload.get("name_set")
         if override_name_set is not None and not isinstance(override_name_set, dict):

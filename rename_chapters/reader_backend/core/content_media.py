@@ -65,7 +65,8 @@ def book_supports_translation(book: dict[str, Any] | None) -> bool:
         return False
     if is_book_comic(book):
         return False
-    return is_lang_zh(str(book.get("lang_source") or ""))
+    lang_source = normalize_lang_source(str(book.get("lang_source") or ""))
+    return bool(lang_source and lang_source not in {"vi", "vie"})
 
 
 def encode_comic_payload(images: list[str]) -> str:

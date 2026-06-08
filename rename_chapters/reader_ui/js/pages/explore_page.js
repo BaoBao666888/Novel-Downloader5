@@ -1173,7 +1173,8 @@ function renderAll() {
 
 async function loadVbookPlugins() {
   const payload = await apiWithRequest("plugins", "/api/vbook/plugins");
-  const list = Array.isArray(payload && payload.items) ? payload.items : [];
+  const list = (Array.isArray(payload && payload.items) ? payload.items : [])
+    .filter((plugin) => String((plugin && plugin.type) || "").trim().toLowerCase() !== "translate");
   state.online.plugins = list;
   if (state.online.pluginId && !list.some((x) => String(x.plugin_id || "").trim() === state.online.pluginId)) {
     state.online.pluginId = "";

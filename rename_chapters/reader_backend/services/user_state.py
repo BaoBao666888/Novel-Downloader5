@@ -7,6 +7,7 @@ SIMULATED_LOCAL_BASE_DIR = "reader_ui/translate/dichngay_local"
 SIMULATED_LOCAL_LEGACY_BASE_DIR = "local/dichngay_local_pack"
 HANVIET_MODE = "hanviet"
 HANVIET_BASE_DIR = SIMULATED_LOCAL_BASE_DIR
+VBOOK_EXT_MODE = "vbook_ext"
 
 
 def _normalize_simulated_local_payload(raw: Any) -> dict[str, Any]:
@@ -49,11 +50,39 @@ def parse_bool(value: Any, default: bool = True) -> bool:
 
 def normalize_translate_mode(value: Any, default: str = "server") -> str:
     mode = str(value or "").strip().lower()
-    if mode in {"server", "local", HANVIET_MODE, SIMULATED_LOCAL_MODE}:
+    if mode in {"server", "local", HANVIET_MODE, SIMULATED_LOCAL_MODE, VBOOK_EXT_MODE}:
         return mode
-    if default in {"local", HANVIET_MODE, SIMULATED_LOCAL_MODE}:
+    if default in {"local", HANVIET_MODE, SIMULATED_LOCAL_MODE, VBOOK_EXT_MODE}:
         return default
     return "server"
+
+
+def normalize_vbook_ext_translate_settings(value: Any) -> dict[str, Any]:
+    raw = value if isinstance(value, dict) else {}
+    source_lang = str(raw.get("source_lang") or "trust_ext").strip().lower().replace("_", "-") or "trust_ext"
+    if source_lang in {"auto", "auto-detect", "detect"}:
+        source_lang = "auto_story"
+    if source_lang not in {
+        "auto_story",
+        "trust_ext",
+        "zh",
+        "en",
+        "ko",
+        "ja",
+        "vi",
+        "th",
+        "fr",
+        "de",
+        "ru",
+        "es",
+    }:
+        source_lang = source_lang.split("-", 1)[0] or "trust_ext"
+    return {
+        "plugin_id": str(raw.get("plugin_id") or "").strip(),
+        "source_lang": source_lang,
+        "target_lang": str(raw.get("target_lang") or "vi").strip().lower().replace("_", "-").split("-", 1)[0] or "vi",
+        "api_key": str(raw.get("api_key") or "").strip(),
+    }
 
 
 def normalized_server_translate_settings(service, value: Any = None, cfg: dict[str, Any] | None = None) -> dict[str, Any]:
@@ -133,6 +162,7 @@ def normalized_reader_translation_settings(
             merged_hanviet,
             default_base_dir=HANVIET_BASE_DIR,
         ),
+        VBOOK_EXT_MODE: normalize_vbook_ext_translate_settings(payload.get(VBOOK_EXT_MODE)),
         "global_dicts": global_dicts,
     }
 
@@ -210,6 +240,9 @@ def get_reader_settings(service, *, normalize_name_set, vbook_local_translate) -
             "local": local_settings,
             SIMULATED_LOCAL_MODE: sim_local_settings,
             HANVIET_MODE: hanviet_settings,
+            VBOOK_EXT_MODE: normalize_vbook_ext_translate_settings(
+                service.reader_translation_settings.get(VBOOK_EXT_MODE)
+            ),
             "global_dicts": normalized_global_local_dicts(
                 service.reader_translation_settings.get("global_dicts"),
                 normalize_name_set=normalize_name_set,
@@ -248,6 +281,7 @@ def set_reader_settings(
         patch_local = patch.get("local")
         patch_sim_local = patch.get(SIMULATED_LOCAL_MODE)
         patch_hanviet = patch.get(HANVIET_MODE)
+        patch_vbook_ext = patch.get(VBOOK_EXT_MODE)
         patch_server = patch.get("server")
         patch_global_dicts = patch.get("global_dicts")
         if isinstance(patch_local, dict):
@@ -266,6 +300,11 @@ def set_reader_settings(
         else:
             merged_hanviet = existing.get(HANVIET_MODE) or {}
         merged_hanviet = _normalize_hanviet_payload(merged_hanviet)
+        if isinstance(patch_vbook_ext, dict):
+            merged_vbook_ext = dict(existing.get(VBOOK_EXT_MODE) or {})
+            merged_vbook_ext.update(patch_vbook_ext)
+        else:
+            merged_vbook_ext = existing.get(VBOOK_EXT_MODE) or {}
         if isinstance(patch_server, dict):
             merged_server = dict(existing.get("server") or {})
             merged_server.update(patch_server)
@@ -302,6 +341,7 @@ def set_reader_settings(
                 hanviet_with_global,
                 default_base_dir=HANVIET_BASE_DIR,
             ),
+            VBOOK_EXT_MODE: normalize_vbook_ext_translate_settings(merged_vbook_ext),
             "global_dicts": merged_global_dicts,
         }
         cfg["reader_translation"] = next_settings

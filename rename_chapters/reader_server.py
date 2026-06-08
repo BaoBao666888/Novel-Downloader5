@@ -2156,6 +2156,7 @@ class TranslationAdapter:
     name_set_version: int = 1
     cache_lookup_batch: Callable[[list[str], str, str], dict[str, str]] | None = None
     cache_store_batch: Callable[[list[tuple[str, str]], str, str], int] | None = None
+    vbook_translate_callback: Callable[[str, str, str, str], str] | None = None
     debug_logger: Callable[..., None] | None = None
 
     def _settings(self) -> dict[str, Any]:
@@ -2249,7 +2250,7 @@ class TranslationAdapter:
         vp_set_override: dict[str, str] | None = None,
     ) -> dict[str, Any]:
         mode_norm = (mode or "server").strip().lower()
-        if mode_norm not in {"server", "local", "hanviet", "dichngay_local"}:
+        if mode_norm not in {"server", "local", "hanviet", "dichngay_local", "vbook_ext"}:
             mode_norm = "server"
         effective_name_set = (
             self._server_name_set_for_use(name_set_override)
@@ -2275,6 +2276,11 @@ class TranslationAdapter:
                 payload["local_bundle_sig"] = ""
         if mode_norm in {"local", "dichngay_local"}:
             payload["vp_set"] = normalize_name_set(vp_set_override or {})
+        if mode_norm == "vbook_ext":
+            reader_cfg = self.app_config.get("reader_translation") if isinstance(self.app_config, dict) else {}
+            payload["vbook_ext"] = service_user_state_support.normalize_vbook_ext_translate_settings(
+                reader_cfg.get("vbook_ext") if isinstance(reader_cfg, dict) else None
+            )
         return payload
 
     def translation_signature(
@@ -2301,7 +2307,7 @@ class TranslationAdapter:
         started = time.perf_counter()
         source = (text or "").strip()
         mode_norm = (mode or "server").strip().lower()
-        if mode_norm not in {"server", "local", "hanviet", "dichngay_local"}:
+        if mode_norm not in {"server", "local", "hanviet", "dichngay_local", "vbook_ext"}:
             mode_norm = "server"
 
         def _log(status: str, **fields: Any) -> None:
@@ -2345,6 +2351,68 @@ class TranslationAdapter:
             else self._name_set_for_use(name_set_override)
         )
         vp_set = normalize_name_set(vp_set_override or {})
+
+        if mode_norm == "vbook_ext":
+            reader_cfg = self.app_config.get("reader_translation") if isinstance(self.app_config, dict) else {}
+            ext_cfg = service_user_state_support.normalize_vbook_ext_translate_settings(
+                reader_cfg.get("vbook_ext") if isinstance(reader_cfg, dict) else None
+            )
+            plugin_id = str(ext_cfg.get("plugin_id") or "").strip()
+            if not plugin_id:
+                raise RuntimeError("Chưa chọn extension dịch vBook. Cài/chọn plugin Translate trong Dịch & xử lý.")
+            if not callable(self.vbook_translate_callback):
+                raise RuntimeError("vBook Translate chưa sẵn sàng. Kiểm tra vBook runner trong Quản lý nguồn.")
+            source_lang = str(ext_cfg.get("source_lang") or "trust_ext").strip().lower()
+            from_lang = "" if source_lang in {"auto_story", "trust_ext"} else source_lang
+            target_lang = str(ext_cfg.get("target_lang") or "vi").strip().lower() or "vi"
+            translated = normalize_newlines(
+                self.vbook_translate_callback(source, from_lang, target_lang, str(ext_cfg.get("api_key") or ""))
+            )
+            if not translated:
+                translated = source
+            unit_map = [{
+                "unit_index": 0,
+                "source_text": source,
+                "processed_source_text": source,
+                "target_placeholder_text": translated,
+                "target_text": translated,
+                "source_start": 0,
+                "source_end": len(source),
+                "target_start": 0,
+                "target_end": len(translated),
+                "name_hits": [],
+            }]
+            _log(
+                "ok",
+                translated_len=len(translated or ""),
+                unit_count=len(unit_map),
+                token_count=0,
+                name_hit_count=0,
+                name_set_size=len(name_set),
+                vp_set_size=len(vp_set),
+                cache_hit_count=0,
+                missing_count=0,
+                plugin_id=plugin_id,
+                source_lang=source_lang,
+                target_lang=target_lang,
+            )
+            return {
+                "source_text": source,
+                "processed_text": source,
+                "translated_with_placeholders": translated,
+                "translated": translated,
+                "mode": mode_norm,
+                "unit_map": unit_map,
+                "token_map": [],
+                "name_map": {
+                    "active_set": str(self.active_set_name or "Mặc định"),
+                    "version": int(self.name_set_version or 1),
+                    "size": len(name_set),
+                    "placeholders": [],
+                    "hits": [],
+                },
+                "hanviet_source": "",
+            }
 
         if mode_norm in {"local", "hanviet", "dichngay_local"}:
             local_settings = self._local_settings(mode_norm)
@@ -4103,6 +4171,7 @@ class ReaderService:
     UI_VERSION = READER_UI_RUNTIME_VERSION
     REQUIRED_VBOOK_REPO_URLS = (
         "https://raw.githubusercontent.com/Darkrai9x/vbook-extensions/refs/heads/master/tts.json",
+        "https://raw.githubusercontent.com/Darkrai9x/vbook-extensions/refs/heads/master/translate.json",
     )
 
     def __init__(self, storage: ReaderStorage):
@@ -4342,6 +4411,7 @@ class ReaderService:
             jar_rel = self._vbook_runner_default_rel()
         jar_path = resolve_existing_path(jar_rel, base_dir, bundle_dir)
         self.vbook_runner = self._build_vbook_runner_client(jar_path)
+        self.translator.vbook_translate_callback = self._translate_with_vbook_extension
 
     def _import_preview_root(self) -> Path:
         return service_local_import_support.import_preview_root(
@@ -10034,6 +10104,61 @@ class ReaderService:
             "mime_type": mime_type,
             "audio_base64": audio_base64,
         }
+
+    def _resolve_translate_plugin_script(self, plugin: Any) -> str:
+        scripts = getattr(plugin, "scripts", None)
+        if not isinstance(scripts, dict):
+            return ""
+        for key in ("translate", "trans", "translation"):
+            if scripts.get(key):
+                return key
+        return ""
+
+    def list_translate_plugins(self) -> list[dict[str, Any]]:
+        if not self.vbook_manager:
+            return []
+        items: list[dict[str, Any]] = []
+        for plugin in self.vbook_manager.list_plugins():
+            if str(getattr(plugin, "type", "") or "").strip().lower() != "translate":
+                continue
+            script_key = self._resolve_translate_plugin_script(plugin)
+            if not script_key:
+                continue
+            item = self._serialize_vbook_plugin(plugin)
+            item["translate_script"] = script_key
+            items.append(item)
+        return items
+
+    def _translate_with_vbook_extension(self, text: str, source_lang: str, target_lang: str, api_key: str = "") -> str:
+        cfg = service_user_state_support.normalize_vbook_ext_translate_settings(
+            (self.reader_translation_settings or {}).get("vbook_ext")
+        )
+        plugin_id = str(cfg.get("plugin_id") or "").strip()
+        if not plugin_id:
+            raise RuntimeError("Chưa chọn extension dịch vBook. Cài/chọn plugin Translate trong Dịch & xử lý.")
+        plugin = self._require_vbook_plugin(plugin_id)
+        if str(getattr(plugin, "type", "") or "").strip().lower() != "translate":
+            raise RuntimeError("Plugin đã chọn không phải extension dịch vBook.")
+        script_key = self._resolve_translate_plugin_script(plugin)
+        if not script_key:
+            raise RuntimeError("Extension dịch vBook thiếu script `translate`.")
+        source = str(text or "")
+        if not source.strip():
+            return ""
+        target = str(target_lang or cfg.get("target_lang") or "vi").strip().lower() or "vi"
+        from_lang = str(source_lang or "").strip()
+        key = str(api_key or cfg.get("api_key") or "").strip()
+        payload = self._run_vbook_script(plugin, script_key, [source, from_lang, target, key], disable_bridge=True)
+        if isinstance(payload, dict):
+            for field in ("translated", "text", "result", "data", "content"):
+                value = payload.get(field)
+                if isinstance(value, str) and value.strip():
+                    return normalize_newlines(value)
+            if isinstance(payload.get("lines"), list):
+                return normalize_newlines("\n".join(str(x or "") for x in payload.get("lines") or []))
+        if isinstance(payload, list):
+            return normalize_newlines("\n".join(str(x or "") for x in payload))
+        return normalize_newlines(str(payload or ""))
 
     def get_vbook_repo_urls(self) -> list[str]:
         vcfg = self._vbook_cfg()

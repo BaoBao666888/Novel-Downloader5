@@ -321,15 +321,23 @@ def get_chapter_text(
     if normalize_import_text:
         raw_source_text = text_paragraphs_support.normalize_soft_wrapped_paragraphs(raw_source_text)
     raw_text, _, junk_version = storage.chapter_text_cleanup(raw_source_text)
-    if not book_supports_translation(book):
+    def _raw_with_book_replacements() -> str:
+        out_text = raw_text
         book_id = str(book.get("book_id") or chapter.get("book_id") or "").strip()
         if book_id:
             replace_entries, _ = storage.get_book_replace_entries(book_id)
             if replace_entries:
-                raw_text, _ = storage.apply_text_replace_entries_to_text(raw_text, replace_entries)
-        return raw_text
+                out_text, _ = storage.apply_text_replace_entries_to_text(out_text, replace_entries)
+        return out_text
+
+    if not book_supports_translation(book):
+        return _raw_with_book_replacements()
     if mode == "raw":
         return raw_text
+    lang_source_norm = str(book.get("lang_source") or "").strip().lower().replace("_", "-").split("-", 1)[0]
+    translate_mode_norm = str(translate_mode or "").strip().lower()
+    if lang_source_norm and lang_source_norm != "zh" and translate_mode_norm != "vbook_ext":
+        return _raw_with_book_replacements()
 
     source_for_translation = raw_text
 

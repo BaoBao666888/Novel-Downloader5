@@ -1592,6 +1592,20 @@ function joinMultilineValues(values) {
   return (Array.isArray(values) ? values : []).map((item) => String(item || "").trim()).filter(Boolean).join("\n");
 }
 
+const IMPORT_LANG_VALUES = new Set(["zh", "en", "ko", "ja", "th", "fr", "de", "ru", "es", "vi"]);
+
+function normalizeImportLangSource(value) {
+  const lang = String(value || "").trim().toLowerCase().replace(/_/g, "-").split("-", 1)[0];
+  return IMPORT_LANG_VALUES.has(lang) ? lang : "zh";
+}
+
+function setImportLangSelectValue(select, value) {
+  if (!select) return;
+  const lang = normalizeImportLangSource(value);
+  const hasOption = Array.from(select.options || []).some((opt) => String(opt.value || "") === lang);
+  select.value = hasOption ? lang : "zh";
+}
+
 function cloneImportSettings(settings) {
   try {
     return JSON.parse(JSON.stringify(settings || {}));
@@ -2034,7 +2048,7 @@ async function enqueueImportJobRequest(items, { title = "", kind = "import_file"
         title: String(item.title || "").trim(),
         author: String(item.author || "").trim(),
         summary: String(item.summary || "").trim(),
-        lang_source: String(item.lang_source || "zh").trim() || "zh",
+        lang_source: normalizeImportLangSource(item.lang_source || "zh"),
         import_settings: item.import_settings && typeof item.import_settings === "object"
           ? item.import_settings
           : undefined,
@@ -2234,11 +2248,11 @@ function syncImportModeUi() {
 
 function resetImportFormUi() {
   const mode = currentImportMode();
-  const lang = String((refs.importLangInput && refs.importLangInput.value) || "zh").trim() || "zh";
+  const lang = normalizeImportLangSource((refs.importLangInput && refs.importLangInput.value) || "zh");
   const skipPrepare = shouldSkipImportPrepare();
   if (refs.importForm) refs.importForm.reset();
   if (refs.importModeSelect) refs.importModeSelect.value = mode;
-  if (refs.importLangInput) refs.importLangInput.value = lang;
+  setImportLangSelectValue(refs.importLangInput, lang);
   if (refs.importSkipPrepareInput) refs.importSkipPrepareInput.checked = skipPrepare;
   if (refs.importCategoriesSearchInput) refs.importCategoriesSearchInput.value = "";
   syncImportModeUi();
@@ -2257,7 +2271,7 @@ function getBatchImportItemPayload(item) {
     title: String((item && item.edits && item.edits.title) || metadata.title || "").trim(),
     author: String((item && item.edits && item.edits.author) || metadata.author || "").trim(),
     summary: String((item && item.edits && item.edits.summary) || metadata.summary || "").trim(),
-    lang_source: String((item && item.edits && item.edits.lang_source) || metadata.lang_source || "zh").trim() || "zh",
+    lang_source: normalizeImportLangSource((item && item.edits && item.edits.lang_source) || metadata.lang_source || "zh"),
   };
 }
 
@@ -2300,7 +2314,7 @@ function renderImportPreview(preview, { context = "single", batchItemId = "" } =
       title: String(metadata.title || ""),
       author: String(metadata.author || ""),
       summary: String(metadata.summary || ""),
-      lang_source: String(metadata.lang_source || "zh").trim() || "zh",
+      lang_source: normalizeImportLangSource(metadata.lang_source || "zh"),
     };
   refs.importPreviewFileName.textContent = String(preview.file_name || "");
   refs.importPreviewFileType.textContent = String(preview.file_ext || "").toUpperCase();
@@ -2309,7 +2323,7 @@ function renderImportPreview(preview, { context = "single", batchItemId = "" } =
   refs.importPreviewBookTitleInput.value = payload.title;
   refs.importPreviewAuthorInput.value = payload.author;
   refs.importPreviewSummaryInput.value = payload.summary;
-  refs.importPreviewLangSelect.value = String(payload.lang_source || "zh").trim().toLowerCase() === "vi" ? "vi" : "zh";
+  setImportLangSelectValue(refs.importPreviewLangSelect, payload.lang_source || "zh");
 
   const diagnostics = preview.diagnostics || {};
   const splitStrategy = String(diagnostics.split_strategy || "").trim();
@@ -2369,7 +2383,7 @@ function collectImportPreviewPayload() {
     title: String((refs.importPreviewBookTitleInput && refs.importPreviewBookTitleInput.value) || "").trim(),
     author: String((refs.importPreviewAuthorInput && refs.importPreviewAuthorInput.value) || "").trim(),
     summary: String((refs.importPreviewSummaryInput && refs.importPreviewSummaryInput.value) || "").trim(),
-    lang_source: String((refs.importPreviewLangSelect && refs.importPreviewLangSelect.value) || "zh").trim(),
+    lang_source: normalizeImportLangSource((refs.importPreviewLangSelect && refs.importPreviewLangSelect.value) || "zh"),
   };
 }
 
@@ -2384,7 +2398,7 @@ function buildPendingImportRecord() {
     author: String((refs.importPreviewAuthorInput && refs.importPreviewAuthorInput.value) || metadata.author || "").trim(),
     file_name: String(preview.file_name || "").trim(),
     file_ext: String(preview.file_ext || "").trim().toUpperCase(),
-    lang_source: String((refs.importPreviewLangSelect && refs.importPreviewLangSelect.value) || metadata.lang_source || "zh").trim(),
+    lang_source: normalizeImportLangSource((refs.importPreviewLangSelect && refs.importPreviewLangSelect.value) || metadata.lang_source || "zh"),
     chapter_count: Math.max(0, Number(metadata.chapter_count || 0)),
     summary: String((refs.importPreviewSummaryInput && refs.importPreviewSummaryInput.value) || metadata.summary || "").trim(),
     source_label: `${state.shell.t("importPendingSource")} • ${String(preview.file_ext || "").trim().toUpperCase() || "TXT"}`,
@@ -2407,7 +2421,7 @@ function buildSingleDirectImportPendingRecord(file) {
     author: authorInput,
     file_name: fileName,
     file_ext: String(fileExt || "txt").trim().toUpperCase(),
-    lang_source: String((refs.importLangInput && refs.importLangInput.value) || "zh").trim() || "zh",
+    lang_source: normalizeImportLangSource((refs.importLangInput && refs.importLangInput.value) || "zh"),
     chapter_count: 0,
     summary: "",
     source_label: `${state.shell.t("importPendingSource")} • ${String(fileExt || "txt").trim().toUpperCase() || "TXT"}`,
@@ -2635,7 +2649,7 @@ async function saveBatchImportPreviewEdits() {
       title: String(payload.title || "").trim(),
       author: String(payload.author || "").trim(),
       summary: String(payload.summary || "").trim(),
-      lang_source: String(payload.lang_source || "zh").trim() || "zh",
+      lang_source: normalizeImportLangSource(payload.lang_source || "zh"),
     },
   });
   if (refs.importPreviewDialog && refs.importPreviewDialog.open) refs.importPreviewDialog.close();
@@ -2725,7 +2739,7 @@ function pendingUrlSourceLabel(preview, fallbackUrl, fallbackPluginId) {
 function buildImportPrepareForm(file, { title = "", author = "" } = {}) {
   const form = new FormData();
   form.set("file", file, (file && file.name) || "import.txt");
-  form.set("lang_source", String((refs.importLangInput && refs.importLangInput.value) || "zh").trim() || "zh");
+  form.set("lang_source", normalizeImportLangSource((refs.importLangInput && refs.importLangInput.value) || "zh"));
   form.set("title", String(title || "").trim());
   form.set("author", String(author || "").trim());
   form.set("import_settings", JSON.stringify(state.importSettings || {}));
@@ -2799,7 +2813,7 @@ async function prepareBatchImports(files) {
             token: String(item.token || "").trim(),
             title: sharedTitle,
             author: sharedAuthor,
-            lang_source: String((refs.importLangInput && refs.importLangInput.value) || "zh").trim() || "zh",
+            lang_source: normalizeImportLangSource((refs.importLangInput && refs.importLangInput.value) || "zh"),
             import_settings: state.importSettings || {},
           }),
         });
@@ -2816,7 +2830,7 @@ async function prepareBatchImports(files) {
             title: String(metadata.title || "").trim(),
             author: String(metadata.author || "").trim(),
             summary: String(metadata.summary || "").trim(),
-            lang_source: String(metadata.lang_source || "zh").trim() || "zh",
+            lang_source: normalizeImportLangSource(metadata.lang_source || "zh"),
           },
         });
       } catch (error) {
@@ -2862,7 +2876,7 @@ async function importSingleFileDirect(file) {
         file_name: String(uploadedItem.file_name || file.name || "").trim(),
         title: (refs.importBookTitleInput && refs.importBookTitleInput.value) || "",
         author: (refs.importAuthorInput && refs.importAuthorInput.value) || "",
-        lang_source: String((refs.importLangInput && refs.importLangInput.value) || "zh").trim() || "zh",
+        lang_source: normalizeImportLangSource((refs.importLangInput && refs.importLangInput.value) || "zh"),
         import_settings: state.importSettings || {},
       },
     ], {
@@ -2902,7 +2916,7 @@ async function importBatchFilesDirect(files) {
         file_name: String(item.file_name || "").trim(),
         title: "",
         author: (refs.importAuthorInput && refs.importAuthorInput.value) || "",
-        lang_source: String((refs.importLangInput && refs.importLangInput.value) || "zh").trim() || "zh",
+        lang_source: normalizeImportLangSource((refs.importLangInput && refs.importLangInput.value) || "zh"),
         import_settings: state.importSettings || {},
       })),
       {
@@ -2962,7 +2976,7 @@ async function handlePrepareImport() {
         token: previewToken,
         title: (refs.importBookTitleInput && refs.importBookTitleInput.value) || "",
         author: (refs.importAuthorInput && refs.importAuthorInput.value) || "",
-        lang_source: String((refs.importLangInput && refs.importLangInput.value) || "zh").trim() || "zh",
+        lang_source: normalizeImportLangSource((refs.importLangInput && refs.importLangInput.value) || "zh"),
         import_settings: state.importSettings || {},
       }),
     });
@@ -3110,7 +3124,7 @@ async function handleImportUrlPrepare({ url, pluginId, resetForm, closeDialog })
       author: String(preview.author || "").trim(),
       cover_url: String(preview.cover || "").trim(),
       summary: String(preview.summary || "").trim(),
-      lang_source: String(preview.lang_source || pending.lang_source || "zh").trim(),
+      lang_source: normalizeImportLangSource(preview.lang_source || pending.lang_source || "zh"),
       source_label: pendingUrlSourceLabel(preview, url, pluginId),
       status_text: state.shell.t("importPendingUrlLoadingToc"),
       meta_text: state.shell.t("importPendingUrlResolved"),

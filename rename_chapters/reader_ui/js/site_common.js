@@ -51,6 +51,27 @@ const LOCAL_TRANSLATION_DEFAULT = {
   use_luat_nhan: true,
 };
 const SIM_LOCAL_TRANSLATION_MODE = "dichngay_local";
+const VBOOK_EXT_TRANSLATION_MODE = "vbook_ext";
+const VBOOK_EXT_TRANSLATION_DEFAULT = {
+  plugin_id: "",
+  source_lang: "trust_ext",
+  target_lang: "vi",
+  api_key: "",
+};
+const TRANSLATE_SOURCE_LANG_OPTIONS = [
+  ["auto_story", "translateSourceAutoStory"],
+  ["trust_ext", "translateSourceTrustExtension"],
+  ["zh", "langChinese"],
+  ["en", "langEnglish"],
+  ["ko", "langKorean"],
+  ["ja", "langJapanese"],
+  ["vi", "langVietnamese"],
+  ["th", "langThai"],
+  ["fr", "langFrench"],
+  ["de", "langGerman"],
+  ["ru", "langRussian"],
+  ["es", "langSpanish"],
+];
 
 const SERVER_TRANSLATION_DEFAULT = {
   delayMs: 250,
@@ -321,6 +342,30 @@ function buildTitleCacheSettingMarkup() {
   );
 }
 
+function buildVbookTranslateSettingMarkup() {
+  const sourceOptions = TRANSLATE_SOURCE_LANG_OPTIONS.map(([value, key]) => (
+    `<option value="${value}">${t(key)}</option>`
+  )).join("");
+  return (
+    `<fieldset id="vbook-ext-translation-settings" class="local-translation-settings" hidden>
+      <legend>${t("vbookTranslateSettings")}</legend>
+      <label>
+        <span>${t("vbookTranslatePlugin")}</span>
+        <select id="vbook-translate-plugin-select"></select>
+      </label>
+      <label>
+        <span>${t("translateSourceLanguage")}</span>
+        <select id="vbook-translate-source-lang-select">${sourceOptions}</select>
+      </label>
+      <label>
+        <span>${t("vbookTranslateApiKey")}</span>
+        <input id="vbook-translate-api-key-input" type="password" autocomplete="off">
+      </label>
+      <small id="vbook-translate-hint" class="dialog-subtitle"></small>
+    </fieldset>`
+  );
+}
+
 function buildReaderDebugSettingMarkup() {
   return (
     `<label id="reader-debug-wrap">
@@ -369,6 +414,14 @@ function insertMarkupAfter(referenceNode, markup) {
 
 function ensureSettingsEnhancements(settingsForm) {
   if (!settingsForm) return;
+  const translationModeSelect = qs("translation-mode-select");
+  if (translationModeSelect && !translationModeSelect.querySelector(`option[value="${VBOOK_EXT_TRANSLATION_MODE}"]`)) {
+    const opt = document.createElement("option");
+    opt.id = "translation-mode-vbook-ext";
+    opt.value = VBOOK_EXT_TRANSLATION_MODE;
+    opt.textContent = t("translationModeVbookExt");
+    translationModeSelect.appendChild(opt);
+  }
   const themeSelect = qs("theme-select");
   const themeLabel = themeSelect && themeSelect.closest("label");
   if (themeLabel && !qs("theme-custom-section")) {
@@ -381,6 +434,10 @@ function ensureSettingsEnhancements(settingsForm) {
   const translationModeLabel = qs("translation-mode-select") && qs("translation-mode-select").closest("label");
   if (translationModeLabel && !qs("title-cache-auto-wrap")) {
     insertMarkupAfter(translationModeLabel, buildTitleCacheSettingMarkup());
+  }
+  const vbookTranslateAnchor = qs("title-cache-auto-wrap") || translationModeLabel;
+  if (vbookTranslateAnchor && !qs("vbook-ext-translation-settings")) {
+    insertMarkupAfter(vbookTranslateAnchor, buildVbookTranslateSettingMarkup());
   }
   const actions = settingsForm.querySelector(".settings-actions");
   if (actions && !qs("reader-debug-wrap")) {
@@ -429,6 +486,7 @@ function ensureSettingsEnhancements(settingsForm) {
         qs("title-cache-auto-wrap"),
         qs("server-translation-settings"),
         qs("local-translation-settings"),
+        qs("vbook-ext-translation-settings"),
       ],
     },
     {
@@ -714,6 +772,7 @@ function normalizeTranslationMode(value) {
   if (mode === "local") return "local";
   if (mode === SIM_LOCAL_TRANSLATION_MODE) return SIM_LOCAL_TRANSLATION_MODE;
   if (mode === "hanviet") return "hanviet";
+  if (mode === VBOOK_EXT_TRANSLATION_MODE) return VBOOK_EXT_TRANSLATION_MODE;
   return "server";
 }
 
@@ -727,6 +786,21 @@ function localTranslationStateKey(value) {
   if (mode === SIM_LOCAL_TRANSLATION_MODE) return "readerTranslationSimLocal";
   if (mode === "hanviet") return "readerTranslationHanviet";
   return "readerTranslationLocal";
+}
+
+function normalizeVbookTranslateSettings(value) {
+  const raw = value && typeof value === "object" ? value : {};
+  const allowedSources = new Set(TRANSLATE_SOURCE_LANG_OPTIONS.map(([lang]) => lang));
+  let sourceLang = String(raw.source_lang || "trust_ext").trim().toLowerCase().replace(/_/g, "-") || "trust_ext";
+  if (sourceLang === "auto" || sourceLang === "auto-detect" || sourceLang === "detect") sourceLang = "auto_story";
+  if (!allowedSources.has(sourceLang)) sourceLang = sourceLang.split("-", 1)[0] || "trust_ext";
+  if (!allowedSources.has(sourceLang)) sourceLang = "trust_ext";
+  return {
+    plugin_id: String(raw.plugin_id || "").trim(),
+    source_lang: sourceLang,
+    target_lang: "vi",
+    api_key: String(raw.api_key || "").trim(),
+  };
 }
 
 function normalizeMiniBarsScale(value) {
@@ -2096,6 +2170,7 @@ function fillStaticTexts() {
     ["translation-mode-local", "translationModeLocal"],
     ["translation-mode-dichngay-local", "translationModeDichNgayLocal"],
     ["translation-mode-hanviet", "translationModeHanviet"],
+    ["translation-mode-vbook-ext", "translationModeVbookExt"],
     ["label-server-translate-settings", "serverTranslateSettings"],
     ["label-server-delay-ms", "serverDelayMs"],
     ["label-server-max-chars", "serverMaxChars"],
@@ -2152,6 +2227,14 @@ function fillStaticTexts() {
     ["import-author-label", "importAuthor"],
     ["import-skip-prepare-label", "importSkipPrepare"],
     ["import-lang-zh", "importLangZh"],
+    ["import-lang-en", "importLangEn"],
+    ["import-lang-ko", "importLangKo"],
+    ["import-lang-ja", "importLangJa"],
+    ["import-lang-th", "importLangTh"],
+    ["import-lang-fr", "importLangFr"],
+    ["import-lang-de", "importLangDe"],
+    ["import-lang-ru", "importLangRu"],
+    ["import-lang-es", "importLangEs"],
     ["import-lang-vi", "importLangVi"],
     ["btn-import-cancel", "cancel"],
     ["btn-import-submit", "prepareImport"],
@@ -2182,6 +2265,14 @@ function fillStaticTexts() {
     ["import-preview-summary-label", "importPreviewSummary"],
     ["import-preview-lang-label", "importLang"],
     ["import-preview-lang-zh", "importLangZh"],
+    ["import-preview-lang-en", "importLangEn"],
+    ["import-preview-lang-ko", "importLangKo"],
+    ["import-preview-lang-ja", "importLangJa"],
+    ["import-preview-lang-th", "importLangTh"],
+    ["import-preview-lang-fr", "importLangFr"],
+    ["import-preview-lang-de", "importLangDe"],
+    ["import-preview-lang-ru", "importLangRu"],
+    ["import-preview-lang-es", "importLangEs"],
     ["import-preview-lang-vi", "importLangVi"],
     ["import-preview-parser-title", "importPreviewParserTitle"],
     ["import-preview-target-size-label", "importTargetSize"],
@@ -2278,6 +2369,8 @@ export async function initShell({ page, onSearchSubmit, onImported, onImportUrl,
     readerTranslationSimLocal: { ...LOCAL_TRANSLATION_DEFAULT },
     readerTranslationHanviet: { ...LOCAL_TRANSLATION_DEFAULT },
     readerTranslationServer: { ...SERVER_TRANSLATION_DEFAULT },
+    readerTranslationVbookExt: { ...VBOOK_EXT_TRANSLATION_DEFAULT },
+    vbookTranslatePlugins: [],
     readerTranslationTitleCacheAuto: true,
     readerDebug: {
       enabled: false,
@@ -2372,6 +2465,11 @@ export async function initShell({ page, onSearchSubmit, onImported, onImportUrl,
   const localSection = qs("local-translation-settings");
   const localSectionLegend = qs("label-local-translate-settings");
   const serverTranslateSection = qs("server-translation-settings");
+  const vbookTranslateSection = qs("vbook-ext-translation-settings");
+  const vbookTranslatePluginSelect = qs("vbook-translate-plugin-select");
+  const vbookTranslateSourceLangSelect = qs("vbook-translate-source-lang-select");
+  const vbookTranslateApiKeyInput = qs("vbook-translate-api-key-input");
+  const vbookTranslateHint = qs("vbook-translate-hint");
   const serverDelayMsInput = qs("server-delay-ms-input");
   const serverMaxCharsInput = qs("server-max-chars-input");
   const serverRetryCountInput = qs("server-retry-count-input");
@@ -3524,6 +3622,66 @@ export async function initShell({ page, onSearchSubmit, onImported, onImportUrl,
     return setLocalTranslationState(mode, next);
   };
 
+  const renderVbookTranslatePluginOptions = () => {
+    if (!vbookTranslatePluginSelect) return;
+    const current = String((state.readerTranslationVbookExt && state.readerTranslationVbookExt.plugin_id) || "").trim();
+    vbookTranslatePluginSelect.innerHTML = "";
+    const plugins = Array.isArray(state.vbookTranslatePlugins) ? state.vbookTranslatePlugins : [];
+    if (!plugins.length) {
+      const opt = document.createElement("option");
+      opt.value = "";
+      opt.textContent = t("vbookTranslatePluginEmpty");
+      vbookTranslatePluginSelect.appendChild(opt);
+      vbookTranslatePluginSelect.value = "";
+      return;
+    }
+    const empty = document.createElement("option");
+    empty.value = "";
+    empty.textContent = t("vbookTranslatePluginPick");
+    vbookTranslatePluginSelect.appendChild(empty);
+    for (const plugin of plugins) {
+      const opt = document.createElement("option");
+      opt.value = String(plugin.plugin_id || "").trim();
+      opt.textContent = String(plugin.name || plugin.plugin_id || "").trim();
+      vbookTranslatePluginSelect.appendChild(opt);
+    }
+    vbookTranslatePluginSelect.value = plugins.some((plugin) => String(plugin.plugin_id || "").trim() === current) ? current : "";
+  };
+
+  const syncVbookTranslateForm = () => {
+    const cfg = normalizeVbookTranslateSettings(state.readerTranslationVbookExt || {});
+    state.readerTranslationVbookExt = cfg;
+    renderVbookTranslatePluginOptions();
+    if (vbookTranslateSourceLangSelect) vbookTranslateSourceLangSelect.value = cfg.source_lang;
+    if (vbookTranslateApiKeyInput) vbookTranslateApiKeyInput.value = cfg.api_key;
+    if (vbookTranslateHint) vbookTranslateHint.textContent = t("vbookTranslateHint");
+  };
+
+  const collectVbookTranslateSettingsFromForm = () => {
+    state.readerTranslationVbookExt = normalizeVbookTranslateSettings({
+      plugin_id: vbookTranslatePluginSelect && vbookTranslatePluginSelect.value,
+      source_lang: vbookTranslateSourceLangSelect && vbookTranslateSourceLangSelect.value,
+      target_lang: "vi",
+      api_key: vbookTranslateApiKeyInput && vbookTranslateApiKeyInput.value,
+    });
+    return state.readerTranslationVbookExt;
+  };
+
+  const loadVbookTranslatePlugins = async () => {
+    try {
+      const data = await api("/api/vbook/plugins");
+      const items = Array.isArray(data && data.items) ? data.items : [];
+      state.vbookTranslatePlugins = items.filter((plugin) => (
+        String((plugin && plugin.type) || "").trim().toLowerCase() === "translate"
+        && Array.isArray(plugin.scripts)
+        && plugin.scripts.includes("translate")
+      ));
+    } catch {
+      state.vbookTranslatePlugins = [];
+    }
+    syncVbookTranslateForm();
+  };
+
   const syncReaderTranslationForm = () => {
     state.settings.translationEnabled = state.settings.translationEnabled !== false;
     state.settings.translationMode = normalizeTranslationMode(state.settings.translationMode);
@@ -3542,8 +3700,10 @@ export async function initShell({ page, onSearchSubmit, onImported, onImportUrl,
     }
     if (localSection) localSection.hidden = !(state.settings.translationEnabled && isLocalLikeTranslationMode(activeMode));
     if (serverTranslateSection) serverTranslateSection.hidden = !(state.settings.translationEnabled && activeMode === "server");
+    if (vbookTranslateSection) vbookTranslateSection.hidden = !(state.settings.translationEnabled && activeMode === VBOOK_EXT_TRANSLATION_MODE);
     syncServerTranslationForm();
     syncLocalTranslationForm();
+    syncVbookTranslateForm();
   };
 
   const applyReaderDebugSettings = (debug) => {
@@ -3562,13 +3722,14 @@ export async function initShell({ page, onSearchSubmit, onImported, onImportUrl,
     }
   };
 
-  const applyReaderTranslationSettings = ({ enabled, mode, server, local, dichngay_local, hanviet, title_cache_auto }, { emit = true } = {}) => {
+  const applyReaderTranslationSettings = ({ enabled, mode, server, local, dichngay_local, hanviet, vbook_ext, title_cache_auto }, { emit = true } = {}) => {
     state.settings.translationEnabled = enabled !== false;
     state.settings.translationMode = normalizeTranslationMode(mode);
     state.readerTranslationServer = normalizeServerTranslationSettings(server || state.readerTranslationServer || {});
     state.readerTranslationLocal = normalizeLocalTranslationSettings(local || state.readerTranslationLocal || {});
     state.readerTranslationSimLocal = normalizeLocalTranslationSettings(dichngay_local || state.readerTranslationSimLocal || {});
     state.readerTranslationHanviet = normalizeLocalTranslationSettings(hanviet || state.readerTranslationHanviet || {});
+    state.readerTranslationVbookExt = normalizeVbookTranslateSettings(vbook_ext || state.readerTranslationVbookExt || {});
     state.readerTranslationTitleCacheAuto = title_cache_auto !== false;
     syncReaderTranslationForm();
     saveSettings(state.settings);
@@ -3582,6 +3743,7 @@ export async function initShell({ page, onSearchSubmit, onImported, onImportUrl,
   const persistReaderTranslationSettingsNow = async () => {
     const serverCfg = collectServerTranslationSettingsFromForm();
     const activeLocalCfg = collectLocalTranslationSettingsFromForm();
+    const vbookExtCfg = collectVbookTranslateSettingsFromForm();
     const localCfg = normalizeLocalTranslationSettings(state.readerTranslationLocal || {});
     const simLocalCfg = normalizeLocalTranslationSettings(state.readerTranslationSimLocal || {});
     const hanvietCfg = normalizeLocalTranslationSettings(state.readerTranslationHanviet || {});
@@ -3598,6 +3760,7 @@ export async function initShell({ page, onSearchSubmit, onImported, onImportUrl,
         local: mode === "local" ? activeLocalCfg : localCfg,
         dichngay_local: mode === SIM_LOCAL_TRANSLATION_MODE ? activeLocalCfg : simLocalCfg,
         hanviet: mode === "hanviet" ? activeLocalCfg : hanvietCfg,
+        vbook_ext: vbookExtCfg,
       },
     };
     const data = await api("/api/reader/settings", {
@@ -3628,6 +3791,9 @@ export async function initShell({ page, onSearchSubmit, onImported, onImportUrl,
   } catch {
     syncReaderTranslationForm();
     applyReaderDebugSettings(null);
+  }
+  if (vbookTranslatePluginSelect) {
+    loadVbookTranslatePlugins().catch(() => {});
   }
 
   const query = parseQuery();
@@ -3861,8 +4027,8 @@ export async function initShell({ page, onSearchSubmit, onImported, onImportUrl,
     });
   }
 
-  if (translationModeSelect) {
-    translationModeSelect.addEventListener("change", async () => {
+    if (translationModeSelect) {
+      translationModeSelect.addEventListener("change", async () => {
       state.settings.translationMode = normalizeTranslationMode(translationModeSelect.value);
       syncReaderTranslationForm();
       try {
@@ -3872,6 +4038,22 @@ export async function initShell({ page, onSearchSubmit, onImported, onImportUrl,
       }
     });
   }
+
+  const bindVbookTranslateSetting = (node, eventName = "change") => {
+    if (!node) return;
+    node.addEventListener(eventName, async () => {
+      collectVbookTranslateSettingsFromForm();
+      syncReaderTranslationForm();
+      try {
+        await persistReaderTranslationSettings();
+      } catch (error) {
+        showToast(error.message || t("toastError"));
+      }
+    });
+  };
+  bindVbookTranslateSetting(vbookTranslatePluginSelect);
+  bindVbookTranslateSetting(vbookTranslateSourceLangSelect);
+  bindVbookTranslateSetting(vbookTranslateApiKeyInput, "input");
 
   if (titleCacheAutoSelect) {
     titleCacheAutoSelect.addEventListener("change", async () => {
@@ -4054,6 +4236,7 @@ export async function initShell({ page, onSearchSubmit, onImported, onImportUrl,
       state.readerTranslationLocal = { ...LOCAL_TRANSLATION_DEFAULT };
       state.readerTranslationSimLocal = { ...LOCAL_TRANSLATION_DEFAULT };
       state.readerTranslationHanviet = { ...LOCAL_TRANSLATION_DEFAULT };
+      state.readerTranslationVbookExt = { ...VBOOK_EXT_TRANSLATION_DEFAULT };
       applyTheme(state.themes, state.settings);
       applyPanelStyle(state.settings);
       applyReaderVars(state.settings);
