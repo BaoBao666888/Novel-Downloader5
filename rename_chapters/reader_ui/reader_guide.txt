@@ -52,18 +52,34 @@ Reader hiện có thể xem changelog, hướng dẫn và các thông báo dài 
 - Có thể đổi theme, font, cỡ chữ, dãn dòng và các tuỳ chỉnh đọc ngay trong trang.
 - Khi bật fullscreen, các chế độ đọc nâng cao sẽ hoạt động đầy đủ hơn.
 - Nếu chỉnh `Name riêng` hoặc tải lại chương, hệ thống sẽ cố giữ lại vị trí đang đọc.
+- Khi mở `Cài đặt` trong trang đọc của một bộ, nhóm `Dịch & xử lý (chỉ bộ này)` chỉ lưu cấu hình dịch cho bộ hiện tại.
+- Nếu bộ chưa từng chỉnh riêng, cấu hình dịch sẽ lấy từ global làm mặc định cho lần đầu.
 
-## 7. Nhập truyện và nguồn vBook
+## 7. Dịch & xử lý
+
+- Truyện tiếng Trung vẫn có thể dùng các mode quen thuộc như `Local`, `Dịch Ngay local`, `Hán Việt` hoặc `Server`.
+- Với truyện không phải tiếng Trung, nên cài vBook Translate extension rồi chọn mode `vBook extension` trong `Dịch & xử lý`.
+- Repo vBook Translate mặc định đã được thêm sẵn: `https://raw.githubusercontent.com/Darkrai9x/vbook-extensions/refs/heads/master/translate.json`.
+- Extension loại translate không dùng để khám phá truyện nên sẽ không hiện trong trang `Khám phá`; hãy chọn nó trong `Dịch & xử lý`.
+- `Tự động nhận diện` phù hợp khi dùng truyện/file thông thường; `Tin tưởng extension` phù hợp khi extension tự quyết định ngôn ngữ nguồn.
+- Khi dịch bằng vBook extension, hãy chọn plugin translate, ngôn ngữ nguồn, ngôn ngữ đích và API key nếu extension đó yêu cầu.
+- Nếu truyện không phải tiếng Trung mà chưa cài/chọn extension dịch, Reader sẽ yêu cầu cài extension thay vì ép qua bộ dịch Trung.
+- Với comic OCR, nếu runtime/model OCR đã tải đủ thì Reader dùng luôn; nếu thiếu, hệ thống sẽ hiện thông báo yêu cầu tải model trước.
+
+## 8. Nhập truyện và nguồn vBook
 
 - Có thể nhập từ file TXT, EPUB hoặc từ nguồn vBook tuỳ cấu hình hiện có.
+- Khi import TXT/EPUB một hoặc nhiều file, có thể chọn ngôn ngữ nguồn; mặc định là tiếng Trung.
 - Trong mục `Nguồn vBook`, nên kiểm tra cập nhật vBook Runner trước khi nhập hoặc tìm truyện.
+- Khi chọn nguồn trong `Khám phá`, nếu nguồn có link metadata thì nút `Trang nguồn` sẽ mở trình duyệt tới trang gốc của nguồn đó.
+- Nếu dùng nhiều profile trình duyệt, hãy chọn đúng profile trước khi xóa; Reader sẽ xóa profile đang chọn thay vì tự bật lại profile mặc định.
 - Nếu một đợt import bị dừng giữa chừng, hãy mở notify để xem còn lỗi ở bước nào.
 - Trường hợp truyện đã vào thư viện nhưng còn thiếu bước cuối như gán danh mục, thường có thể xử lý tiếp từ nút `Tiếp tục` hoặc `Thử lại`.
 
-> [!WARN] Đối với vbook
+> [!WARN] Đối với vBook
 > - Hãy cập nhật vbook_runner trong `Nguồn vBook`
 
-## 8. Quản lý cache
+## 9. Quản lý cache
 
 - `Quản lý cache` cho phép dọn riêng từng nhóm dịch `Server`, `Local`, `Mô phỏng`, `Hán Việt`, cùng với `Ảnh` và cache theo truyện.
 - Danh sách truyện được sắp ưu tiên theo dung lượng đang chiếm để dễ tìm đúng truyện cần dọn.
@@ -79,7 +95,7 @@ Reader hiện có thể xem changelog, hướng dẫn và các thông báo dài 
 > - Khi dùng action `Xóa truyện`, dữ liệu đó không có cơ chế khôi phục lại trong Reader.
 > - Hãy kiểm tra kỹ trước khi xác nhận vì hệ thống sẽ dọn luôn cache liên quan của truyện đó.
 
-## 9. Xuất file HTML
+## 10. Xuất file HTML
 
 - Với tuỳ chọn `Gộp thành 1 file`, HTML chỉ nạp vài chương quanh vị trí đang xem để giảm lag.
 - Mục lục, giới thiệu và ảnh bìa vẫn có sẵn ngay khi mở file.
@@ -87,19 +103,19 @@ Reader hiện có thể xem changelog, hướng dẫn và các thông báo dài 
 - Nếu bật mã mở file, mã có thể được nhớ trên trình duyệt trong thời gian dài hơn trước.
 - Nếu muốn nhận các cải tiến mới của file HTML, hãy xuất lại file từ Reader.
 
-## 10. Xuất file có bảo vệ nội dung
+## 11. Xuất file có bảo vệ nội dung
 
 - Khi bật bảo vệ, file sẽ chặn sao chép trực tiếp và chặn một số công cụ can thiệp như extension copy hoặc DevTools.
 - Nếu file báo đang có công cụ can thiệp, hãy tắt tiện ích liên quan rồi mở lại.
 - Trên điện thoại, đặc biệt là iPhone, ô nhập mã đã được tối ưu hơn nhưng vẫn nên nhập dứt khoát đủ mã rồi chờ file tự mở.
 
-## 11. TTS và các lưu ý hiện tại
+## 12. TTS và các lưu ý hiện tại
 
 - Một số nguồn TTS có thể hoạt động khác nhau tuỳ cookie và trạng thái đăng nhập.
 - Hiện tại TikTok TTS có thể chưa nhận cookie ổn định trong một số trường hợp.
 - Nếu gọi TTS thất bại, hãy thử lại sau hoặc chuyển sang nguồn khác đang hoạt động tốt hơn.
 
-## 12. Khi cần kiểm tra nhanh
+## 13. Khi cần kiểm tra nhanh
 
 - Không thấy truyện mới trong tìm kiếm: chờ notify cache tên chạy xong rồi thử lại.
 - Import bị dừng: mở notify để xem log, ưu tiên dùng `Tiếp tục` hoặc `Thử lại` trước khi làm lại từ đầu.

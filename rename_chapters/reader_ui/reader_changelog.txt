@@ -1,72 +1,33 @@
 # Changelog Reader
 
-> [!OPTIMIZE] Ảnh vBook không làm chậm toàn bộ Reader khi nguồn lỗi
-> - Proxy ảnh vBook ưu tiên tải bằng `requests`, tránh vòng `urllib` fail rồi mới retry chậm trên các nguồn CDN kén header.
-> - Giới hạn số ảnh vBook remote được tải song song ở endpoint UI; khi nguồn treo/lỗi, các thao tác khác trong Reader không bị nghẽn theo hàng loạt request ảnh.
-> - Cover từ ext online bật cache phía server để quay lại trang/tải lại danh sách không phải gọi lại nguồn ảnh liên tục.
+> [!NEW] Khám phá mở được trang nguồn
+> - Khi đã chọn một nguồn trong trang `Khám phá`, nút `Trang nguồn` sẽ bật nếu metadata có link nguồn.
+> - Bấm nút này sẽ mở ngay trình duyệt tới link source của extension, tiện kiểm tra trang gốc hoặc đăng nhập/cookie.
 
-> [!FIX] Tìm online mở thông tin truyện và nhập thư viện ổn định hơn
-> - Sửa lỗi click kết quả Tìm online không mở popup thông tin truyện do render detail bị thiếu trạng thái item.
-> - Nút `Nhập vào thư viện` trong popup Tìm online hoạt động lại khi kết quả có URL chi tiết hợp lệ.
-> - Kết quả Tìm online giờ tự chuẩn hóa URL chi tiết từ nhiều kiểu field của extension, tránh click im lặng nếu extension trả `url`/`link` thay vì `detail_url`.
+> [!FIX] Xóa profile trình duyệt đúng profile đang chọn
+> - Sửa lỗi xóa profile mặc định chỉ làm trình duyệt đóng rồi mở lại, nhưng profile không bị xóa.
+> - Khi dùng profile tên khác, thao tác xóa giờ xử lý đúng profile được chọn và không tự dựng lại profile cũ ngoài ý muốn.
 
-> [!NEW] vBook extension config đã có UI riêng
-> - Reader đọc `plugin.json.config` của extension và hiện form chỉnh riêng từng key trong `Cài đặt vBook` và panel extension ở trang Explore.
-> - Hỗ trợ config dạng `text` bằng textarea, cho phép xuống dòng.
-> - Hỗ trợ config dạng `number` bằng input số.
-> - Giá trị user nhập được lưu riêng theo plugin và tự merge với default của `plugin.json` khi chạy runner.
+> [!NEW] OCR comic dùng model đã tải
+> - Nếu user đã tải đủ runtime/model OCR thì Reader dùng luôn khi dịch ảnh comic.
+> - Nếu thiếu runtime hoặc model, Reader hiện thông báo yêu cầu tải trước thay vì chạy OCR lỗi mơ hồ.
+> - OCR comic dùng Paddle OCR runtime/model đã cài trong app, không tự fallback âm thầm sang engine khác.
 
-> [!FIX] Runner vBook inject config đúng kiểu vBook beta hơn
-> - Runner giờ truyền `config.xxxx` thành biến global cho script, không cần nhét thủ công vào `Mã bổ sung`.
-> - `Mã bổ sung riêng ext (JS)` vẫn được giữ để dùng cho các đoạn JS tùy biến khác.
-> - Nếu `Mã bổ sung` và `plugin.json.config` cùng tạo một biến global, runner sẽ cảnh báo và ưu tiên giá trị từ config.
+> [!NEW] Dịch đa ngôn ngữ bằng vBook Translate extension
+> - Reader thêm mặc định repo translate: `https://raw.githubusercontent.com/Darkrai9x/vbook-extensions/refs/heads/master/translate.json`.
+> - Extension loại `translate` không hiện trong `Khám phá`, nhưng hiện trong `Dịch & xử lý` để chọn làm bộ dịch.
+> - Thêm mode dịch `vBook extension` cho các nguồn không phải tiếng Trung, dùng plugin translate đã cài.
+> - Thêm lựa chọn ngôn ngữ nguồn: `Tự động nhận diện`, `Tin tưởng extension`, tiếng Trung, Anh, Hàn, Nhật, Việt, Thái, Pháp, Đức, Nga và Tây Ban Nha.
+> - Khi import một hoặc nhiều file, user có thể chọn ngôn ngữ nguồn; mặc định vẫn là tiếng Trung.
+> - Nếu truyện không phải tiếng Trung mà chưa dùng vBook Translate extension, Reader sẽ không ép qua bộ dịch Trung hiện tại.
 
-> [!FIX] Ext chạy đúng nguồn config hơn
-> - Reader không tự nhét `Origin/Referer` của `EXT` vào API nữa, tránh làm EXT trả `403` rồi khiến `home/genre` rỗng.
-> - Proxy ảnh vBook có header giống browser hơn và tự retry bằng HTTP client khác khi `urllib` bị CDN trả lỗi, giúp ảnh bìa Fanqie qua `i*.wp.com` vẫn tải được mà không sửa URL của extension.
-> - Trang home/tabs của EXT không còn bị gán nhầm thành lỗi challenge khi lỗi thật chỉ là header runtime không hợp lệ.
+> [!NEW] Dịch & xử lý theo từng bộ truyện
+> - Trong trang đọc của một bộ, nhóm cài đặt đổi thành `Dịch & xử lý (chỉ bộ này)`.
+> - Thay đổi mode dịch, server/local/vBook extension và các thông số dịch trong trang đọc chỉ lưu cho bộ hiện tại.
+> - Bộ chưa có cấu hình riêng sẽ dùng cấu hình global làm mặc định, sau lần chỉnh đầu tiên mới tách riêng.
+> - Các bộ truyện khác không bị ảnh hưởng khi chỉnh dịch trong một bộ.
 
-> [!NEW] Detail vBook hiện gợi ý và bình luận theo section
-> - Detail đọc cả `suggest`/`suggests` và `comment`/`comments`, hỗ trợ list trần, object có `title`, hoặc nhiều nhóm trong cùng object.
-> - Hỗ trợ descriptor dạng `{ input, script }` để detail tự chạy thêm script gợi ý/bình luận, kể cả khi ext không truyền title.
-> - Nếu ext không trả title nhóm, Reader dùng mặc định `Gợi ý` hoặc `Bình luận`.
-> - Title nhóm, nội dung gợi ý và bình luận đều đi qua batch dịch UI khi bật dịch.
-> - Trang Explore và trang thông tin truyện đều hiển thị gợi ý/bình luận nếu truyện thuộc ext online còn cài và detail chạy được.
-> - Runner bổ sung `UserAgent.android()` để các script gọi được.
-
-> [!OPTIMIZE] Detail online không còn chờ gợi ý/bình luận
-> - Trang Explore và trang thông tin truyện tải metadata trước, sau đó tải `suggest/comment` riêng để phần chính không bị đơ lâu.
-> - Gợi ý dùng layout card giống danh sách Home/Genre hơn và có thể mở thông tin truyện từ card.
-> - Bình luận dài được thu gọn, có nút `Xem thêm` / `Rút gọn`.
-> - Nếu section có phân trang, nút `Xem thêm` mở popup dùng lại page 1 đã tải và tự tải tiếp khi cuộn gần cuối.
-> - Mỗi nhóm gợi ý/bình luận giữ phân trang riêng, phù hợp nguồn có nhiều loại bình luận.
-> - Tên user bình luận được tô màu/nhấn mạnh để dễ tách khỏi nội dung.
-> - UI tải từng nguồn bình luận riêng để nguồn chậm/rỗng không làm treo toàn bộ phần bình luận.
-
-> [!OPTIMIZE] HTML export dễ đọc hơn
-> - Xuất HTML mặc định bật trang mục lục.
-> - Nút `Mục lục` / `Tùy chỉnh` ở thanh nổi được căn giữa, nút `Tùy chỉnh` có icon bánh răng.
-> - Điều hướng trong chương đổi thành `Chương trước` / `Mục lục` / `Chương sau` căn giữa, thêm nút `Tùy chỉnh` ở mép phải cùng hàng.
-> - Bổ sung thêm lựa chọn font và đổi font serif mặc định sang stack ưu tiên glyph tiếng Việt ổn hơn.
-
-> [!OPTIMIZE] Theme và danh mục Reader
-> - Bỏ bớt lựa chọn `Serif hệ thống` trong HTML export vì trùng với `Serif Việt rõ`.
-> - Thêm theme `Xanh bạc hà` và `Tím oải hương` cho reader server và HTML export.
-> - Tìm danh mục hỗ trợ khớp không dấu và không phân biệt hoa thường, ví dụ `tu chan` khớp `Tu chân`.
-> - Cập nhật danh mục mặc định WikiCV từ `/nhung-file`.
-
-> [!OPTIMIZE] Import file dễ theo dõi hơn
-> - Đổi tên 2 theme mới thành `Xanh bạc hà` và `Tím oải hương`.
-> - Popup/notification nhập file hiển thị bước xử lý chi tiết như đọc file upload, phân tích TXT/EPUB, lưu DB, lưu EPUB/bìa và dọn file tạm.
-> - Thêm công tắc `Debug server` trong cài đặt; khi bật, server ghi log JSON-lines vào thư mục `logs/reader_server`.
-> - Ghi chú ngay dưới nút Debug liệt kê các chức năng đang có log: API request, nhập file/upload/import, mở trang đọc chương, tải raw/remote chapter, dịch nội dung chương và dịch tiêu đề/UI.
-> - Log đọc chương ghi mode raw/dịch, mode dịch, nguồn online, thời gian lấy nội dung, số ký tự/ảnh và lỗi remote nếu có.
-> - Log dịch ghi thời gian, số đoạn, cache hit/cache miss và số dòng lưu cache để dễ soi máy nào chậm bất thường ở dịch server.
-
-> [!OPTIMIZE] Danh mục, cache, export HTML và lọc name
-> - Search danh mục được debounce và render bằng fragment để giảm lag khi gõ.
-> - File HTML export tự phân trang mục lục: desktop 501 chương/trang, mobile 100 chương/trang.
-> - Quản lý cache có ô tìm nhanh theo truyện/tác giả/nguồn/nhóm cache và bỏ truyện không có cache khỏi danh sách.
-> - Lọc name mặc định quét toàn bộ chương đã tải, không còn trần 500 chương phía server.
-> - Lọc name mặc định tắt `Bỏ các name đã có trong bộ hiện tại`.
-> - Lọc name loại thêm các từ xưng hô/đời thường như `小姐`, `嬷嬷`, `丫鬟`, `母亲`, `公子`, `夫人` để giảm candidate rác.
+> [!NOTE] Hướng dẫn nhanh
+> - Dịch truyện Trung: có thể tiếp tục dùng `Local`, `Dịch Ngay local`, `Hán Việt` hoặc `Server` như trước.
+> - Dịch truyện Anh/Hàn/Nhật/ngôn ngữ khác: cài vBook Translate extension, vào `Dịch & xử lý`, chọn mode `vBook extension`, chọn plugin và ngôn ngữ nguồn phù hợp.
+> - Dịch ảnh comic: tải đủ runtime/model OCR trước; nếu Reader báo thiếu model thì vào phần OCR tải model tương ứng rồi chạy lại.

@@ -1,41 +1,36 @@
-<h1>Phiên bản 0.3.3.4 - TextOps và OCR dễ dùng hơn</h1>
+<h1>Bản cập nhật Reader - OCR comic và dịch đa ngôn ngữ</h1>
 
-<h2>Xử lý văn bản</h2>
+<h2>Khám phá và profile trình duyệt</h2>
 <ul>
-  <li><b>Mở file gần nhất</b> trong menu Xử lý văn bản giờ mở thẳng file recent mới nhất, không bật thêm cửa sổ chọn trùng với Lịch sử.</li>
-  <li><b>Chia file</b> mở dạng cửa sổ riêng, có bảng preview cuộn dọc/ngang, hiển thị tên file sẽ tạo và chữ lớn hơn để dễ nhìn chương.</li>
-  <li>Double-click một phần trong preview chia file hoặc bấm <b>Sửa raw...</b> để mở cửa sổ xem/sửa raw riêng cho phần đó; khi đóng nếu có sửa app sẽ hỏi lưu vào preview.</li>
-  <li><b>Công cụ nhanh</b> mở dạng cửa sổ riêng, có vùng cuộn để dùng tốt hơn trên màn hình thấp.</li>
-  <li>Bỏ dòng thông tin file/encoding lặp ở đầu tab tài liệu; status bar cuối cửa sổ vẫn hiển thị path, encoding đọc, encoding lưu và trạng thái lưu.</li>
-  <li>Tự nhận diện thêm UTF-16/Unicode khi mở file txt; nếu nội dung có dấu hiệu sai encoding, app mở bảng chọn encoding có preview để user chọn trực quan.</li>
-  <li>Lưu file mặc định bằng UTF-8 để tránh lỗi Unicode; có thể đổi mã lưu trong <b>File &gt; Chọn mã lưu...</b> khi cần.</li>
-  <li>Hộp <b>Tìm</b> và <b>Tìm &amp; thay thế</b> có ghim regex riêng; regex ghim ở tab nào chỉ ưu tiên trong tab đó.</li>
-  <li>Tab tài liệu vẫn dùng tên file, chữ tab rõ và đậm hơn.</li>
+  <li>Thêm nút <b>Trang nguồn</b> trong trang Khám phá. Khi nguồn đang chọn có link source trong metadata, bấm nút này sẽ mở ngay trình duyệt tới trang nguồn.</li>
+  <li>Sửa lỗi xóa profile trình duyệt: khi user dùng profile tên khác, thao tác xóa không còn chỉ đóng rồi mở lại trình duyệt mà không xóa được profile.</li>
 </ul>
 
-<h2>OCR ảnh</h2>
+<h2>OCR comic</h2>
 <ul>
-  <li>Tách OCR khỏi tab Dịch thành cửa sổ riêng trong menu <b>OCR &gt; Mở cửa sổ OCR</b>; có thể nạp một hoặc nhiều ảnh, xem ảnh bên trái và text/kết quả bên phải.</li>
-  <li>Chuyển OCR sang <b>PaddleOCR runtime tách riêng</b>; app chính chỉ gọi <code>tools/ocr_runtime/ocr_runtime.exe</code> để giữ app nhẹ và dễ cập nhật runtime riêng.</li>
-  <li>Khi mở OCR, cửa sổ hiện trước rồi mới kiểm tra runtime trong nền; trong lúc runtime đang load app sẽ chặn OCR để tránh đơ UI.</li>
-  <li>Nếu runtime chưa có hoặc bản online mới hơn bản đang cài, app sẽ hỏi tải/cập nhật runtime từ <code>version.json</code> trước khi OCR.</li>
-  <li>Thêm danh sách model theo ngôn ngữ kèm mô tả chức năng: Trung, Việt/Latin, Anh, Hàn, Nhật và phồn thể.</li>
-  <li>Thêm nút <b>Tải model</b>; user không cần tự tải file model, OCR runtime tự tải/cache model chính thức theo lựa chọn.</li>
-  <li>Preview ảnh có thể cuộn chuột để zoom nhanh, giữ chuột kéo để pan, và vẽ khung nhận diện OCR lên ảnh sau khi chạy xong.</li>
-  <li>Khi OCR đang chạy, đóng cửa sổ sẽ hỏi xác nhận; ảnh đang nằm trong phiên OCR sẽ không bị xóa nhầm bằng phím Delete/menu xóa.</li>
-  <li>Thêm tùy chọn <b>Gộp dòng ngang</b> để tự nối các box OCR gần nhau thành đoạn văn, phù hợp text ngang trái qua phải.</li>
+  <li>OCR comic dùng runtime/model đã tải sẵn. Nếu user đã tải đủ model thì Reader chạy luôn.</li>
+  <li>Nếu thiếu runtime hoặc model OCR, Reader hiện thông báo yêu cầu tải trước để user biết cần cài gì.</li>
+  <li>Không fallback OCR âm thầm sang engine khác, tránh kết quả sai mà khó phát hiện.</li>
+</ul>
+
+<h2>Dịch đa ngôn ngữ bằng vBook Translate</h2>
+<ul>
+  <li>Thêm mặc định repo vBook Translate: <code>https://raw.githubusercontent.com/Darkrai9x/vbook-extensions/refs/heads/master/translate.json</code>.</li>
+  <li>Extension loại translate không hiện trong Khám phá, nhưng có thể chọn trong <b>Dịch &amp; xử lý</b>.</li>
+  <li>Thêm mode dịch <b>vBook extension</b> cho truyện không phải tiếng Trung.</li>
+  <li>Thêm lựa chọn ngôn ngữ nguồn: Tự động nhận diện, Tin tưởng extension, tiếng Trung, Anh, Hàn, Nhật, Việt, Thái, Pháp, Đức, Nga và Tây Ban Nha.</li>
+  <li>Khi import TXT/EPUB một hoặc nhiều file, user có thể chọn ngôn ngữ nguồn; mặc định vẫn là tiếng Trung.</li>
+</ul>
+
+<h2>Cài đặt dịch theo từng bộ</h2>
+<ul>
+  <li>Trong trang đọc của một bộ, nhóm cài đặt đổi thành <b>Dịch &amp; xử lý (chỉ bộ này)</b>.</li>
+  <li>Cấu hình dịch chỉnh tại đây chỉ lưu cho bộ hiện tại, không ảnh hưởng các bộ khác.</li>
+  <li>Bộ chưa chỉnh riêng sẽ dùng cấu hình global làm mặc định.</li>
 </ul>
 
 <h2>Hướng dẫn cập nhật</h2>
 <ul>
-  <li>Nhấn <b>Tải &amp; Cài đặt</b> để lên 0.3.3.4. Ứng dụng sẽ tự đóng trước khi chạy bộ cài.</li>
+  <li>Nhấn <b>Tải &amp; Cài đặt</b> để cập nhật. Ứng dụng sẽ tự đóng trước khi chạy bộ cài.</li>
   <li>Nếu cần xem ghi chú bằng trình duyệt, bấm <b>Mở bằng trình duyệt</b>.</li>
-</ul>
-
-<h2>Ghi chú các bản trước</h2>
-<ul>
-  <li>0.3.3.3 đã chuyển Xử lý văn bản thành cửa sổ riêng, tách state TextOps khỏi <code>config.json</code>, thêm autosave/khôi phục tài liệu và tăng bộ nhớ regex.</li>
-  <li>Đã cải thiện Download Novel 5: ô phạm vi tải rộng hơn, Enter để tải và tự reset phạm vi khi lấy truyện khác.</li>
-  <li>Đã dọn regex gợi ý cũ trong Đổi tên khi đổi cuốn, thêm lọc tag Wikidich theo nhóm, ẩn Koanchay mặc định và thử nghiệm OCR ảnh bằng Windows OCR.</li>
-  <li>Đã cải thiện cửa sổ ghi chú update và bộ cài update để dọn runtime cũ trước khi chép bản mới.</li>
 </ul>
