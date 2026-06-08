@@ -80,6 +80,9 @@ const SERVER_TRANSLATION_DEFAULT = {
   timeoutSec: 60,
   retryBackoffMs: 700,
 };
+const COMIC_OCR_SETTINGS_DEFAULT = {
+  page_concurrency: 2,
+};
 
 const FONT_PRESETS = [
   { id: "serif", text: "'Noto Serif', 'Palatino Linotype', 'Times New Roman', serif", labelKey: "fontPresetSerif" },
@@ -330,6 +333,24 @@ function buildReaderSettingsExtrasMarkup() {
   );
 }
 
+function buildComicOcrSettingMarkup() {
+  return (
+    `<fieldset id="comic-ocr-settings" class="local-translation-settings">
+      <legend>${t("comicOcrSettings")}</legend>
+      <label>
+        <span>${t("comicOcrPageConcurrency")}</span>
+        <select id="comic-ocr-page-concurrency-select">
+          <option value="1">1</option>
+          <option value="2">2</option>
+          <option value="3">3</option>
+          <option value="4">4</option>
+        </select>
+      </label>
+      <small class="dialog-subtitle">${t("comicOcrPageConcurrencyHint")}</small>
+    </fieldset>`
+  );
+}
+
 function buildTitleCacheSettingMarkup() {
   return (
     `<label id="title-cache-auto-wrap">
@@ -431,6 +452,10 @@ function ensureSettingsEnhancements(settingsForm, { bookScopedTranslation = fals
   if (miniBarsLabel && !qs("mini-bars-scale-input")) {
     insertMarkupAfter(miniBarsLabel, buildReaderSettingsExtrasMarkup());
   }
+  const readerUiAnchor = qs("comic-edge-tint-strength-wrap") || qs("comic-edge-tint-enabled-wrap") || qs("toc-side-wrap") || miniBarsLabel;
+  if (readerUiAnchor && !qs("comic-ocr-settings")) {
+    insertMarkupAfter(readerUiAnchor, buildComicOcrSettingMarkup());
+  }
   const translationModeLabel = qs("translation-mode-select") && qs("translation-mode-select").closest("label");
   if (translationModeLabel && !qs("title-cache-auto-wrap")) {
     insertMarkupAfter(translationModeLabel, buildTitleCacheSettingMarkup());
@@ -476,6 +501,7 @@ function ensureSettingsEnhancements(settingsForm, { bookScopedTranslation = fals
         qs("toc-side-wrap"),
         qs("comic-edge-tint-enabled-wrap"),
         qs("comic-edge-tint-strength-wrap"),
+        qs("comic-ocr-settings"),
       ],
     },
     {
@@ -810,6 +836,14 @@ function normalizeMiniBarsScale(value) {
   if (num < 0.8) return 0.8;
   if (num > 1.8) return 1.8;
   return Math.round(num * 100) / 100;
+}
+
+function normalizeComicOcrSettings(value) {
+  const raw = value && typeof value === "object" ? value : {};
+  const concurrency = Number.parseInt(String(raw.page_concurrency ?? COMIC_OCR_SETTINGS_DEFAULT.page_concurrency), 10);
+  return {
+    page_concurrency: Math.max(1, Math.min(4, Number.isFinite(concurrency) ? concurrency : COMIC_OCR_SETTINGS_DEFAULT.page_concurrency)),
+  };
 }
 
 function normalizeTocSide(value) {
@@ -2379,6 +2413,7 @@ export async function initShell({ page, onSearchSubmit, onImported, onImportUrl,
     readerTranslationServer: { ...SERVER_TRANSLATION_DEFAULT },
     readerTranslationVbookExt: { ...VBOOK_EXT_TRANSLATION_DEFAULT },
     vbookTranslatePlugins: [],
+    comicOcrSettings: { ...COMIC_OCR_SETTINGS_DEFAULT },
     readerTranslationTitleCacheAuto: true,
     readerDebug: {
       enabled: false,
@@ -2465,6 +2500,7 @@ export async function initShell({ page, onSearchSubmit, onImported, onImportUrl,
   const comicEdgeTintStrengthInput = qs("comic-edge-tint-strength-input");
   const comicEdgeTintStrengthValue = qs("comic-edge-tint-strength-value");
   const comicEdgeTintStrengthWrap = qs("comic-edge-tint-strength-wrap");
+  const comicOcrPageConcurrencySelect = qs("comic-ocr-page-concurrency-select");
   const translationEnabledSelect = qs("translation-enabled-select");
   const translationModeSelect = qs("translation-mode-select");
   const titleCacheAutoSelect = qs("title-cache-auto-select");
@@ -3762,6 +3798,44 @@ export async function initShell({ page, onSearchSubmit, onImported, onImportUrl,
     }
   };
 
+  const syncComicOcrSettingsForm = () => {
+    state.comicOcrSettings = normalizeComicOcrSettings(state.comicOcrSettings || {});
+    if (comicOcrPageConcurrencySelect) {
+      comicOcrPageConcurrencySelect.value = String(state.comicOcrSettings.page_concurrency);
+    }
+  };
+
+  const loadComicOcrSettings = async () => {
+    try {
+      const data = await api("/api/comic-ocr/settings");
+      const settings = data && data.settings && typeof data.settings === "object" ? data.settings : {};
+      state.comicOcrSettings = normalizeComicOcrSettings(settings);
+    } catch {
+      state.comicOcrSettings = { ...COMIC_OCR_SETTINGS_DEFAULT };
+    }
+    syncComicOcrSettingsForm();
+    return state.comicOcrSettings;
+  };
+
+  const persistComicOcrSettingsNow = async () => {
+    state.comicOcrSettings = normalizeComicOcrSettings({
+      page_concurrency: comicOcrPageConcurrencySelect
+        ? comicOcrPageConcurrencySelect.value
+        : state.comicOcrSettings && state.comicOcrSettings.page_concurrency,
+    });
+    const data = await api("/api/comic-ocr/settings", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(state.comicOcrSettings),
+    });
+    const settings = data && data.settings && typeof data.settings === "object" ? data.settings : state.comicOcrSettings;
+    state.comicOcrSettings = normalizeComicOcrSettings(settings);
+    syncComicOcrSettingsForm();
+    emitSettingsChanged({ ...state.settings, comicOcrSettings: state.comicOcrSettings });
+    return state.comicOcrSettings;
+  };
+  const persistComicOcrSettings = debounceAsync(persistComicOcrSettingsNow, 250);
+
   const applyReaderTranslationSettings = ({ enabled, mode, server, local, dichngay_local, hanviet, vbook_ext, title_cache_auto }, { emit = true } = {}) => {
     state.settings.translationEnabled = enabled !== false;
     state.settings.translationMode = normalizeTranslationMode(mode);
@@ -3833,6 +3907,7 @@ export async function initShell({ page, onSearchSubmit, onImported, onImportUrl,
     syncReaderTranslationForm();
     applyReaderDebugSettings(null);
   }
+  await loadComicOcrSettings();
   if (vbookTranslatePluginSelect) {
     loadVbookTranslatePlugins().catch(() => {});
   }
@@ -4055,6 +4130,17 @@ export async function initShell({ page, onSearchSubmit, onImported, onImportUrl,
     });
   }
 
+  if (comicOcrPageConcurrencySelect) {
+    comicOcrPageConcurrencySelect.addEventListener("change", async () => {
+      syncComicOcrSettingsForm();
+      try {
+        await persistComicOcrSettings();
+      } catch (error) {
+        showToast(error.message || t("toastError"));
+      }
+    });
+  }
+
   if (translationEnabledSelect) {
     translationEnabledSelect.addEventListener("change", async () => {
       state.settings.translationEnabled = String(translationEnabledSelect.value || "").trim().toLowerCase() !== "off";
@@ -4219,6 +4305,9 @@ export async function initShell({ page, onSearchSubmit, onImported, onImportUrl,
       state.settings.tocSide = normalizeTocSide((tocSideSelect && tocSideSelect.value) || DEFAULT_SETTINGS.tocSide);
       state.settings.comicEdgeTintEnabled = (comicEdgeTintEnabledSelect && comicEdgeTintEnabledSelect.value) === "on";
       state.settings.comicEdgeTintStrength = normalizeComicEdgeTintStrength((comicEdgeTintStrengthInput && comicEdgeTintStrengthInput.value) || DEFAULT_SETTINGS.comicEdgeTintStrength);
+      state.comicOcrSettings = normalizeComicOcrSettings({
+        page_concurrency: comicOcrPageConcurrencySelect && comicOcrPageConcurrencySelect.value,
+      });
       state.settings.translationEnabled = (translationEnabledSelect && translationEnabledSelect.value) !== "off";
       state.settings.translationMode = normalizeTranslationMode((translationModeSelect && translationModeSelect.value) || DEFAULT_SETTINGS.translationMode);
       state.readerTranslationServer = collectServerTranslationSettingsFromForm();
@@ -4236,6 +4325,7 @@ export async function initShell({ page, onSearchSubmit, onImported, onImportUrl,
       });
       try {
         await persistReaderTranslationSettings();
+        await persistComicOcrSettingsNow();
       } catch (error) {
         showToast(error.message || t("toastError"));
       }
@@ -4267,6 +4357,8 @@ export async function initShell({ page, onSearchSubmit, onImported, onImportUrl,
       if (comicEdgeTintStrengthInput) comicEdgeTintStrengthInput.value = String(state.settings.comicEdgeTintStrength);
       if (comicEdgeTintStrengthValue) comicEdgeTintStrengthValue.textContent = `${state.settings.comicEdgeTintStrength}%`;
       if (comicEdgeTintStrengthWrap) comicEdgeTintStrengthWrap.hidden = !state.settings.comicEdgeTintEnabled;
+      state.comicOcrSettings = { ...COMIC_OCR_SETTINGS_DEFAULT };
+      syncComicOcrSettingsForm();
       if (translationEnabledSelect) translationEnabledSelect.value = state.settings.translationEnabled ? "on" : "off";
       if (translationModeSelect) translationModeSelect.value = normalizeTranslationMode(state.settings.translationMode);
       state.readerTranslationTitleCacheAuto = true;
@@ -4290,6 +4382,7 @@ export async function initShell({ page, onSearchSubmit, onImported, onImportUrl,
       });
       try {
         await persistReaderTranslationSettings();
+        await persistComicOcrSettingsNow();
       } catch (error) {
         showToast(error.message || t("toastError"));
       }
@@ -5559,6 +5652,7 @@ export async function initShell({ page, onSearchSubmit, onImported, onImportUrl,
     getVbookTranslatePlugins: () => (Array.isArray(state.vbookTranslatePlugins) ? state.vbookTranslatePlugins.slice() : []),
     ensureVbookTranslatePlugins: () => loadVbookTranslatePlugins(),
     saveReaderBookVbookSourceLang,
+    getComicOcrSettings: () => normalizeComicOcrSettings(state.comicOcrSettings || {}),
     getVbookSettings: (pluginId = "") => runtimeEffectiveSettings(pluginId),
     getVbookGlobalSettings: () => normalizeVbookGlobalSettings(state.vbook.globalSettings || {}),
     refreshVbookSettings: (pluginId = "") => refreshVbookRuntimeSettings({ silent: true, pluginId }),

@@ -5897,6 +5897,32 @@ class ReaderService:
         deleted = comic_ocr_cache_support.delete_chapter_family(CACHE_DIR, book_id=bid, chapter_id=cid)
         return {"ok": True, "book_id": bid, "chapter_id": cid, "deleted": deleted}
 
+    def get_comic_ocr_settings(self) -> dict[str, Any]:
+        return {
+            "ok": True,
+            "settings": comic_ocr_eligibility_support.normalize_comic_ocr_settings(
+                self.comic_ocr_settings,
+                parse_bool=self._parse_bool,
+            ),
+        }
+
+    def set_comic_ocr_settings(self, payload: dict[str, Any] | None = None) -> dict[str, Any]:
+        body = payload if isinstance(payload, dict) else {}
+        with _APP_CONFIG_LOCK:
+            cfg = load_app_config()
+            if not isinstance(cfg, dict):
+                cfg = {}
+            existing = cfg.get("comic_ocr") if isinstance(cfg.get("comic_ocr"), dict) else {}
+            merged = dict(existing)
+            merged.update(body)
+            cfg["comic_ocr"] = comic_ocr_eligibility_support.normalize_comic_ocr_settings(
+                merged,
+                parse_bool=self._parse_bool,
+            )
+            save_app_config(cfg)
+        self.refresh_config()
+        return self.get_comic_ocr_settings()
+
     def _prepare_comic_ocr_context(
         self,
         payload: dict[str, Any],
@@ -6055,6 +6081,8 @@ class ReaderService:
             "engine_version": engine_version,
             "settings": dict(self.comic_ocr_settings or {}),
             "page_concurrency": max(1, min(4, int(self.comic_ocr_settings.get("page_concurrency") or 2))),
+            "translation_batch_max_pages": max(1, min(12, int(self.comic_ocr_settings.get("translation_batch_max_pages") or 4))),
+            "translation_batch_max_chars": max(500, min(20000, int(self.comic_ocr_settings.get("translation_batch_max_chars") or 6000))),
             "translation_signature": translation_signature,
             "translate_mode": translate_mode,
             "translator": translator,
@@ -6119,15 +6147,17 @@ class ReaderService:
                 batch: list[tuple[int, str, dict[str, Any]]] = []
                 block_count = 0
                 char_count = 0
+                max_pages = max(1, min(12, int(context.get("translation_batch_max_pages") or 4)))
+                max_chars = max(500, min(20000, int(context.get("translation_batch_max_chars") or 6000)))
                 while translation_queue:
                     index, page_key, page = translation_queue[0]
                     blocks = page_blocks(page)
                     next_blocks = len(blocks)
                     next_chars = sum(len(str(block.get("source_text") or "")) + 18 for block in blocks)
                     if batch and (
-                        len(batch) >= 3
+                        len(batch) >= max_pages
                         or block_count + next_blocks > 24
-                        or char_count + next_chars > 5000
+                        or char_count + next_chars > max_chars
                     ):
                         break
                     translation_queue.pop(0)

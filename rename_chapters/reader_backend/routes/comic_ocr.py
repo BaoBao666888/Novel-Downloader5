@@ -25,6 +25,11 @@ def handle_api(
         if not book_id:
             raise api_error_cls(http_status.BAD_REQUEST, "BAD_REQUEST", "Thiếu book_id.")
         return handler.service.get_comic_ocr_capabilities(book_id)
+    if method == "GET" and path == "/api/comic-ocr/settings":
+        return handler.service.get_comic_ocr_settings()
+    if method == "POST" and path == "/api/comic-ocr/settings":
+        payload = handler._read_json_body()
+        return handler.service.set_comic_ocr_settings(payload)
     if method == "POST" and path == "/api/comic-ocr/chapter/translate":
         payload = handler._read_json_body()
         return handler.service.start_comic_ocr_chapter_translation(payload)
