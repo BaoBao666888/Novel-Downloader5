@@ -41,6 +41,10 @@ const refs = {
   btnModeRaw: document.getElementById("btn-mode-raw"),
   btnModeTrans: document.getElementById("btn-mode-trans"),
   btnTranslateMode: document.getElementById("btn-translate-mode"),
+  comicOcrSourceLangSelect: document.getElementById("comic-ocr-source-lang"),
+  btnComicOcrTranslate: document.getElementById("btn-comic-ocr-translate"),
+  btnComicOcrToggle: document.getElementById("btn-comic-ocr-toggle"),
+  comicOcrStatus: document.getElementById("comic-ocr-status"),
   btnReloadChapter: document.getElementById("btn-reload-chapter"),
   btnOpenNameEditor: document.getElementById("btn-open-name-editor"),
   btnOpenReplaceEditor: document.getElementById("btn-open-replace-editor"),
@@ -318,6 +322,15 @@ const state = {
   chapterContentType: "text",
   chapterImages: [],
   comicLoadSeq: 0,
+  comicOcrCapabilities: null,
+  comicOcrSourceLang: "",
+  comicOcrTargetLang: "vi",
+  comicOcrJobId: "",
+  comicOcrResult: null,
+  comicOcrOverlayEnabled: true,
+  comicOcrStatusText: "",
+  comicOcrBusy: false,
+  comicOcrPollTimer: 0,
   downloadWatchTimer: null,
   downloadEventSource: null,
   downloadWatchReconnectTimer: null,
@@ -694,6 +707,99 @@ function syncModeButtons() {
     else if (state.translateMode === "hanviet") refs.btnTranslateMode.textContent = state.shell.t("modeHanviet");
     else refs.btnTranslateMode.textContent = state.shell.t("modeServer");
   }
+  syncComicOcrControls();
+}
+
+function comicOcrSourceLangStorageKey() {
+  return `reader.comic_ocr.source_lang.${String(state.bookId || "").trim()}`;
+}
+
+function resetComicOcrState({ keepCapabilities = false, keepSourceLang = false } = {}) {
+  clearComicOcrPollTimer();
+  if (!keepCapabilities) state.comicOcrCapabilities = null;
+  if (!keepSourceLang) state.comicOcrSourceLang = "";
+  state.comicOcrTargetLang = "vi";
+  state.comicOcrJobId = "";
+  state.comicOcrResult = null;
+  state.comicOcrOverlayEnabled = true;
+  state.comicOcrStatusText = "";
+  state.comicOcrBusy = false;
+  syncComicOcrControls();
+}
+
+function clearComicOcrPollTimer() {
+  if (!state.comicOcrPollTimer) return;
+  window.clearTimeout(state.comicOcrPollTimer);
+  state.comicOcrPollTimer = 0;
+}
+
+function comicOcrText(key, fallback = "") {
+  if (state.shell && typeof state.shell.t === "function") return state.shell.t(key);
+  return fallback || key;
+}
+
+function resolveComicOcrSourceLang() {
+  const caps = state.comicOcrCapabilities || {};
+  const supported = Array.isArray(caps.supported_source_langs) ? caps.supported_source_langs.map((x) => String(x || "").trim()).filter(Boolean) : ["en"];
+  let value = String(state.comicOcrSourceLang || "").trim();
+  if (caps.source_lang_required) {
+    if (!value) {
+      try {
+        value = String(localStorage.getItem(comicOcrSourceLangStorageKey()) || "").trim();
+      } catch {
+        value = "";
+      }
+    }
+  } else {
+    value = String(caps.default_source_lang || value || supported[0] || "en").trim();
+  }
+  if (!supported.includes(value)) value = supported[0] || "en";
+  state.comicOcrSourceLang = value;
+  return value;
+}
+
+function syncComicOcrControls() {
+  const caps = state.comicOcrCapabilities || null;
+  const isImageChapter = state.chapterContentType === "images";
+  const canUse = Boolean(isImageChapter && caps && caps.eligible);
+  const hasResult = Boolean(state.comicOcrResult && Array.isArray(state.comicOcrResult.pages));
+  const showSource = Boolean(canUse && caps.source_lang_required);
+  if (refs.comicOcrSourceLangSelect) {
+    refs.comicOcrSourceLangSelect.classList.toggle("hidden", !showSource);
+    refs.comicOcrSourceLangSelect.disabled = state.comicOcrBusy;
+    if (showSource) {
+      const current = resolveComicOcrSourceLang();
+      const supported = Array.isArray(caps.supported_source_langs) ? caps.supported_source_langs : ["en"];
+      refs.comicOcrSourceLangSelect.innerHTML = "";
+      for (const lang of supported) {
+        const value = String(lang || "").trim();
+        if (!value) continue;
+        const opt = document.createElement("option");
+        opt.value = value;
+        opt.textContent = value === "en" ? "English" : value;
+        refs.comicOcrSourceLangSelect.appendChild(opt);
+      }
+      refs.comicOcrSourceLangSelect.value = current;
+    }
+  }
+  if (refs.btnComicOcrTranslate) {
+    refs.btnComicOcrTranslate.classList.toggle("hidden", !canUse);
+    refs.btnComicOcrTranslate.disabled = state.comicOcrBusy || !resolveComicOcrSourceLang();
+    refs.btnComicOcrTranslate.textContent = state.comicOcrBusy
+      ? comicOcrText("comicOcrWorking", "Đang OCR")
+      : comicOcrText("comicOcrTranslate", "Dịch ảnh");
+  }
+  if (refs.btnComicOcrToggle) {
+    refs.btnComicOcrToggle.classList.toggle("hidden", !(canUse && hasResult));
+    refs.btnComicOcrToggle.textContent = state.comicOcrOverlayEnabled
+      ? comicOcrText("comicOcrHideOverlay", "Ẩn bản dịch")
+      : comicOcrText("comicOcrShowOverlay", "Hiện bản dịch");
+  }
+  if (refs.comicOcrStatus) {
+    const text = String(state.comicOcrStatusText || "").trim();
+    refs.comicOcrStatus.textContent = text;
+    refs.comicOcrStatus.classList.toggle("hidden", !text || !isImageChapter);
+  }
 }
 
 function canListenCurrentChapter() {
@@ -882,6 +988,150 @@ async function fetchChapterContent(chapterId, { mode = effectiveMode(), translat
 
 async function fetchRawEditorContent(chapterId) {
   return state.shell.api(`/api/library/chapter/${encodeURIComponent(chapterId)}/raw`);
+}
+
+async function refreshComicOcrCapabilities({ fetchCached = true } = {}) {
+  if (!state.bookId || state.chapterContentType !== "images") {
+    resetComicOcrState();
+    return null;
+  }
+  try {
+    const caps = await state.shell.api(`/api/comic-ocr/capabilities?book_id=${encodeURIComponent(state.bookId)}`);
+    state.comicOcrCapabilities = caps || null;
+    state.comicOcrTargetLang = String((caps && caps.target_lang) || "vi").trim() || "vi";
+    if (caps && caps.eligible) {
+      resolveComicOcrSourceLang();
+      state.comicOcrStatusText = "";
+      if (fetchCached) {
+        fetchComicOcrCachedResult().catch(() => {});
+      }
+    } else {
+      state.comicOcrResult = null;
+      state.comicOcrStatusText = "";
+    }
+    syncComicOcrControls();
+    return caps || null;
+  } catch (error) {
+    state.comicOcrCapabilities = null;
+    state.comicOcrResult = null;
+    state.comicOcrStatusText = "";
+    syncComicOcrControls();
+    return null;
+  }
+}
+
+async function fetchComicOcrCachedResult() {
+  if (!state.bookId || !state.chapterId || state.chapterContentType !== "images") return null;
+  const caps = state.comicOcrCapabilities || {};
+  if (!caps.eligible) return null;
+  const sourceLang = resolveComicOcrSourceLang();
+  const targetLang = String(state.comicOcrTargetLang || "vi").trim() || "vi";
+  const url = `/api/comic-ocr/chapter/result?book_id=${encodeURIComponent(state.bookId)}&chapter_id=${encodeURIComponent(state.chapterId)}&source_lang=${encodeURIComponent(sourceLang)}&target_lang=${encodeURIComponent(targetLang)}`;
+  const data = await state.shell.api(url);
+  if (data && data.cached && data.result) {
+    state.comicOcrResult = data.result;
+    state.comicOcrOverlayEnabled = true;
+    state.comicOcrStatusText = state.shell.t("comicOcrDone");
+    syncComicOcrControls();
+    renderComicOcrOverlays();
+    return data.result;
+  }
+  state.comicOcrResult = null;
+  renderComicOcrOverlays();
+  syncComicOcrControls();
+  return null;
+}
+
+async function startComicOcrTranslation() {
+  if (!state.bookId || !state.chapterId || state.chapterContentType !== "images") return;
+  const caps = state.comicOcrCapabilities || await refreshComicOcrCapabilities({ fetchCached: false });
+  if (!caps || !caps.eligible) {
+    state.shell.showToast(state.shell.t("comicOcrUnavailable"));
+    return;
+  }
+  const sourceLang = resolveComicOcrSourceLang();
+  if (!sourceLang) {
+    state.shell.showToast(state.shell.t("comicOcrNeedSourceLang"));
+    return;
+  }
+  state.comicOcrBusy = true;
+  state.comicOcrStatusText = state.shell.t("comicOcrQueued");
+  syncComicOcrControls();
+  try {
+    const data = await state.shell.api("/api/comic-ocr/chapter/translate", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        book_id: state.bookId,
+        chapter_id: state.chapterId,
+        source_lang: sourceLang,
+        target_lang: state.comicOcrTargetLang || "vi",
+        mode: "overlay",
+        pages: [],
+        translation_mode: "server",
+      }),
+    });
+    if (data && data.cached && data.result) {
+      state.comicOcrResult = data.result;
+      state.comicOcrOverlayEnabled = true;
+      state.comicOcrStatusText = state.shell.t("comicOcrDone");
+      state.comicOcrBusy = false;
+      syncComicOcrControls();
+      renderComicOcrOverlays();
+      return;
+    }
+    const jobId = String((data && data.job_id) || "").trim();
+    if (!jobId) throw new Error(state.shell.t("comicOcrJobMissing"));
+    state.comicOcrJobId = jobId;
+    pollComicOcrJob(jobId);
+  } catch (error) {
+    state.comicOcrBusy = false;
+    state.comicOcrStatusText = "";
+    syncComicOcrControls();
+    state.shell.showToast(error.displayMessage || error.message || state.shell.t("toastError"));
+  }
+}
+
+function pollComicOcrJob(jobId) {
+  clearComicOcrPollTimer();
+  const targetJobId = String(jobId || "").trim();
+  if (!targetJobId) return;
+  const tick = async () => {
+    if (targetJobId !== state.comicOcrJobId) return;
+    try {
+      const data = await state.shell.api(`/api/comic-ocr/jobs/${encodeURIComponent(targetJobId)}`);
+      if (targetJobId !== state.comicOcrJobId) return;
+      const done = Number.parseInt(String((data && data.done_pages) || "0"), 10) || 0;
+      const total = Number.parseInt(String((data && data.total_pages) || "0"), 10) || 0;
+      const status = String((data && data.status) || "").trim();
+      state.comicOcrStatusText = String((data && data.message) || "").trim()
+        || state.shell.t("comicOcrProgress", { done, total: Math.max(total, 1) });
+      if (status === "completed") {
+        state.comicOcrBusy = false;
+        state.comicOcrResult = data.result || null;
+        state.comicOcrOverlayEnabled = true;
+        state.comicOcrStatusText = state.shell.t("comicOcrDone");
+        syncComicOcrControls();
+        renderComicOcrOverlays();
+        return;
+      }
+      if (status === "failed") {
+        state.comicOcrBusy = false;
+        state.comicOcrStatusText = state.shell.t("comicOcrFailed");
+        syncComicOcrControls();
+        state.shell.showToast(String((data && data.message) || state.shell.t("comicOcrFailed")));
+        return;
+      }
+      syncComicOcrControls();
+      state.comicOcrPollTimer = window.setTimeout(tick, 1200);
+    } catch (error) {
+      state.comicOcrBusy = false;
+      state.comicOcrStatusText = "";
+      syncComicOcrControls();
+      state.shell.showToast(error.displayMessage || error.message || state.shell.t("toastError"));
+    }
+  };
+  state.comicOcrPollTimer = window.setTimeout(tick, 450);
 }
 
 function resetRawEditorState() {
@@ -1902,6 +2152,64 @@ function renderFlipPage() {
   updateProgress();
 }
 
+function comicOcrBlocksForPage(pageIndex) {
+  const result = state.comicOcrResult || {};
+  const pages = Array.isArray(result.pages) ? result.pages : [];
+  const page = pages.find((item) => Number.parseInt(String((item && item.index) || "0"), 10) === pageIndex);
+  return page && Array.isArray(page.blocks) ? page.blocks : [];
+}
+
+function clearComicOcrOverlays(root = refs.readerContentBody) {
+  if (!root) return;
+  root.querySelectorAll(".reader-comic-ocr-layer").forEach((node) => node.remove());
+}
+
+function renderComicOcrOverlayForSlot(slot, pageIndex) {
+  if (!slot) return;
+  slot.querySelectorAll(".reader-comic-ocr-layer").forEach((node) => node.remove());
+  if (!state.comicOcrOverlayEnabled || !state.comicOcrResult) return;
+  const img = slot.querySelector(".reader-comic-image");
+  if (!img) return;
+  const blocks = comicOcrBlocksForPage(pageIndex);
+  if (!blocks.length) return;
+  const imageHeight = Math.max(1, img.clientHeight || img.naturalHeight || 1);
+  const layer = document.createElement("div");
+  layer.className = "reader-comic-ocr-layer";
+  layer.setAttribute("aria-hidden", "true");
+  for (const block of blocks) {
+    const text = String((block && (block.translated_text || block.source_text)) || "").trim();
+    const box = Array.isArray(block && block.box) ? block.box : [];
+    if (!text || box.length < 4) continue;
+    const x = clamp01(Number(box[0]) || 0);
+    const y = clamp01(Number(box[1]) || 0);
+    const w = clamp01(Number(box[2]) || 0);
+    const h = clamp01(Number(box[3]) || 0);
+    if (!(w > 0) || !(h > 0)) continue;
+    const node = document.createElement("div");
+    node.className = "reader-comic-ocr-block";
+    node.textContent = text;
+    node.style.left = `${x * 100}%`;
+    node.style.top = `${y * 100}%`;
+    node.style.width = `${w * 100}%`;
+    node.style.minHeight = `${h * 100}%`;
+    node.style.fontSize = `${Math.max(11, Math.min(20, imageHeight * h * 0.34))}px`;
+    layer.appendChild(node);
+  }
+  if (layer.childElementCount > 0) {
+    slot.appendChild(layer);
+  }
+}
+
+function renderComicOcrOverlays() {
+  if (!refs.readerContentBody) return;
+  clearComicOcrOverlays();
+  if (state.chapterContentType !== "images" || !state.comicOcrOverlayEnabled || !state.comicOcrResult) return;
+  refs.readerContentBody.querySelectorAll(".reader-comic-slot.loaded").forEach((slot) => {
+    const pageIndex = Number.parseInt(String(slot.getAttribute("data-page-index") || "0"), 10) || 0;
+    renderComicOcrOverlayForSlot(slot, pageIndex);
+  });
+}
+
 function renderImageChapter(preserveRatio = null) {
   cancelPendingPositionApply();
   const loadSeq = ++state.comicLoadSeq;
@@ -1918,6 +2226,7 @@ function renderImageChapter(preserveRatio = null) {
       if (!src) continue;
       const slot = document.createElement("figure");
       slot.className = "reader-comic-slot loading";
+      slot.setAttribute("data-page-index", String(i));
       const holder = document.createElement("div");
       holder.className = "reader-comic-placeholder";
       holder.textContent = state.shell.t("readerComicLoading", { current: i + 1, total: images.length });
@@ -1943,6 +2252,7 @@ function renderImageChapter(preserveRatio = null) {
             item.slot.classList.add("loaded");
             item.slot.innerHTML = "";
             item.slot.appendChild(img);
+            renderComicOcrOverlayForSlot(item.slot, item.index);
             updateProgress();
             done();
           };
@@ -2226,6 +2536,10 @@ async function loadChapter({
         state.chapterText = "";
       }
     }
+    resetComicOcrState();
+    if (state.chapterContentType === "images") {
+      await refreshComicOcrCapabilities({ fetchCached: true });
+    }
     applyReaderModeClass();
     syncModeButtons();
     clearScrollHint();
@@ -2255,6 +2569,7 @@ async function loadChapter({
       state.chapterTransSig = "";
       state.chapterMapVersion = 0;
       state.chapterUnitCount = 0;
+      resetComicOcrState();
       syncModeButtons();
       renderChapterError(getErrorMessage(error));
       updateHeader();
@@ -6080,6 +6395,8 @@ async function init() {
   refs.btnModeRaw.textContent = state.shell.t("raw");
   refs.btnModeTrans.textContent = state.shell.t("trans");
   refs.btnTranslateMode.textContent = state.shell.t("modeServer");
+  if (refs.btnComicOcrTranslate) refs.btnComicOcrTranslate.textContent = state.shell.t("comicOcrTranslate");
+  if (refs.btnComicOcrToggle) refs.btnComicOcrToggle.textContent = state.shell.t("comicOcrHideOverlay");
   if (refs.btnReloadChapter) refs.btnReloadChapter.textContent = state.shell.t("reloadChapter");
   refs.btnOpenNameEditor.textContent = state.shell.t("bookPrivateNames");
   if (refs.rawEditorTitle) refs.rawEditorTitle.textContent = state.shell.t("rawEditorTitle");
@@ -6314,6 +6631,37 @@ async function init() {
     await loadBook();
     await loadChapter();
   });
+  if (refs.comicOcrSourceLangSelect) {
+    refs.comicOcrSourceLangSelect.addEventListener("change", () => {
+      state.comicOcrSourceLang = String(refs.comicOcrSourceLangSelect.value || "").trim();
+      try {
+        localStorage.setItem(comicOcrSourceLangStorageKey(), state.comicOcrSourceLang);
+      } catch {
+        // ignore
+      }
+      state.comicOcrResult = null;
+      state.comicOcrStatusText = "";
+      clearComicOcrOverlays();
+      syncComicOcrControls();
+      fetchComicOcrCachedResult().catch(() => {});
+    });
+  }
+  if (refs.btnComicOcrTranslate) {
+    refs.btnComicOcrTranslate.addEventListener("click", () => {
+      startComicOcrTranslation().catch((error) => {
+        state.comicOcrBusy = false;
+        syncComicOcrControls();
+        state.shell.showToast(error.displayMessage || error.message || state.shell.t("toastError"));
+      });
+    });
+  }
+  if (refs.btnComicOcrToggle) {
+    refs.btnComicOcrToggle.addEventListener("click", () => {
+      state.comicOcrOverlayEnabled = !state.comicOcrOverlayEnabled;
+      syncComicOcrControls();
+      renderComicOcrOverlays();
+    });
+  }
   if (refs.btnReloadChapter) {
     refs.btnReloadChapter.addEventListener("click", () => {
       reloadCurrentChapter().catch((error) => {
@@ -6416,11 +6764,13 @@ async function init() {
     syncMiniBarLayout();
     updateProgress();
     updateMiniInfoVisibility();
+    renderComicOcrOverlays();
   }, { passive: true });
 
   window.addEventListener("beforeunload", () => {
     stopTtsPlayback({ keepDialogOpen: true, preserveStatus: false });
     clearReaderDownloadWatcher();
+    clearComicOcrPollTimer();
   });
 }
 

@@ -3174,6 +3174,7 @@ body.panel-style-clear .reader-content-body {
   border: 0;
   background: transparent;
   overflow: hidden;
+  position: relative;
 }
 
 .reader-comic-slot.loading {
@@ -3203,6 +3204,30 @@ body.panel-style-clear .reader-content-body {
   border-radius: 0;
   border: 0;
   background: transparent;
+}
+
+.reader-comic-ocr-layer {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 2;
+}
+
+.reader-comic-ocr-block {
+  position: absolute;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 3px 5px;
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--surface) 88%, transparent);
+  border: 1px solid color-mix(in srgb, var(--accent) 42%, var(--line));
+  color: var(--text);
+  box-shadow: 0 4px 16px color-mix(in srgb, #000 20%, transparent);
+  line-height: 1.2;
+  text-align: center;
+  overflow-wrap: anywhere;
+  overflow: hidden;
 }
 
 .chapter-block {
@@ -3406,6 +3431,32 @@ body[data-page="reader"] .reader-actions .btn {
 
 body[data-page="reader"] .reader-actions .btn:hover {
   background: color-mix(in srgb, var(--surface-alt) 92%, transparent);
+}
+
+.reader-comic-ocr-select {
+  min-height: 34px;
+  min-width: 104px;
+  max-width: 128px;
+  padding: 0 28px 0 10px;
+  border-radius: 8px;
+  border: 1px solid color-mix(in srgb, var(--line) 84%, transparent);
+  background: color-mix(in srgb, var(--surface-alt) 88%, transparent);
+  color: var(--text);
+  font: inherit;
+  font-size: 13px;
+}
+
+.reader-comic-ocr-status {
+  min-height: 34px;
+  max-width: 180px;
+  display: inline-flex;
+  align-items: center;
+  padding: 0 8px;
+  color: var(--muted);
+  font-size: 12px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 body[data-page="reader"] #btn-open-name-editor,
