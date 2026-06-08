@@ -1065,7 +1065,7 @@ async function fetchComicOcrCachedResult() {
 
 async function startComicOcrTranslation() {
   if (!state.bookId || !state.chapterId || state.chapterContentType !== "images") return;
-  const caps = state.comicOcrCapabilities || await refreshComicOcrCapabilities({ fetchCached: false });
+  const caps = await refreshComicOcrCapabilities({ fetchCached: false });
   if (!caps || !caps.eligible) {
     state.shell.showToast(comicOcrCapabilityMessage(caps) || state.shell.t("comicOcrUnavailable"));
     return;
