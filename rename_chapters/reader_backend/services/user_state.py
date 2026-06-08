@@ -59,10 +59,7 @@ def normalize_translate_mode(value: Any, default: str = "server") -> str:
 
 def normalize_vbook_ext_translate_settings(value: Any) -> dict[str, Any]:
     raw = value if isinstance(value, dict) else {}
-    source_lang = str(raw.get("source_lang") or "trust_ext").strip().lower().replace("_", "-") or "trust_ext"
-    if source_lang in {"auto", "auto-detect", "detect"}:
-        source_lang = "auto_story"
-    if source_lang not in {
+    allowed_sources = {
         "auto_story",
         "trust_ext",
         "zh",
@@ -75,8 +72,16 @@ def normalize_vbook_ext_translate_settings(value: Any) -> dict[str, Any]:
         "de",
         "ru",
         "es",
-    }:
-        source_lang = source_lang.split("-", 1)[0] or "trust_ext"
+    }
+    source_lang = str(raw.get("source_lang") or "trust_ext").strip().lower().replace("-", "_") or "trust_ext"
+    if source_lang in {"auto", "auto_detect", "detect"}:
+        source_lang = "auto_story"
+    elif source_lang in {"trust", "trust_extension"}:
+        source_lang = "trust_ext"
+    if source_lang not in allowed_sources:
+        source_lang = source_lang.replace("_", "-").split("-", 1)[0] or "trust_ext"
+    if source_lang not in allowed_sources:
+        source_lang = "trust_ext"
     return {
         "plugin_id": str(raw.get("plugin_id") or "").strip(),
         "source_lang": source_lang,

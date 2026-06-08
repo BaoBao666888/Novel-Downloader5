@@ -2249,6 +2249,7 @@ class TranslationAdapter:
         mode: str = "server",
         name_set_override: dict[str, str] | None = None,
         vp_set_override: dict[str, str] | None = None,
+        source_lang_override: str = "",
     ) -> dict[str, Any]:
         mode_norm = (mode or "server").strip().lower()
         if mode_norm not in {"server", "local", "hanviet", "dichngay_local", "vbook_ext"}:
@@ -2279,9 +2280,14 @@ class TranslationAdapter:
             payload["vp_set"] = normalize_name_set(vp_set_override or {})
         if mode_norm == "vbook_ext":
             reader_cfg = self.app_config.get("reader_translation") if isinstance(self.app_config, dict) else {}
-            payload["vbook_ext"] = service_user_state_support.normalize_vbook_ext_translate_settings(
+            vbook_ext_payload = service_user_state_support.normalize_vbook_ext_translate_settings(
                 reader_cfg.get("vbook_ext") if isinstance(reader_cfg, dict) else None
             )
+            override_source = str(source_lang_override or "").strip()
+            if override_source:
+                override_cfg = service_user_state_support.normalize_vbook_ext_translate_settings({"source_lang": override_source})
+                vbook_ext_payload["source_lang"] = override_cfg.get("source_lang") or vbook_ext_payload.get("source_lang") or "trust_ext"
+            payload["vbook_ext"] = vbook_ext_payload
         return payload
 
     def translation_signature(
@@ -2289,11 +2295,13 @@ class TranslationAdapter:
         mode: str = "server",
         name_set_override: dict[str, str] | None = None,
         vp_set_override: dict[str, str] | None = None,
+        source_lang_override: str = "",
     ) -> str:
         payload = self.translation_signature_payload(
             mode=mode,
             name_set_override=name_set_override,
             vp_set_override=vp_set_override,
+            source_lang_override=source_lang_override,
         )
         raw = json.dumps(payload, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
         return hashlib.sha1(raw.encode("utf-8", errors="ignore")).hexdigest()
@@ -2304,6 +2312,7 @@ class TranslationAdapter:
         mode: str = "server",
         name_set_override: dict[str, str] | None = None,
         vp_set_override: dict[str, str] | None = None,
+        source_lang_override: str = "",
     ) -> dict[str, Any]:
         started = time.perf_counter()
         source = (text or "").strip()
@@ -2363,7 +2372,12 @@ class TranslationAdapter:
                 raise RuntimeError("Chưa chọn extension dịch vBook. Cài/chọn plugin Translate trong Dịch & xử lý.")
             if not callable(self.vbook_translate_callback):
                 raise RuntimeError("vBook Translate chưa sẵn sàng. Kiểm tra vBook runner trong Quản lý nguồn.")
-            source_lang = str(ext_cfg.get("source_lang") or "trust_ext").strip().lower()
+            override_source = str(source_lang_override or "").strip()
+            if override_source:
+                override_cfg = service_user_state_support.normalize_vbook_ext_translate_settings({"source_lang": override_source})
+                source_lang = str(override_cfg.get("source_lang") or "trust_ext").strip().lower()
+            else:
+                source_lang = str(ext_cfg.get("source_lang") or "trust_ext").strip().lower()
             from_lang = "" if source_lang in {"auto_story", "trust_ext"} else source_lang
             target_lang = str(ext_cfg.get("target_lang") or "vi").strip().lower() or "vi"
             translated = normalize_newlines(
@@ -5146,6 +5160,57 @@ class ReaderService:
         base = payload if isinstance(payload, dict) else {}
         return self._normalized_reader_translation_settings({"reader_translation": base})
 
+    def _vbook_translate_plugin_locale(self, plugin: Any) -> tuple[bool, str]:
+        raw = str(getattr(plugin, "locale", "") or "").strip()
+        raw_norm = raw.lower().replace("-", "_")
+        if raw_norm in {"global", "all", "multi", "multilingual", "*"}:
+            return True, ""
+        return False, normalize_lang_source(raw)
+
+    def _vbook_translate_source_override(
+        self,
+        *,
+        ext_cfg: dict[str, Any],
+        plugin: Any,
+        source_lang: str,
+    ) -> str:
+        source = normalize_lang_source(str(source_lang or ""))
+        if not source:
+            return ""
+        configured_source = str(ext_cfg.get("source_lang") or "trust_ext").strip().lower()
+        locale_is_global, locale_source = self._vbook_translate_plugin_locale(plugin)
+        if configured_source == "trust_ext" and (not locale_is_global) and locale_source:
+            return ""
+        return source
+
+    def _remember_book_vbook_source_lang(self, book_id: str, source_lang: str, *, mode: str = "vbook_ext") -> None:
+        bid = str(book_id or "").strip()
+        source = normalize_lang_source(str(source_lang or ""))
+        if not bid or not source:
+            return
+        try:
+            settings = self.reader_translation_settings_for_book(bid)
+            ext_cfg = service_user_state_support.normalize_vbook_ext_translate_settings(
+                settings.get("vbook_ext") if isinstance(settings, dict) else None
+            )
+            current_source = str(ext_cfg.get("source_lang") or "").strip().lower()
+            current_mode = self._normalize_translate_mode(settings.get("mode") if isinstance(settings, dict) else None, "local")
+            if current_source == source and current_mode == mode:
+                return
+            self.set_reader_settings(
+                {
+                    "translation": {
+                        "mode": mode,
+                        "vbook_ext": {
+                            "source_lang": source,
+                        },
+                    },
+                },
+                book_id=bid,
+            )
+        except Exception:
+            pass
+
     def reader_translation_settings_for_book(self, book_id: str | None = None) -> dict[str, Any]:
         bid = str(book_id or "").strip()
         if not bid:
@@ -5753,7 +5818,7 @@ class ReaderService:
         return capabilities
 
     def start_comic_ocr_chapter_translation(self, payload: dict[str, Any]) -> dict[str, Any]:
-        context = self._prepare_comic_ocr_context(payload)
+        context = self._prepare_comic_ocr_context(payload, remember_book_source_lang=True)
         cached_result = self._build_comic_ocr_result_from_cache(context)
         if cached_result is not None:
             return {"ok": True, "cached": True, "result": cached_result}
@@ -5807,6 +5872,7 @@ class ReaderService:
         chapter_id: str,
         source_lang: str = "",
         target_lang: str = "",
+        translation_mode: str = "",
     ) -> dict[str, Any]:
         context = self._prepare_comic_ocr_context(
             {
@@ -5814,6 +5880,7 @@ class ReaderService:
                 "chapter_id": chapter_id,
                 "source_lang": source_lang,
                 "target_lang": target_lang,
+                "translation_mode": translation_mode,
                 "mode": "overlay",
             },
             allow_missing_cached_pages=True,
@@ -5834,6 +5901,7 @@ class ReaderService:
         payload: dict[str, Any],
         *,
         allow_missing_cached_pages: bool = False,
+        remember_book_source_lang: bool = False,
     ) -> dict[str, Any]:
         body = payload if isinstance(payload, dict) else {}
         book_id = str(body.get("book_id") or "").strip()
@@ -5903,7 +5971,10 @@ class ReaderService:
                 str(engine_status.get("message") or "OCR engine chưa sẵn sàng."),
                 engine_status,
             )
-        translate_mode = self.resolve_translate_mode(body.get("translation_mode") or "server")
+        reader_translation_settings = self.reader_translation_settings_for_book(book_id)
+        translator = self.translator_for_book(book_id)
+        translate_mode = self.resolve_translate_mode_for_book(body.get("translation_mode") or None, book_id)
+        source_lang_override = ""
         if source_lang and not is_lang_zh(source_lang) and translate_mode != "vbook_ext":
             raise ApiError(
                 HTTPStatus.BAD_REQUEST,
@@ -5911,9 +5982,8 @@ class ReaderService:
                 "Nguồn ảnh không phải tiếng Trung. Hãy chọn extension dịch vBook trong Dịch & xử lý để dịch OCR ngôn ngữ này.",
             )
         if translate_mode == "vbook_ext":
-            reader_cfg = self.app_config.get("reader_translation") if isinstance(self.app_config, dict) else {}
             ext_cfg = service_user_state_support.normalize_vbook_ext_translate_settings(
-                reader_cfg.get("vbook_ext") if isinstance(reader_cfg, dict) else None
+                reader_translation_settings.get("vbook_ext") if isinstance(reader_translation_settings, dict) else None
             )
             plugin_id = str(ext_cfg.get("plugin_id") or "").strip()
             if not plugin_id:
@@ -5927,9 +5997,16 @@ class ReaderService:
                 raise ApiError(HTTPStatus.BAD_REQUEST, "VBOOK_TRANSLATE_EXTENSION_INVALID", "Plugin đã chọn không phải extension dịch vBook.")
             if not self._resolve_translate_plugin_script(plugin):
                 raise ApiError(HTTPStatus.BAD_REQUEST, "VBOOK_TRANSLATE_EXTENSION_INVALID", "Extension dịch vBook thiếu script `translate`.")
-            if not callable(self.vbook_translate_callback):
+            if not callable(getattr(translator, "vbook_translate_callback", None)):
                 raise ApiError(HTTPStatus.BAD_REQUEST, "VBOOK_TRANSLATE_NOT_READY", "vBook Translate chưa sẵn sàng. Kiểm tra vBook runner trong Quản lý nguồn.")
-        translation_signature = self.translator.translation_signature(mode=translate_mode)
+            source_lang_override = self._vbook_translate_source_override(
+                ext_cfg=ext_cfg,
+                plugin=plugin,
+                source_lang=source_lang,
+            )
+            if remember_book_source_lang and source_lang_override:
+                self._remember_book_vbook_source_lang(book_id, source_lang_override, mode=translate_mode)
+        translation_signature = translator.translation_signature(mode=translate_mode, source_lang_override=source_lang_override)
         engine = str(engine_status.get("engine") or self.comic_ocr_settings.get("engine") or "paddleocr")
         engine_version = str(
             engine_status.get("version")
@@ -5978,6 +6055,8 @@ class ReaderService:
             "settings": dict(self.comic_ocr_settings or {}),
             "translation_signature": translation_signature,
             "translate_mode": translate_mode,
+            "translator": translator,
+            "source_lang_override": source_lang_override,
         }
 
     def _run_comic_ocr_job(self, job_id: str, context: dict[str, Any]) -> None:
@@ -6029,8 +6108,9 @@ class ReaderService:
                         block["order"] = idx + 1
                     blocks = comic_ocr_translate_support.translate_blocks(
                         blocks,
-                        translator=self.translator,
+                        translator=context.get("translator") or self.translator,
                         translate_mode=context["translate_mode"],
+                        source_lang=str(context.get("source_lang_override") or ""),
                         normalize_vi_display_text=normalize_vi_display_text,
                         strict=context["translate_mode"] == "vbook_ext",
                     )

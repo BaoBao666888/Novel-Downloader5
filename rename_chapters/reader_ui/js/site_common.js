@@ -791,9 +791,10 @@ function localTranslationStateKey(value) {
 function normalizeVbookTranslateSettings(value) {
   const raw = value && typeof value === "object" ? value : {};
   const allowedSources = new Set(TRANSLATE_SOURCE_LANG_OPTIONS.map(([lang]) => lang));
-  let sourceLang = String(raw.source_lang || "trust_ext").trim().toLowerCase().replace(/_/g, "-") || "trust_ext";
-  if (sourceLang === "auto" || sourceLang === "auto-detect" || sourceLang === "detect") sourceLang = "auto_story";
-  if (!allowedSources.has(sourceLang)) sourceLang = sourceLang.split("-", 1)[0] || "trust_ext";
+  let sourceLang = String(raw.source_lang || "trust_ext").trim().toLowerCase().replace(/-/g, "_") || "trust_ext";
+  if (sourceLang === "auto" || sourceLang === "auto_detect" || sourceLang === "detect") sourceLang = "auto_story";
+  if (sourceLang === "trust" || sourceLang === "trust_extension") sourceLang = "trust_ext";
+  if (!allowedSources.has(sourceLang)) sourceLang = sourceLang.replace(/_/g, "-").split("-", 1)[0] || "trust_ext";
   if (!allowedSources.has(sourceLang)) sourceLang = "trust_ext";
   return {
     plugin_id: String(raw.plugin_id || "").trim(),

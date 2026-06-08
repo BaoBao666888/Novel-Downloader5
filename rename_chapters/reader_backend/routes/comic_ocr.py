@@ -39,6 +39,7 @@ def handle_api(
             chapter_id=unquote(_query_first(query, "chapter_id")).strip(),
             source_lang=_query_first(query, "source_lang"),
             target_lang=_query_first(query, "target_lang"),
+            translation_mode=_query_first(query, "translation_mode"),
         )
     if method == "DELETE" and path == "/api/comic-ocr/chapter/cache":
         body: dict[str, Any] = {}

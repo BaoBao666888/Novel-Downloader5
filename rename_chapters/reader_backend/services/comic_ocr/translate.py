@@ -62,6 +62,7 @@ def translate_blocks(
     *,
     translator,
     translate_mode: str,
+    source_lang: str = "",
     normalize_vi_display_text,
     strict: bool = False,
 ) -> list[dict[str, Any]]:
@@ -73,7 +74,11 @@ def translate_blocks(
         translated = ""
         if source_text:
             try:
-                detail = translator.translate_detailed(source_text, mode=translate_mode)
+                detail = translator.translate_detailed(
+                    source_text,
+                    mode=translate_mode,
+                    source_lang_override=source_lang,
+                )
                 translated = normalize_vi_display_text(str(detail.get("translated") or "").strip())
             except Exception:
                 if strict:

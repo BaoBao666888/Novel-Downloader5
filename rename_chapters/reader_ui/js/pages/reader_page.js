@@ -1050,7 +1050,8 @@ async function fetchComicOcrCachedResult() {
   if (!caps.eligible) return null;
   const sourceLang = resolveComicOcrSourceLang();
   const targetLang = String(state.comicOcrTargetLang || "vi").trim() || "vi";
-  const url = `/api/comic-ocr/chapter/result?book_id=${encodeURIComponent(state.bookId)}&chapter_id=${encodeURIComponent(state.chapterId)}&source_lang=${encodeURIComponent(sourceLang)}&target_lang=${encodeURIComponent(targetLang)}`;
+  const translationMode = normalizeTranslateMode(state.translateMode || "server");
+  const url = `/api/comic-ocr/chapter/result?book_id=${encodeURIComponent(state.bookId)}&chapter_id=${encodeURIComponent(state.chapterId)}&source_lang=${encodeURIComponent(sourceLang)}&target_lang=${encodeURIComponent(targetLang)}&translation_mode=${encodeURIComponent(translationMode)}`;
   const data = await state.shell.api(url);
   if (data && data.cached && data.result) {
     state.comicOcrResult = data.result;
@@ -1090,6 +1091,7 @@ async function startComicOcrTranslation() {
   state.comicOcrStatusText = state.shell.t("comicOcrQueued");
   syncComicOcrControls();
   try {
+    const translationMode = normalizeTranslateMode(state.translateMode || "server");
     const data = await state.shell.api("/api/comic-ocr/chapter/translate", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -1100,7 +1102,7 @@ async function startComicOcrTranslation() {
         target_lang: state.comicOcrTargetLang || "vi",
         mode: "overlay",
         pages: [],
-        translation_mode: state.translateMode || "server",
+        translation_mode: translationMode,
       }),
     });
     if (data && data.cached && data.result) {
