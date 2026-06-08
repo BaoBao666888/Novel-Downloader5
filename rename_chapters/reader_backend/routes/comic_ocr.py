@@ -25,5 +25,29 @@ def handle_api(
         if not book_id:
             raise api_error_cls(http_status.BAD_REQUEST, "BAD_REQUEST", "Thiếu book_id.")
         return handler.service.get_comic_ocr_capabilities(book_id)
+    if method == "POST" and path == "/api/comic-ocr/chapter/translate":
+        payload = handler._read_json_body()
+        return handler.service.start_comic_ocr_chapter_translation(payload)
+    if method == "GET" and path.startswith("/api/comic-ocr/jobs/"):
+        job_id = unquote(path.removeprefix("/api/comic-ocr/jobs/").strip("/")).strip()
+        if not job_id:
+            raise api_error_cls(http_status.BAD_REQUEST, "BAD_REQUEST", "Thiếu job_id.")
+        return handler.service.get_comic_ocr_job(job_id)
+    if method == "GET" and path == "/api/comic-ocr/chapter/result":
+        return handler.service.get_comic_ocr_chapter_result(
+            book_id=unquote(_query_first(query, "book_id")).strip(),
+            chapter_id=unquote(_query_first(query, "chapter_id")).strip(),
+            source_lang=_query_first(query, "source_lang"),
+            target_lang=_query_first(query, "target_lang"),
+        )
+    if method == "DELETE" and path == "/api/comic-ocr/chapter/cache":
+        body: dict[str, Any] = {}
+        try:
+            body = handler._read_json_body()
+        except Exception:
+            body = {}
+        return handler.service.clear_comic_ocr_chapter_cache(
+            book_id=str(body.get("book_id") or unquote(_query_first(query, "book_id"))).strip(),
+            chapter_id=str(body.get("chapter_id") or unquote(_query_first(query, "chapter_id"))).strip(),
+        )
     return None
-

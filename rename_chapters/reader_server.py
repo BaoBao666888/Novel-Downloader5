@@ -72,7 +72,11 @@ from reader_backend.services import local_import as service_local_import_support
 from reader_backend.services import name_filter as service_name_filter_support
 from reader_backend.services import user_state as service_user_state_support
 from reader_backend.services.comic_ocr import eligibility as comic_ocr_eligibility_support
+from reader_backend.services.comic_ocr import cache as comic_ocr_cache_support
+from reader_backend.services.comic_ocr import image_source as comic_ocr_image_source_support
+from reader_backend.services.comic_ocr import jobs as comic_ocr_jobs_support
 from reader_backend.services.comic_ocr import ocr_engine as comic_ocr_engine_support
+from reader_backend.services.comic_ocr import translate as comic_ocr_translate_support
 from reader_backend.services.vbook import detail_raw as service_vbook_detail_raw_support
 from reader_backend.services.vbook import detail_response as service_vbook_detail_response_support
 from reader_backend.services.vbook import detail_sections as service_vbook_detail_sections_support
@@ -4170,6 +4174,11 @@ class ReaderService:
         self._name_filter_cv = threading.Condition(self._name_filter_lock)
         self._name_filter_jobs: dict[str, dict[str, Any]] = {}
         self._name_filter_threads: dict[str, threading.Thread] = {}
+        self._comic_ocr_lock = threading.RLock()
+        self._comic_ocr_cv = threading.Condition(self._comic_ocr_lock)
+        self._comic_ocr_jobs: dict[str, dict[str, Any]] = {}
+        self._comic_ocr_threads: dict[str, threading.Thread] = {}
+        self._comic_ocr_sem = threading.BoundedSemaphore(1)
         self._library_title_cache_lock = threading.RLock()
         self._library_title_cache_cv = threading.Condition(self._library_title_cache_lock)
         self._library_title_cache_queue: list[str] = []
@@ -5513,6 +5522,351 @@ class ReaderService:
             capabilities["eligible"] = False
             capabilities["reason"] = str(status.get("reason") or "OCR_ENGINE_NOT_READY")
         return capabilities
+
+    def start_comic_ocr_chapter_translation(self, payload: dict[str, Any]) -> dict[str, Any]:
+        context = self._prepare_comic_ocr_context(payload)
+        cached_result = self._build_comic_ocr_result_from_cache(context)
+        if cached_result is not None:
+            return {"ok": True, "cached": True, "result": cached_result}
+
+        now = utc_now_iso()
+        seed = f"{context['book_id']}|{context['chapter_id']}|comic-ocr|{now}|{uuid.uuid4().hex}"
+        job_id = f"co_{hash_text(seed)}"
+        job = {
+            "job_id": job_id,
+            "book_id": context["book_id"],
+            "chapter_id": context["chapter_id"],
+            "source_lang": context["source_lang"],
+            "target_lang": context["target_lang"],
+            "mode": context["mode"],
+            "status": "queued",
+            "done_pages": 0,
+            "total_pages": len(context["sources"]),
+            "message": "Đang chờ OCR ảnh...",
+            "error_code": "",
+            "created_at": now,
+            "started_at": "",
+            "updated_at": now,
+            "finished_at": "",
+            "result": None,
+        }
+        worker = threading.Thread(
+            target=self._run_comic_ocr_job,
+            args=(job_id, context),
+            name=f"ReaderComicOcr-{job_id[:8]}",
+            daemon=True,
+        )
+        with self._comic_ocr_cv:
+            self._comic_ocr_jobs[job_id] = job
+            self._comic_ocr_threads[job_id] = worker
+            worker.start()
+            self._comic_ocr_cv.notify_all()
+        return {"ok": True, "cached": False, "job_id": job_id, "status": "queued"}
+
+    def get_comic_ocr_job(self, job_id: str) -> dict[str, Any]:
+        jid = str(job_id or "").strip()
+        with self._comic_ocr_cv:
+            job = self._comic_ocr_jobs.get(jid)
+            if not job:
+                raise ApiError(HTTPStatus.NOT_FOUND, "NOT_FOUND", "Không tìm thấy job OCR.")
+            return comic_ocr_jobs_support.serialize_job(job)
+
+    def get_comic_ocr_chapter_result(
+        self,
+        *,
+        book_id: str,
+        chapter_id: str,
+        source_lang: str = "",
+        target_lang: str = "",
+    ) -> dict[str, Any]:
+        context = self._prepare_comic_ocr_context(
+            {
+                "book_id": book_id,
+                "chapter_id": chapter_id,
+                "source_lang": source_lang,
+                "target_lang": target_lang,
+                "mode": "overlay",
+            },
+            allow_missing_cached_pages=True,
+        )
+        cached_result = self._read_comic_ocr_chapter_manifest(context) or self._build_comic_ocr_result_from_cache(context)
+        return {"ok": True, "cached": bool(cached_result), "result": cached_result}
+
+    def clear_comic_ocr_chapter_cache(self, *, book_id: str, chapter_id: str) -> dict[str, Any]:
+        bid = str(book_id or "").strip()
+        cid = str(chapter_id or "").strip()
+        if not bid or not cid:
+            raise ApiError(HTTPStatus.BAD_REQUEST, "BAD_REQUEST", "Thiếu book_id hoặc chapter_id.")
+        deleted = comic_ocr_cache_support.delete_chapter_family(CACHE_DIR, book_id=bid, chapter_id=cid)
+        return {"ok": True, "book_id": bid, "chapter_id": cid, "deleted": deleted}
+
+    def _prepare_comic_ocr_context(
+        self,
+        payload: dict[str, Any],
+        *,
+        allow_missing_cached_pages: bool = False,
+    ) -> dict[str, Any]:
+        body = payload if isinstance(payload, dict) else {}
+        book_id = str(body.get("book_id") or "").strip()
+        chapter_id = str(body.get("chapter_id") or "").strip()
+        if not book_id or not chapter_id:
+            raise ApiError(HTTPStatus.BAD_REQUEST, "BAD_REQUEST", "Thiếu book_id hoặc chapter_id.")
+        book = self.storage.find_book(book_id)
+        if not book:
+            raise ApiError(HTTPStatus.NOT_FOUND, "NOT_FOUND", "Không tìm thấy truyện.")
+        chapter = self.storage.find_chapter(chapter_id)
+        if not chapter or str(chapter.get("book_id") or "") != book_id:
+            raise ApiError(HTTPStatus.NOT_FOUND, "NOT_FOUND", "Không tìm thấy chương.")
+        capabilities = self.get_comic_ocr_capabilities(book_id)
+        if not capabilities.get("eligible"):
+            raise ApiError(
+                HTTPStatus.BAD_REQUEST,
+                str(capabilities.get("reason") or "COMIC_OCR_NOT_ELIGIBLE"),
+                "Truyện/chương này chưa thể dịch OCR ảnh.",
+                capabilities,
+            )
+
+        source_lang = normalize_lang_source(str(body.get("source_lang") or capabilities.get("default_source_lang") or ""))
+        if not source_lang and capabilities.get("source_lang_required"):
+            raise ApiError(HTTPStatus.BAD_REQUEST, "SOURCE_LANG_REQUIRED", "Cần chọn ngôn ngữ gốc trước khi dịch ảnh.")
+        if source_lang not in set(capabilities.get("supported_source_langs") or []):
+            raise ApiError(HTTPStatus.BAD_REQUEST, "UNSUPPORTED_SOURCE_LANG", "Ngôn ngữ gốc chưa được hỗ trợ.")
+        target_lang = normalize_lang_source(str(body.get("target_lang") or capabilities.get("target_lang") or "vi")) or "vi"
+        if target_lang != "vi":
+            raise ApiError(HTTPStatus.BAD_REQUEST, "UNSUPPORTED_TARGET_LANG", "MVP hiện chỉ hỗ trợ dịch sang tiếng Việt.")
+        mode = str(body.get("mode") or capabilities.get("mode") or "overlay").strip().lower() or "overlay"
+        if mode != "overlay":
+            raise ApiError(HTTPStatus.BAD_REQUEST, "UNSUPPORTED_MODE", "MVP hiện chỉ hỗ trợ overlay.")
+
+        raw_text = self.storage.get_chapter_text(
+            chapter,
+            book,
+            mode="raw",
+            translator=self.translator,
+            translate_mode="server",
+            allow_remote_fetch=True,
+        )
+        images = extract_comic_image_urls(raw_text)
+        if not images:
+            payload_obj = decode_comic_payload(raw_text) or {}
+            images = [str(x).strip() for x in (payload_obj.get("images") or []) if str(x).strip()]
+        if not images:
+            raise ApiError(HTTPStatus.BAD_REQUEST, "COMIC_IMAGES_EMPTY", "Chương này chưa có danh sách ảnh comic.")
+        max_pages = int(self.comic_ocr_settings.get("max_pages_per_job") or 80)
+        if len(images) > max_pages and not allow_missing_cached_pages:
+            raise ApiError(
+                HTTPStatus.BAD_REQUEST,
+                "COMIC_OCR_TOO_MANY_PAGES",
+                f"Chapter có {len(images)} ảnh, vượt giới hạn {max_pages} ảnh/job.",
+            )
+        sources = comic_ocr_image_source_support.build_image_sources(
+            images,
+            book=book,
+            chapter=chapter,
+            build_vbook_image_proxy_path=build_vbook_image_proxy_path,
+            vbook_image_cache_key=vbook_image_cache_key,
+        )
+        engine_status = comic_ocr_engine_support.engine_status(self.comic_ocr_settings)
+        if not engine_status.get("ready"):
+            raise ApiError(
+                HTTPStatus.BAD_REQUEST,
+                str(engine_status.get("reason") or "OCR_ENGINE_NOT_READY"),
+                "OCR engine chưa sẵn sàng.",
+                engine_status,
+            )
+        translate_mode = self.resolve_translate_mode(body.get("translation_mode") or "server")
+        translation_signature = self.translator.translation_signature(mode=translate_mode)
+        engine = str(engine_status.get("engine") or self.comic_ocr_settings.get("engine") or "paddleocr")
+        engine_version = str(engine_status.get("version") or comic_ocr_engine_support.engine_version(self.comic_ocr_settings))
+        page_keys = {
+            source.index: comic_ocr_cache_support.page_cache_key(
+                book_id=book_id,
+                chapter_id=chapter_id,
+                image_key=source.image_key,
+                source_lang=source_lang,
+                target_lang=target_lang,
+                engine=engine,
+                engine_version=engine_version,
+                translation_signature=translation_signature,
+                hash_text=hash_text,
+            )
+            for source in sources
+        }
+        chapter_key = comic_ocr_cache_support.chapter_cache_key(
+            book_id=book_id,
+            chapter_id=chapter_id,
+            source_lang=source_lang,
+            target_lang=target_lang,
+            engine=engine,
+            engine_version=engine_version,
+            translation_signature=translation_signature,
+            hash_text=hash_text,
+        )
+        return {
+            "book": book,
+            "chapter": chapter,
+            "book_id": book_id,
+            "chapter_id": chapter_id,
+            "source_lang": source_lang,
+            "target_lang": target_lang,
+            "mode": mode,
+            "sources": sources,
+            "page_keys": page_keys,
+            "chapter_key": chapter_key,
+            "engine": engine,
+            "engine_version": engine_version,
+            "settings": dict(self.comic_ocr_settings or {}),
+            "translation_signature": translation_signature,
+            "translate_mode": translate_mode,
+        }
+
+    def _run_comic_ocr_job(self, job_id: str, context: dict[str, Any]) -> None:
+        acquired = False
+        try:
+            self._comic_ocr_sem.acquire()
+            acquired = True
+            with self._comic_ocr_cv:
+                job = self._comic_ocr_jobs.get(job_id)
+                if not job:
+                    return
+                now = utc_now_iso()
+                job["status"] = "running"
+                job["started_at"] = now
+                job["updated_at"] = now
+                job["message"] = "Đang OCR ảnh comic..."
+                self._comic_ocr_cv.notify_all()
+
+            total = len(context["sources"])
+            done = 0
+            for source in context["sources"]:
+                page_key = context["page_keys"].get(source.index)
+                page = comic_ocr_cache_support.read_page(CACHE_DIR, page_key) if page_key else None
+                if page is None:
+                    self._update_comic_ocr_job(
+                        job_id,
+                        status="running",
+                        done_pages=done,
+                        message=f"OCR trang {source.index + 1}/{max(total, 1)}",
+                    )
+                    data, _content_type = self.fetch_vbook_image(
+                        image_url=source.image_url,
+                        plugin_id=source.plugin_id,
+                        referer=source.referer,
+                        use_cache=True,
+                    )
+                    width, height = comic_ocr_image_source_support.image_size_from_bytes(data)
+                    blocks = comic_ocr_engine_support.recognize(
+                        data,
+                        source_lang=context["source_lang"],
+                        settings=context["settings"],
+                        width=width,
+                        height=height,
+                    )
+                    for idx, block in enumerate(blocks):
+                        block["id"] = f"p{source.index}_b{idx}"
+                        block["order"] = idx + 1
+                    blocks = comic_ocr_translate_support.translate_blocks(
+                        blocks,
+                        translator=self.translator,
+                        translate_mode=context["translate_mode"],
+                        normalize_vi_display_text=normalize_vi_display_text,
+                    )
+                    page = {
+                        "index": source.index,
+                        "image_url": source.display_url,
+                        "image_key": source.image_key,
+                        "width": width,
+                        "height": height,
+                        "blocks": blocks,
+                    }
+                    if page_key:
+                        comic_ocr_cache_support.write_page(CACHE_DIR, page_key, page)
+                done += 1
+                self._update_comic_ocr_job(
+                    job_id,
+                    status="running",
+                    done_pages=done,
+                    message=f"Đã OCR {done}/{max(total, 1)} trang",
+                )
+
+            result = self._build_comic_ocr_result_from_cache(context)
+            if result is None:
+                raise RuntimeError("Không tạo được kết quả OCR từ cache page.")
+            comic_ocr_cache_support.write_chapter(CACHE_DIR, context["chapter_key"], result)
+            with self._comic_ocr_cv:
+                job = self._comic_ocr_jobs.get(job_id)
+                if not job:
+                    return
+                now = utc_now_iso()
+                job["status"] = "completed"
+                job["done_pages"] = total
+                job["message"] = "Đã dịch ảnh comic."
+                job["error_code"] = ""
+                job["updated_at"] = now
+                job["finished_at"] = now
+                job["result"] = result
+                self._comic_ocr_cv.notify_all()
+        except comic_ocr_engine_support.ComicOcrEngineError as exc:
+            self._fail_comic_ocr_job(job_id, str(exc.code or "OCR_FAILED"), str(exc.message or "OCR ảnh thất bại."))
+        except ApiError as exc:
+            self._fail_comic_ocr_job(job_id, str(exc.error_code or "COMIC_OCR_FAILED"), str(exc.message or "Dịch ảnh thất bại."))
+        except Exception as exc:
+            self._fail_comic_ocr_job(job_id, "COMIC_OCR_FAILED", str(exc) or "Dịch ảnh thất bại.")
+        finally:
+            if acquired:
+                try:
+                    self._comic_ocr_sem.release()
+                except Exception:
+                    pass
+
+    def _update_comic_ocr_job(self, job_id: str, **updates: Any) -> None:
+        with self._comic_ocr_cv:
+            job = self._comic_ocr_jobs.get(job_id)
+            if not job:
+                return
+            job.update(updates)
+            job["updated_at"] = utc_now_iso()
+            self._comic_ocr_cv.notify_all()
+
+    def _fail_comic_ocr_job(self, job_id: str, error_code: str, message: str) -> None:
+        with self._comic_ocr_cv:
+            job = self._comic_ocr_jobs.get(job_id)
+            if not job:
+                return
+            now = utc_now_iso()
+            job["status"] = "failed"
+            job["error_code"] = str(error_code or "COMIC_OCR_FAILED")
+            job["message"] = str(message or "Dịch ảnh thất bại.")
+            job["updated_at"] = now
+            job["finished_at"] = now
+            self._comic_ocr_cv.notify_all()
+
+    def _read_comic_ocr_chapter_manifest(self, context: dict[str, Any]) -> dict[str, Any] | None:
+        result = comic_ocr_cache_support.read_chapter(CACHE_DIR, str(context.get("chapter_key") or ""))
+        if not isinstance(result, dict):
+            return None
+        return result
+
+    def _build_comic_ocr_result_from_cache(self, context: dict[str, Any]) -> dict[str, Any] | None:
+        pages: list[dict[str, Any]] = []
+        for source in context["sources"]:
+            page_key = context["page_keys"].get(source.index)
+            page = comic_ocr_cache_support.read_page(CACHE_DIR, page_key) if page_key else None
+            if page is None:
+                return None
+            pages.append(page)
+        result = {
+            "chapter_id": context["chapter_id"],
+            "source_lang": context["source_lang"],
+            "target_lang": context["target_lang"],
+            "engine": context["engine"],
+            "engine_version": context["engine_version"],
+            "pages": sorted(pages, key=lambda item: int(item.get("index") or 0)),
+            "created_at": utc_now_iso(),
+            "updated_at": utc_now_iso(),
+        }
+        comic_ocr_cache_support.write_chapter(CACHE_DIR, context["chapter_key"], result)
+        return result
 
     def _contains_cjk_text(self, text: str) -> bool:
         return bool(re.search(r"[\u3400-\u9fff]", str(text or "")))
