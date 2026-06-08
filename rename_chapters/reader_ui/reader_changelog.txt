@@ -5,8 +5,9 @@
 > - Bấm nút này sẽ mở ngay trình duyệt tới link source của extension, tiện kiểm tra trang gốc hoặc đăng nhập/cookie.
 
 > [!FIX] Xóa profile trình duyệt đúng profile đang chọn
-> - Sửa lỗi xóa profile mặc định chỉ làm trình duyệt đóng rồi mở lại, nhưng profile không bị xóa.
-> - Khi dùng profile tên khác, thao tác xóa giờ xử lý đúng profile được chọn và không tự dựng lại profile cũ ngoài ý muốn.
+> - Khi đang ở `Profile 1` và bấm xóa, Reader sẽ xóa profile mặc định rồi chuyển sang profile khác nếu còn.
+> - Chỉ khi không còn profile nào khác, Reader mới tạo/fallback lại `Profile 1`.
+> - Tránh lỗi profile mặc định lòi lại ngay sau khi xóa dù máy vẫn còn profile khác.
 
 > [!NEW] OCR comic dùng model đã tải
 > - Nếu user đã tải đủ runtime/model OCR thì Reader dùng luôn khi dịch ảnh comic.

@@ -10288,6 +10288,15 @@ class WikidichMixin:
         self.browser_overlay.set_profile(profile_dir)
         self.after(200, self.browser_overlay.show)
 
+    def _wd_pick_profile_after_delete(self, deleted_profile: str) -> tuple[str, list]:
+        deleted = (deleted_profile or "").strip()
+        profiles = [
+            profile
+            for profile in self._wd_list_existing_profiles()
+            if profile and profile != deleted and os.path.isdir(self._wd_get_profile_dir(profile))
+        ]
+        return (profiles[0] if profiles else "Profile 1", profiles)
+
     def _wd_get_profile_dir(self, profile_name: Optional[str] = None) -> str:
         name = profile_name
         if not name and hasattr(self, "wd_profile_var"):
@@ -10585,9 +10594,8 @@ class WikidichMixin:
                     pass
         self._wd_scan_profiles()
         self._wd_sync_profiles_all_sites()
-        if current_profile == name and hasattr(self, "wd_profile_var"):
-            fallback_profiles = self._wd_list_existing_profiles()
-            fallback = fallback_profiles[0] if fallback_profiles else "Profile 1"
+        if (current_profile == name or deleting_browser_profile) and hasattr(self, "wd_profile_var"):
+            fallback, fallback_profiles = self._wd_pick_profile_after_delete(name)
             self.wd_profile_var.set(fallback)
             self._wd_on_profile_change(update_browser=False)
             browser_profile = fallback
