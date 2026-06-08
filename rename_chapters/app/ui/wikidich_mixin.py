@@ -10508,17 +10508,21 @@ class WikidichMixin:
         fallback_profiles = None
         was_running = False
         browser_profile = self._wd_get_browser_profile_name()
+        deleting_browser_profile = browser_profile == name
+        stopped_browser_for_delete = False
         if hasattr(self, "browser_overlay") and self.browser_overlay:
             try:
                 was_running = self.browser_overlay.is_running()
-                if was_running:
-                    self.browser_overlay.hide()
+                if was_running and deleting_browser_profile:
+                    self.browser_overlay.stop()
+                    stopped_browser_for_delete = True
             except Exception:
                 pass
         profile_dir = self._wd_get_profile_dir(name)
         cache_paths = self._wd_get_profile_cache_paths(name)
         recycle_dir = None
         moved = {}
+        had_profile_dir = os.path.isdir(profile_dir)
         for site, src in cache_paths.items():
             if src and os.path.isfile(src):
                 if not recycle_dir:
@@ -10535,14 +10539,23 @@ class WikidichMixin:
                     moved[site] = dest
                 except Exception:
                     pass
+        removed_profile_dir = False
         try:
             if os.path.isdir(profile_dir):
                 shutil.rmtree(profile_dir)
-        except Exception:
-            pass
+                removed_profile_dir = True
+        except Exception as exc:
+            if deleting_browser_profile:
+                messagebox.showerror("Lỗi", f"Không thể xóa profile '{name}': {exc}")
+                return False
+            try:
+                self.log(f"[App] Không thể xóa profile '{name}': {exc}")
+            except Exception:
+                pass
+            return False
         entries = self._wd_get_profile_recycle_entries()
         changed = False
-        if moved:
+        if moved or had_profile_dir or removed_profile_dir:
             entries[self._wd_profile_safe_name(name) or name] = {
                 "profile": name,
                 "deleted_at": time.time(),
@@ -10578,7 +10591,7 @@ class WikidichMixin:
             self.wd_profile_var.set(fallback)
             self._wd_on_profile_change(update_browser=False)
             browser_profile = fallback
-        if was_running:
+        if stopped_browser_for_delete:
             create_if_missing = False
             if fallback_profiles is not None:
                 create_if_missing = not bool(fallback_profiles)
