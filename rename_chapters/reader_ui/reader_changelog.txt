@@ -1,5 +1,10 @@
 # Changelog Reader
 
+> [!FIX] Wikidich bỏ màu tím khi truyện đã Hoàn thành
+> - Dòng màu tím vẫn báo truyện gốc đã hoàn thành trong lần kiểm tra cập nhật gần nhất.
+> - Nếu trạng thái dòng trên Wikidich đã chuyển sang `Hoàn thành`, Reader sẽ trả dòng đó về màu thường nếu không có cảnh báo/update mạnh hơn.
+> - Giúp danh sách màu tím chỉ còn các truyện gốc đã full nhưng Wikidich/local chưa đánh dấu full.
+
 > [!NEW] Khám phá mở được trang nguồn
 > - Khi đã chọn một nguồn trong trang `Khám phá`, nút `Trang nguồn` sẽ bật nếu metadata có link nguồn.
 > - Bấm nút này sẽ mở ngay trình duyệt tới link source của extension, tiện kiểm tra trang gốc hoặc đăng nhập/cookie.

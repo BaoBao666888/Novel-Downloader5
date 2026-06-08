@@ -1618,6 +1618,15 @@ class WikidichMixin:
         )
         return status_norm == "completed"
 
+    def _wd_is_book_completed(self, book: dict) -> bool:
+        if not isinstance(book, dict):
+            return False
+        for raw_status in (book.get("status_norm"), book.get("status")):
+            _, status_norm = self._wd_normalize_origin_status(raw_status)
+            if status_norm == "completed":
+                return True
+        return False
+
     def _wd_collect_texts(self, doc: BeautifulSoup, selectors):
         texts = []
         for selector in selectors or []:
@@ -1887,7 +1896,7 @@ class WikidichMixin:
             if book_id and isinstance(marked_ids, set) and book_id in marked_ids:
                 return "auto_marked_new"
             return "has_new"
-        if self._wd_is_origin_completed(book):
+        if self._wd_is_origin_completed(book) and not self._wd_is_book_completed(book):
             return "origin_completed"
         return ""
 
@@ -1959,8 +1968,8 @@ class WikidichMixin:
             },
             {
                 "tag": "origin_completed",
-                "title": "Truyện gốc đã hoàn thành",
-                "detail": "Dựa trên trạng thái của truyện gốc (Fanqie, Qidian, JJWXC, PO18, Ihuaben, Qimao...) quét ở lần Kiểm tra cập nhật gần nhất. Màu này chỉ hiện khi không có cảnh báo/update mạnh hơn.",
+                "title": "Truyện gốc đã hoàn thành, Wikidich chưa hoàn thành",
+                "detail": "Dựa trên trạng thái của truyện gốc (Fanqie, Qidian, JJWXC, PO18, Ihuaben, Qimao...) quét ở lần Kiểm tra cập nhật gần nhất. Khi dòng trên Wikidich đã chuyển sang Hoàn thành, màu tím sẽ tự về màu thường nếu không có cảnh báo/update mạnh hơn.",
                 "color": color_map["origin_completed"],
                 "count": counts["origin_completed"],
             },
