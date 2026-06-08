@@ -3688,6 +3688,38 @@ export async function initShell({ page, onSearchSubmit, onImported, onImportUrl,
       state.vbookTranslatePlugins = [];
     }
     syncVbookTranslateForm();
+    return state.vbookTranslatePlugins;
+  };
+
+  const saveReaderBookVbookSourceLang = async (sourceLang) => {
+    const source = normalizeVbookTranslateSettings({ source_lang: sourceLang }).source_lang;
+    const nextVbookExt = normalizeVbookTranslateSettings({
+      ...(state.readerTranslationVbookExt || {}),
+      source_lang: source,
+    });
+    const payload = {
+      ...(readerSettingsScoped ? { book_id: readerSettingsBookId } : {}),
+      translation: {
+        enabled: state.settings.translationEnabled !== false,
+        mode: VBOOK_EXT_TRANSLATION_MODE,
+        title_cache_auto: state.readerTranslationTitleCacheAuto !== false,
+        server: normalizeServerTranslationSettings(state.readerTranslationServer || {}),
+        local: normalizeLocalTranslationSettings(state.readerTranslationLocal || {}),
+        dichngay_local: normalizeLocalTranslationSettings(state.readerTranslationSimLocal || {}),
+        hanviet: normalizeLocalTranslationSettings(state.readerTranslationHanviet || {}),
+        vbook_ext: nextVbookExt,
+      },
+    };
+    const data = await api(readerSettingsUrl(), {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+    const serverTranslation = data && data.translation && typeof data.translation === "object"
+      ? data.translation
+      : payload.translation;
+    applyReaderTranslationSettings(serverTranslation, { emit: true });
+    return normalizeVbookTranslateSettings(state.readerTranslationVbookExt || nextVbookExt);
   };
 
   const syncReaderTranslationForm = () => {
@@ -5523,6 +5555,10 @@ export async function initShell({ page, onSearchSubmit, onImported, onImportUrl,
     getTranslationEnabled: () => state.settings.translationEnabled !== false,
     getTranslationMode: () => normalizeTranslationMode(state.settings.translationMode),
     getTranslationLocalSettings: (mode = state.settings.translationMode) => getLocalTranslationState(mode),
+    getVbookTranslateSettings: () => normalizeVbookTranslateSettings(state.readerTranslationVbookExt || {}),
+    getVbookTranslatePlugins: () => (Array.isArray(state.vbookTranslatePlugins) ? state.vbookTranslatePlugins.slice() : []),
+    ensureVbookTranslatePlugins: () => loadVbookTranslatePlugins(),
+    saveReaderBookVbookSourceLang,
     getVbookSettings: (pluginId = "") => runtimeEffectiveSettings(pluginId),
     getVbookGlobalSettings: () => normalizeVbookGlobalSettings(state.vbook.globalSettings || {}),
     refreshVbookSettings: (pluginId = "") => refreshVbookRuntimeSettings({ silent: true, pluginId }),

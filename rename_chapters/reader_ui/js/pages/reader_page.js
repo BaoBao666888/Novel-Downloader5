@@ -761,6 +761,109 @@ function comicOcrLangLabel(lang) {
   return value || "—";
 }
 
+function normalizePromptSourceLang(value) {
+  const allowed = new Set(["zh", "en", "ko", "ja", "vi", "th", "fr", "de", "ru", "es"]);
+  let lang = String(value || "").trim().toLowerCase().replace(/_/g, "-");
+  if (!lang) return "";
+  lang = lang.split("-", 1)[0];
+  return allowed.has(lang) ? lang : "";
+}
+
+function isGlobalVbookLocale(value) {
+  const locale = String(value || "").trim().toLowerCase().replace(/-/g, "_");
+  return locale === "global" || locale === "all" || locale === "multi" || locale === "multilingual" || locale === "*";
+}
+
+function vbookLocaleSourceLang(value) {
+  if (isGlobalVbookLocale(value)) return "";
+  return normalizePromptSourceLang(value);
+}
+
+function guessSourceLangFromText(value) {
+  const text = String(value || "");
+  if (/[\uac00-\ud7af]/.test(text)) return "ko";
+  if (/[\u3040-\u30ff]/.test(text)) return "ja";
+  if (/[\u0e00-\u0e7f]/.test(text)) return "th";
+  if (/[\u0400-\u04ff]/.test(text)) return "ru";
+  if (/[\u4e00-\u9fff]/.test(text)) return "zh";
+  if (/[ăâđêôơưáàảãạắằẳẵặấầẩẫậéèẻẽẹếềểễệíìỉĩịóòỏõọốồổỗộớờởỡợúùủũụứừửữựýỳỷỹỵ]/i.test(text)) return "vi";
+  return /[a-z]/i.test(text) ? "en" : "";
+}
+
+async function ensureVbookSourceLangBeforeNovelTranslate(chapterId, { signal = null } = {}) {
+  if (effectiveMode() !== "trans" || normalizeTranslateMode(state.translateMode) !== "vbook_ext") return true;
+  if (state.isComicHint === true || (state.book && state.book.is_comic)) return true;
+  if (!state.shell || typeof state.shell.getVbookTranslateSettings !== "function") return true;
+  const cfg = state.shell.getVbookTranslateSettings() || {};
+  const configuredSource = String(cfg.source_lang || "trust_ext").trim().toLowerCase();
+  if (configuredSource && !["trust_ext", "auto_story"].includes(configuredSource)) return true;
+
+  let plugins = typeof state.shell.getVbookTranslatePlugins === "function" ? state.shell.getVbookTranslatePlugins() : [];
+  if ((!Array.isArray(plugins) || !plugins.length) && typeof state.shell.ensureVbookTranslatePlugins === "function") {
+    try {
+      plugins = await state.shell.ensureVbookTranslatePlugins();
+    } catch {
+      plugins = [];
+    }
+  }
+  const pluginId = String(cfg.plugin_id || "").trim();
+  const plugin = Array.isArray(plugins)
+    ? plugins.find((item) => String((item && item.plugin_id) || "").trim() === pluginId)
+    : null;
+  if (!plugin) return true;
+  const pluginLocale = String((plugin && plugin.locale) || "").trim();
+  if (configuredSource === "trust_ext" && !isGlobalVbookLocale(pluginLocale) && vbookLocaleSourceLang(pluginLocale)) {
+    return true;
+  }
+
+  let sample = "";
+  try {
+    const rawChapter = await fetchChapterContent(chapterId, {
+      mode: "raw",
+      translationMode: state.translateMode,
+      signal,
+    });
+    sample = String((rawChapter && rawChapter.content) || "");
+  } catch (error) {
+    if (isAbortError(error)) throw error;
+  }
+  const guessed = guessSourceLangFromText(sample) || vbookLocaleSourceLang(pluginLocale) || "en";
+  const answer = await state.shell.promptDialog({
+    title: "Chọn ngôn ngữ nguồn",
+    message: "Extension dịch đang để locale global. Xác nhận ngôn ngữ nguồn cho riêng bộ này trước khi dịch.",
+    inputLabel: "Mã ngôn ngữ",
+    inputValue: guessed,
+    inputPlaceholder: "zh, en, ko, ja, vi, th, fr, de, ru, es",
+    inputMaxLength: 12,
+    confirmText: "Lưu",
+  });
+  if (answer == null) return false;
+  const sourceLang = normalizePromptSourceLang(answer);
+  if (!sourceLang) {
+    state.shell.showToast("Ngôn ngữ nguồn không hợp lệ. Dùng zh/en/ko/ja/vi/th/fr/de/ru/es.");
+    return false;
+  }
+  if (typeof state.shell.saveReaderBookVbookSourceLang === "function") {
+    await state.shell.saveReaderBookVbookSourceLang(sourceLang);
+  } else {
+    await state.shell.api(`/api/reader/settings?book_id=${encodeURIComponent(state.bookId)}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        book_id: state.bookId,
+        translation: {
+          mode: "vbook_ext",
+          vbook_ext: { source_lang: sourceLang },
+        },
+      }),
+    });
+  }
+  state.translateMode = "vbook_ext";
+  clearChapterCache();
+  syncModeButtons();
+  return true;
+}
+
 function resolveComicOcrSourceLang() {
   const caps = state.comicOcrCapabilities || {};
   const supported = Array.isArray(caps.supported_source_langs) ? caps.supported_source_langs.map((x) => String(x || "").trim()).filter(Boolean) : ["en"];
@@ -2618,6 +2721,14 @@ async function loadChapter({
     state.shell.showStatus(state.shell.t("statusLoadingChapter"));
   }
   try {
+    const canContinue = await ensureVbookSourceLangBeforeNovelTranslate(targetChapterId, { signal: controller.signal });
+    if (!canContinue) {
+      if (requestSeq === state.chapterLoadSeq) {
+        showReaderContentSkeleton(false);
+        state.shell.hideStatus();
+      }
+      return;
+    }
     const chapter = await fetchChapterContent(targetChapterId, {
       mode,
       translationMode,
