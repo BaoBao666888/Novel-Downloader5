@@ -2474,6 +2474,103 @@ function fitComicOcrOverlayLayer(layer) {
   });
 }
 
+function createComicOcrImageSampler(img) {
+  if (!img || !img.complete) return null;
+  const naturalWidth = Math.max(1, img.naturalWidth || img.clientWidth || 1);
+  const naturalHeight = Math.max(1, img.naturalHeight || img.clientHeight || 1);
+  const maxSide = 360;
+  const scale = Math.min(1, maxSide / Math.max(naturalWidth, naturalHeight));
+  const width = Math.max(1, Math.round(naturalWidth * scale));
+  const height = Math.max(1, Math.round(naturalHeight * scale));
+  try {
+    const canvas = document.createElement("canvas");
+    canvas.width = width;
+    canvas.height = height;
+    const ctx = canvas.getContext("2d", { willReadFrequently: true });
+    if (!ctx) return null;
+    ctx.drawImage(img, 0, 0, width, height);
+    return { ctx, width, height };
+  } catch {
+    return null;
+  }
+}
+
+function sampleComicOcrOverlayColor(sampler, box) {
+  if (!sampler || !Array.isArray(box) || box.length < 4) return null;
+  const x = clamp01(Number(box[0]) || 0);
+  const y = clamp01(Number(box[1]) || 0);
+  const w = clamp01(Number(box[2]) || 0);
+  const h = clamp01(Number(box[3]) || 0);
+  if (!(w > 0) || !(h > 0)) return null;
+  const sx = Math.max(0, Math.min(sampler.width - 1, Math.floor(x * sampler.width)));
+  const sy = Math.max(0, Math.min(sampler.height - 1, Math.floor(y * sampler.height)));
+  const sw = Math.max(1, Math.min(sampler.width - sx, Math.ceil(w * sampler.width)));
+  const sh = Math.max(1, Math.min(sampler.height - sy, Math.ceil(h * sampler.height)));
+  try {
+    const data = sampler.ctx.getImageData(sx, sy, sw, sh).data;
+    const pixelCount = Math.max(1, data.length / 4);
+    const stride = Math.max(1, Math.floor(Math.sqrt(pixelCount / 900)));
+    const samples = [];
+    for (let yy = 0; yy < sh; yy += stride) {
+      for (let xx = 0; xx < sw; xx += stride) {
+        const idx = ((yy * sw) + xx) * 4;
+        const alpha = data[idx + 3] / 255;
+        if (alpha < 0.1) continue;
+        const r = data[idx];
+        const g = data[idx + 1];
+        const b = data[idx + 2];
+        samples.push({ r, g, b, luma: (0.2126 * r) + (0.7152 * g) + (0.0722 * b) });
+      }
+    }
+    if (!samples.length) return null;
+    samples.sort((a, b) => a.luma - b.luma);
+    const median = samples[Math.floor(samples.length / 2)].luma;
+    const selected = median >= 150 ? samples.slice(Math.floor(samples.length * 0.35)) : samples;
+    const source = selected.length ? selected : samples;
+    const total = source.reduce((acc, item) => {
+      acc.r += item.r;
+      acc.g += item.g;
+      acc.b += item.b;
+      acc.luma += item.luma;
+      return acc;
+    }, { r: 0, g: 0, b: 0, luma: 0 });
+    return {
+      r: Math.round(total.r / source.length),
+      g: Math.round(total.g / source.length),
+      b: Math.round(total.b / source.length),
+      luma: total.luma / source.length,
+      medianLuma: median,
+    };
+  } catch {
+    return null;
+  }
+}
+
+function mixComicOcrColor(color, target, ratio) {
+  const keep = 1 - ratio;
+  return {
+    r: Math.round((color.r * keep) + (target.r * ratio)),
+    g: Math.round((color.g * keep) + (target.g * ratio)),
+    b: Math.round((color.b * keep) + (target.b * ratio)),
+  };
+}
+
+function rgbaComicOcrColor(color, alpha) {
+  return `rgba(${color.r}, ${color.g}, ${color.b}, ${alpha})`;
+}
+
+function applyComicOcrOverlayPalette(node, sample) {
+  if (!node || !sample) return;
+  const light = sample.luma >= 145;
+  const target = light ? { r: 255, g: 255, b: 255 } : { r: 20, g: 26, b: 40 };
+  const bg = mixComicOcrColor(sample, target, light ? 0.58 : 0.46);
+  node.style.setProperty("--comic-ocr-bg", rgbaComicOcrColor(bg, light ? 0.74 : 0.78));
+  node.style.setProperty("--comic-ocr-border", light ? "rgba(31, 41, 55, 0.22)" : "rgba(255, 255, 255, 0.26)");
+  node.style.setProperty("--comic-ocr-text", light ? "#111827" : "#f8fafc");
+  node.style.setProperty("--comic-ocr-shadow", light ? "0 4px 14px rgba(15, 23, 42, 0.16)" : "0 5px 18px rgba(0, 0, 0, 0.32)");
+  node.style.setProperty("--comic-ocr-text-shadow", light ? "none" : "0 1px 2px rgba(0, 0, 0, 0.46)");
+}
+
 function clearComicOcrOverlays(root = refs.readerContentBody) {
   if (!root) return;
   root.querySelectorAll(".reader-comic-ocr-layer").forEach((node) => node.remove());
@@ -2489,6 +2586,7 @@ function renderComicOcrOverlayForSlot(slot, pageIndex) {
   if (!blocks.length) return;
   const imageWidth = Math.max(1, img.clientWidth || img.naturalWidth || 1);
   const imageHeight = Math.max(1, img.clientHeight || img.naturalHeight || 1);
+  const sampler = createComicOcrImageSampler(img);
   const layer = document.createElement("div");
   layer.className = "reader-comic-ocr-layer";
   layer.setAttribute("aria-hidden", "true");
@@ -2518,6 +2616,7 @@ function renderComicOcrOverlayForSlot(slot, pageIndex) {
     node.dataset.minFont = String(bounds.min);
     node.dataset.maxFont = String(bounds.max);
     node.style.fontSize = `${bounds.max.toFixed(2)}px`;
+    applyComicOcrOverlayPalette(node, sampleComicOcrOverlayColor(sampler, [x, y, w, h]));
     layer.appendChild(node);
   }
   if (layer.childElementCount > 0) {

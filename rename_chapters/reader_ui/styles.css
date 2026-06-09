@@ -3221,10 +3221,11 @@ body.panel-style-clear .reader-content-body {
   justify-content: center;
   padding: 3px 5px;
   border-radius: 6px;
-  background: color-mix(in srgb, var(--surface) 88%, transparent);
-  border: 1px solid color-mix(in srgb, var(--accent) 42%, var(--line));
-  color: var(--text);
-  box-shadow: 0 4px 16px color-mix(in srgb, #000 20%, transparent);
+  background: var(--comic-ocr-bg, color-mix(in srgb, var(--surface) 88%, transparent));
+  border: 1px solid var(--comic-ocr-border, color-mix(in srgb, var(--accent) 42%, var(--line)));
+  color: var(--comic-ocr-text, var(--text));
+  box-shadow: var(--comic-ocr-shadow, 0 4px 16px color-mix(in srgb, #000 20%, transparent));
+  text-shadow: var(--comic-ocr-text-shadow, none);
   line-height: 1.2;
   text-align: center;
   overflow-wrap: anywhere;
