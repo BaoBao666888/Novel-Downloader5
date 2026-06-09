@@ -3215,6 +3215,7 @@ body.panel-style-clear .reader-content-body {
 
 .reader-comic-ocr-block {
   position: absolute;
+  box-sizing: border-box;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -3227,7 +3228,13 @@ body.panel-style-clear .reader-content-body {
   line-height: 1.2;
   text-align: center;
   overflow-wrap: anywhere;
+  word-break: normal;
   overflow: hidden;
+}
+
+.reader-comic-ocr-block.is-tight {
+  line-height: 1.04;
+  padding: 1px 2px;
 }
 
 .chapter-block {

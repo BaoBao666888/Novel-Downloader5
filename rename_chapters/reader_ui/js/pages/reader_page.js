@@ -2420,6 +2420,60 @@ function comicOcrOverlayBlocksForPage(pageIndex) {
     });
 }
 
+function comicOcrOverlayFontBounds({ imageWidth, imageHeight, boxWidth, boxHeight, text }) {
+  const pixelWidth = Math.max(1, Number(imageWidth || 0) * Math.max(0, Number(boxWidth || 0)));
+  const pixelHeight = Math.max(1, Number(imageHeight || 0) * Math.max(0, Number(boxHeight || 0)));
+  const textLength = Math.max(1, normalizeComicOcrOverlayText(text).length);
+  const shortTextBoost = textLength <= 8 ? 1.18 : 1;
+  const maxByHeight = pixelHeight * 0.42 * shortTextBoost;
+  const maxByWidth = pixelWidth * (textLength <= 4 ? 0.42 : 0.24);
+  const maxFont = Math.max(9, Math.min(28, maxByHeight, maxByWidth));
+  const minFont = Math.max(7, Math.min(11, pixelHeight * 0.24, pixelWidth * 0.18));
+  return { min: minFont, max: Math.max(minFont, maxFont) };
+}
+
+function comicOcrBlockFits(node) {
+  if (!node) return false;
+  const width = Math.max(0, node.clientWidth || 0);
+  const height = Math.max(0, node.clientHeight || 0);
+  if (width <= 0 || height <= 0) return true;
+  return (node.scrollWidth <= width + 1) && (node.scrollHeight <= height + 1);
+}
+
+function fitComicOcrOverlayBlock(node, bounds) {
+  if (!node || !bounds) return;
+  const minFont = Math.max(7, Number(bounds.min || 0) || 8);
+  const maxFont = Math.max(minFont, Number(bounds.max || 0) || minFont);
+  const boxHeight = Math.max(1, node.clientHeight || 1);
+  const compact = boxHeight < 54;
+  node.style.lineHeight = compact ? "1.08" : "1.14";
+  node.style.padding = compact ? "2px 3px" : "3px 5px";
+  let low = minFont;
+  let high = maxFont;
+  let best = minFont;
+  for (let i = 0; i < 8; i += 1) {
+    const mid = (low + high) / 2;
+    node.style.fontSize = `${mid.toFixed(2)}px`;
+    if (comicOcrBlockFits(node)) {
+      best = mid;
+      low = mid + 0.2;
+    } else {
+      high = mid - 0.2;
+    }
+  }
+  node.style.fontSize = `${Math.max(7, best).toFixed(2)}px`;
+  node.classList.toggle("is-tight", !comicOcrBlockFits(node));
+}
+
+function fitComicOcrOverlayLayer(layer) {
+  if (!layer) return;
+  layer.querySelectorAll(".reader-comic-ocr-block").forEach((node) => {
+    const min = Number(node.dataset.minFont || "0") || 8;
+    const max = Number(node.dataset.maxFont || "0") || 18;
+    fitComicOcrOverlayBlock(node, { min, max });
+  });
+}
+
 function clearComicOcrOverlays(root = refs.readerContentBody) {
   if (!root) return;
   root.querySelectorAll(".reader-comic-ocr-layer").forEach((node) => node.remove());
@@ -2433,6 +2487,7 @@ function renderComicOcrOverlayForSlot(slot, pageIndex) {
   if (!img) return;
   const blocks = comicOcrOverlayBlocksForPage(pageIndex);
   if (!blocks.length) return;
+  const imageWidth = Math.max(1, img.clientWidth || img.naturalWidth || 1);
   const imageHeight = Math.max(1, img.clientHeight || img.naturalHeight || 1);
   const layer = document.createElement("div");
   layer.className = "reader-comic-ocr-layer";
@@ -2452,12 +2507,22 @@ function renderComicOcrOverlayForSlot(slot, pageIndex) {
     node.style.left = `${x * 100}%`;
     node.style.top = `${y * 100}%`;
     node.style.width = `${w * 100}%`;
-    node.style.minHeight = `${h * 100}%`;
-    node.style.fontSize = `${Math.max(11, Math.min(20, imageHeight * h * 0.34))}px`;
+    node.style.height = `${h * 100}%`;
+    const bounds = comicOcrOverlayFontBounds({
+      imageWidth,
+      imageHeight,
+      boxWidth: w,
+      boxHeight: h,
+      text,
+    });
+    node.dataset.minFont = String(bounds.min);
+    node.dataset.maxFont = String(bounds.max);
+    node.style.fontSize = `${bounds.max.toFixed(2)}px`;
     layer.appendChild(node);
   }
   if (layer.childElementCount > 0) {
     slot.appendChild(layer);
+    fitComicOcrOverlayLayer(layer);
   }
 }
 
