@@ -44,6 +44,7 @@ def normalize_comic_ocr_settings(raw: Any, *, parse_bool) -> dict[str, Any]:
     page_concurrency = _safe_int(cfg.get("page_concurrency"), default=2, min_value=1, max_value=4)
     translation_batch_max_pages = _safe_int(cfg.get("translation_batch_max_pages"), default=4, min_value=1, max_value=12)
     translation_batch_max_chars = _safe_int(cfg.get("translation_batch_max_chars"), default=6000, min_value=500, max_value=20000)
+    prefetch_next_chapters = _safe_int(cfg.get("prefetch_next_chapters"), default=1, min_value=0, max_value=10)
     max_pages_per_job = _safe_int(cfg.get("max_pages_per_job"), default=80, min_value=1, max_value=200)
     layout_input_size = _safe_int(cfg.get("layout_input_size"), default=1280, min_value=640, max_value=1920)
     layout_crop_padding_px = _safe_int(cfg.get("layout_crop_padding_px"), default=8, min_value=0, max_value=48)
@@ -59,6 +60,7 @@ def normalize_comic_ocr_settings(raw: Any, *, parse_bool) -> dict[str, Any]:
         "page_concurrency": page_concurrency,
         "translation_batch_max_pages": translation_batch_max_pages,
         "translation_batch_max_chars": translation_batch_max_chars,
+        "prefetch_next_chapters": prefetch_next_chapters,
         "max_pages_per_job": max_pages_per_job,
         "overlay_mode": overlay_mode,
         "rendered_image_enabled": bool(parse_bool(cfg.get("rendered_image_enabled"), False)),
@@ -83,6 +85,7 @@ def build_default_comic_ocr_config() -> dict[str, Any]:
         "page_concurrency": 2,
         "translation_batch_max_pages": 4,
         "translation_batch_max_chars": 6000,
+        "prefetch_next_chapters": 1,
         "max_pages_per_job": 80,
         "overlay_mode": "overlay",
         "rendered_image_enabled": False,
@@ -124,6 +127,7 @@ def comic_ocr_capabilities_for_book(
         "page_concurrency": _safe_int(settings.get("page_concurrency"), default=2, min_value=1, max_value=4),
         "translation_batch_max_pages": _safe_int(settings.get("translation_batch_max_pages"), default=4, min_value=1, max_value=12),
         "translation_batch_max_chars": _safe_int(settings.get("translation_batch_max_chars"), default=6000, min_value=500, max_value=20000),
+        "prefetch_next_chapters": _safe_int(settings.get("prefetch_next_chapters"), default=1, min_value=0, max_value=10),
     }
     if not book:
         base["reason"] = "BOOK_NOT_FOUND"

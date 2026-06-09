@@ -2472,7 +2472,8 @@ p {
   font-size: 13px;
 }
 
-.local-translation-settings {
+.local-translation-settings,
+.comic-ocr-settings {
   margin: 0;
   padding: 10px;
   border: 1px solid color-mix(in srgb, var(--line) 88%, transparent);
@@ -2482,11 +2483,13 @@ p {
   gap: 8px;
 }
 
-.local-translation-settings[hidden] {
+.local-translation-settings[hidden],
+.comic-ocr-settings[hidden] {
   display: none !important;
 }
 
-.local-translation-settings legend {
+.local-translation-settings legend,
+.comic-ocr-settings legend {
   padding: 0 6px;
   font-size: 12px;
   color: var(--muted);

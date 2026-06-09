@@ -82,6 +82,7 @@ const SERVER_TRANSLATION_DEFAULT = {
 };
 const COMIC_OCR_SETTINGS_DEFAULT = {
   page_concurrency: 2,
+  prefetch_next_chapters: 1,
 };
 
 const FONT_PRESETS = [
@@ -335,7 +336,7 @@ function buildReaderSettingsExtrasMarkup() {
 
 function buildComicOcrSettingMarkup() {
   return (
-    `<fieldset id="comic-ocr-settings" class="local-translation-settings">
+    `<fieldset id="comic-ocr-settings" class="comic-ocr-settings">
       <legend>${t("comicOcrSettings")}</legend>
       <label>
         <span>${t("comicOcrPageConcurrency")}</span>
@@ -347,6 +348,11 @@ function buildComicOcrSettingMarkup() {
         </select>
       </label>
       <small class="dialog-subtitle">${t("comicOcrPageConcurrencyHint")}</small>
+      <label>
+        <span>${t("comicOcrPrefetchNextChapters")}</span>
+        <input id="comic-ocr-prefetch-next-input" type="number" min="0" max="10" step="1" inputmode="numeric">
+      </label>
+      <small class="dialog-subtitle">${t("comicOcrPrefetchNextHint")}</small>
     </fieldset>`
   );
 }
@@ -501,6 +507,11 @@ function ensureSettingsEnhancements(settingsForm, { bookScopedTranslation = fals
         qs("toc-side-wrap"),
         qs("comic-edge-tint-enabled-wrap"),
         qs("comic-edge-tint-strength-wrap"),
+      ],
+    },
+    {
+      title: t("settingsSectionComicOcr"),
+      nodes: [
         qs("comic-ocr-settings"),
       ],
     },
@@ -841,8 +852,10 @@ function normalizeMiniBarsScale(value) {
 function normalizeComicOcrSettings(value) {
   const raw = value && typeof value === "object" ? value : {};
   const concurrency = Number.parseInt(String(raw.page_concurrency ?? COMIC_OCR_SETTINGS_DEFAULT.page_concurrency), 10);
+  const prefetchNext = Number.parseInt(String(raw.prefetch_next_chapters ?? COMIC_OCR_SETTINGS_DEFAULT.prefetch_next_chapters), 10);
   return {
     page_concurrency: Math.max(1, Math.min(4, Number.isFinite(concurrency) ? concurrency : COMIC_OCR_SETTINGS_DEFAULT.page_concurrency)),
+    prefetch_next_chapters: Math.max(0, Math.min(10, Number.isFinite(prefetchNext) ? prefetchNext : COMIC_OCR_SETTINGS_DEFAULT.prefetch_next_chapters)),
   };
 }
 
@@ -2501,6 +2514,7 @@ export async function initShell({ page, onSearchSubmit, onImported, onImportUrl,
   const comicEdgeTintStrengthValue = qs("comic-edge-tint-strength-value");
   const comicEdgeTintStrengthWrap = qs("comic-edge-tint-strength-wrap");
   const comicOcrPageConcurrencySelect = qs("comic-ocr-page-concurrency-select");
+  const comicOcrPrefetchNextInput = qs("comic-ocr-prefetch-next-input");
   const translationEnabledSelect = qs("translation-enabled-select");
   const translationModeSelect = qs("translation-mode-select");
   const titleCacheAutoSelect = qs("title-cache-auto-select");
@@ -3803,7 +3817,20 @@ export async function initShell({ page, onSearchSubmit, onImported, onImportUrl,
     if (comicOcrPageConcurrencySelect) {
       comicOcrPageConcurrencySelect.value = String(state.comicOcrSettings.page_concurrency);
     }
+    if (comicOcrPrefetchNextInput) {
+      comicOcrPrefetchNextInput.value = String(state.comicOcrSettings.prefetch_next_chapters);
+    }
   };
+
+  const collectComicOcrSettingsFromForm = () => normalizeComicOcrSettings({
+    ...(state.comicOcrSettings || {}),
+    page_concurrency: comicOcrPageConcurrencySelect
+      ? comicOcrPageConcurrencySelect.value
+      : state.comicOcrSettings && state.comicOcrSettings.page_concurrency,
+    prefetch_next_chapters: comicOcrPrefetchNextInput
+      ? comicOcrPrefetchNextInput.value
+      : state.comicOcrSettings && state.comicOcrSettings.prefetch_next_chapters,
+  });
 
   const loadComicOcrSettings = async () => {
     try {
@@ -3818,11 +3845,7 @@ export async function initShell({ page, onSearchSubmit, onImported, onImportUrl,
   };
 
   const persistComicOcrSettingsNow = async () => {
-    state.comicOcrSettings = normalizeComicOcrSettings({
-      page_concurrency: comicOcrPageConcurrencySelect
-        ? comicOcrPageConcurrencySelect.value
-        : state.comicOcrSettings && state.comicOcrSettings.page_concurrency,
-    });
+    state.comicOcrSettings = collectComicOcrSettingsFromForm();
     const data = await api("/api/comic-ocr/settings", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -4132,6 +4155,17 @@ export async function initShell({ page, onSearchSubmit, onImported, onImportUrl,
 
   if (comicOcrPageConcurrencySelect) {
     comicOcrPageConcurrencySelect.addEventListener("change", async () => {
+      state.comicOcrSettings = collectComicOcrSettingsFromForm();
+      try {
+        await persistComicOcrSettings();
+      } catch (error) {
+        showToast(error.message || t("toastError"));
+      }
+    });
+  }
+  if (comicOcrPrefetchNextInput) {
+    comicOcrPrefetchNextInput.addEventListener("change", async () => {
+      state.comicOcrSettings = collectComicOcrSettingsFromForm();
       syncComicOcrSettingsForm();
       try {
         await persistComicOcrSettings();
@@ -4305,9 +4339,7 @@ export async function initShell({ page, onSearchSubmit, onImported, onImportUrl,
       state.settings.tocSide = normalizeTocSide((tocSideSelect && tocSideSelect.value) || DEFAULT_SETTINGS.tocSide);
       state.settings.comicEdgeTintEnabled = (comicEdgeTintEnabledSelect && comicEdgeTintEnabledSelect.value) === "on";
       state.settings.comicEdgeTintStrength = normalizeComicEdgeTintStrength((comicEdgeTintStrengthInput && comicEdgeTintStrengthInput.value) || DEFAULT_SETTINGS.comicEdgeTintStrength);
-      state.comicOcrSettings = normalizeComicOcrSettings({
-        page_concurrency: comicOcrPageConcurrencySelect && comicOcrPageConcurrencySelect.value,
-      });
+      state.comicOcrSettings = collectComicOcrSettingsFromForm();
       state.settings.translationEnabled = (translationEnabledSelect && translationEnabledSelect.value) !== "off";
       state.settings.translationMode = normalizeTranslationMode((translationModeSelect && translationModeSelect.value) || DEFAULT_SETTINGS.translationMode);
       state.readerTranslationServer = collectServerTranslationSettingsFromForm();
@@ -4369,11 +4401,13 @@ export async function initShell({ page, onSearchSubmit, onImported, onImportUrl,
       state.readerTranslationSimLocal = { ...LOCAL_TRANSLATION_DEFAULT };
       state.readerTranslationHanviet = { ...LOCAL_TRANSLATION_DEFAULT };
       state.readerTranslationVbookExt = { ...VBOOK_EXT_TRANSLATION_DEFAULT };
+      state.comicOcrSettings = { ...COMIC_OCR_SETTINGS_DEFAULT };
       applyTheme(state.themes, state.settings);
       applyPanelStyle(state.settings);
       applyReaderVars(state.settings);
       syncThemeCustomForm();
       syncReaderTranslationForm();
+      syncComicOcrSettingsForm();
       saveSettings(state.settings);
       emitSettingsChanged({
         ...state.settings,
