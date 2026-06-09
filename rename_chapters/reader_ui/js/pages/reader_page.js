@@ -6192,10 +6192,17 @@ async function goChapter(step) {
 
 async function reloadCurrentChapter() {
   if (!state.chapterId) return;
+  const reloadWarnings = [];
   if (state.chapterRawEdited && isCurrentChapterRemoteSource()) {
+    reloadWarnings.push(state.shell.t("confirmReloadChapterEditedRaw"));
+  }
+  if (state.chapterContentType === "images") {
+    reloadWarnings.push(state.shell.t("confirmReloadChapterComicOcrCache"));
+  }
+  if (reloadWarnings.length) {
     if (!await state.shell.confirmDialog({
       title: state.shell.t("reloadChapter"),
-      message: state.shell.t("confirmReloadChapterEditedRaw"),
+      message: reloadWarnings.join("\n\n"),
       confirmText: state.shell.t("reloadChapter"),
     })) {
       return;

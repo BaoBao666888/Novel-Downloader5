@@ -1077,6 +1077,7 @@ export const STRINGS = {
   confirmDeleteBook: "Bạn có chắc muốn xóa truyện này khỏi thư viện? Lưu ý: Hành động này không thể hoàn tác và sẽ xóa cả cache liên quan.",
   confirmClearCache: "Bạn có chắc muốn xóa toàn bộ cache dịch?",
   confirmReloadChapterEditedRaw: "Raw chương này đã được chỉnh tay. Nếu tải lại từ nguồn online, phần sửa này sẽ bị ghi đè. Bạn vẫn muốn tiếp tục?",
+  confirmReloadChapterComicOcrCache: "Cache OCR và cache dịch ảnh của chương này sẽ bị xóa. Lần dịch ảnh sau có thể cần OCR/dịch lại.",
   actionModalTitle: "Xác nhận thao tác",
   actionModalConfirm: "Xác nhận",
   cacheManagerTitle: "Quản lý cache",

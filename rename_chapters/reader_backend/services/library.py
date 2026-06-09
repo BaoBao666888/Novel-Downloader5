@@ -238,6 +238,16 @@ def reload_chapter(service, chapter_id: str, *, api_error_cls, http_status) -> d
         reloaded_from_source = True
 
     cleared = service.storage.clear_chapter_translated_cache(cid)
+    comic_ocr_cache_deleted = 0
+    try:
+        comic_result = service.clear_comic_ocr_chapter_cache(
+            book_id=str(chapter.get("book_id") or ""),
+            chapter_id=cid,
+        )
+        if isinstance(comic_result, dict):
+            comic_ocr_cache_deleted = int(comic_result.get("deleted") or 0)
+    except Exception:
+        comic_ocr_cache_deleted = 0
     chapter_is_downloaded = service._chapter_cache_available(chapter, book)
     downloaded_count, chapter_total = service.storage.get_book_download_counts(str(chapter.get("book_id") or ""))
     return {
@@ -250,6 +260,7 @@ def reload_chapter(service, chapter_id: str, *, api_error_cls, http_status) -> d
         "is_downloaded": chapter_is_downloaded,
         "downloaded_chapters": int(downloaded_count),
         "chapter_count": int(chapter_total),
+        "comic_ocr_cache_deleted": comic_ocr_cache_deleted,
         **cleared,
     }
 

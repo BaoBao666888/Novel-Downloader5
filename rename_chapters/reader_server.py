@@ -3876,7 +3876,7 @@ class ReaderStorage:
         cleanup_history: bool = True,
         cleanup_related_source: bool = True,
     ) -> bool:
-        return storage_book_cleanup_support.delete_book(
+        deleted = storage_book_cleanup_support.delete_book(
             self,
             book_id,
             cleanup_history=cleanup_history,
@@ -3896,6 +3896,12 @@ class ReaderStorage:
             root_dir=ROOT_DIR,
             local_dir=LOCAL_DIR,
         )
+        if deleted:
+            try:
+                comic_ocr_cache_support.delete_book_family(CACHE_DIR, book_id=book_id)
+            except Exception:
+                pass
+        return deleted
 
     def _delete_session_books_for_source(
         self,
@@ -5361,6 +5367,16 @@ class ReaderService:
             vbook_local_translate.clear_bundle_cache()
         except Exception:
             pass
+        if json.dumps(existing, ensure_ascii=False, sort_keys=True, separators=(",", ":")) != json.dumps(
+            next_settings,
+            ensure_ascii=False,
+            sort_keys=True,
+            separators=(",", ":"),
+        ):
+            try:
+                self.clear_comic_ocr_book_translation_cache(book_id=bid)
+            except Exception:
+                pass
         return self.get_reader_settings(book_id=bid)
 
     def get_local_global_dicts(self) -> dict[str, dict[str, str]]:
@@ -5891,6 +5907,20 @@ class ReaderService:
         deleted = comic_ocr_cache_support.delete_chapter_family(CACHE_DIR, book_id=bid, chapter_id=cid)
         return {"ok": True, "book_id": bid, "chapter_id": cid, "deleted": deleted}
 
+    def clear_comic_ocr_book_cache(self, *, book_id: str) -> dict[str, Any]:
+        bid = str(book_id or "").strip()
+        if not bid:
+            raise ApiError(HTTPStatus.BAD_REQUEST, "BAD_REQUEST", "Thiếu book_id.")
+        deleted = comic_ocr_cache_support.delete_book_family(CACHE_DIR, book_id=bid)
+        return {"ok": True, "book_id": bid, "deleted": deleted}
+
+    def clear_comic_ocr_book_translation_cache(self, *, book_id: str) -> dict[str, Any]:
+        bid = str(book_id or "").strip()
+        if not bid:
+            raise ApiError(HTTPStatus.BAD_REQUEST, "BAD_REQUEST", "Thiếu book_id.")
+        deleted = comic_ocr_cache_support.delete_book_translation_family(CACHE_DIR, book_id=bid)
+        return {"ok": True, "book_id": bid, "deleted": deleted}
+
     def get_comic_ocr_settings(self) -> dict[str, Any]:
         return {
             "ok": True,
@@ -5916,6 +5946,23 @@ class ReaderService:
             save_app_config(cfg)
         self.refresh_config()
         return self.get_comic_ocr_settings()
+
+    def _comic_ocr_ocr_settings_signature(self, settings: dict[str, Any] | None = None) -> str:
+        raw = settings if isinstance(settings, dict) else {}
+        relevant_keys = (
+            "engine",
+            "model_key",
+            "layout_detection_enabled",
+            "layout_model_auto_download",
+            "layout_input_size",
+            "layout_crop_padding_px",
+            "layout_crop_sheet_max_height",
+            "layout_score_threshold",
+            "layout_nms_threshold",
+            "layout_fallback_full_page",
+        )
+        payload = {key: raw.get(key) for key in relevant_keys if key in raw}
+        return hash_text(json.dumps(payload, ensure_ascii=False, sort_keys=True, separators=(",", ":")))
 
     def _prepare_comic_ocr_context(
         self,
@@ -6033,31 +6080,45 @@ class ReaderService:
             engine_status.get("version")
             or comic_ocr_engine_support.engine_version(self.comic_ocr_settings, source_lang=source_lang)
         )
-        postprocess_version = str(getattr(comic_ocr_translate_support, "POSTPROCESS_VERSION", "") or "").strip()
-        if postprocess_version:
-            engine_version = f"{engine_version}:{postprocess_version}"
-        page_keys = {
-            source.index: comic_ocr_cache_support.page_cache_key(
+        ocr_settings_signature = self._comic_ocr_ocr_settings_signature(self.comic_ocr_settings)
+        translation_version = str(getattr(comic_ocr_translate_support, "POSTPROCESS_VERSION", "") or "").strip()
+        ocr_page_keys = {
+            source.index: comic_ocr_cache_support.ocr_page_cache_key(
+                book_id=book_id,
+                chapter_id=chapter_id,
+                image_key=source.image_key,
+                source_lang=source_lang,
+                engine=engine,
+                engine_version=engine_version,
+                ocr_settings_signature=ocr_settings_signature,
+                hash_text=hash_text,
+            )
+            for source in sources
+        }
+        translation_page_keys = {
+            source.index: comic_ocr_cache_support.translation_page_cache_key(
                 book_id=book_id,
                 chapter_id=chapter_id,
                 image_key=source.image_key,
                 source_lang=source_lang,
                 target_lang=target_lang,
-                engine=engine,
-                engine_version=engine_version,
+                ocr_page_key=str(ocr_page_keys.get(source.index) or ""),
                 translation_signature=translation_signature,
+                translation_version=translation_version,
                 hash_text=hash_text,
             )
             for source in sources
         }
-        chapter_key = comic_ocr_cache_support.chapter_cache_key(
+        chapter_key = comic_ocr_cache_support.translation_chapter_cache_key(
             book_id=book_id,
             chapter_id=chapter_id,
             source_lang=source_lang,
             target_lang=target_lang,
             engine=engine,
             engine_version=engine_version,
+            ocr_settings_signature=ocr_settings_signature,
             translation_signature=translation_signature,
+            translation_version=translation_version,
             hash_text=hash_text,
         )
         return {
@@ -6069,10 +6130,14 @@ class ReaderService:
             "target_lang": target_lang,
             "mode": mode,
             "sources": sources,
-            "page_keys": page_keys,
+            "ocr_page_keys": ocr_page_keys,
+            "translation_page_keys": translation_page_keys,
+            "page_keys": translation_page_keys,
             "chapter_key": chapter_key,
             "engine": engine,
             "engine_version": engine_version,
+            "ocr_settings_signature": ocr_settings_signature,
+            "translation_version": translation_version,
             "settings": dict(self.comic_ocr_settings or {}),
             "page_concurrency": max(1, min(4, int(self.comic_ocr_settings.get("page_concurrency") or 2))),
             "translation_batch_max_pages": max(1, min(12, int(self.comic_ocr_settings.get("translation_batch_max_pages") or 4))),
@@ -6132,7 +6197,7 @@ class ReaderService:
                 nonlocal submitted_translations
                 if not page_blocks(page):
                     if page_key:
-                        comic_ocr_cache_support.write_page(CACHE_DIR, page_key, page)
+                        comic_ocr_cache_support.write_translation_page(CACHE_DIR, page_key, page)
                     return
                 submitted_translations += 1
                 translation_queue.append((int(page.get("index") or 0), page_key, page))
@@ -6206,7 +6271,7 @@ class ReaderService:
                 for index, page_key, translated_page in translated_pages:
                     result_pages_by_index[index] = translated_page
                     if page_key:
-                        comic_ocr_cache_support.write_page(CACHE_DIR, page_key, translated_page)
+                        comic_ocr_cache_support.write_translation_page(CACHE_DIR, page_key, translated_page)
                     translated_done += 1
                 self._update_comic_ocr_job(
                     job_id,
@@ -6233,11 +6298,15 @@ class ReaderService:
                     if not block:
                         continue
 
-            def recognize_page(source: Any) -> tuple[int, str, dict[str, Any], bool]:
-                page_key = str(context["page_keys"].get(source.index) or "")
-                page = comic_ocr_cache_support.read_page(CACHE_DIR, page_key) if page_key else None
+            def recognize_page(source: Any) -> tuple[int, str, str, dict[str, Any], bool]:
+                ocr_page_key = str((context.get("ocr_page_keys") or {}).get(source.index) or "")
+                translation_page_key = str((context.get("translation_page_keys") or context.get("page_keys") or {}).get(source.index) or "")
+                page = comic_ocr_cache_support.read_translation_page(CACHE_DIR, translation_page_key) if translation_page_key else None
                 if page is not None:
-                    return int(source.index), page_key, page, False
+                    return int(source.index), ocr_page_key, translation_page_key, page, False
+                page = comic_ocr_cache_support.read_ocr_page(CACHE_DIR, ocr_page_key) if ocr_page_key else None
+                if page is not None:
+                    return int(source.index), ocr_page_key, translation_page_key, page, True
                 data, _content_type = self.fetch_vbook_image(
                     image_url=source.image_url,
                     plugin_id=source.plugin_id,
@@ -6255,23 +6324,21 @@ class ReaderService:
                 for idx, block in enumerate(blocks):
                     block["id"] = f"p{source.index}_b{idx}"
                     block["order"] = idx + 1
-                return (
-                    int(source.index),
-                    page_key,
-                    {
-                        "index": source.index,
-                        "image_url": source.display_url,
-                        "image_key": source.image_key,
-                        "width": width,
-                        "height": height,
-                        "blocks": source_only_blocks(blocks),
-                    },
-                    True,
-                )
+                page = {
+                    "index": source.index,
+                    "image_url": source.display_url,
+                    "image_key": source.image_key,
+                    "width": width,
+                    "height": height,
+                    "blocks": source_only_blocks(blocks),
+                }
+                if ocr_page_key:
+                    comic_ocr_cache_support.write_ocr_page(CACHE_DIR, ocr_page_key, page)
+                return int(source.index), ocr_page_key, translation_page_key, page, True
 
             page_concurrency = max(1, min(4, int(context.get("page_concurrency") or 2)))
             source_iter = iter(context["sources"])
-            pending_ocr: dict[Future[tuple[int, str, dict[str, Any], bool]], Any] = {}
+            pending_ocr: dict[Future[tuple[int, str, str, dict[str, Any], bool]], Any] = {}
 
             def submit_ocr_pages(executor: ThreadPoolExecutor) -> None:
                 while len(pending_ocr) < page_concurrency:
@@ -6303,7 +6370,7 @@ class ReaderService:
                         continue
                     for future in done_futures:
                         pending_ocr.pop(future, None)
-                        page_index, page_key, page, needs_translation = future.result()
+                        page_index, _ocr_page_key, page_key, page, needs_translation = future.result()
                         result_pages_by_index[page_index] = page
                         if needs_translation:
                             queue_translation(page_key=page_key, page=page)
@@ -6324,7 +6391,7 @@ class ReaderService:
             result = self._build_comic_ocr_result_from_cache(context)
             if result is None:
                 raise RuntimeError("Không tạo được kết quả OCR từ cache page.")
-            comic_ocr_cache_support.write_chapter(CACHE_DIR, context["chapter_key"], result)
+            comic_ocr_cache_support.write_translation_chapter(CACHE_DIR, context["chapter_key"], result)
             with self._comic_ocr_cv:
                 job = self._comic_ocr_jobs.get(job_id)
                 if not job:
@@ -6374,7 +6441,7 @@ class ReaderService:
             self._comic_ocr_cv.notify_all()
 
     def _read_comic_ocr_chapter_manifest(self, context: dict[str, Any]) -> dict[str, Any] | None:
-        result = comic_ocr_cache_support.read_chapter(CACHE_DIR, str(context.get("chapter_key") or ""))
+        result = comic_ocr_cache_support.read_translation_chapter(CACHE_DIR, str(context.get("chapter_key") or ""))
         if not isinstance(result, dict):
             return None
         return result
@@ -6408,13 +6475,13 @@ class ReaderService:
     def _build_comic_ocr_result_from_cache(self, context: dict[str, Any]) -> dict[str, Any] | None:
         pages: list[dict[str, Any]] = []
         for source in context["sources"]:
-            page_key = context["page_keys"].get(source.index)
-            page = comic_ocr_cache_support.read_page(CACHE_DIR, page_key) if page_key else None
+            page_key = (context.get("translation_page_keys") or context.get("page_keys") or {}).get(source.index)
+            page = comic_ocr_cache_support.read_translation_page(CACHE_DIR, page_key) if page_key else None
             if page is None:
                 return None
             pages.append(page)
         result = self._build_comic_ocr_result(context, pages, complete=True)
-        comic_ocr_cache_support.write_chapter(CACHE_DIR, context["chapter_key"], result)
+        comic_ocr_cache_support.write_translation_chapter(CACHE_DIR, context["chapter_key"], result)
         return result
 
     def _contains_cjk_text(self, text: str) -> bool:
