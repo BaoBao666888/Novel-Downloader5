@@ -4,7 +4,7 @@ import re
 from typing import Any
 
 
-POSTPROCESS_VERSION = "layout-crop-v1-batch-v1"
+POSTPROCESS_VERSION = "layout-crop-v1-batch-v1-case-v1"
 _MERGE_MARGIN_X = 0.008
 _MERGE_MARGIN_Y = 0.018
 _MERGE_MAX_UNION_W = 0.34
@@ -12,6 +12,60 @@ _MERGE_MAX_UNION_H = 0.42
 _BATCH_MAX_ITEMS = 8
 _BATCH_MAX_CHARS = 1400
 _MARKER_RE = re.compile(r"\[\[\s*ND5OCR_(\d{4})\s*\]\]")
+_WORD_RE = re.compile(r"[^\W\d_]+(?:[-'’][^\W\d_]+)*", re.UNICODE)
+_CJK_RE = re.compile(r"[\u3400-\u9fff\u3040-\u30ff\uac00-\ud7af]")
+_HONORIFIC_SUFFIXES = {
+    "CHAN",
+    "DONO",
+    "KUN",
+    "SAMA",
+    "SAN",
+    "SENSEI",
+    "SENPAI",
+}
+_PRESERVE_UPPER_TOKENS = {
+    "CPU",
+    "DNA",
+    "EU",
+    "FBI",
+    "GPU",
+    "GPS",
+    "HTTP",
+    "HTTPS",
+    "ID",
+    "NASA",
+    "OCR",
+    "PC",
+    "PDF",
+    "TV",
+    "UK",
+    "UN",
+    "URL",
+    "USA",
+    "VIP",
+}
+_ROMAN_TOKENS = {
+    "II",
+    "III",
+    "IV",
+    "V",
+    "VI",
+    "VII",
+    "VIII",
+    "IX",
+    "X",
+    "XI",
+    "XII",
+    "XIII",
+    "XIV",
+    "XV",
+    "XVI",
+    "XVII",
+    "XVIII",
+    "XIX",
+    "XX",
+}
+_CJK_LANG_PREFIXES = ("zh", "ch", "cn", "zho", "ja", "jp", "jpn", "ko", "kr", "kor", "korean")
 
 
 def merge_nearby_blocks(blocks: list[dict[str, Any]]) -> list[dict[str, Any]]:
@@ -62,6 +116,13 @@ def normalize_ocr_text(value: Any) -> str:
     return re.sub(r"\s+", " ", str(value or "")).strip()
 
 
+def normalize_ocr_text_for_translation(value: Any, *, source_lang: str = "") -> str:
+    text = normalize_ocr_text(value)
+    if not _should_normalize_case(text, source_lang=source_lang, min_letters=6):
+        return text
+    return _sentence_case_upper_text(text, english_i=_is_english_lang(source_lang), preserve_upper=True)
+
+
 def translate_blocks(
     blocks: list[dict[str, Any]],
     *,
@@ -99,6 +160,7 @@ def translate_blocks_batched(
         item = dict(block or {})
         source_text = normalize_ocr_text(item.get("source_text") or "")
         item["source_text"] = source_text
+        item["_translation_source_text"] = normalize_ocr_text_for_translation(source_text, source_lang=source_lang)
         item["translated_text"] = source_text
         out.append(item)
 
@@ -124,7 +186,7 @@ def translate_blocks_batched(
             for idx in batch:
                 try:
                     translated_map[idx] = _translate_one(
-                        str(out[idx].get("source_text") or ""),
+                        str(out[idx].get("_translation_source_text") or out[idx].get("source_text") or ""),
                         translator=translator,
                         translate_mode=translate_mode,
                         source_lang=source_lang,
@@ -137,6 +199,8 @@ def translate_blocks_batched(
         for idx in batch:
             translated = str(translated_map.get(idx) or "").strip()
             out[idx]["translated_text"] = translated or str(out[idx].get("source_text") or "")
+    for item in out:
+        item.pop("_translation_source_text", None)
     return out
 
 
@@ -155,7 +219,7 @@ def _translate_one(
         mode=translate_mode,
         source_lang_override=source_lang,
     )
-    return normalize_vi_display_text(str(detail.get("translated") or "").strip())
+    return _normalize_translated_display_text(str(detail.get("translated") or "").strip(), normalize_vi_display_text)
 
 
 def _translate_batch_with_markers(
@@ -173,7 +237,8 @@ def _translate_batch_with_markers(
         marker_id = f"{seq:04d}"
         marker = f"[[ND5OCR_{marker_id}]]"
         markers[marker_id] = idx
-        parts.append(f"{marker}\n{str(out[idx].get('source_text') or '').strip()}")
+        source_text = str(out[idx].get("_translation_source_text") or out[idx].get("source_text") or "").strip()
+        parts.append(f"{marker}\n{source_text}")
     payload = "\n".join(parts)
     detail = translator.translate_detailed(
         payload,
@@ -184,7 +249,7 @@ def _translate_batch_with_markers(
     parsed = _parse_marked_translation(translated_payload, markers)
     if parsed is None:
         return None
-    return {idx: normalize_vi_display_text(text.strip()) for idx, text in parsed.items()}
+    return {idx: _normalize_translated_display_text(text.strip(), normalize_vi_display_text) for idx, text in parsed.items()}
 
 
 def _parse_marked_translation(value: str, markers: dict[str, int]) -> dict[int, str] | None:
@@ -216,7 +281,7 @@ def _iter_translation_batches(
     max_items = max(1, int(batch_max_items or _BATCH_MAX_ITEMS))
     max_chars = max(200, int(batch_max_chars or _BATCH_MAX_CHARS))
     for idx in indexes:
-        source_text = str(out[idx].get("source_text") or "").strip()
+        source_text = str(out[idx].get("_translation_source_text") or out[idx].get("source_text") or "").strip()
         next_chars = current_chars + len(source_text) + 18
         if current and (len(current) >= max_items or next_chars > max_chars):
             batches.append(current)
@@ -227,6 +292,109 @@ def _iter_translation_batches(
     if current:
         batches.append(current)
     return batches
+
+
+def _normalize_translated_display_text(value: str, normalize_vi_display_text) -> str:
+    text = normalize_vi_display_text(str(value or "").strip())
+    if not _should_normalize_case(text, source_lang="", min_letters=8):
+        return text
+    return normalize_vi_display_text(_sentence_case_upper_text(text, english_i=False, preserve_upper=True))
+
+
+def _should_normalize_case(text: str, *, source_lang: str, min_letters: int) -> bool:
+    value = str(text or "").strip()
+    if not value:
+        return False
+    lang = _normalize_lang(source_lang)
+    if lang.startswith(_CJK_LANG_PREFIXES) or _CJK_RE.search(value):
+        return False
+    letters = [ch for ch in value if ch.isalpha()]
+    if len(letters) < min_letters:
+        return False
+    upper_count = sum(1 for ch in letters if ch.isupper())
+    lower_count = sum(1 for ch in letters if ch.islower())
+    total = upper_count + lower_count
+    if not total:
+        return False
+    return (upper_count / total) >= 0.72 and lower_count <= max(2, int(total * 0.18))
+
+
+def _sentence_case_upper_text(text: str, *, english_i: bool, preserve_upper: bool) -> str:
+    lowered = _WORD_RE.sub(
+        lambda match: _normalize_upper_word(match.group(0), english_i=english_i, preserve_upper=preserve_upper),
+        str(text or ""),
+    )
+    chars = list(lowered)
+    cap_next = True
+    sentence_breakers = {".", "!", "?", ";", ":", "…", "\n", "。", "！", "？", "；", "："}
+    skippable = {" ", "\t", "\"", "'", "“", "”", "‘", "’", "(", "[", "{", "<", "-", "—", "–", "―", "*", "•", ">", "»", "«"}
+    for idx, ch in enumerate(chars):
+        if cap_next:
+            if ch.isalpha():
+                chars[idx] = ch.upper()
+                cap_next = False
+                continue
+            if ch.isdigit():
+                cap_next = False
+                continue
+            if ch in skippable or ch.isspace():
+                continue
+            cap_next = False
+        if ch in sentence_breakers:
+            cap_next = True
+    value = "".join(chars).strip()
+    if english_i:
+        value = re.sub(r"\bi\b", "I", value)
+        value = re.sub(r"\bi(['’](?:m|d|ll|ve|re))\b", lambda match: "I" + match.group(1), value, flags=re.IGNORECASE)
+    return value
+
+
+def _normalize_upper_word(token: str, *, english_i: bool, preserve_upper: bool) -> str:
+    value = str(token or "")
+    if not value:
+        return value
+    letters = [ch for ch in value if ch.isalpha()]
+    if not letters or any(ch.islower() for ch in letters):
+        return value
+    upper = value.upper()
+    if preserve_upper and (upper in _PRESERVE_UPPER_TOKENS or upper in _ROMAN_TOKENS):
+        return upper
+    if english_i and upper in {"I", "I'M", "I’M", "I'D", "I’D", "I'LL", "I’LL", "I'VE", "I’VE", "I'RE", "I’RE"}:
+        return value[:1].upper() + value[1:].lower()
+    honorific = _format_honorific_name(value)
+    if honorific:
+        return honorific
+    return value.lower()
+
+
+def _format_honorific_name(token: str) -> str:
+    parts = re.split(r"([-])", str(token or ""))
+    if len(parts) < 3:
+        return ""
+    words = parts[::2]
+    separators = parts[1::2]
+    if len(words) < 2 or words[-1].upper() not in _HONORIFIC_SUFFIXES:
+        return ""
+    out: list[str] = []
+    for idx, word in enumerate(words):
+        upper = word.upper()
+        if idx == 0:
+            out.append(upper[:1] + upper[1:].lower())
+        elif upper in _HONORIFIC_SUFFIXES:
+            out.append(upper.lower())
+        else:
+            out.append(upper[:1] + upper[1:].lower())
+        if idx < len(separators):
+            out.append(separators[idx])
+    return "".join(out)
+
+
+def _normalize_lang(source_lang: str) -> str:
+    return str(source_lang or "").strip().lower().replace("_", "-").split("-", 1)[0]
+
+
+def _is_english_lang(source_lang: str) -> bool:
+    return _normalize_lang(source_lang) in {"en", "eng"}
 
 
 def _block_box(block: dict[str, Any]) -> list[float] | None:
