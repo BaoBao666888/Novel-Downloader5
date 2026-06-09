@@ -4,7 +4,7 @@ import re
 from typing import Any
 
 
-POSTPROCESS_VERSION = "merge-v3-batch-v1"
+POSTPROCESS_VERSION = "layout-crop-v1-batch-v1"
 _MERGE_MARGIN_X = 0.008
 _MERGE_MARGIN_Y = 0.018
 _MERGE_MAX_UNION_W = 0.34

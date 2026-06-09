@@ -277,6 +277,8 @@ export const STRINGS = {
   comicOcrNeedModel: "Chưa có model OCR. Mở OCR > Quản lý model để tải model PaddleOCR.",
   comicOcrNeedRuntime: "Chưa cài OCR runtime. Mở OCR > Quản lý model để cài runtime.",
   comicOcrNeedImageDependency: "Thiếu Pillow/PIL để xử lý ảnh OCR. Cài requirements cho Python đang chạy reader_server.py.",
+  comicOcrNeedLayoutDependency: "Thiếu onnxruntime/opencv/numpy để tách khung OCR comic.",
+  comicOcrNeedLayoutModel: "Chưa có model tách khung OCR comic.",
   comicOcrDisabled: "OCR ảnh comic đang tắt trong cấu hình.",
   comicOcrNeedSourceLang: "Hãy chọn ngôn ngữ gốc trước khi dịch ảnh.",
   comicOcrJobMissing: "Server không trả job OCR.",

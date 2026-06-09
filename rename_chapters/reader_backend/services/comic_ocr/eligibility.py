@@ -3,7 +3,12 @@ from __future__ import annotations
 from typing import Any
 
 
-DEFAULT_SUPPORTED_SOURCE_LANGS = ("zh", "en", "ja", "ko")
+DEFAULT_SUPPORTED_SOURCE_LANGS = (
+    "zh", "en", "ja", "ko",
+    "vi", "th", "fr", "de", "es", "pt", "it", "nl", "pl", "ro", "tr", "id", "ms",
+    "ru", "uk", "be", "bg", "mn", "kk", "ky", "tg", "mk", "tt",
+    "ar", "fa", "ur", "hi", "mr", "ne", "sa", "ta", "te", "el",
+)
 DEFAULT_TARGET_LANG = "vi"
 
 
@@ -40,6 +45,11 @@ def normalize_comic_ocr_settings(raw: Any, *, parse_bool) -> dict[str, Any]:
     translation_batch_max_pages = _safe_int(cfg.get("translation_batch_max_pages"), default=4, min_value=1, max_value=12)
     translation_batch_max_chars = _safe_int(cfg.get("translation_batch_max_chars"), default=6000, min_value=500, max_value=20000)
     max_pages_per_job = _safe_int(cfg.get("max_pages_per_job"), default=80, min_value=1, max_value=200)
+    layout_input_size = _safe_int(cfg.get("layout_input_size"), default=1280, min_value=640, max_value=1920)
+    layout_crop_padding_px = _safe_int(cfg.get("layout_crop_padding_px"), default=8, min_value=0, max_value=48)
+    layout_crop_sheet_max_height = _safe_int(cfg.get("layout_crop_sheet_max_height"), default=4096, min_value=1024, max_value=12000)
+    layout_score_threshold = _safe_float(cfg.get("layout_score_threshold"), default=0.25, min_value=0.01, max_value=0.99)
+    layout_nms_threshold = _safe_float(cfg.get("layout_nms_threshold"), default=0.45, min_value=0.05, max_value=0.95)
     return {
         "enabled": bool(parse_bool(cfg.get("enabled"), True)),
         "engine": engine,
@@ -52,6 +62,14 @@ def normalize_comic_ocr_settings(raw: Any, *, parse_bool) -> dict[str, Any]:
         "max_pages_per_job": max_pages_per_job,
         "overlay_mode": overlay_mode,
         "rendered_image_enabled": bool(parse_bool(cfg.get("rendered_image_enabled"), False)),
+        "layout_detection_enabled": bool(parse_bool(cfg.get("layout_detection_enabled"), True)),
+        "layout_model_auto_download": bool(parse_bool(cfg.get("layout_model_auto_download"), True)),
+        "layout_input_size": layout_input_size,
+        "layout_crop_padding_px": layout_crop_padding_px,
+        "layout_crop_sheet_max_height": layout_crop_sheet_max_height,
+        "layout_score_threshold": layout_score_threshold,
+        "layout_nms_threshold": layout_nms_threshold,
+        "layout_fallback_full_page": bool(parse_bool(cfg.get("layout_fallback_full_page"), False)),
     }
 
 
@@ -68,6 +86,14 @@ def build_default_comic_ocr_config() -> dict[str, Any]:
         "max_pages_per_job": 80,
         "overlay_mode": "overlay",
         "rendered_image_enabled": False,
+        "layout_detection_enabled": True,
+        "layout_model_auto_download": True,
+        "layout_input_size": 1280,
+        "layout_crop_padding_px": 8,
+        "layout_crop_sheet_max_height": 4096,
+        "layout_score_threshold": 0.25,
+        "layout_nms_threshold": 0.45,
+        "layout_fallback_full_page": False,
     }
 
 
@@ -127,6 +153,14 @@ def comic_ocr_capabilities_for_book(
 def _safe_int(value: Any, *, default: int, min_value: int, max_value: int) -> int:
     try:
         number = int(value)
+    except Exception:
+        number = default
+    return max(min_value, min(max_value, number))
+
+
+def _safe_float(value: Any, *, default: float, min_value: float, max_value: float) -> float:
+    try:
+        number = float(value)
     except Exception:
         number = default
     return max(min_value, min(max_value, number))

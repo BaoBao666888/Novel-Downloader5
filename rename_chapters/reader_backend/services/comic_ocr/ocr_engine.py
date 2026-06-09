@@ -7,6 +7,7 @@ import tempfile
 from typing import Any
 
 from app.core import ocr_service
+from reader_backend.services.comic_ocr import layout_detector
 from reader_backend.services.comic_ocr import models
 
 
@@ -42,6 +43,33 @@ _LANG_MODEL_CANDIDATES: dict[str, tuple[str, ...]] = {
     "latin": ("ppocrv5_mobile_latin", "ppocrv5_mobile_en"),
 }
 
+for _lang in (
+    "af", "az", "bs", "ca", "cs", "cy", "da", "de", "es", "et", "eu", "fi", "fr",
+    "ga", "gl", "hr", "hu", "id", "is", "it", "ku", "la", "lb", "lt", "lv", "mi",
+    "ms", "mt", "nl", "no", "oc", "pi", "pl", "pt", "qu", "rm", "ro", "rs",
+    "sk", "sl", "sq", "sv", "sw", "tl", "tr", "uz",
+):
+    _LANG_MODEL_CANDIDATES.setdefault(_lang, ("ppocrv5_mobile_latin", "ppocrv5_mobile_en"))
+for _lang in ("ru", "be", "uk"):
+    _LANG_MODEL_CANDIDATES.setdefault(_lang, ("ppocrv5_mobile_eslav", "ppocrv5_mobile_cyrillic"))
+for _lang in (
+    "sr", "bg", "mn", "ab", "ady", "kbd", "av", "dar", "inh", "ce", "che", "lki",
+    "lez", "tab", "kk", "ky", "tg", "mk", "tt", "cv", "ba", "mhr", "mo", "udm",
+    "kv", "os", "bua", "xal", "tyv", "sah", "kaa",
+):
+    _LANG_MODEL_CANDIDATES.setdefault(_lang, ("ppocrv5_mobile_cyrillic", "ppocrv5_mobile_eslav"))
+for _lang in ("ar", "fa", "ug", "ur", "ps", "sd", "bal"):
+    _LANG_MODEL_CANDIDATES.setdefault(_lang, ("ppocrv5_mobile_arabic",))
+for _lang in ("hi", "mr", "ne", "bh", "mai", "ang", "bho", "mah", "sck", "new", "gom", "sa", "bgc"):
+    _LANG_MODEL_CANDIDATES.setdefault(_lang, ("ppocrv5_mobile_devanagari",))
+for _lang, _model in {
+    "th": "ppocrv5_mobile_thai",
+    "el": "ppocrv5_mobile_greek",
+    "ta": "ppocrv5_mobile_tamil",
+    "te": "ppocrv5_mobile_telugu",
+}.items():
+    _LANG_MODEL_CANDIDATES.setdefault(_lang, (_model,))
+
 
 def engine_version(settings: dict[str, Any], *, source_lang: str = "") -> str:
     engine = str(settings.get("engine") or "paddleocr").strip().lower() or "paddleocr"
@@ -60,6 +88,9 @@ def engine_status(settings: dict[str, Any], *, source_lang: str = "") -> dict[st
     if engine in {"paddleocr", "paddle"}:
         runtime_status = ocr_service.get_ocr_runtime_status(query_version=False)
         image_dependency = image_dependency_status()
+        layout_enabled = _bool_setting(settings, "layout_detection_enabled", True)
+        layout_dependency = layout_detector.dependency_status() if layout_enabled else {"installed": True, "versions": {}}
+        layout_model = layout_detector.model_status(auto_download=False) if layout_enabled else {"downloaded": False}
         base = {
             "engine": "paddleocr",
             "ready": False,
@@ -71,6 +102,12 @@ def engine_status(settings: dict[str, Any], *, source_lang: str = "") -> dict[st
             "model_cache_dir": str(runtime_status.get("model_cache_dir") or ocr_service.ocr_model_cache_dir()),
             "image_dependency_installed": bool(image_dependency.get("installed")),
             "image_dependency_version": str(image_dependency.get("version") or ""),
+            "layout_detection_enabled": layout_enabled,
+            "layout_dependency_installed": bool(layout_dependency.get("installed")),
+            "layout_dependency_versions": dict(layout_dependency.get("versions") or {}),
+            "layout_model_downloaded": bool(layout_model.get("downloaded")),
+            "layout_model_path": str(layout_model.get("path") or ""),
+            "layout_model_key": str(layout_model.get("model_key") or ""),
         }
         if not runtime_status.get("installed"):
             base["reason"] = "OCR_RUNTIME_NOT_READY"
@@ -79,6 +116,14 @@ def engine_status(settings: dict[str, Any], *, source_lang: str = "") -> dict[st
         if not image_dependency.get("installed"):
             base["reason"] = "OCR_IMAGE_DEPENDENCY_NOT_READY"
             base["message"] = str(image_dependency.get("message") or "Thiếu Pillow/PIL để xử lý ảnh OCR.")
+            return base
+        if layout_enabled and not layout_dependency.get("installed"):
+            base["reason"] = str(layout_dependency.get("reason") or "OCR_LAYOUT_DEPENDENCY_NOT_READY")
+            base["message"] = str(layout_dependency.get("message") or "Thiếu dependency tách khung OCR comic.")
+            return base
+        if layout_enabled and not layout_model.get("downloaded") and not _bool_setting(settings, "layout_model_auto_download", True):
+            base["reason"] = str(layout_model.get("reason") or "OCR_LAYOUT_MODEL_NOT_READY")
+            base["message"] = str(layout_model.get("message") or "Thiếu model tách khung OCR comic.")
             return base
         model_key = _select_model_key(source_lang, settings=settings, require_downloaded=True)
         if not model_key:
@@ -129,7 +174,8 @@ def _paddle_engine_version(settings: dict[str, Any], *, source_lang: str = "", r
     version = str(status.get("version") or status.get("target_version") or "runtime").strip()
     model_key = _select_model_key(source_lang, settings=settings, require_downloaded=False)
     suffix = f":{model_key}" if model_key else ""
-    return f"paddle-runtime-{version}{suffix}"
+    layout_suffix = f":layout-{layout_detector.LAYOUT_VERSION}" if _bool_setting(settings, "layout_detection_enabled", True) else ""
+    return f"paddle-runtime-{version}{suffix}{layout_suffix}"
 
 
 def _select_model_key(
@@ -144,7 +190,8 @@ def _select_model_key(
         candidates.append(configured)
     lang = _normalize_lang(source_lang)
     candidates.extend(_LANG_MODEL_CANDIDATES.get(lang, ()))
-    candidates.append(ocr_service.DEFAULT_PADDLE_MODEL_KEY)
+    if not candidates:
+        candidates.append(ocr_service.DEFAULT_PADDLE_MODEL_KEY)
     seen: set[str] = set()
     ordered = [key for key in candidates if key and not (key in seen or seen.add(key))]
     if not require_downloaded:
@@ -239,6 +286,23 @@ def _safe_float(value: Any) -> float:
         return 0.0
 
 
+def _bool_setting(settings: dict[str, Any], key: str, default: bool) -> bool:
+    value = (settings or {}).get(key)
+    if isinstance(value, bool):
+        return value
+    if value is None:
+        return default
+    return str(value).strip().lower() in {"1", "true", "yes", "on"}
+
+
+def _safe_int(value: Any, default: int, *, min_value: int, max_value: int) -> int:
+    try:
+        number = int(value)
+    except Exception:
+        number = default
+    return max(min_value, min(max_value, number))
+
+
 def recognize(
     image_bytes: bytes,
     *,
@@ -278,28 +342,36 @@ def _recognize_paddleocr(
             str(status.get("message") or "OCR engine chưa sẵn sàng."),
         )
     model_key = str(status.get("model_key") or _select_model_key(source_lang, settings=settings, require_downloaded=True))
-    temp_path = ""
     try:
-        tmp_dir = os.path.join(ocr_service.ocr_model_cache_dir(), "temp", "comic_ocr")
-        os.makedirs(tmp_dir, exist_ok=True)
-        fd, temp_path = tempfile.mkstemp(prefix="comic_ocr_", suffix=".png", dir=tmp_dir)
-        os.close(fd)
         with Image.open(io.BytesIO(image_bytes or b"")) as image:
-            image.convert("RGB").save(temp_path, format="PNG")
-        payload = ocr_service.recognize_image(
-            temp_path,
-            timeout_sec=300,
-            engine="paddle",
-            model_key=model_key,
-        )
+            rgb_image = image.convert("RGB")
+        if _bool_setting(settings, "layout_detection_enabled", True):
+            regions = layout_detector.detect_regions(
+                rgb_image,
+                source_lang=source_lang,
+                settings=settings,
+                width=width,
+                height=height,
+            )
+            if regions:
+                return _recognize_paddleocr_regions(
+                    rgb_image,
+                    regions,
+                    source_lang=source_lang,
+                    settings=settings,
+                    width=width,
+                    height=height,
+                    model_key=model_key,
+                )
+            if not _bool_setting(settings, "layout_fallback_full_page", False):
+                return []
+        payload = _recognize_paddleocr_image(rgb_image, model_key=model_key, timeout_sec=300)
     except ComicOcrEngineError:
         raise
+    except layout_detector.ComicOcrLayoutError as exc:
+        raise ComicOcrEngineError(str(exc.code or "OCR_LAYOUT_FAILED"), str(exc.message or "Tách khung OCR comic thất bại.")) from exc
     except Exception as exc:
         raise ComicOcrEngineError("OCR_FAILED", str(exc) or "OCR ảnh thất bại.") from exc
-    finally:
-        if temp_path:
-            with contextlib.suppress(Exception):
-                os.remove(temp_path)
 
     blocks = _runtime_blocks_to_comic_blocks(payload.get("blocks") if isinstance(payload, dict) else [], width=width, height=height)
     if blocks:
@@ -328,6 +400,186 @@ def _recognize_paddleocr(
         )
         out.append(block.to_dict())
     return out
+
+
+def _recognize_paddleocr_regions(
+    image,
+    regions: list[dict[str, Any]],
+    *,
+    source_lang: str,
+    settings: dict[str, Any],
+    width: int,
+    height: int,
+    model_key: str,
+) -> list[dict[str, Any]]:
+    pad = _safe_int((settings or {}).get("layout_crop_padding_px"), 8, min_value=0, max_value=48)
+    max_sheet_height = _safe_int((settings or {}).get("layout_crop_sheet_max_height"), 4096, min_value=1024, max_value=12000)
+    sheets = _build_crop_sheets(image, regions, pad=pad, max_sheet_height=max_sheet_height)
+    if not sheets:
+        return []
+
+    grouped: dict[int, list[tuple[float, float, str, float]]] = {idx: [] for idx in range(len(regions))}
+    for sheet in sheets:
+        payload = _recognize_paddleocr_image(sheet["image"], model_key=model_key, timeout_sec=300)
+        rows = _payload_rows(payload)
+        for polygon, text, confidence in rows:
+            clean_text = str(text or "").strip()
+            if not clean_text:
+                continue
+            center = _polygon_center(polygon)
+            slot = _slot_for_point(sheet["slots"], center)
+            if slot is None:
+                continue
+            sx, sy = float(slot["x"]), float(slot["y"])
+            grouped[int(slot["region_index"])].append((center[1] - sy, center[0] - sx, clean_text, float(confidence or 0.0)))
+
+    out: list[dict[str, Any]] = []
+    for region_index, region in enumerate(regions):
+        lines = sorted(grouped.get(region_index) or [], key=lambda row: (row[0], row[1]))
+        if not lines:
+            continue
+        source_text = "\n".join(row[2] for row in lines if row[2]).strip()
+        if not source_text:
+            continue
+        confidences = [row[3] for row in lines if row[3] > 0]
+        confidence = sum(confidences) / len(confidences) if confidences else float(region.get("score") or 0.0)
+        x1, y1, x2, y2 = [float(value or 0.0) for value in (region.get("box_px") or [])[:4]]
+        block = models.ComicOcrBlock(
+            id=f"b{len(out)}",
+            box=models.normalize_pixel_box([x1, y1, max(0.0, x2 - x1), max(0.0, y2 - y1)], width=width, height=height),
+            polygon=models.normalize_pixel_polygon([[x1, y1], [x2, y1], [x2, y2], [x1, y2]], width=width, height=height),
+            source_text=source_text,
+            translated_text="",
+            confidence=confidence,
+            order=len(out) + 1,
+            style_hint={
+                "align": "center",
+                "tone": "dialog",
+                "layout_type": str(region.get("type") or "text_bubble"),
+                "layout_score": float(region.get("score") or 0.0),
+                "layout_model": layout_detector.DEFAULT_MODEL_KEY,
+            },
+        )
+        out.append(block.to_dict())
+    return out
+
+
+def _build_crop_sheets(image, regions: list[dict[str, Any]], *, pad: int, max_sheet_height: int) -> list[dict[str, Any]]:
+    from PIL import Image
+
+    image_width, image_height = image.size
+    crops: list[dict[str, Any]] = []
+    for region_index, region in enumerate(regions):
+        box = region.get("box_px") if isinstance(region, dict) else None
+        if not isinstance(box, list) or len(box) < 4:
+            continue
+        x1, y1, x2, y2 = [int(round(float(value or 0.0))) for value in box[:4]]
+        x1 = max(0, x1 - pad)
+        y1 = max(0, y1 - pad)
+        x2 = min(image_width, x2 + pad)
+        y2 = min(image_height, y2 + pad)
+        if x2 - x1 < 4 or y2 - y1 < 4:
+            continue
+        crop = image.crop((x1, y1, x2, y2)).convert("RGB")
+        crops.append({"region_index": region_index, "image": crop, "w": crop.width, "h": crop.height})
+    if not crops:
+        return []
+
+    margin = 16
+    sheets: list[dict[str, Any]] = []
+    current: list[dict[str, Any]] = []
+    current_height = margin
+    current_width = 1
+
+    def flush() -> None:
+        nonlocal current, current_height, current_width
+        if not current:
+            return
+        sheet_width = max(32, current_width + margin * 2)
+        sheet_height = max(32, current_height)
+        canvas = Image.new("RGB", (sheet_width, sheet_height), "white")
+        slots: list[dict[str, Any]] = []
+        y = margin
+        for item in current:
+            x = margin
+            canvas.paste(item["image"], (x, y))
+            slots.append({"region_index": item["region_index"], "x": x, "y": y, "w": item["w"], "h": item["h"]})
+            y += item["h"] + margin
+        sheets.append({"image": canvas, "slots": slots})
+        current = []
+        current_height = margin
+        current_width = 1
+
+    for item in crops:
+        projected_height = current_height + int(item["h"]) + margin
+        if current and projected_height > max_sheet_height:
+            flush()
+        current.append(item)
+        current_height += int(item["h"]) + margin
+        current_width = max(current_width, int(item["w"]))
+    flush()
+    return sheets
+
+
+def _recognize_paddleocr_image(image, *, model_key: str, timeout_sec: int) -> dict[str, Any]:
+    temp_path = ""
+    try:
+        tmp_dir = os.path.join(ocr_service.ocr_model_cache_dir(), "temp", "comic_ocr")
+        os.makedirs(tmp_dir, exist_ok=True)
+        fd, temp_path = tempfile.mkstemp(prefix="comic_ocr_", suffix=".png", dir=tmp_dir)
+        os.close(fd)
+        image.convert("RGB").save(temp_path, format="PNG")
+        return ocr_service.recognize_image(
+            temp_path,
+            timeout_sec=timeout_sec,
+            engine="paddle",
+            model_key=model_key,
+        )
+    finally:
+        if temp_path:
+            with contextlib.suppress(Exception):
+                os.remove(temp_path)
+
+
+def _payload_rows(payload: Any) -> list[tuple[list[list[float]], str, float]]:
+    if not isinstance(payload, dict):
+        return []
+    rows: list[tuple[list[list[float]], str, float]] = []
+    for item in payload.get("blocks") or []:
+        if not isinstance(item, dict):
+            continue
+        text = str(item.get("source_text") or item.get("text") or "").strip()
+        if not text:
+            continue
+        polygon = _runtime_polygon(item)
+        if not polygon:
+            box = _runtime_box(item, polygon)
+            if box:
+                x, y, w, h = box
+                polygon = [[x, y], [x + w, y], [x + w, y + h], [x, y + h]]
+        if polygon:
+            rows.append((polygon, text, _safe_float(item.get("confidence", item.get("score", 0.0)))))
+    if rows:
+        return rows
+    return _flatten_paddleocr_result(payload.get("raw_result"))
+
+
+def _polygon_center(polygon: list[list[float]]) -> tuple[float, float]:
+    xs = [float(point[0] or 0.0) for point in polygon if len(point) >= 2]
+    ys = [float(point[1] or 0.0) for point in polygon if len(point) >= 2]
+    if not xs or not ys:
+        return (0.0, 0.0)
+    return ((min(xs) + max(xs)) / 2.0, (min(ys) + max(ys)) / 2.0)
+
+
+def _slot_for_point(slots: list[dict[str, Any]], point: tuple[float, float]) -> dict[str, Any] | None:
+    x, y = point
+    for slot in slots:
+        sx, sy = float(slot["x"]), float(slot["y"])
+        sw, sh = float(slot["w"]), float(slot["h"])
+        if sx <= x <= sx + sw and sy <= y <= sy + sh:
+            return slot
+    return None
 
 
 def _flatten_paddleocr_result(raw_result: Any) -> list[tuple[list[list[float]], str, float]]:

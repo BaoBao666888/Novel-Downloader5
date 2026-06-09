@@ -748,16 +748,35 @@ function comicOcrCapabilityMessage(caps) {
   if (reason === "OCR_MODEL_NOT_READY") return comicOcrText("comicOcrNeedModel", "Chưa có model OCR. Mở OCR > Quản lý model để tải model PaddleOCR.");
   if (reason === "OCR_RUNTIME_NOT_READY" || reason === "OCR_ENGINE_NOT_READY") return comicOcrText("comicOcrNeedRuntime", "Chưa cài OCR runtime. Mở OCR > Quản lý model để cài runtime.");
   if (reason === "OCR_IMAGE_DEPENDENCY_NOT_READY") return comicOcrText("comicOcrNeedImageDependency", "Thiếu Pillow/PIL để xử lý ảnh OCR. Cài requirements cho Python đang chạy reader_server.py.");
+  if (reason === "OCR_LAYOUT_DEPENDENCY_NOT_READY") return comicOcrText("comicOcrNeedLayoutDependency", "Thiếu onnxruntime/opencv/numpy để tách khung OCR comic.");
+  if (reason === "OCR_LAYOUT_MODEL_NOT_READY") return comicOcrText("comicOcrNeedLayoutModel", "Chưa có model tách khung OCR comic.");
   if (reason === "COMIC_OCR_DISABLED") return comicOcrText("comicOcrDisabled", "OCR ảnh comic đang tắt trong cấu hình.");
   return "";
 }
 
 function comicOcrLangLabel(lang) {
   const value = String(lang || "").trim().toLowerCase();
-  if (value === "zh") return "Tiếng Trung";
-  if (value === "en") return "Tiếng Anh";
-  if (value === "ja") return "Tiếng Nhật";
-  if (value === "ko") return "Tiếng Hàn";
+  const labels = {
+    zh: "Tiếng Trung",
+    en: "Tiếng Anh",
+    ja: "Tiếng Nhật",
+    ko: "Tiếng Hàn",
+    vi: "Tiếng Việt",
+    th: "Tiếng Thái",
+    fr: "Tiếng Pháp",
+    de: "Tiếng Đức",
+    es: "Tiếng Tây Ban Nha",
+    pt: "Tiếng Bồ Đào Nha",
+    it: "Tiếng Ý",
+    ru: "Tiếng Nga",
+    uk: "Tiếng Ukraina",
+    ar: "Tiếng Ả Rập",
+    hi: "Tiếng Hindi",
+    ta: "Tiếng Tamil",
+    te: "Tiếng Telugu",
+    el: "Tiếng Hy Lạp",
+  };
+  if (labels[value]) return labels[value];
   return value || "—";
 }
 
@@ -2386,6 +2405,21 @@ function mergeComicOcrBlocksForOverlay(blocks) {
     });
 }
 
+function comicOcrOverlayBlocksForPage(pageIndex) {
+  return (comicOcrBlocksForPage(pageIndex) || [])
+    .map((block) => {
+      const box = comicOcrBlockBox(block);
+      const text = normalizeComicOcrOverlayText(block && (block.translated_text || block.source_text));
+      return box && text ? { box, text } : null;
+    })
+    .filter(Boolean)
+    .sort((a, b) => {
+      const ak = comicOcrBoxSortKey(a.box);
+      const bk = comicOcrBoxSortKey(b.box);
+      return (ak[0] - bk[0]) || (ak[1] - bk[1]);
+    });
+}
+
 function clearComicOcrOverlays(root = refs.readerContentBody) {
   if (!root) return;
   root.querySelectorAll(".reader-comic-ocr-layer").forEach((node) => node.remove());
@@ -2397,7 +2431,7 @@ function renderComicOcrOverlayForSlot(slot, pageIndex) {
   if (!state.comicOcrOverlayEnabled || !state.comicOcrResult) return;
   const img = slot.querySelector(".reader-comic-image");
   if (!img) return;
-  const blocks = mergeComicOcrBlocksForOverlay(comicOcrBlocksForPage(pageIndex));
+  const blocks = comicOcrOverlayBlocksForPage(pageIndex);
   if (!blocks.length) return;
   const imageHeight = Math.max(1, img.clientHeight || img.naturalHeight || 1);
   const layer = document.createElement("div");

@@ -78,6 +78,86 @@ PADDLE_MODEL_OPTIONS: tuple[dict[str, str], ...] = (
         "description": "Nhận tiếng Hàn, tiếng Anh và số; dùng cho ảnh raw Hàn hoặc ảnh có nhiều Hangul.",
     },
     {
+        "key": "ppocrv5_mobile_eslav",
+        "label": "PP-OCRv5 Mobile - East Slavic",
+        "lang": "ru",
+        "ocr_version": "PP-OCRv5",
+        "det_model": "PP-OCRv5_mobile_det",
+        "rec_model": "eslav_PP-OCRv5_mobile_rec",
+        "size": "nhẹ",
+        "description": "Nhận Russian, Belarusian, Ukrainian và English.",
+    },
+    {
+        "key": "ppocrv5_mobile_cyrillic",
+        "label": "PP-OCRv5 Mobile - Cyrillic",
+        "lang": "cyrillic",
+        "ocr_version": "PP-OCRv5",
+        "det_model": "PP-OCRv5_mobile_det",
+        "rec_model": "cyrillic_PP-OCRv5_mobile_rec",
+        "size": "nhẹ",
+        "description": "Nhận nhóm chữ Cyrillic: Russian, Bulgarian, Serbian Cyrillic, Mongolian, Kazakh, Kyrgyz và các ngôn ngữ liên quan.",
+    },
+    {
+        "key": "ppocrv5_mobile_thai",
+        "label": "PP-OCRv5 Mobile - Thai",
+        "lang": "th",
+        "ocr_version": "PP-OCRv5",
+        "det_model": "PP-OCRv5_mobile_det",
+        "rec_model": "th_PP-OCRv5_mobile_rec",
+        "size": "nhẹ",
+        "description": "Nhận tiếng Thái và tiếng Anh.",
+    },
+    {
+        "key": "ppocrv5_mobile_greek",
+        "label": "PP-OCRv5 Mobile - Greek",
+        "lang": "el",
+        "ocr_version": "PP-OCRv5",
+        "det_model": "PP-OCRv5_mobile_det",
+        "rec_model": "el_PP-OCRv5_mobile_rec",
+        "size": "nhẹ",
+        "description": "Nhận tiếng Hy Lạp và tiếng Anh.",
+    },
+    {
+        "key": "ppocrv5_mobile_arabic",
+        "label": "PP-OCRv5 Mobile - Arabic",
+        "lang": "ar",
+        "ocr_version": "PP-OCRv5",
+        "det_model": "PP-OCRv5_mobile_det",
+        "rec_model": "arabic_PP-OCRv5_mobile_rec",
+        "size": "nhẹ",
+        "description": "Nhận Arabic, Persian, Uyghur, Urdu, Pashto, Kurdish, Sindhi, Balochi và English.",
+    },
+    {
+        "key": "ppocrv5_mobile_devanagari",
+        "label": "PP-OCRv5 Mobile - Devanagari",
+        "lang": "hi",
+        "ocr_version": "PP-OCRv5",
+        "det_model": "PP-OCRv5_mobile_det",
+        "rec_model": "devanagari_PP-OCRv5_mobile_rec",
+        "size": "nhẹ",
+        "description": "Nhận Hindi, Marathi, Nepali, Sanskrit và nhóm Devanagari.",
+    },
+    {
+        "key": "ppocrv5_mobile_tamil",
+        "label": "PP-OCRv5 Mobile - Tamil",
+        "lang": "ta",
+        "ocr_version": "PP-OCRv5",
+        "det_model": "PP-OCRv5_mobile_det",
+        "rec_model": "ta_PP-OCRv5_mobile_rec",
+        "size": "nhẹ",
+        "description": "Nhận tiếng Tamil và tiếng Anh.",
+    },
+    {
+        "key": "ppocrv5_mobile_telugu",
+        "label": "PP-OCRv5 Mobile - Telugu",
+        "lang": "te",
+        "ocr_version": "PP-OCRv5",
+        "det_model": "PP-OCRv5_mobile_det",
+        "rec_model": "te_PP-OCRv5_mobile_rec",
+        "size": "nhẹ",
+        "description": "Nhận tiếng Telugu và tiếng Anh.",
+    },
+    {
         "key": "ppocrv3_mobile_japan",
         "label": "PP-OCRv3 Mobile - Japanese",
         "lang": "japan",
@@ -99,7 +179,7 @@ PADDLE_MODEL_OPTIONS: tuple[dict[str, str], ...] = (
     },
 )
 DEFAULT_PADDLE_MODEL_KEY = "ppocrv5_mobile_zh"
-DEFAULT_RUNTIME_VERSION = "0.1.1"
+DEFAULT_RUNTIME_VERSION = "0.1.2"
 DEFAULT_RUNTIME_EXE_NAME = "ocr_runtime.exe"
 
 
@@ -236,6 +316,12 @@ def download_paddle_model(model_key: str = DEFAULT_PADDLE_MODEL_KEY, *, meta: di
         meta=meta,
         timeout_sec=900,
     )
+    returned_key = str(payload.get("model_key") or "").strip()
+    if returned_key and returned_key != option["key"]:
+        raise OCRError(
+            f"OCR runtime hiện tại chưa hỗ trợ model {option['key']} "
+            f"(runtime trả về {returned_key}). Cần cập nhật OCR runtime trước khi dùng ngôn ngữ này."
+        )
     payload.setdefault("ok", True)
     payload.setdefault("engine", "paddle")
     payload.setdefault("model_key", option["key"])
@@ -261,7 +347,7 @@ def recognize_image(
     option = get_paddle_model_option(model_key)
     if engine in {"paddle", "auto"}:
         try:
-            return _run_runtime_json(
+            payload = _run_runtime_json(
                 [
                     "recognize",
                     "--input",
@@ -272,6 +358,13 @@ def recognize_image(
                 meta=meta,
                 timeout_sec=timeout_sec,
             )
+            returned_key = str(payload.get("model_key") or "").strip()
+            if returned_key and returned_key != option["key"]:
+                raise OCRError(
+                    f"OCR runtime hiện tại chưa hỗ trợ model {option['key']} "
+                    f"(runtime trả về {returned_key}). Cần cập nhật OCR runtime trước khi dùng ngôn ngữ này."
+                )
+            return payload
         except Exception as exc:
             if engine != "auto":
                 raise OCRError(f"OCR runtime: {exc}") from exc
@@ -302,7 +395,7 @@ def _query_runtime_version(exe_path: str) -> str:
     if not os.path.isfile(exe_path):
         return ""
     try:
-        result = subprocess.run([exe_path, "--version"], capture_output=True, text=True, timeout=10)
+        result = subprocess.run([exe_path, "--version"], capture_output=True, text=True, timeout=10, **_subprocess_no_window_kwargs())
     except Exception:
         return ""
     output = (result.stdout or result.stderr or "").strip()
@@ -335,6 +428,7 @@ def _run_runtime_json(args: list[str], *, meta: dict[str, Any] | None = None, ti
         stderr=subprocess.PIPE,
         env=env,
         timeout=max(30, int(timeout_sec)),
+        **_subprocess_no_window_kwargs(),
     )
     output = (proc.stdout or "").strip()
     err = (proc.stderr or "").strip()
@@ -597,6 +691,7 @@ $bytes = [System.Text.Encoding]::UTF8.GetBytes($payload)
         stderr=subprocess.PIPE,
         env=env,
         timeout=max(20, int(timeout_sec)),
+        **_subprocess_no_window_kwargs(),
     )
     output = (proc.stdout or "").strip()
     if proc.returncode != 0:
@@ -609,3 +704,17 @@ $bytes = [System.Text.Encoding]::UTF8.GetBytes($payload)
     if not payload.get("ok"):
         raise OCRError(str(payload.get("error") or "Windows OCR thất bại."))
     return payload
+
+
+def _subprocess_no_window_kwargs() -> dict[str, Any]:
+    if os.name != "nt":
+        return {}
+    startupinfo = subprocess.STARTUPINFO()
+    startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
+    creationflags = 0
+    with contextlib.suppress(AttributeError):
+        creationflags |= subprocess.CREATE_NO_WINDOW
+    return {
+        "startupinfo": startupinfo,
+        "creationflags": creationflags,
+    }

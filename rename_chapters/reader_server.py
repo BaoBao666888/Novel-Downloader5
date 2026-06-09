@@ -5784,20 +5784,10 @@ class ReaderService:
         )
         status_source_lang = str(capabilities.get("default_source_lang") or "").strip()
         if capabilities.get("source_lang_required") and not status_source_lang:
-            statuses = [
-                (
-                    str(lang or "").strip(),
-                    comic_ocr_engine_support.engine_status(self.comic_ocr_settings, source_lang=str(lang or "").strip()),
-                )
-                for lang in (capabilities.get("supported_source_langs") or [])
-                if str(lang or "").strip()
-            ]
-            ready_status = next(((lang, row) for lang, row in statuses if row.get("ready")), None)
-            if ready_status is not None:
-                capabilities["default_source_lang"] = ready_status[0]
-                status = ready_status[1]
-            else:
-                status = statuses[0][1] if statuses else comic_ocr_engine_support.engine_status(self.comic_ocr_settings, source_lang="")
+            supported = [str(lang or "").strip() for lang in (capabilities.get("supported_source_langs") or []) if str(lang or "").strip()]
+            status_source_lang = "zh" if "zh" in supported else (supported[0] if supported else "")
+            capabilities["default_source_lang"] = status_source_lang
+            status = comic_ocr_engine_support.engine_status(self.comic_ocr_settings, source_lang=status_source_lang)
         else:
             status = comic_ocr_engine_support.engine_status(self.comic_ocr_settings, source_lang=status_source_lang)
         capabilities["engine_ready"] = bool(status.get("ready"))
@@ -5808,6 +5798,10 @@ class ReaderService:
         capabilities["model_cache_dir"] = str(status.get("model_cache_dir") or "")
         capabilities["image_dependency_installed"] = bool(status.get("image_dependency_installed"))
         capabilities["image_dependency_version"] = str(status.get("image_dependency_version") or "")
+        capabilities["layout_detection_enabled"] = bool(status.get("layout_detection_enabled"))
+        capabilities["layout_dependency_installed"] = bool(status.get("layout_dependency_installed"))
+        capabilities["layout_model_downloaded"] = bool(status.get("layout_model_downloaded"))
+        capabilities["layout_model_path"] = str(status.get("layout_model_path") or "")
         if status.get("model_key"):
             capabilities["model_key"] = str(status.get("model_key") or "")
         if status.get("model_label"):
@@ -6258,7 +6252,6 @@ class ReaderService:
                     width=width,
                     height=height,
                 )
-                blocks = comic_ocr_translate_support.merge_nearby_blocks(blocks)
                 for idx, block in enumerate(blocks):
                     block["id"] = f"p{source.index}_b{idx}"
                     block["order"] = idx + 1

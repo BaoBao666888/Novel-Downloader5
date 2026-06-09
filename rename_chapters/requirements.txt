@@ -3,6 +3,7 @@ beautifulsoup4
 pillow
 numpy
 opencv-python
+onnxruntime
 packaging
 pywin32
 pystray
