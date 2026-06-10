@@ -334,6 +334,8 @@ const state = {
   comicOcrPollTimer: 0,
   comicOcrPrefetchSeq: 0,
   comicOcrPrefetchBusy: false,
+  comicOcrAutoFlow: null,
+  comicOcrBackgroundJobs: new Map(),
   downloadWatchTimer: null,
   downloadEventSource: null,
   downloadWatchReconnectTimer: null,
@@ -1201,7 +1203,7 @@ async function refreshComicOcrCapabilities({ fetchCached = true, syncControls = 
       resolveComicOcrSourceLang();
       state.comicOcrStatusText = "";
       if (fetchCached) {
-        fetchComicOcrCachedResult().catch(() => {});
+        await fetchComicOcrCachedResult().catch(() => null);
       }
     } else {
       state.comicOcrResult = null;
@@ -1237,6 +1239,7 @@ async function fetchComicOcrCachedResult() {
     state.comicOcrResult = data.result;
     state.comicOcrOverlayEnabled = true;
     state.comicOcrStatusText = state.shell.t("comicOcrDone");
+    rememberComicOcrAutoFlow({ sourceLang, modelKey, targetLang, translationMode }, state.chapterId);
     syncComicOcrControls();
     renderComicOcrOverlays();
     return data.result;
@@ -1286,10 +1289,51 @@ function comicOcrBookCanPrefetch() {
   return Boolean(state.bookId && state.book && (state.book.is_comic || sourceType === "vbook_comic" || sourceType === "vbook_session_comic"));
 }
 
+function rememberComicOcrAutoFlow(context = {}, chapterId = state.chapterId) {
+  const sourceLang = String(context.sourceLang || "").trim();
+  const targetLang = String(context.targetLang || state.comicOcrTargetLang || "vi").trim() || "vi";
+  const translationMode = normalizeTranslateMode(context.translationMode || state.translateMode || "server");
+  state.comicOcrAutoFlow = {
+    active: true,
+    chapterId: String(chapterId || state.chapterId || "").trim(),
+    sourceLang,
+    modelKey: String(context.modelKey || "").trim(),
+    targetLang,
+    translationMode,
+  };
+}
+
+function clearComicOcrAutoFlow() {
+  state.comicOcrAutoFlow = null;
+}
+
+function shouldContinueComicOcrAutoFlow(fromChapterId, toChapterId) {
+  const flow = state.comicOcrAutoFlow || null;
+  if (!flow || flow.active !== true) return false;
+  const fromId = String(fromChapterId || "").trim();
+  const toId = String(toChapterId || "").trim();
+  if (!fromId || !toId || fromId === toId) return false;
+  const fromIndex = findChapterIndexById(fromId);
+  const toIndex = findChapterIndexById(toId);
+  return fromIndex >= 0 && toIndex === fromIndex + 1;
+}
+
+function comicOcrContextFromAutoFlow() {
+  const flow = state.comicOcrAutoFlow || {};
+  return {
+    flowSeq: Number(state.comicOcrPrefetchSeq || 0),
+    sourceLang: String(flow.sourceLang || resolveComicOcrSourceLang() || "").trim(),
+    modelKey: String(flow.modelKey || resolveComicOcrModelKey() || "").trim(),
+    targetLang: String(flow.targetLang || state.comicOcrTargetLang || "vi").trim() || "vi",
+    translationMode: normalizeTranslateMode(flow.translationMode || state.translateMode || "server"),
+  };
+}
+
 async function startComicOcrTranslation() {
   if (!state.bookId || !state.chapterId || state.chapterContentType !== "images") return;
-  const flowSeq = ++state.comicOcrPrefetchSeq;
   const activeChapterId = state.chapterId;
+  if (await attachComicOcrBackgroundJobIfCurrent(activeChapterId)) return;
+  const flowSeq = ++state.comicOcrPrefetchSeq;
   clearComicOcrPollTimer();
   state.comicOcrJobId = "";
   state.comicOcrPrefetchBusy = false;
@@ -1319,6 +1363,7 @@ async function startComicOcrTranslation() {
   try {
     const translationMode = normalizeTranslateMode(state.translateMode || "server");
     const targetLang = state.comicOcrTargetLang || "vi";
+    rememberComicOcrAutoFlow({ sourceLang, modelKey, targetLang, translationMode }, activeChapterId);
     const data = await startComicOcrChapterRequest({
       chapterId: activeChapterId,
       sourceLang,
@@ -1332,6 +1377,7 @@ async function startComicOcrTranslation() {
       state.comicOcrOverlayEnabled = true;
       state.comicOcrStatusText = state.shell.t("comicOcrDone");
       state.comicOcrBusy = false;
+      rememberComicOcrAutoFlow({ sourceLang, modelKey, targetLang, translationMode }, activeChapterId);
       syncComicOcrControls();
       renderComicOcrOverlays();
       scheduleComicOcrPrefetchAfter({
@@ -1388,18 +1434,23 @@ function pollComicOcrJob(jobId, prefetchContext = null) {
         renderComicOcrOverlays();
       }
       if (status === "completed") {
+        state.comicOcrBackgroundJobs.delete(String((prefetchContext && prefetchContext.fromChapterId) || state.chapterId || "").trim());
         state.comicOcrBusy = false;
         state.comicOcrResult = result || null;
         state.comicOcrOverlayEnabled = true;
         state.comicOcrStatusText = state.shell.t("comicOcrDone");
+        if (prefetchContext) {
+          rememberComicOcrAutoFlow(prefetchContext, state.chapterId);
+        }
         syncComicOcrControls();
         renderComicOcrOverlays();
-        if (prefetchContext) {
+        if (prefetchContext && !prefetchContext.attachedPrefetch) {
           scheduleComicOcrPrefetchAfter(prefetchContext);
         }
         return;
       }
       if (status === "failed") {
+        state.comicOcrBackgroundJobs.delete(String((prefetchContext && prefetchContext.fromChapterId) || state.chapterId || "").trim());
         state.comicOcrBusy = false;
         state.comicOcrStatusText = state.shell.t("comicOcrFailed");
         syncComicOcrControls();
@@ -1481,6 +1532,7 @@ async function applyComicOcrPrefetchResultIfCurrent({ flowSeq, chapterId, source
       state.comicOcrResult = data.result;
       state.comicOcrOverlayEnabled = true;
       state.comicOcrStatusText = state.shell.t("comicOcrDone");
+      rememberComicOcrAutoFlow({ sourceLang, modelKey, targetLang, translationMode }, chapterId);
       syncComicOcrControls();
       renderComicOcrOverlays();
     }
@@ -1489,10 +1541,142 @@ async function applyComicOcrPrefetchResultIfCurrent({ flowSeq, chapterId, source
   }
 }
 
+async function attachComicOcrBackgroundJobIfCurrent(chapterId = state.chapterId) {
+  const cid = String(chapterId || "").trim();
+  if (!cid || cid !== String(state.chapterId || "").trim()) return false;
+  if (state.chapterContentType !== "images") return false;
+  const pending = state.comicOcrBackgroundJobs.get(cid);
+  if (!pending || !pending.jobId) return false;
+  state.comicOcrBusy = true;
+  state.comicOcrJobId = String(pending.jobId || "").trim();
+  state.comicOcrStatusText = state.shell.t("comicOcrWorking");
+  syncComicOcrControls();
+  pollComicOcrJob(state.comicOcrJobId, {
+    ...pending.context,
+    attachedPrefetch: true,
+  });
+  return true;
+}
+
+async function continueComicOcrAutoFlowForCurrentChapter(fromChapterId = "") {
+  const targetChapterId = String(state.chapterId || "").trim();
+  const sourceChapterId = String(fromChapterId || "").trim();
+  if (!targetChapterId || !sourceChapterId) return false;
+  if (state.chapterContentType !== "images") return false;
+  if (!shouldContinueComicOcrAutoFlow(sourceChapterId, targetChapterId)) return false;
+  if (state.comicOcrResult && Array.isArray(state.comicOcrResult.pages)) return true;
+  if (await attachComicOcrBackgroundJobIfCurrent(targetChapterId)) return true;
+
+  const context = comicOcrContextFromAutoFlow();
+  const sourceLang = String(context.sourceLang || "").trim();
+  if (!sourceLang) return false;
+  const flowSeq = context.flowSeq || ++state.comicOcrPrefetchSeq;
+  if (!flowSeq || flowSeq !== state.comicOcrPrefetchSeq) return false;
+  const modelKey = String(context.modelKey || "").trim();
+  const targetLang = String(context.targetLang || state.comicOcrTargetLang || "vi").trim() || "vi";
+  const translationMode = normalizeTranslateMode(context.translationMode || state.translateMode || "server");
+
+  clearComicOcrPollTimer();
+  state.comicOcrBusy = true;
+  state.comicOcrJobId = "";
+  state.comicOcrStatusText = state.shell.t("comicOcrChecking");
+  syncComicOcrControls();
+  try {
+    const caps = await refreshComicOcrCapabilities({ fetchCached: false, syncControls: false });
+    if (flowSeq !== state.comicOcrPrefetchSeq || targetChapterId !== state.chapterId) return false;
+    if (!caps || !caps.eligible) {
+      state.comicOcrBusy = false;
+      state.comicOcrStatusText = comicOcrCapabilityMessage(caps);
+      syncComicOcrControls();
+      return false;
+    }
+    const cached = await fetchComicOcrChapterResult({
+      chapterId: targetChapterId,
+      sourceLang,
+      modelKey,
+      targetLang,
+      translationMode,
+    }).catch(() => null);
+    if (flowSeq !== state.comicOcrPrefetchSeq || targetChapterId !== state.chapterId) return false;
+    if (cached && cached.cached && cached.result) {
+      state.comicOcrResult = cached.result;
+      state.comicOcrOverlayEnabled = true;
+      state.comicOcrBusy = false;
+      state.comicOcrStatusText = state.shell.t("comicOcrDone");
+      rememberComicOcrAutoFlow({ sourceLang, modelKey, targetLang, translationMode }, targetChapterId);
+      syncComicOcrControls();
+      renderComicOcrOverlays();
+      scheduleComicOcrPrefetchAfter({
+        flowSeq,
+        fromChapterId: targetChapterId,
+        sourceLang,
+        modelKey,
+        targetLang,
+        translationMode,
+      });
+      return true;
+    }
+    state.comicOcrStatusText = state.shell.t("comicOcrQueued");
+    syncComicOcrControls();
+    const data = await startComicOcrChapterRequest({
+      chapterId: targetChapterId,
+      sourceLang,
+      modelKey,
+      targetLang,
+      translationMode,
+    });
+    if (flowSeq !== state.comicOcrPrefetchSeq || targetChapterId !== state.chapterId) return false;
+    if (data && data.cached && data.result) {
+      state.comicOcrResult = data.result;
+      state.comicOcrOverlayEnabled = true;
+      state.comicOcrBusy = false;
+      state.comicOcrStatusText = state.shell.t("comicOcrDone");
+      rememberComicOcrAutoFlow({ sourceLang, modelKey, targetLang, translationMode }, targetChapterId);
+      syncComicOcrControls();
+      renderComicOcrOverlays();
+      scheduleComicOcrPrefetchAfter({
+        flowSeq,
+        fromChapterId: targetChapterId,
+        sourceLang,
+        modelKey,
+        targetLang,
+        translationMode,
+      });
+      return true;
+    }
+    const jobId = String((data && data.job_id) || "").trim();
+    if (!jobId) {
+      state.comicOcrBusy = false;
+      state.comicOcrStatusText = "";
+      syncComicOcrControls();
+      return false;
+    }
+    state.comicOcrJobId = jobId;
+    rememberComicOcrAutoFlow({ sourceLang, modelKey, targetLang, translationMode }, targetChapterId);
+    pollComicOcrJob(jobId, {
+      flowSeq,
+      fromChapterId: targetChapterId,
+      sourceLang,
+      modelKey,
+      targetLang,
+      translationMode,
+    });
+    return true;
+  } catch {
+    if (flowSeq === state.comicOcrPrefetchSeq && targetChapterId === state.chapterId) {
+      state.comicOcrBusy = false;
+      state.comicOcrStatusText = "";
+      syncComicOcrControls();
+    }
+    return false;
+  }
+}
+
 async function runComicOcrPrefetchQueue({ flowSeq, chapters, sourceLang, modelKey, targetLang, translationMode }) {
   if (!Array.isArray(chapters) || !chapters.length) return;
   if (flowSeq !== state.comicOcrPrefetchSeq) return;
   state.comicOcrPrefetchBusy = true;
+  let lastCompletedChapterId = "";
   try {
     for (const chapter of chapters) {
       if (flowSeq !== state.comicOcrPrefetchSeq) return;
@@ -1512,19 +1696,42 @@ async function runComicOcrPrefetchQueue({ flowSeq, chapters, sourceLang, modelKe
       }
       if (flowSeq !== state.comicOcrPrefetchSeq) return;
       if (data && data.cached) {
+        state.comicOcrBackgroundJobs.delete(chapterId);
         await applyComicOcrPrefetchResultIfCurrent({ flowSeq, chapterId, sourceLang, modelKey, targetLang, translationMode });
+        lastCompletedChapterId = chapterId;
         continue;
       }
       const jobId = String((data && data.job_id) || "").trim();
       if (!jobId) return;
+      state.comicOcrBackgroundJobs.set(chapterId, {
+        jobId,
+        context: { flowSeq, fromChapterId: chapterId, sourceLang, modelKey, targetLang, translationMode, attachedPrefetch: true },
+      });
+      await attachComicOcrBackgroundJobIfCurrent(chapterId);
       const ok = await waitComicOcrPrefetchJob(jobId, flowSeq);
+      state.comicOcrBackgroundJobs.delete(chapterId);
       if (!ok) return;
       await applyComicOcrPrefetchResultIfCurrent({ flowSeq, chapterId, sourceLang, modelKey, targetLang, translationMode });
+      lastCompletedChapterId = chapterId;
     }
   } finally {
     if (flowSeq === state.comicOcrPrefetchSeq) {
       state.comicOcrPrefetchBusy = false;
     }
+  }
+  if (
+    flowSeq === state.comicOcrPrefetchSeq
+    && lastCompletedChapterId
+    && String(lastCompletedChapterId) === String(state.chapterId || "").trim()
+  ) {
+    scheduleComicOcrPrefetchAfter({
+      flowSeq,
+      fromChapterId: lastCompletedChapterId,
+      sourceLang,
+      modelKey,
+      targetLang,
+      translationMode,
+    });
   }
 }
 
@@ -1943,6 +2150,9 @@ async function handleInfiniteChapterTransition(step) {
 
 async function openChapterById(chapterId, { updateHistory = true, fromToc = false, resetFlip = true } = {}) {
   if (!chapterId) return;
+  const previousChapterId = String(state.chapterId || "").trim();
+  const targetChapterId = String(chapterId || "").trim();
+  const continueComicOcr = shouldContinueComicOcrAutoFlow(previousChapterId, targetChapterId);
   if (state.tts.playing && !state.tts.autoAdvancing && String(chapterId || "").trim() !== String(state.chapterId || "").trim()) {
     stopTtsPlayback({ keepDialogOpen: true, preserveStatus: false });
   }
@@ -1953,11 +2163,18 @@ async function openChapterById(chapterId, { updateHistory = true, fromToc = fals
   if (String(chapterId || "").trim() !== String(state.chapterId || "").trim()) {
     state.tts.playFromSelectionNext = null;
   }
+  if (previousChapterId && targetChapterId && previousChapterId !== targetChapterId && !continueComicOcr) {
+    clearComicOcrAutoFlow();
+  }
   state.chapterId = chapterId;
   if (updateHistory) {
     window.history.replaceState({}, "", buildReaderUrl(state.book || state.bookId, state.chapterId, state.mode));
   }
-  await loadChapter({ resetFlip, preserveRatio: 0 });
+  await loadChapter({
+    resetFlip,
+    preserveRatio: 0,
+    comicOcrAutoFromChapterId: continueComicOcr ? previousChapterId : "",
+  });
   if (fromToc) closeToc();
 }
 
@@ -3125,6 +3342,7 @@ async function loadChapter({
   preserveLivePosition = false,
   showSkeleton = true,
   quiet = false,
+  comicOcrAutoFromChapterId = "",
 } = {}) {
   if (!state.chapterId) return;
   hideSelectionBtn();
@@ -3204,6 +3422,9 @@ async function loadChapter({
     resetComicOcrState();
     if (state.chapterContentType === "images") {
       await refreshComicOcrCapabilities({ fetchCached: true });
+      if (requestSeq !== state.chapterLoadSeq || targetChapterId !== state.chapterId) return;
+      await continueComicOcrAutoFlowForCurrentChapter(comicOcrAutoFromChapterId);
+      if (requestSeq !== state.chapterLoadSeq || targetChapterId !== state.chapterId) return;
     }
     applyReaderModeClass();
     syncModeButtons();
