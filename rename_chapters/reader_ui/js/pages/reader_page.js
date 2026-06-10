@@ -3800,12 +3800,23 @@ async function copyComicImageToClipboard(url) {
 
 function attachComicImageMenuHandlers(slot, img, pageIndex) {
   if (!slot || !img) return;
-  const openMenu = (event) => {
+  let longPressTimer = 0;
+  let longPressStart = null;
+  let longPressOpenedAt = 0;
+  const clearLongPress = () => {
+    if (longPressTimer) {
+      window.clearTimeout(longPressTimer);
+      longPressTimer = 0;
+    }
+    longPressStart = null;
+  };
+  const openMenu = (event, source = "contextmenu") => {
     if (comicManualDrawState) return;
     const target = event.target instanceof Element ? event.target : null;
     if (target && target.closest(".reader-comic-ocr-block, .reader-comic-manual-draw-layer")) return;
     event.preventDefault();
     event.stopPropagation();
+    if (source === "longpress") longPressOpenedAt = Date.now();
     showComicImageActionMenu({
       slot,
       img,
@@ -3814,8 +3825,33 @@ function attachComicImageMenuHandlers(slot, img, pageIndex) {
       clientY: event.clientY || (window.innerHeight / 2),
     });
   };
-  img.addEventListener("click", openMenu);
-  img.addEventListener("contextmenu", openMenu);
+  img.addEventListener("contextmenu", (event) => {
+    if (Date.now() - longPressOpenedAt < 900) {
+      event.preventDefault();
+      event.stopPropagation();
+      return;
+    }
+    openMenu(event, "contextmenu");
+  });
+  img.addEventListener("pointerdown", (event) => {
+    if (event.pointerType === "mouse") return;
+    const target = event.target instanceof Element ? event.target : null;
+    if (target && target.closest(".reader-comic-ocr-block, .reader-comic-manual-draw-layer")) return;
+    clearLongPress();
+    longPressStart = { x: event.clientX || 0, y: event.clientY || 0 };
+    longPressTimer = window.setTimeout(() => {
+      longPressTimer = 0;
+      openMenu(event, "longpress");
+    }, 560);
+  });
+  img.addEventListener("pointermove", (event) => {
+    if (!longPressStart) return;
+    const dx = Math.abs((event.clientX || 0) - longPressStart.x);
+    const dy = Math.abs((event.clientY || 0) - longPressStart.y);
+    if (dx > 10 || dy > 10) clearLongPress();
+  });
+  img.addEventListener("pointerup", clearLongPress);
+  img.addEventListener("pointercancel", clearLongPress);
 }
 
 function ensureComicOcrResultPage(pageIndex) {
