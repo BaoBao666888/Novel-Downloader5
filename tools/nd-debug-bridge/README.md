@@ -85,6 +85,8 @@ Nếu có nhiều tab userscript mà không truyền `--target`, CLI tự chọn
 
 `test-rule <file> <url>` dùng một tab Novel Downloader đang nối Debug Bridge làm tab điều khiển để mở URL mới. Tab mới phải tự nạp userscript và Debug Bridge, sau đó CLI sẽ inject rule test vào đầu `Rule.special`, reset `Storage.rule/Storage.mode`, gọi lại `init()`, in `env.snapshot`, rồi chạy `getChapters`.
 
+Với Novel Downloader bản mới, rule được eval bằng evaluator nằm trong closure của userscript chính. Vì vậy rule test nhìn thấy cùng các hàm local như khi build vào `novelDownloaderVietSub.user.js` (`ndFetchText`, popup xác minh, model helpers, decode helpers...), thay vì chỉ thấy các helper được truyền thủ công từ Debug Bridge.
+
 File rule có thể là một object/array trả về trực tiếp:
 
 ```javascript

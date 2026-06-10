@@ -2,7 +2,7 @@
 // ==UserScript==
 // @name        novelDownloaderVietSub
 // @description Menu Download Novel hoặc nhấp đúp vào cạnh trái của trang để hiển thị bảng điều khiển
-// @version     3.5.448.7
+// @version     3.5.448.8
 // @author      dodying | BaoBao
 // @namespace   https://github.com/BaoBao666888/Novel-Downloader5
 // @supportURL  https://github.com/BaoBao666888/Novel-Downloader5/issues
@@ -2262,6 +2262,31 @@ function decryptDES(encrypted, key, iv) {
         return proxy;
     }
 
+    function evaluateNovelDownloaderRuleCode(source, options = {}) {
+        const code = String(source || '').trim();
+        if (!code) throw new Error('Thiếu code rule');
+        const originalRules = Rule.special.slice();
+        const helpers = Rule.helpers;
+        const utils = Rule.helpers;
+        const nativeConsole = (typeof unsafeWindow !== 'undefined' && unsafeWindow.console) || window.console;
+        const console = options.console || nativeConsole;
+        let result;
+        try {
+            result = eval(`(${code})`); // eslint-disable-line no-eval
+        } catch (expressionError) {
+            result = eval(code); // eslint-disable-line no-eval
+        }
+        const afterRules = Rule.special.slice();
+        const injectedRules = afterRules.filter(rule => !originalRules.includes(rule));
+        if (afterRules.length !== originalRules.length || injectedRules.length) {
+            Rule.special.splice(0, Rule.special.length, ...originalRules);
+        }
+        if ((result === undefined || typeof result === 'number') && injectedRules.length) {
+            result = injectedRules;
+        }
+        return result;
+    }
+
     function getNovelDownloaderDebugContext() {
         return {
             Rule,
@@ -2274,6 +2299,8 @@ function decryptDES(encrypted, key, iv) {
             replaceWithDict,
             getFromRule,
             init,
+            evaluateRuleCode: evaluateNovelDownloaderRuleCode,
+            evaluateNovelDownloaderRuleCode,
             Storage,
             Config,
             GM_openInTab: typeof GM_openInTab !== 'undefined' ? GM_openInTab : undefined,
@@ -2298,30 +2325,12 @@ function decryptDES(encrypted, key, iv) {
         const code = String(source || '').trim();
         if (!code || code === '[]') return;
         const originalRules = Rule.special.slice();
-        const sandboxApis = {
-            GM_getValue: typeof GM_getValue !== 'undefined' ? GM_getValue : undefined,
-            GM_setValue: typeof GM_setValue !== 'undefined' ? GM_setValue : undefined,
-            GM_xmlhttpRequest: typeof GM_xmlhttpRequest !== 'undefined' ? GM_xmlhttpRequest : undefined,
-            GM_cookie: typeof GM_cookie !== 'undefined' ? GM_cookie : undefined,
-            download: typeof download !== 'undefined' ? download : undefined,
-            saveAs: typeof saveAs !== 'undefined' ? saveAs : undefined,
-            CryptoJS: typeof CryptoJS !== 'undefined' ? CryptoJS : undefined,
-            console: createCustomRuleConsole(),
-        };
-        const params = ['Rule', 'helpers', 'utils', 'xhr', '$', 'sleep', 'html2Text', 'replaceWithDict', 'Storage', 'Config', 'unsafeWindow', ...Object.keys(sandboxApis)];
-        const args = [Rule, Rule.helpers, Rule.helpers, xhr, $, sleep, html2Text, replaceWithDict, Storage, Config, unsafeWindow, ...Object.values(sandboxApis)];
-        let result;
-        if (/^[\[{(]/.test(code)) {
-            result = new Function(...params, `"use strict"; return (${code});`)(...args);
-        } else {
-            result = new Function(...params, `"use strict";\n${code}`)(...args);
-        }
+        const result = evaluateNovelDownloaderRuleCode(code, { console: createCustomRuleConsole() });
         const returnedRules = Array.isArray(result) ? result : (result && typeof result === 'object' ? [result] : []);
-        const injectedRules = Rule.special.filter((rule) => !originalRules.includes(rule));
         const seenRules = new Set();
         const customRules = [];
 
-        for (const rule of returnedRules.concat(injectedRules)) {
+        for (const rule of returnedRules) {
             if (!rule || typeof rule !== 'object' || !rule.siteName || seenRules.has(rule)) continue;
             seenRules.add(rule);
             rule.__ndCustomRule = true;
