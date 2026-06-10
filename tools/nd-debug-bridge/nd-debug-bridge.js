@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name        nd-debug-bridge
-// @version     1.2.0
+// @version     1.2.1
 // @include     *
 // ==/UserScript==
 /* eslint-env browser */
@@ -10,7 +10,7 @@
 
     if (window.NDDebugBridge && window.NDDebugBridge.__installed) return;
 
-    const VERSION = '1.2.0';
+    const VERSION = '1.2.1';
     const UI_HOST_ID = 'novel-downloader-shadow-host';
     const PANEL_ID = 'ndDebugBridgePanel';
     const STYLE_ID = 'ndDebugBridgeStyle';
@@ -390,6 +390,9 @@
     }
 
     function evaluateRuleCode(code, context) {
+        if (context && typeof context.evaluateRuleCode === 'function') {
+            return context.evaluateRuleCode(code);
+        }
         const names = Object.keys(context).filter(name => /^[A-Za-z_$][\w$]*$/.test(name));
         const values = names.map(name => context[name]);
         const ruleList = context.Rule && Array.isArray(context.Rule.special) ? context.Rule.special : null;
