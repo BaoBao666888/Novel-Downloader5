@@ -45,6 +45,7 @@ def handle_api(
             source_lang=_query_first(query, "source_lang"),
             target_lang=_query_first(query, "target_lang"),
             translation_mode=_query_first(query, "translation_mode"),
+            model_key=_query_first(query, "model_key"),
         )
     if method == "DELETE" and path == "/api/comic-ocr/chapter/cache":
         body: dict[str, Any] = {}

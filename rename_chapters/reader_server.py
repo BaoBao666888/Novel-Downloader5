@@ -50,6 +50,7 @@ from reader_backend.core import reader_update as reader_update_support
 from reader_backend.core import runtime_paths as runtime_paths_support
 from reader_backend.core import versioning as versioning_support
 from reader_backend.exporting import support as export_support
+from app.core import ocr_service
 from reader_backend.jobs import download_batch as download_batch_support
 from reader_backend.jobs import download_execute as download_execute_support
 from reader_backend.jobs import download_jobs as download_jobs_support
@@ -109,6 +110,43 @@ try:
     from reader_local_urls import VBOOK_RUNNER_INSTALL_URL as _LOCAL_VBOOK_RUNNER_INSTALL_URL
 except Exception:
     _LOCAL_VBOOK_RUNNER_INSTALL_URL = ""
+
+
+_COMIC_OCR_MODEL_LABELS = {
+    "ppocrv5_mobile_zh": "Trung/Anh/Nhật",
+    "ppocrv5_server_zh": "Tiếng Trung - chính xác hơn",
+    "ppocrv5_mobile_latin": "Latin/Việt",
+    "ppocrv5_mobile_en": "Tiếng Anh",
+    "ppocrv5_mobile_korean": "Tiếng Hàn",
+    "ppocrv5_mobile_eslav": "Nga/Ukraina",
+    "ppocrv5_mobile_cyrillic": "Cyrillic",
+    "ppocrv5_mobile_thai": "Tiếng Thái",
+    "ppocrv5_mobile_greek": "Tiếng Hy Lạp",
+    "ppocrv5_mobile_arabic": "Ả Rập/Ba Tư",
+    "ppocrv5_mobile_devanagari": "Hindi/Devanagari",
+    "ppocrv5_mobile_tamil": "Tiếng Tamil",
+    "ppocrv5_mobile_telugu": "Tiếng Telugu",
+    "ppocrv3_mobile_japan": "Tiếng Nhật",
+    "ppocrv3_mobile_cht": "Trung phồn thể",
+}
+
+_COMIC_OCR_MODEL_SOURCE_LANGS = {
+    "ppocrv5_mobile_zh": "zh",
+    "ppocrv5_server_zh": "zh",
+    "ppocrv5_mobile_latin": "en",
+    "ppocrv5_mobile_en": "en",
+    "ppocrv5_mobile_korean": "ko",
+    "ppocrv5_mobile_eslav": "ru",
+    "ppocrv5_mobile_cyrillic": "ru",
+    "ppocrv5_mobile_thai": "th",
+    "ppocrv5_mobile_greek": "el",
+    "ppocrv5_mobile_arabic": "ar",
+    "ppocrv5_mobile_devanagari": "hi",
+    "ppocrv5_mobile_tamil": "ta",
+    "ppocrv5_mobile_telugu": "te",
+    "ppocrv3_mobile_japan": "ja",
+    "ppocrv3_mobile_cht": "zh",
+}
 
 
 BUNDLE_ROOT = Path(__file__).resolve().parent
@@ -5181,14 +5219,7 @@ class ReaderService:
         plugin: Any,
         source_lang: str,
     ) -> str:
-        source = normalize_lang_source(str(source_lang or ""))
-        if not source:
-            return ""
-        configured_source = str(ext_cfg.get("source_lang") or "trust_ext").strip().lower()
-        locale_is_global, locale_source = self._vbook_translate_plugin_locale(plugin)
-        if configured_source == "trust_ext" and (not locale_is_global) and locale_source:
-            return ""
-        return source
+        return ""
 
     def _remember_book_vbook_source_lang(self, book_id: str, source_lang: str, *, mode: str = "vbook_ext") -> None:
         bid = str(book_id or "").strip()
@@ -5788,6 +5819,23 @@ class ReaderService:
     def translation_allowed_for_book(self, book: dict[str, Any] | None) -> bool:
         return bool(self.is_reader_translation_enabled() and book_supports_translation(book))
 
+    def _comic_ocr_model_summary(self, option: dict[str, Any]) -> dict[str, Any]:
+        key = str((option or {}).get("key") or "").strip()
+        return {
+            "key": key,
+            "label": str(_COMIC_OCR_MODEL_LABELS.get(key) or (option or {}).get("label") or key),
+            "full_label": str((option or {}).get("label") or key),
+            "source_lang": str(_COMIC_OCR_MODEL_SOURCE_LANGS.get(key) or (option or {}).get("lang") or "").strip(),
+            "size": str((option or {}).get("size") or ""),
+            "description": str((option or {}).get("description") or ""),
+        }
+
+    def _downloaded_comic_ocr_models(self) -> list[dict[str, Any]]:
+        return [
+            self._comic_ocr_model_summary(option)
+            for option in ocr_service.get_downloaded_paddle_model_options()
+        ]
+
     def get_comic_ocr_capabilities(self, book_id: str) -> dict[str, Any]:
         bid = str(book_id or "").strip()
         if not bid:
@@ -5818,14 +5866,22 @@ class ReaderService:
         capabilities["layout_dependency_installed"] = bool(status.get("layout_dependency_installed"))
         capabilities["layout_model_downloaded"] = bool(status.get("layout_model_downloaded"))
         capabilities["layout_model_path"] = str(status.get("layout_model_path") or "")
+        downloaded_models = self._downloaded_comic_ocr_models()
+        capabilities["downloaded_ocr_models"] = downloaded_models
         if status.get("model_key"):
             capabilities["model_key"] = str(status.get("model_key") or "")
         if status.get("model_label"):
             capabilities["model_label"] = str(status.get("model_label") or "")
         if capabilities.get("eligible") and not status.get("ready"):
-            capabilities["eligible"] = False
-            capabilities["reason"] = str(status.get("reason") or "OCR_ENGINE_NOT_READY")
-            capabilities["message"] = str(status.get("message") or "")
+            reason = str(status.get("reason") or "OCR_ENGINE_NOT_READY")
+            if reason == "OCR_MODEL_NOT_READY" and downloaded_models:
+                capabilities["engine_ready"] = True
+                capabilities["reason"] = ""
+                capabilities["message"] = ""
+            else:
+                capabilities["eligible"] = False
+                capabilities["reason"] = reason
+                capabilities["message"] = str(status.get("message") or "")
         return capabilities
 
     def start_comic_ocr_chapter_translation(self, payload: dict[str, Any]) -> dict[str, Any]:
@@ -5843,6 +5899,7 @@ class ReaderService:
             "chapter_id": context["chapter_id"],
             "source_lang": context["source_lang"],
             "target_lang": context["target_lang"],
+            "model_key": context.get("model_key") or "",
             "mode": context["mode"],
             "status": "queued",
             "done_pages": 0,
@@ -5884,6 +5941,7 @@ class ReaderService:
         source_lang: str = "",
         target_lang: str = "",
         translation_mode: str = "",
+        model_key: str = "",
     ) -> dict[str, Any]:
         context = self._prepare_comic_ocr_context(
             {
@@ -5892,6 +5950,7 @@ class ReaderService:
                 "source_lang": source_lang,
                 "target_lang": target_lang,
                 "translation_mode": translation_mode,
+                "model_key": model_key,
                 "mode": "overlay",
             },
             allow_missing_cached_pages=True,
@@ -5991,6 +6050,14 @@ class ReaderService:
                 capabilities,
             )
 
+        model_key = str(body.get("model_key") or "").strip()
+        if model_key:
+            valid_model_keys = {str(option.get("key") or "").strip() for option in ocr_service.get_paddle_model_options()}
+            if model_key not in valid_model_keys:
+                raise ApiError(HTTPStatus.BAD_REQUEST, "OCR_MODEL_INVALID", "Model OCR đã chọn không hợp lệ.")
+            if not ocr_service.is_paddle_model_downloaded(model_key):
+                label = str(_COMIC_OCR_MODEL_LABELS.get(model_key) or ocr_service.get_paddle_model_option(model_key).get("label") or model_key)
+                raise ApiError(HTTPStatus.BAD_REQUEST, "OCR_MODEL_NOT_READY", f"Chưa tải model OCR {label}.")
         source_lang = normalize_lang_source(str(body.get("source_lang") or capabilities.get("default_source_lang") or ""))
         if not source_lang and capabilities.get("source_lang_required"):
             raise ApiError(HTTPStatus.BAD_REQUEST, "SOURCE_LANG_REQUIRED", "Cần chọn ngôn ngữ gốc trước khi dịch ảnh.")
@@ -6031,7 +6098,10 @@ class ReaderService:
             build_vbook_image_proxy_path=build_vbook_image_proxy_path,
             vbook_image_cache_key=vbook_image_cache_key,
         )
-        engine_status = comic_ocr_engine_support.engine_status(self.comic_ocr_settings, source_lang=source_lang)
+        ocr_settings = dict(self.comic_ocr_settings or {})
+        if model_key:
+            ocr_settings["model_key"] = model_key
+        engine_status = comic_ocr_engine_support.engine_status(ocr_settings, source_lang=source_lang)
         if not engine_status.get("ready"):
             raise ApiError(
                 HTTPStatus.BAD_REQUEST,
@@ -6078,9 +6148,9 @@ class ReaderService:
         engine = str(engine_status.get("engine") or self.comic_ocr_settings.get("engine") or "paddleocr")
         engine_version = str(
             engine_status.get("version")
-            or comic_ocr_engine_support.engine_version(self.comic_ocr_settings, source_lang=source_lang)
+            or comic_ocr_engine_support.engine_version(ocr_settings, source_lang=source_lang)
         )
-        ocr_settings_signature = self._comic_ocr_ocr_settings_signature(self.comic_ocr_settings)
+        ocr_settings_signature = self._comic_ocr_ocr_settings_signature(ocr_settings)
         translation_version = str(getattr(comic_ocr_translate_support, "POSTPROCESS_VERSION", "") or "").strip()
         ocr_page_keys = {
             source.index: comic_ocr_cache_support.ocr_page_cache_key(
@@ -6136,9 +6206,10 @@ class ReaderService:
             "chapter_key": chapter_key,
             "engine": engine,
             "engine_version": engine_version,
+            "model_key": str(engine_status.get("model_key") or model_key),
             "ocr_settings_signature": ocr_settings_signature,
             "translation_version": translation_version,
-            "settings": dict(self.comic_ocr_settings or {}),
+            "settings": ocr_settings,
             "page_concurrency": max(1, min(4, int(self.comic_ocr_settings.get("page_concurrency") or 2))),
             "translation_batch_max_pages": max(1, min(12, int(self.comic_ocr_settings.get("translation_batch_max_pages") or 4))),
             "translation_batch_max_chars": max(500, min(20000, int(self.comic_ocr_settings.get("translation_batch_max_chars") or 6000))),
@@ -6465,6 +6536,7 @@ class ReaderService:
             "target_lang": context["target_lang"],
             "engine": context["engine"],
             "engine_version": context["engine_version"],
+            "model_key": str(context.get("model_key") or ""),
             "pages": sorted(normalized_pages, key=lambda item: int(item.get("index") or 0)),
             "complete": bool(complete),
             "total_pages": len(context["sources"]),
