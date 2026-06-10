@@ -3226,6 +3226,77 @@ body.panel-style-clear .reader-content-body {
   z-index: 2;
 }
 
+.comic-image-action-menu {
+  position: fixed;
+  z-index: 1400;
+  display: grid;
+  gap: 4px;
+  min-width: 210px;
+  padding: 6px;
+  border-radius: 8px;
+  border: 1px solid color-mix(in srgb, var(--line) 84%, transparent);
+  background: color-mix(in srgb, var(--surface) 96%, #000 4%);
+  box-shadow: 0 14px 34px color-mix(in srgb, #000 28%, transparent);
+}
+
+.comic-image-action-menu.hidden {
+  display: none;
+}
+
+.comic-image-action-menu button {
+  width: 100%;
+  border: 0;
+  border-radius: 6px;
+  padding: 9px 10px;
+  background: transparent;
+  color: var(--text);
+  text-align: left;
+  font: inherit;
+  cursor: pointer;
+}
+
+.comic-image-action-menu button:hover,
+.comic-image-action-menu button:focus-visible {
+  background: color-mix(in srgb, var(--accent) 16%, transparent);
+}
+
+.reader-comic-manual-draw-layer {
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  cursor: crosshair;
+  touch-action: none;
+  background: color-mix(in srgb, #020617 16%, transparent);
+}
+
+.reader-comic-manual-draw-hint {
+  position: sticky;
+  top: 8px;
+  left: 8px;
+  display: flex;
+  width: fit-content;
+  max-width: calc(100% - 16px);
+  align-items: center;
+  gap: 8px;
+  margin: 8px;
+  padding: 6px 8px;
+  border-radius: 7px;
+  background: color-mix(in srgb, var(--surface) 94%, #000 6%);
+  color: var(--text);
+  box-shadow: 0 8px 24px color-mix(in srgb, #000 24%, transparent);
+  font-size: 13px;
+  cursor: default;
+}
+
+.reader-comic-manual-draw-box {
+  position: absolute;
+  box-sizing: border-box;
+  border: 2px solid color-mix(in srgb, var(--accent) 86%, #fff 14%);
+  background: color-mix(in srgb, var(--accent) 16%, transparent);
+  box-shadow: 0 0 0 9999px color-mix(in srgb, #020617 20%, transparent);
+  pointer-events: none;
+}
+
 .reader-comic-ocr-block {
   position: absolute;
   box-sizing: border-box;

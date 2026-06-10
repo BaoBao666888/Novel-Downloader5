@@ -402,6 +402,85 @@ def _recognize_paddleocr(
     return out
 
 
+def recognize_region(
+    image_bytes: bytes,
+    *,
+    box: list[float],
+    source_lang: str,
+    settings: dict[str, Any],
+    width: int = 0,
+    height: int = 0,
+) -> dict[str, Any]:
+    dependency = image_dependency_status()
+    if not dependency.get("installed"):
+        raise ComicOcrEngineError(
+            str(dependency.get("reason") or "OCR_IMAGE_DEPENDENCY_NOT_READY"),
+            str(dependency.get("message") or "Thiếu Pillow/PIL để xử lý ảnh OCR."),
+        )
+    from PIL import Image
+
+    status = engine_status(settings, source_lang=source_lang)
+    if not status.get("ready"):
+        raise ComicOcrEngineError(
+            str(status.get("reason") or "OCR_ENGINE_NOT_READY"),
+            str(status.get("message") or "OCR engine chưa sẵn sàng."),
+        )
+    model_key = str(status.get("model_key") or _select_model_key(source_lang, settings=settings, require_downloaded=True))
+    try:
+        with Image.open(io.BytesIO(image_bytes or b"")) as image:
+            rgb_image = image.convert("RGB")
+        image_width = max(1, int(width or rgb_image.width or 1))
+        image_height = max(1, int(height or rgb_image.height or 1))
+        x, y, w, h = _normalized_box(box)
+        left = max(0, min(image_width - 1, int(round(x * image_width))))
+        top = max(0, min(image_height - 1, int(round(y * image_height))))
+        right = max(left + 1, min(image_width, int(round((x + w) * image_width))))
+        bottom = max(top + 1, min(image_height, int(round((y + h) * image_height))))
+        if right - left < 4 or bottom - top < 4:
+            raise ComicOcrEngineError("OCR_REGION_TOO_SMALL", "Khung OCR quá nhỏ.")
+        crop = rgb_image.crop((left, top, right, bottom)).convert("RGB")
+        payload = _recognize_paddleocr_image(crop, model_key=model_key, timeout_sec=300)
+    except ComicOcrEngineError:
+        raise
+    except Exception as exc:
+        raise ComicOcrEngineError("OCR_FAILED", str(exc) or "OCR vùng ảnh thất bại.") from exc
+
+    rows = _payload_rows(payload)
+    lines: list[tuple[float, float, str, float]] = []
+    for polygon, text, confidence in rows:
+        clean_text = str(text or "").strip()
+        if not clean_text:
+            continue
+        center = _polygon_center(polygon)
+        lines.append((center[1], center[0], clean_text, float(confidence or 0.0)))
+    lines.sort(key=lambda row: (row[0], row[1]))
+    source_text = "\n".join(row[2] for row in lines if row[2]).strip()
+    confidences = [row[3] for row in lines if row[3] > 0]
+    confidence = sum(confidences) / len(confidences) if confidences else 0.0
+    x, y, w, h = _normalized_box(box)
+    return models.ComicOcrBlock(
+        id="manual",
+        box=[x, y, w, h],
+        polygon=[[x, y], [x + w, y], [x + w, y + h], [x, y + h]],
+        source_text=source_text,
+        translated_text="",
+        confidence=confidence,
+        order=0,
+        style_hint={"align": "center", "tone": "manual_dialog"},
+    ).to_dict()
+
+
+def _normalized_box(box: list[float]) -> list[float]:
+    raw = list(box or [])[:4]
+    while len(raw) < 4:
+        raw.append(0.0)
+    x = max(0.0, min(1.0, float(raw[0] or 0.0)))
+    y = max(0.0, min(1.0, float(raw[1] or 0.0)))
+    w = max(0.0, min(1.0 - x, float(raw[2] or 0.0)))
+    h = max(0.0, min(1.0 - y, float(raw[3] or 0.0)))
+    return [x, y, w, h]
+
+
 def _recognize_paddleocr_regions(
     image,
     regions: list[dict[str, Any]],

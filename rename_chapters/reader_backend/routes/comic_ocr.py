@@ -33,6 +33,9 @@ def handle_api(
     if method == "POST" and path == "/api/comic-ocr/overlay/edit":
         payload = handler._read_json_body()
         return handler.service.update_comic_ocr_overlay_edit(payload)
+    if method == "POST" and path == "/api/comic-ocr/overlay/manual":
+        payload = handler._read_json_body()
+        return handler.service.recognize_comic_ocr_manual_overlay(payload)
     if method == "POST" and path == "/api/comic-ocr/chapter/translate":
         payload = handler._read_json_body()
         return handler.service.start_comic_ocr_chapter_translation(payload)

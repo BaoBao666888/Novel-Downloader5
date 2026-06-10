@@ -390,6 +390,8 @@ const state = {
 };
 
 let comicOcrOverlayEditorUi = null;
+let comicImageActionMenuUi = null;
+let comicManualDrawState = null;
 
 const TOC_ICON_MARKUP = Object.freeze({
   download: '<svg class="toc-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v10"></path><path d="m8 11 4 4 4-4"></path><path d="M4 18h16"></path></svg>',
@@ -3521,6 +3523,346 @@ function renderComicOcrOverlays() {
   });
 }
 
+function comicImageUrlFromImg(img) {
+  return String((img && (img.currentSrc || img.src)) || "").trim();
+}
+
+function ensureComicImageActionMenu() {
+  if (comicImageActionMenuUi) return comicImageActionMenuUi;
+  const menu = document.createElement("div");
+  menu.id = "comic-image-action-menu";
+  menu.className = "comic-image-action-menu hidden";
+  menu.innerHTML = `
+    <button type="button" data-action="copy-image"></button>
+    <button type="button" data-action="copy-link"></button>
+    <button type="button" data-action="open-image"></button>
+    <button type="button" data-action="save-image"></button>
+    <button type="button" data-action="add-dialog"></button>
+  `;
+  document.body.appendChild(menu);
+  const ui = { menu, context: null };
+  menu.addEventListener("pointerdown", (event) => event.stopPropagation());
+  menu.addEventListener("click", (event) => {
+    const button = event.target instanceof Element ? event.target.closest("button[data-action]") : null;
+    if (!button) return;
+    event.preventDefault();
+    event.stopPropagation();
+    const action = String(button.getAttribute("data-action") || "").trim();
+    const context = ui.context || {};
+    closeComicImageActionMenu();
+    handleComicImageMenuAction(action, context).catch((error) => {
+      state.shell.showToast(error.message || state.shell.t("toastError"));
+    });
+  });
+  comicImageActionMenuUi = ui;
+  return ui;
+}
+
+function syncComicImageActionMenuLabels(ui) {
+  if (!ui || !ui.menu) return;
+  const labels = {
+    "copy-image": state.shell.t("comicImageMenuCopyImage"),
+    "copy-link": state.shell.t("comicImageMenuCopyLink"),
+    "open-image": state.shell.t("comicImageMenuOpenImage"),
+    "save-image": state.shell.t("comicImageMenuSaveImage"),
+    "add-dialog": state.shell.t("comicImageMenuAddDialog"),
+  };
+  ui.menu.querySelectorAll("button[data-action]").forEach((button) => {
+    const action = String(button.getAttribute("data-action") || "");
+    button.textContent = labels[action] || action;
+  });
+}
+
+function closeComicImageActionMenu() {
+  if (!comicImageActionMenuUi || !comicImageActionMenuUi.menu) return;
+  comicImageActionMenuUi.menu.classList.add("hidden");
+  comicImageActionMenuUi.context = null;
+}
+
+function showComicImageActionMenu({ slot, img, pageIndex, clientX, clientY }) {
+  if (!slot || !img) return;
+  const ui = ensureComicImageActionMenu();
+  syncComicImageActionMenuLabels(ui);
+  ui.context = { slot, img, pageIndex };
+  const menu = ui.menu;
+  menu.classList.remove("hidden");
+  const menuRect = menu.getBoundingClientRect();
+  const vw = Math.max(1, window.innerWidth || document.documentElement.clientWidth || 1);
+  const vh = Math.max(1, window.innerHeight || document.documentElement.clientHeight || 1);
+  const x = Math.max(8, Math.min(vw - menuRect.width - 8, Number(clientX || 0)));
+  const y = Math.max(8, Math.min(vh - menuRect.height - 8, Number(clientY || 0)));
+  menu.style.left = `${x}px`;
+  menu.style.top = `${y}px`;
+}
+
+async function handleComicImageMenuAction(action, context) {
+  const img = context && context.img;
+  const slot = context && context.slot;
+  const pageIndex = Number(context && context.pageIndex) || 0;
+  const url = comicImageUrlFromImg(img);
+  if (!url) return;
+  if (action === "copy-link") {
+    if (!navigator.clipboard || typeof navigator.clipboard.writeText !== "function") {
+      state.shell.showToast(state.shell.t("comicImageMenuClipboardUnsupported"));
+      return;
+    }
+    await navigator.clipboard.writeText(url);
+    state.shell.showToast(state.shell.t("comicImageMenuCopiedLink"));
+    return;
+  }
+  if (action === "copy-image") {
+    await copyComicImageToClipboard(url);
+    return;
+  }
+  if (action === "open-image") {
+    window.open(url, "_blank", "noopener");
+    return;
+  }
+  if (action === "save-image") {
+    const anchor = document.createElement("a");
+    anchor.href = url;
+    anchor.download = `comic-page-${pageIndex + 1}`;
+    anchor.rel = "noopener";
+    document.body.appendChild(anchor);
+    anchor.click();
+    anchor.remove();
+    return;
+  }
+  if (action === "add-dialog") {
+    startComicManualBoxDraw({ slot, img, pageIndex });
+  }
+}
+
+async function copyComicImageToClipboard(url) {
+  if (!navigator.clipboard) {
+    state.shell.showToast(state.shell.t("comicImageMenuClipboardUnsupported"));
+    return;
+  }
+  try {
+    if (typeof ClipboardItem === "undefined" || typeof navigator.clipboard.write !== "function") {
+      throw new Error("CLIPBOARD_IMAGE_UNSUPPORTED");
+    }
+    const res = await fetch(url, { cache: "force-cache" });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const blob = await res.blob();
+    const type = blob.type || "image/png";
+    await navigator.clipboard.write([new ClipboardItem({ [type]: blob })]);
+    state.shell.showToast(state.shell.t("comicImageMenuCopiedImage"));
+  } catch {
+    await navigator.clipboard.writeText(url);
+    state.shell.showToast(state.shell.t("comicImageMenuCopiedLink"));
+  }
+}
+
+function attachComicImageMenuHandlers(slot, img, pageIndex) {
+  if (!slot || !img) return;
+  const openMenu = (event) => {
+    if (comicManualDrawState) return;
+    const target = event.target instanceof Element ? event.target : null;
+    if (target && target.closest(".reader-comic-ocr-block, .reader-comic-manual-draw-layer")) return;
+    event.preventDefault();
+    event.stopPropagation();
+    showComicImageActionMenu({
+      slot,
+      img,
+      pageIndex,
+      clientX: event.clientX || (window.innerWidth / 2),
+      clientY: event.clientY || (window.innerHeight / 2),
+    });
+  };
+  img.addEventListener("click", openMenu);
+  img.addEventListener("contextmenu", openMenu);
+}
+
+function ensureComicOcrResultPage(pageIndex) {
+  if (!state.comicOcrResult || !Array.isArray(state.comicOcrResult.pages)) {
+    state.comicOcrResult = {
+      chapter_id: state.chapterId,
+      source_lang: state.comicOcrSourceLang || "",
+      target_lang: state.comicOcrTargetLang || "vi",
+      engine: "manual",
+      engine_version: "",
+      pages: [],
+      complete: false,
+      total_pages: Math.max(1, (state.chapterImages || []).length),
+    };
+  }
+  let page = state.comicOcrResult.pages.find((item) => Number.parseInt(String((item && item.index) || "0"), 10) === pageIndex);
+  if (!page) {
+    page = {
+      index: pageIndex,
+      image_url: String((state.chapterImages || [])[pageIndex] || ""),
+      image_key: "",
+      width: 0,
+      height: 0,
+      blocks: [],
+    };
+    state.comicOcrResult.pages.push(page);
+    state.comicOcrResult.pages.sort((a, b) => (Number(a.index) || 0) - (Number(b.index) || 0));
+  }
+  if (!Array.isArray(page.blocks)) page.blocks = [];
+  return page;
+}
+
+function addComicManualPlaceholder(pageIndex, blockId, box, text) {
+  const page = ensureComicOcrResultPage(pageIndex);
+  const safeBox = Array.isArray(box) ? box.slice(0, 4).map((value) => clamp01(Number(value) || 0)) : [0, 0, 0, 0];
+  const existing = page.blocks.find((block) => String((block && block.id) || "") === blockId);
+  const block = existing || {
+    id: blockId,
+    box: safeBox,
+    polygon: [
+      [safeBox[0], safeBox[1]],
+      [safeBox[0] + safeBox[2], safeBox[1]],
+      [safeBox[0] + safeBox[2], safeBox[1] + safeBox[3]],
+      [safeBox[0], safeBox[1] + safeBox[3]],
+    ],
+    source_text: "",
+    translated_text: text,
+    confidence: 0,
+    order: 10000 + page.blocks.length,
+    manual_pending: true,
+  };
+  block.box = safeBox;
+  block.translated_text = text;
+  block.overlay_edit = {
+    edited: true,
+    manual: true,
+    text,
+    source_text: "",
+    source_edited: true,
+    translation_edited: false,
+    font_scale: 100,
+    hidden: false,
+    updated_at: "",
+  };
+  if (!existing) page.blocks.push(block);
+  state.comicOcrOverlayEnabled = true;
+  syncComicOcrControls();
+  renderComicOcrOverlays();
+}
+
+async function recognizeComicManualOverlay({ pageIndex, blockId, box }) {
+  if (!state.comicOcrCapabilities) {
+    await refreshComicOcrCapabilities({ fetchCached: false, syncControls: true });
+  }
+  const sourceLang = resolveComicOcrSourceLang();
+  const modelKey = resolveComicOcrModelKey();
+  const targetLang = String(state.comicOcrTargetLang || "vi").trim() || "vi";
+  const translationMode = normalizeTranslateMode(state.translateMode || "server");
+  return state.shell.api("/api/comic-ocr/overlay/manual", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      book_id: state.bookId,
+      chapter_id: state.chapterId,
+      page_index: pageIndex,
+      block_id: blockId,
+      box,
+      source_lang: sourceLang,
+      model_key: modelKey || "",
+      target_lang: targetLang,
+      mode: "overlay",
+      translation_mode: translationMode,
+    }),
+  });
+}
+
+function startComicManualBoxDraw({ slot, img, pageIndex }) {
+  if (!slot || !img || comicManualDrawState) return;
+  closeComicImageActionMenu();
+  const layer = document.createElement("div");
+  layer.className = "reader-comic-manual-draw-layer";
+  layer.innerHTML = `
+    <div class="reader-comic-manual-draw-hint">
+      <span>${state.shell.t("comicManualDrawHint")}</span>
+      <button type="button" class="btn btn-small">${state.shell.t("cancel")}</button>
+    </div>
+    <div class="reader-comic-manual-draw-box"></div>
+  `;
+  const boxNode = layer.querySelector(".reader-comic-manual-draw-box");
+  const cancelButton = layer.querySelector("button");
+  slot.appendChild(layer);
+  comicManualDrawState = { slot, img, pageIndex, layer, boxNode, start: null, active: false };
+  const cleanup = () => {
+    if (comicManualDrawState && comicManualDrawState.layer === layer) comicManualDrawState = null;
+    layer.remove();
+  };
+  cancelButton.addEventListener("click", (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    cleanup();
+  });
+  layer.addEventListener("pointerdown", (event) => {
+    const target = event.target instanceof Element ? event.target : null;
+    if (target && target.closest(".reader-comic-manual-draw-hint")) return;
+    event.preventDefault();
+    event.stopPropagation();
+    const rect = img.getBoundingClientRect();
+    const start = {
+      x: clamp01((event.clientX - rect.left) / Math.max(1, rect.width)),
+      y: clamp01((event.clientY - rect.top) / Math.max(1, rect.height)),
+    };
+    comicManualDrawState = { slot, img, pageIndex, layer, boxNode, start, active: true };
+    layer.setPointerCapture(event.pointerId);
+    boxNode.hidden = false;
+    updateComicManualDrawBox(event.clientX, event.clientY);
+  });
+  layer.addEventListener("pointermove", (event) => {
+    if (!comicManualDrawState || !comicManualDrawState.active || comicManualDrawState.layer !== layer) return;
+    event.preventDefault();
+    updateComicManualDrawBox(event.clientX, event.clientY);
+  });
+  layer.addEventListener("pointerup", (event) => {
+    if (!comicManualDrawState || !comicManualDrawState.active || comicManualDrawState.layer !== layer) return;
+    event.preventDefault();
+    const box = updateComicManualDrawBox(event.clientX, event.clientY);
+    cleanup();
+    if (!box || box[2] < 0.012 || box[3] < 0.012) {
+      state.shell.showToast(state.shell.t("comicManualDrawTooSmall"));
+      return;
+    }
+    const blockId = `manual_p${pageIndex}_${Date.now().toString(36)}`;
+    addComicManualPlaceholder(pageIndex, blockId, box, state.shell.t("comicManualOcrWorking"));
+    recognizeComicManualOverlay({ pageIndex, blockId, box })
+      .then((data) => {
+        if (data && data.result) {
+          state.comicOcrResult = data.result;
+        } else if (data && data.edit) {
+          applyComicOcrOverlayEditLocal(pageIndex, blockId, data.edit);
+        }
+        state.comicOcrOverlayEnabled = true;
+        syncComicOcrControls();
+        renderComicOcrOverlays();
+        state.shell.showToast(state.shell.t("comicManualOcrDone"));
+      })
+      .catch((error) => {
+        addComicManualPlaceholder(pageIndex, blockId, box, error.displayMessage || error.message || state.shell.t("comicManualOcrFailed"));
+        state.shell.showToast(error.displayMessage || error.message || state.shell.t("comicManualOcrFailed"));
+      });
+  });
+  layer.addEventListener("pointercancel", () => {
+    cleanup();
+  });
+}
+
+function updateComicManualDrawBox(clientX, clientY) {
+  const current = comicManualDrawState;
+  if (!current || !current.start || !current.img || !current.boxNode) return null;
+  const rect = current.img.getBoundingClientRect();
+  const x2 = clamp01((clientX - rect.left) / Math.max(1, rect.width));
+  const y2 = clamp01((clientY - rect.top) / Math.max(1, rect.height));
+  const x = Math.min(current.start.x, x2);
+  const y = Math.min(current.start.y, y2);
+  const w = Math.abs(x2 - current.start.x);
+  const h = Math.abs(y2 - current.start.y);
+  current.boxNode.style.left = `${x * 100}%`;
+  current.boxNode.style.top = `${y * 100}%`;
+  current.boxNode.style.width = `${w * 100}%`;
+  current.boxNode.style.height = `${h * 100}%`;
+  return [x, y, w, h];
+}
+
 function renderImageChapter(preserveRatio = null) {
   cancelPendingPositionApply();
   const loadSeq = ++state.comicLoadSeq;
@@ -3563,6 +3905,7 @@ function renderImageChapter(preserveRatio = null) {
             item.slot.classList.add("loaded");
             item.slot.innerHTML = "";
             item.slot.appendChild(img);
+            attachComicImageMenuHandlers(item.slot, img, item.index);
             renderComicOcrOverlayForSlot(item.slot, item.index);
             updateProgress();
             done();
@@ -7900,6 +8243,8 @@ async function init() {
   }
   document.addEventListener("pointerdown", (event) => {
     const target = event.target instanceof Element ? event.target : null;
+    if (target && target.closest("#comic-image-action-menu")) return;
+    closeComicImageActionMenu();
     if (target && target.closest(".reader-comic-ocr-block")) return;
     clearComicOcrOverlayPeeks();
   });

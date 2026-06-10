@@ -6061,7 +6061,11 @@ class ReaderService:
             },
             allow_missing_cached_pages=True,
         )
-        cached_result = self._read_comic_ocr_chapter_manifest(context) or self._build_comic_ocr_result_from_cache(context)
+        cached_result = (
+            self._read_comic_ocr_chapter_manifest(context)
+            or self._build_comic_ocr_result_from_cache(context)
+            or self._build_comic_ocr_manual_result(context)
+        )
         return {"ok": True, "cached": bool(cached_result), "result": cached_result}
 
     def clear_comic_ocr_chapter_cache(self, *, book_id: str, chapter_id: str) -> dict[str, Any]:
@@ -6185,6 +6189,105 @@ class ReaderService:
                 return run_translate("google_translate")
             raise
 
+    def recognize_comic_ocr_manual_overlay(self, payload: dict[str, Any] | None = None) -> dict[str, Any]:
+        body = payload if isinstance(payload, dict) else {}
+        context = self._prepare_comic_ocr_context(
+            body,
+            allow_missing_cached_pages=True,
+            remember_book_source_lang=True,
+            force_layout_disabled=True,
+        )
+        try:
+            page_index = int(body.get("page_index") or 0)
+        except Exception:
+            page_index = 0
+        sources = list(context.get("sources") or [])
+        source = next((item for item in sources if int(getattr(item, "index", -1)) == page_index), None)
+        if source is None:
+            raise ApiError(HTTPStatus.BAD_REQUEST, "BAD_REQUEST", "Không tìm thấy ảnh cần OCR.")
+        box = self._normalize_comic_ocr_manual_box(body.get("box"))
+        if box[2] < 0.005 or box[3] < 0.005:
+            raise ApiError(HTTPStatus.BAD_REQUEST, "BAD_REQUEST", "Khung OCR quá nhỏ.")
+        data, _content_type = self.fetch_vbook_image(
+            image_url=source.image_url,
+            plugin_id=source.plugin_id,
+            referer=source.referer,
+            use_cache=True,
+        )
+        width, height = comic_ocr_image_source_support.image_size_from_bytes(data)
+        block = comic_ocr_engine_support.recognize_region(
+            data,
+            box=box,
+            source_lang=context["source_lang"],
+            settings=context["settings"],
+            width=width,
+            height=height,
+        )
+        source_text = comic_ocr_translate_support.normalize_ocr_text(block.get("source_text") or "")
+        if not source_text:
+            raise ApiError(HTTPStatus.BAD_REQUEST, "OCR_TEXT_EMPTY", "Không nhận diện được chữ trong khung này.")
+        translated_text = self._translate_comic_ocr_overlay_source_text(
+            book_id=context["book_id"],
+            source_text=source_text,
+            source_lang=context["source_lang"],
+            translation_mode=context["translate_mode"],
+        )
+        raw_block_id = str(body.get("block_id") or "").strip()
+        manual_seed = f"{context['book_id']}|{context['chapter_id']}|{page_index}|{box}|{utc_now_iso()}"
+        block_id = raw_block_id if raw_block_id.startswith("manual_") else f"manual_p{page_index}_{hash_text(manual_seed)[:12]}"
+        edit = {
+            "page_index": max(0, page_index),
+            "block_id": block_id,
+            "manual": True,
+            "box": box,
+            "text": translated_text[:2000],
+            "source_text": source_text[:2000],
+            "source_edited": True,
+            "translation_edited": False,
+            "font_scale": 100,
+            "hidden": False,
+            "confidence": float(block.get("confidence") or 0.0),
+            "updated_at": utc_now_iso(),
+        }
+        edits = comic_ocr_cache_support.read_overlay_edits(
+            CACHE_DIR,
+            book_id=context["book_id"],
+            chapter_id=context["chapter_id"],
+        )
+        edits[block_id] = edit
+        comic_ocr_cache_support.write_overlay_edits(
+            CACHE_DIR,
+            book_id=context["book_id"],
+            chapter_id=context["chapter_id"],
+            edits=edits,
+        )
+        result = self._read_comic_ocr_chapter_manifest(context) or self._build_comic_ocr_manual_result(context)
+        return {
+            "ok": True,
+            "book_id": context["book_id"],
+            "chapter_id": context["chapter_id"],
+            "page_index": page_index,
+            "block_id": block_id,
+            "edit": edit,
+            "result": result,
+        }
+
+    def _normalize_comic_ocr_manual_box(self, value: Any) -> list[float]:
+        raw = value if isinstance(value, list) else []
+        nums: list[float] = []
+        for item in raw[:4]:
+            try:
+                nums.append(float(item or 0.0))
+            except Exception:
+                nums.append(0.0)
+        while len(nums) < 4:
+            nums.append(0.0)
+        x = max(0.0, min(1.0, nums[0]))
+        y = max(0.0, min(1.0, nums[1]))
+        w = max(0.0, min(1.0 - x, nums[2]))
+        h = max(0.0, min(1.0 - y, nums[3]))
+        return [x, y, w, h]
+
     def get_comic_ocr_settings(self) -> dict[str, Any]:
         return {
             "ok": True,
@@ -6234,6 +6337,7 @@ class ReaderService:
         *,
         allow_missing_cached_pages: bool = False,
         remember_book_source_lang: bool = False,
+        force_layout_disabled: bool = False,
     ) -> dict[str, Any]:
         body = payload if isinstance(payload, dict) else {}
         book_id = str(body.get("book_id") or "").strip()
@@ -6306,6 +6410,8 @@ class ReaderService:
         ocr_settings = dict(self.comic_ocr_settings or {})
         if model_key:
             ocr_settings["model_key"] = model_key
+        if force_layout_disabled:
+            ocr_settings["layout_detection_enabled"] = False
         engine_status = comic_ocr_engine_support.engine_status(ocr_settings, source_lang=source_lang)
         if not engine_status.get("ready"):
             raise ApiError(
@@ -6840,6 +6946,28 @@ class ReaderService:
         comic_ocr_cache_support.write_translation_chapter(CACHE_DIR, context["chapter_key"], result)
         return self._apply_comic_ocr_overlay_edits(context, result)
 
+    def _build_comic_ocr_manual_result(self, context: dict[str, Any]) -> dict[str, Any] | None:
+        edits = comic_ocr_cache_support.read_overlay_edits(
+            CACHE_DIR,
+            book_id=str(context.get("book_id") or ""),
+            chapter_id=str(context.get("chapter_id") or ""),
+        )
+        if not any(isinstance(edit, dict) and bool(edit.get("manual")) for edit in edits.values()):
+            return None
+        pages = [
+            {
+                "index": source.index,
+                "image_url": source.display_url,
+                "image_key": source.image_key,
+                "width": 0,
+                "height": 0,
+                "blocks": [],
+            }
+            for source in context.get("sources") or []
+        ]
+        result = self._build_comic_ocr_result(context, pages, complete=False)
+        return self._apply_comic_ocr_overlay_edits(context, result)
+
     def _apply_comic_ocr_overlay_edits(self, context: dict[str, Any], result: dict[str, Any]) -> dict[str, Any]:
         if not isinstance(result, dict):
             return result
@@ -6851,11 +6979,13 @@ class ReaderService:
         if not edits:
             return result
         patched = dict(result)
+        used_ids: set[str] = set()
         pages: list[dict[str, Any]] = []
         for page in result.get("pages") or []:
             if not isinstance(page, dict):
                 continue
             next_page = dict(page)
+            page_index = int(next_page.get("index") or 0)
             blocks: list[dict[str, Any]] = []
             for block in page.get("blocks") or []:
                 if not isinstance(block, dict):
@@ -6864,6 +6994,7 @@ class ReaderService:
                 block_id = str(next_block.get("id") or "").strip()
                 edit = edits.get(block_id) if block_id else None
                 if isinstance(edit, dict):
+                    used_ids.add(block_id)
                     text = str(edit.get("text") or "").strip()
                     source_text = str(edit.get("source_text") or "").strip()
                     try:
@@ -6882,6 +7013,52 @@ class ReaderService:
                     }
                     next_block["overlay_edit"] = safe_edit
                 blocks.append(next_block)
+            for edit_id, edit in edits.items():
+                if edit_id in used_ids or not isinstance(edit, dict) or not bool(edit.get("manual")):
+                    continue
+                try:
+                    edit_page_index = int(edit.get("page_index") or 0)
+                except Exception:
+                    edit_page_index = 0
+                if edit_page_index != page_index:
+                    continue
+                manual_box = self._normalize_comic_ocr_manual_box(edit.get("box"))
+                text = str(edit.get("text") or "").strip()
+                source_text = str(edit.get("source_text") or "").strip()
+                if not text and not source_text:
+                    continue
+                try:
+                    font_scale = int(edit.get("font_scale") or 100)
+                except Exception:
+                    font_scale = 100
+                safe_edit = {
+                    "edited": True,
+                    "manual": True,
+                    "text": text,
+                    "source_text": source_text,
+                    "source_edited": bool(edit.get("source_edited", True)),
+                    "translation_edited": bool(edit.get("translation_edited")),
+                    "font_scale": max(60, min(180, font_scale)),
+                    "hidden": bool(edit.get("hidden")),
+                    "updated_at": str(edit.get("updated_at") or ""),
+                }
+                blocks.append({
+                    "id": str(edit_id),
+                    "box": manual_box,
+                    "polygon": [
+                        [manual_box[0], manual_box[1]],
+                        [manual_box[0] + manual_box[2], manual_box[1]],
+                        [manual_box[0] + manual_box[2], manual_box[1] + manual_box[3]],
+                        [manual_box[0], manual_box[1] + manual_box[3]],
+                    ],
+                    "source_text": source_text,
+                    "translated_text": text or source_text,
+                    "confidence": float(edit.get("confidence") or 0.0),
+                    "order": 10000 + len(blocks),
+                    "style_hint": {"align": "center", "tone": "manual_dialog"},
+                    "overlay_edit": safe_edit,
+                })
+                used_ids.add(str(edit_id))
             next_page["blocks"] = blocks
             pages.append(next_page)
         patched["pages"] = pages
