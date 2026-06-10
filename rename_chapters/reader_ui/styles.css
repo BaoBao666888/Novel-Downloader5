@@ -3222,23 +3222,27 @@ body.panel-style-clear .reader-content-body {
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 3px 5px;
+  padding: 4px 6px;
   border-radius: 6px;
-  background: var(--comic-ocr-bg, color-mix(in srgb, var(--surface) 88%, transparent));
-  border: 1px solid var(--comic-ocr-border, color-mix(in srgb, var(--accent) 42%, var(--line)));
+  background: var(--comic-ocr-bg, color-mix(in srgb, var(--surface) 96%, #fff 4%));
+  border: 1px solid var(--comic-ocr-border, color-mix(in srgb, var(--text) 24%, transparent));
   color: var(--comic-ocr-text, var(--text));
-  box-shadow: var(--comic-ocr-shadow, 0 4px 16px color-mix(in srgb, #000 20%, transparent));
+  box-shadow: var(--comic-ocr-shadow, 0 6px 18px color-mix(in srgb, #000 24%, transparent));
   text-shadow: var(--comic-ocr-text-shadow, none);
-  line-height: 1.2;
+  line-height: 1.14;
   text-align: center;
   overflow-wrap: anywhere;
   word-break: normal;
   overflow: hidden;
+  font-weight: 650;
+  letter-spacing: 0;
+  backdrop-filter: blur(0.7px);
+  -webkit-backdrop-filter: blur(0.7px);
 }
 
 .reader-comic-ocr-block.is-tight {
   line-height: 1.04;
-  padding: 1px 2px;
+  padding: 2px 3px;
 }
 
 .chapter-block {

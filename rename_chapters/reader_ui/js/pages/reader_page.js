@@ -2679,7 +2679,7 @@ function fitComicOcrOverlayBlock(node, bounds) {
   const boxHeight = Math.max(1, node.clientHeight || 1);
   const compact = boxHeight < 54;
   node.style.lineHeight = compact ? "1.08" : "1.14";
-  node.style.padding = compact ? "2px 3px" : "3px 5px";
+  node.style.padding = compact ? "2px 3px" : "4px 6px";
   let low = minFont;
   let high = maxFont;
   let best = minFont;
@@ -2795,12 +2795,12 @@ function applyComicOcrOverlayPalette(node, sample) {
   if (!node || !sample) return;
   const light = sample.luma >= 145;
   const target = light ? { r: 255, g: 255, b: 255 } : { r: 20, g: 26, b: 40 };
-  const bg = mixComicOcrColor(sample, target, light ? 0.58 : 0.46);
-  node.style.setProperty("--comic-ocr-bg", rgbaComicOcrColor(bg, light ? 0.74 : 0.78));
-  node.style.setProperty("--comic-ocr-border", light ? "rgba(31, 41, 55, 0.22)" : "rgba(255, 255, 255, 0.26)");
+  const bg = mixComicOcrColor(sample, target, light ? 0.82 : 0.68);
+  node.style.setProperty("--comic-ocr-bg", rgbaComicOcrColor(bg, light ? 0.95 : 0.93));
+  node.style.setProperty("--comic-ocr-border", light ? "rgba(17, 24, 39, 0.28)" : "rgba(255, 255, 255, 0.32)");
   node.style.setProperty("--comic-ocr-text", light ? "#111827" : "#f8fafc");
-  node.style.setProperty("--comic-ocr-shadow", light ? "0 4px 14px rgba(15, 23, 42, 0.16)" : "0 5px 18px rgba(0, 0, 0, 0.32)");
-  node.style.setProperty("--comic-ocr-text-shadow", light ? "none" : "0 1px 2px rgba(0, 0, 0, 0.46)");
+  node.style.setProperty("--comic-ocr-shadow", light ? "0 6px 18px rgba(15, 23, 42, 0.20)" : "0 7px 20px rgba(0, 0, 0, 0.38)");
+  node.style.setProperty("--comic-ocr-text-shadow", light ? "0 1px 0 rgba(255, 255, 255, 0.36)" : "0 1px 2px rgba(0, 0, 0, 0.56)");
 }
 
 function clearComicOcrOverlays(root = refs.readerContentBody) {
