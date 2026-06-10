@@ -3275,6 +3275,31 @@ body.panel-style-clear .reader-content-body {
   opacity: 0.84;
 }
 
+.reader-comic-ocr-block.is-hidden {
+  cursor: pointer;
+}
+
+.reader-comic-ocr-block.is-hidden:not(:hover):not(:focus-visible):not(.is-peek) {
+  color: transparent !important;
+  background: transparent !important;
+  border-color: transparent !important;
+  box-shadow: none !important;
+  text-shadow: none !important;
+  opacity: 0;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+
+.reader-comic-ocr-block.is-hidden:not(:hover):not(:focus-visible):not(.is-peek)::after {
+  display: none;
+}
+
+.reader-comic-ocr-block.is-hidden:hover,
+.reader-comic-ocr-block.is-hidden:focus-visible,
+.reader-comic-ocr-block.is-hidden.is-peek {
+  opacity: 0.96;
+}
+
 .comic-ocr-overlay-editor {
   width: min(520px, calc(100vw - 28px));
 }

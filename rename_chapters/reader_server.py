@@ -6103,8 +6103,24 @@ class ReaderService:
             comic_ocr_cache_support.write_overlay_edits(CACHE_DIR, book_id=book_id, chapter_id=chapter_id, edits=edits)
             return {"ok": True, "book_id": book_id, "chapter_id": chapter_id, "block_id": block_id, "edit": None}
 
+        source_text = str(body.get("source_text") or "").strip()
         text = str(body.get("text") or "").strip()
-        if not text:
+        source_edited = self._parse_bool(body.get("source_edited"), False)
+        source_changed = self._parse_bool(body.get("source_changed"), False)
+        translation_edited = self._parse_bool(body.get("translation_edited"), True)
+        hidden = self._parse_bool(body.get("hidden"), False)
+        source_lang = normalize_lang_source(str(body.get("source_lang") or "").strip())
+        translation_mode = str(body.get("translation_mode") or "").strip()
+        if source_changed and source_text and not translation_edited:
+            text = self._translate_comic_ocr_overlay_source_text(
+                book_id=book_id,
+                source_text=source_text,
+                source_lang=source_lang,
+                translation_mode=translation_mode,
+            )
+        if not text and source_text:
+            text = source_text
+        if not text and not hidden:
             raise ApiError(HTTPStatus.BAD_REQUEST, "BAD_REQUEST", "Text overlay không được để trống.")
         try:
             page_index = int(body.get("page_index") or 0)
@@ -6119,12 +6135,55 @@ class ReaderService:
             "page_index": max(0, page_index),
             "block_id": block_id,
             "text": text[:2000],
+            "source_text": source_text[:2000],
+            "source_edited": bool(source_edited),
+            "translation_edited": bool(translation_edited),
             "font_scale": font_scale,
+            "hidden": bool(hidden),
             "updated_at": utc_now_iso(),
         }
         edits[block_id] = edit
         comic_ocr_cache_support.write_overlay_edits(CACHE_DIR, book_id=book_id, chapter_id=chapter_id, edits=edits)
         return {"ok": True, "book_id": book_id, "chapter_id": chapter_id, "block_id": block_id, "edit": edit}
+
+    def _translate_comic_ocr_overlay_source_text(
+        self,
+        *,
+        book_id: str,
+        source_text: str,
+        source_lang: str = "",
+        translation_mode: str = "",
+    ) -> str:
+        text = comic_ocr_translate_support.normalize_ocr_text(source_text)
+        if not text:
+            return ""
+        mode = self.resolve_translate_mode_for_book(translation_mode or None, book_id)
+        lang = normalize_lang_source(source_lang)
+        if lang and not is_lang_zh(lang) and mode not in {"vbook_ext", "google_translate"}:
+            mode = "google_translate"
+        translator = self.translator_for_book(book_id)
+
+        def run_translate(chosen_mode: str) -> str:
+            blocks = comic_ocr_translate_support.translate_blocks_batched(
+                [{"source_text": text}],
+                translator=translator,
+                translate_mode=chosen_mode,
+                source_lang=lang,
+                normalize_vi_display_text=normalize_vi_display_text,
+                strict=chosen_mode == "vbook_ext",
+                batch_max_items=1,
+                batch_max_chars=max(500, min(20000, int(self.comic_ocr_settings.get("translation_batch_max_chars") or 6000))),
+            )
+            if not blocks:
+                return text
+            return str((blocks[0] or {}).get("translated_text") or text).strip() or text
+
+        try:
+            return run_translate(mode)
+        except Exception:
+            if mode == "vbook_ext" and lang and not is_lang_zh(lang):
+                return run_translate("google_translate")
+            raise
 
     def get_comic_ocr_settings(self) -> dict[str, Any]:
         return {
@@ -6806,6 +6865,7 @@ class ReaderService:
                 edit = edits.get(block_id) if block_id else None
                 if isinstance(edit, dict):
                     text = str(edit.get("text") or "").strip()
+                    source_text = str(edit.get("source_text") or "").strip()
                     try:
                         font_scale = int(edit.get("font_scale") or 100)
                     except Exception:
@@ -6813,7 +6873,11 @@ class ReaderService:
                     safe_edit = {
                         "edited": True,
                         "text": text,
+                        "source_text": source_text,
+                        "source_edited": bool(edit.get("source_edited")),
+                        "translation_edited": bool(edit.get("translation_edited")),
                         "font_scale": max(60, min(180, font_scale)),
+                        "hidden": bool(edit.get("hidden")),
                         "updated_at": str(edit.get("updated_at") or ""),
                     }
                     next_block["overlay_edit"] = safe_edit
