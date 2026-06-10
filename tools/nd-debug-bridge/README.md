@@ -22,7 +22,7 @@ Có thể đổi port:
 ND_DEBUG_PORT=17889 node tools/nd-debug-bridge/server.js
 ```
 
-## Cách dùng
+## Cách dùng lần đầu
 
 1. Chạy server local.
 2. Mở trang truyện có Novel Downloader.
@@ -31,9 +31,60 @@ ND_DEBUG_PORT=17889 node tools/nd-debug-bridge/server.js
 5. Dùng cùng token ở popup userscript và dashboard.
 6. Bấm `Kết nối` trong popup userscript nếu chưa tự kết nối.
 
+Khi đã bật Debug Bridge một lần, setting `enabled/token/url` được lưu trong Tampermonkey. Các tab truyện mới do CLI mở sẽ tự nạp Debug Bridge và tự reconnect vào server local, miễn là server vẫn chạy và token không đổi.
+
+## Dùng bằng terminal
+
+CLI nằm ở:
+
+```bash
+node tools/nd-debug-bridge/cli.js --help
+```
+
+Nên export token để khỏi gõ lại:
+
+```bash
+export ND_DEBUG_TOKEN=token-cua-ban
+```
+
+Các lệnh hay dùng:
+
+```bash
+# Liệt kê tab đang nối
+node tools/nd-debug-bridge/cli.js clients
+
+# Mở web mới bằng tab debug hiện tại, tab mới sẽ tự reconnect
+node tools/nd-debug-bridge/cli.js open https://www.69shuba.com/book/90509/
+
+# Chọn target theo id/URL/title/host
+node tools/nd-debug-bridge/cli.js --target 69shuba snapshot
+
+# Xem chương đã nạp trong Storage.book
+node tools/nd-debug-bridge/cli.js --target 69shuba chapters 100 10
+
+# Chạy deal của rule hiện tại trên chương index 104
+node tools/nd-debug-bridge/cli.js --target 69shuba deal 104
+
+# Request text bằng helper trong môi trường Tampermonkey thật
+node tools/nd-debug-bridge/cli.js --target 69shuba request https://example.com/chapter.html
+
+# Eval JS ngắn hoặc từ file
+node tools/nd-debug-bridge/cli.js --target 69shuba eval "return {href: location.href, rule: Storage.rule.siteName}"
+node tools/nd-debug-bridge/cli.js --target 69shuba eval --file ./tmp/debug.js
+```
+
+Nếu có nhiều tab userscript mà không truyền `--target`, CLI tự chọn tab mới nhất và in cảnh báo ra stderr. Khi cần chắc chắn, dùng `clients` rồi truyền `--target <id>`.
+
+## Dashboard
+
+Dashboard tại `http://127.0.0.1:17888/` vẫn dùng cùng token. Khi nhiều tab userscript cùng nối, chọn target trong dropdown trước khi bấm command.
+
 ## Command có sẵn
 
 - `env.snapshot`: xem URL, rule, book, Storage/Config và API đang có.
+- `bridge.status`: xem trạng thái Debug Bridge trong tab target.
+- `browser.openUrl`: mở URL bằng tab target, có thể mở tab mới hoặc chuyển chính tab target.
+- `browser.reload`: reload tab target.
 - `selector.test`: test selector trên DOM trang thật.
 - `rule.current`: xem rule hiện tại.
 - `storage.book`: xem thông tin sách và mẫu chương.

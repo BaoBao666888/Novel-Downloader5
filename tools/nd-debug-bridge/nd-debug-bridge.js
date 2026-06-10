@@ -1,16 +1,16 @@
 // ==UserScript==
 // @name        nd-debug-bridge
-// @version     1.0.0
+// @version     1.1.0
 // @include     *
 // ==/UserScript==
 /* eslint-env browser */
-/* global GM_getValue GM_setValue GM_xmlhttpRequest unsafeWindow CryptoJS */
+/* global GM_getValue GM_setValue GM_xmlhttpRequest GM_openInTab unsafeWindow CryptoJS */
 (function (window, document) {
     'use strict';
 
     if (window.NDDebugBridge && window.NDDebugBridge.__installed) return;
 
-    const VERSION = '1.0.0';
+    const VERSION = '1.1.0';
     const UI_HOST_ID = 'novel-downloader-shadow-host';
     const PANEL_ID = 'ndDebugBridgePanel';
     const STYLE_ID = 'ndDebugBridgeStyle';
@@ -201,6 +201,7 @@
             GM_getValue: typeof GM_getValue !== 'undefined' ? GM_getValue : undefined,
             GM_setValue: typeof GM_setValue !== 'undefined' ? GM_setValue : undefined,
             GM_xmlhttpRequest: typeof GM_xmlhttpRequest !== 'undefined' ? GM_xmlhttpRequest : undefined,
+            GM_openInTab: typeof GM_openInTab !== 'undefined' ? GM_openInTab : undefined,
             CryptoJS: typeof CryptoJS !== 'undefined' ? CryptoJS : undefined
         }, provided);
     }
@@ -401,6 +402,56 @@
                 book: buildBookSnapshot(context)
             };
         }
+        if (command === 'bridge.status') {
+            return {
+                bridgeVersion: VERSION,
+                status: Object.assign({}, status),
+                settings: Object.assign({}, settings),
+                url: window.location.href,
+                title: document.title,
+                host: window.location.host
+            };
+        }
+        if (command === 'browser.openUrl') {
+            const rawUrl = String(payload.url || '').trim();
+            if (!rawUrl) throw new Error('Thiếu URL');
+            const targetUrl = new URL(rawUrl, window.location.href).href;
+            const newTab = payload.newTab !== false;
+            if (newTab) {
+                if (typeof GM_openInTab === 'function') {
+                    const tab = GM_openInTab(targetUrl, {
+                        active: payload.active !== false,
+                        insert: true,
+                        setParent: true
+                    });
+                    return {
+                        opened: true,
+                        method: 'GM_openInTab',
+                        url: targetUrl,
+                        tab: serialize(tab)
+                    };
+                }
+                const opened = window.open(targetUrl, '_blank', 'noopener');
+                if (!opened) throw new Error('Browser chặn mở tab mới. Dùng browser.openUrl với newTab=false để chuyển tab hiện tại.');
+                return {
+                    opened: true,
+                    method: 'window.open',
+                    url: targetUrl
+                };
+            }
+            window.setTimeout(() => {
+                window.location.href = targetUrl;
+            }, Math.max(0, Number(payload.delayMs || 150)));
+            return {
+                navigating: true,
+                method: 'location.href',
+                url: targetUrl
+            };
+        }
+        if (command === 'browser.reload') {
+            window.setTimeout(() => window.location.reload(), Math.max(0, Number(payload.delayMs || 100)));
+            return { reloading: true, url: window.location.href };
+        }
         if (command === 'selector.test') {
             const selector = String(payload.selector || '').trim();
             if (!selector) throw new Error('Thiếu selector');
@@ -486,13 +537,22 @@
         const id = message.id || `cmd_${Date.now()}`;
         try {
             const result = await runCommand(message.command, message.payload || {});
-            send({ type: 'result', id, ok: true, payload: serialize(result) });
+            send({
+                type: 'result',
+                id,
+                ok: true,
+                payload: serialize(result),
+                replyTo: message.replyTo,
+                targetClientId: message.targetClientId
+            });
         } catch (error) {
             send({
                 type: 'result',
                 id,
                 ok: false,
-                error: serialize(error)
+                error: serialize(error),
+                replyTo: message.replyTo,
+                targetClientId: message.targetClientId
             });
         }
     }

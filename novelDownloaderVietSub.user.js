@@ -33,6 +33,7 @@
 // @grant       GM_registerMenuCommand
 // @grant       GM_getResourceText
 // @grant       GM_addValueChangeListener
+// @grant       GM_openInTab
 // @run-at      document-end
 // @connect     *
 // @include     *
@@ -586,11 +587,21 @@ function decryptDES(encrypted, key, iv) {
                             'GM_getValue',
                             'GM_setValue',
                             'GM_xmlhttpRequest',
+                            'GM_openInTab',
                             'unsafeWindow',
                             'CryptoJS',
                             `${res.responseText}\nreturn window.NDDebugBridge;`
                         );
-                        const loadedBridge = install(window, document, GM_getValue, GM_setValue, GM_xmlhttpRequest, unsafeWindow, CryptoJS);
+                        const loadedBridge = install(
+                            window,
+                            document,
+                            GM_getValue,
+                            GM_setValue,
+                            GM_xmlhttpRequest,
+                            typeof GM_openInTab !== 'undefined' ? GM_openInTab : undefined,
+                            unsafeWindow,
+                            CryptoJS
+                        );
                         registerNovelDownloaderDebugBridge();
                         resolve(loadedBridge || window.NDDebugBridge);
                     } catch (error) {
@@ -619,6 +630,25 @@ function decryptDES(encrypted, key, iv) {
         } catch (error) {
             alert(`Không mở được Debug Bridge.\n\nChạy server trước:\nnode tools/nd-debug-bridge/server.js\n\nChi tiết: ${error.message || error}`);
         }
+    }
+
+    function autoLoadNovelDownloaderDebugBridge() {
+        let debugSettings = null;
+        try {
+            debugSettings = GM_getValue('nd_debug_bridge_settings', null);
+        } catch (error) {
+            debugSettings = null;
+        }
+        if (!debugSettings || !debugSettings.enabled) return;
+        loadNovelDownloaderDebugBridgeClient()
+            .then((bridge) => {
+                if (bridge && typeof bridge.connect === 'function' && !bridge.isConnected()) {
+                    bridge.connect(debugSettings);
+                }
+            })
+            .catch((error) => {
+                console.warn('[ND] Không auto-load được Debug Bridge:', error);
+            });
     }
 
     function getNovelDownloaderRuleEditor() {
@@ -8476,6 +8506,7 @@ function decryptDES(encrypted, key, iv) {
             getFromRule,
             Storage,
             Config,
+            GM_openInTab: typeof GM_openInTab !== 'undefined' ? GM_openInTab : undefined,
             unsafeWindow,
             download: typeof download !== 'undefined' ? download : undefined,
             saveAs: typeof saveAs !== 'undefined' ? saveAs : undefined,
@@ -8491,6 +8522,7 @@ function decryptDES(encrypted, key, iv) {
     }
 
     registerNovelDownloaderDebugBridge();
+    autoLoadNovelDownloaderDebugBridge();
 
     function loadCustomRulesFromConfig(source) {
         const code = String(source || '').trim();

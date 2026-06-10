@@ -52,6 +52,7 @@ header{display:flex;align-items:center;gap:12px;padding:12px 16px;background:#11
 h1{font-size:17px;margin:0;white-space:nowrap}
 input,textarea,button,select{font:13px/1.35 Arial,sans-serif}
 input,textarea{border:1px solid #475569;border-radius:6px;background:#020617;color:#f8fafc;padding:7px 8px}
+select{border:1px solid #475569;border-radius:6px;background:#020617;color:#f8fafc;padding:7px 8px}
 textarea{width:100%;min-height:142px;font-family:Consolas,Menlo,monospace;resize:vertical}
 button{border:1px solid #475569;border-radius:6px;background:#1e293b;color:#f8fafc;padding:7px 10px;cursor:pointer;font-weight:700}
 button:hover{background:#334155}
@@ -62,6 +63,7 @@ button.warn{border-color:#f59e0b;background:#78350f}
 .status{font-size:12px;color:#cbd5e1}
 .status strong{color:#fff}
 .token{width:245px;max-width:34vw}
+.target{min-width:260px;max-width:34vw}
 .layout{display:grid;grid-template-columns:360px 1fr;gap:14px;padding:14px;min-height:calc(100vh - 57px)}
 .panel{background:#111827;border:1px solid #334155;border-radius:8px;overflow:hidden}
 .panel h2{margin:0;padding:10px 12px;background:#1e293b;border-bottom:1px solid #334155;font-size:14px}
@@ -78,7 +80,7 @@ button.warn{border-color:#f59e0b;background:#78350f}
 .meta{color:#94a3b8;font-size:11px;display:block;margin-bottom:2px}
 .small{font-size:12px;color:#94a3b8}
 label{display:grid;gap:4px;color:#cbd5e1;font-weight:700;font-size:12px}
-@media (max-width:900px){.layout{grid-template-columns:1fr}.output,.console{height:42vh}.token{max-width:none;width:100%}header{flex-wrap:wrap}}
+@media (max-width:900px){.layout{grid-template-columns:1fr}.output,.console{height:42vh}.token,.target{max-width:none;width:100%}header{flex-wrap:wrap}}
 </style>
 </head>
 <body>
@@ -86,6 +88,7 @@ label{display:grid;gap:4px;color:#cbd5e1;font-weight:700;font-size:12px}
   <h1>Novel Downloader Debug Bridge</h1>
   <span class="status" id="status">Chưa kết nối</span>
   <span class="spacer"></span>
+  <select class="target" id="target"><option value="">Tất cả tab userscript</option></select>
   <input class="token" id="token" placeholder="Token">
   <button id="connect" class="primary">Kết nối dashboard</button>
 </header>
@@ -116,6 +119,9 @@ label{display:grid;gap:4px;color:#cbd5e1;font-weight:700;font-size:12px}
       <label>Request text URL
         <div class="row"><input id="requestUrl" placeholder="https://..."><button id="requestRun">Request</button></div>
       </label>
+      <label>Mở hoặc chuyển tab debug tới URL
+        <div class="row"><input id="openUrl" placeholder="https://..."><button id="openNewTab" class="good">Mở tab</button><button id="navigateTab" class="warn">Chuyển tab</button></div>
+      </label>
       <label>Eval JS trong userscript
         <textarea id="evalCode">return {
   url: location.href,
@@ -143,9 +149,11 @@ label{display:grid;gap:4px;color:#cbd5e1;font-weight:700;font-size:12px}
   var ws = null;
   var pending = {};
   var tokenInput = document.getElementById('token');
+  var targetSelect = document.getElementById('target');
   var statusEl = document.getElementById('status');
   var outputEl = document.getElementById('output');
   var consoleEl = document.getElementById('console');
+  var clients = [];
   var params = new URLSearchParams(location.search);
   tokenInput.value = params.get('token') || localStorage.getItem('nd-debug-token') || 'local-debug';
 
@@ -165,6 +173,20 @@ label{display:grid;gap:4px;color:#cbd5e1;font-weight:700;font-size:12px}
     return String(text).replace(/[&<>"']/g, function(char) {
       return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char];
     });
+  }
+  function renderTargets() {
+    var current = targetSelect.value;
+    var userscripts = clients.filter(function(client){ return client.role === 'userscript'; });
+    targetSelect.innerHTML = '<option value="">Tất cả tab userscript</option>' + userscripts.map(function(client){
+      var label = '#' + client.id + ' ' + (client.title || client.page || client.host || 'userscript');
+      if (client.page) label += ' · ' + client.page;
+      return '<option value="' + client.id + '">' + escapeHtml(label) + '</option>';
+    }).join('');
+    if (current && userscripts.some(function(client){ return String(client.id) === String(current); })) {
+      targetSelect.value = current;
+    } else if (!current && userscripts.length === 1) {
+      targetSelect.value = String(userscripts[0].id);
+    }
   }
   function wsUrl() {
     var protocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
@@ -191,6 +213,8 @@ label{display:grid;gap:4px;color:#cbd5e1;font-weight:700;font-size:12px}
         consoleEl.innerHTML = '';
         (message.payload && message.payload.entries || []).forEach(appendConsole);
       } else if (message.type === 'server.clients') {
+        clients = message.clients || [];
+        renderTargets();
         var userscripts = (message.clients || []).filter(function(client){ return client.role === 'userscript'; }).length;
         var dashboards = (message.clients || []).filter(function(client){ return client.role === 'dashboard'; }).length;
         setStatus('<strong>Token:</strong> ' + escapeHtml(message.token || '') + ' · userscript: ' + userscripts + ' · dashboard: ' + dashboards);
@@ -218,7 +242,9 @@ label{display:grid;gap:4px;color:#cbd5e1;font-weight:700;font-size:12px}
     var id = 'cmd_' + Date.now() + '_' + Math.random().toString(36).slice(2);
     pending[id] = true;
     print('Đang chạy ' + commandName + '...');
-    send({ type: 'command', id: id, command: commandName, payload: payload || {} });
+    var message = { type: 'command', id: id, command: commandName, payload: payload || {} };
+    if (targetSelect.value) message.targetId = Number(targetSelect.value);
+    send(message);
   }
 
   document.getElementById('connect').addEventListener('click', connect);
@@ -240,6 +266,12 @@ label{display:grid;gap:4px;color:#cbd5e1;font-weight:700;font-size:12px}
   });
   document.getElementById('requestRun').addEventListener('click', function(){
     command('request.text', { url: document.getElementById('requestUrl').value, timeout: 60000 });
+  });
+  document.getElementById('openNewTab').addEventListener('click', function(){
+    command('browser.openUrl', { url: document.getElementById('openUrl').value, newTab: true, active: false, timeout: 10000 });
+  });
+  document.getElementById('navigateTab').addEventListener('click', function(){
+    command('browser.openUrl', { url: document.getElementById('openUrl').value, newTab: false, timeout: 10000 });
   });
   document.getElementById('evalRun').addEventListener('click', function(){
     command('eval.js', { code: document.getElementById('evalCode').value, timeout: 60000 });
@@ -304,6 +336,9 @@ function getClientSummary(token) {
         role: client.role,
         token: client.token,
         page: client.page,
+        title: client.title || '',
+        host: client.host || '',
+        bridgeVersion: client.bridgeVersion || '',
         connectedAt: client.connectedAt
     }));
 }
@@ -319,6 +354,74 @@ function broadcastClientList(token) {
     getClientsByToken(token).forEach(client => sendWs(client, payload));
 }
 
+function clientMatchesTarget(client, targetText) {
+    const needle = String(targetText || '').trim().toLowerCase();
+    if (!needle) return true;
+    const values = [
+        String(client.id || ''),
+        client.page || '',
+        client.title || '',
+        client.host || ''
+    ].map(value => String(value).toLowerCase());
+    return values.some(value => value.includes(needle));
+}
+
+function selectUserscriptTargets(sourceClient, message) {
+    const userscripts = getClientsByToken(sourceClient.token)
+        .filter(target => target.id !== sourceClient.id && target.role === 'userscript');
+    const targetId = Number(message.targetId || message.targetClientId || 0);
+    if (targetId) return userscripts.filter(target => target.id === targetId);
+    const targetText = message.target || message.targetPage || message.targetUrl || '';
+    if (targetText) return userscripts.filter(target => clientMatchesTarget(target, targetText));
+    return userscripts;
+}
+
+function routeFromDashboard(client, message) {
+    if (message.type === 'command') {
+        const targets = selectUserscriptTargets(client, message);
+        if (!targets.length) {
+            sendWs(client, {
+                type: 'result',
+                id: message.id,
+                ok: false,
+                error: {
+                    name: 'TargetError',
+                    message: 'Không có tab userscript nào khớp target.'
+                }
+            });
+            return;
+        }
+        targets.forEach(target => sendWs(target, Object.assign({}, message, {
+            replyTo: client.id,
+            targetClientId: target.id,
+            relayedBy: 'nd-debug-server',
+            fromRole: client.role
+        })));
+        return;
+    }
+    selectUserscriptTargets(client, message)
+        .forEach(target => sendWs(target, Object.assign({}, message, {
+            replyTo: client.id,
+            targetClientId: target.id,
+            relayedBy: 'nd-debug-server',
+            fromRole: client.role
+        })));
+}
+
+function routeFromUserscript(client, message) {
+    let dashboards = getClientsByToken(client.token)
+        .filter(target => target.id !== client.id && target.role === 'dashboard');
+    if (message.replyTo) {
+        dashboards = dashboards.filter(target => target.id === Number(message.replyTo));
+    }
+    dashboards.forEach(target => sendWs(target, Object.assign({}, message, {
+        sourceClientId: client.id,
+        sourcePage: client.page,
+        relayedBy: 'nd-debug-server',
+        fromRole: client.role
+    })));
+}
+
 function routeMessage(client, rawText) {
     let message = null;
     try {
@@ -330,7 +433,12 @@ function routeMessage(client, rawText) {
     if (!message || typeof message !== 'object') return;
     if (message.type === 'hello') {
         client.role = message.role || client.role;
-        if (message.payload && message.payload.pageUrl) client.page = message.payload.pageUrl;
+        if (message.payload) {
+            if (message.payload.pageUrl) client.page = message.payload.pageUrl;
+            if (message.payload.title) client.title = message.payload.title;
+            if (message.payload.host) client.host = message.payload.host;
+            if (message.payload.bridgeVersion) client.bridgeVersion = message.payload.bridgeVersion;
+        }
         sendWs(client, {
             type: 'server.hello',
             id: client.id,
@@ -341,13 +449,19 @@ function routeMessage(client, rawText) {
         broadcastClientList(client.token);
         return;
     }
-    const targetRole = client.role === 'dashboard' ? 'userscript' : 'dashboard';
-    getClientsByToken(client.token)
-        .filter(target => target.id !== client.id && target.role === targetRole)
-        .forEach(target => sendWs(target, Object.assign({}, message, {
-            relayedBy: 'nd-debug-server',
-            fromRole: client.role
-        })));
+    if (client.role === 'dashboard') {
+        routeFromDashboard(client, message);
+    } else if (client.role === 'userscript') {
+        routeFromUserscript(client, message);
+    } else {
+        const targetRole = client.role === 'dashboard' ? 'userscript' : 'dashboard';
+        getClientsByToken(client.token)
+            .filter(target => target.id !== client.id && target.role === targetRole)
+            .forEach(target => sendWs(target, Object.assign({}, message, {
+                relayedBy: 'nd-debug-server',
+                fromRole: client.role
+            })));
+    }
 }
 
 function handleFrameData(client, chunk) {
