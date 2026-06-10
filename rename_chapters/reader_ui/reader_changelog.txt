@@ -17,6 +17,7 @@
 > - Double-click hoặc bấm chuột phải vào một khung OCR để sửa text dịch và tăng/giảm cỡ chữ riêng cho khung đó.
 > - Có thể sửa cả text gốc và bản dịch. Nếu chỉ sửa text gốc, Reader sẽ dịch lại riêng khung đó và ghi đè bản dịch cũ.
 > - Có thể ẩn từng khung overlay; khung ẩn sẽ biến mất khi đọc nhưng hiện lại tạm khi rê chuột hoặc chạm vào vùng đó để chỉnh tiếp.
+> - Có thể gộp nhiều khung gần nhau: nhập số khung muốn gộp trong cửa sổ sửa overlay rồi bấm `Gộp`.
 > - Text đã sửa được lưu vào cache cứng và dùng lại cho tới khi tải lại chương, xóa cache hoặc xóa truyện.
 > - Có thêm nhóm cài đặt overlay trong `Cài đặt > OCR Comic`: cỡ chữ, font, in đậm, in nghiêng, nền overlay và đánh dấu khung đã sửa.
 > - Khung đã chỉnh riêng cỡ chữ sẽ không bị cài đặt cỡ chữ global ghi đè, còn font/nền/đậm/nghiêng vẫn đi theo cài đặt chung.

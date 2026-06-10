@@ -6103,9 +6103,20 @@ class ReaderService:
             raise ApiError(HTTPStatus.NOT_FOUND, "NOT_FOUND", "Không tìm thấy truyện/chương.")
         edits = comic_ocr_cache_support.read_overlay_edits(CACHE_DIR, book_id=book_id, chapter_id=chapter_id)
         if bool(body.get("reset")):
-            edits.pop(block_id, None)
+            reset_ids = [block_id]
+            existing_edit = edits.get(block_id)
+            if isinstance(existing_edit, dict):
+                for child_id in existing_edit.get("merged_block_ids") or []:
+                    cid = str(child_id or "").strip()
+                    if cid:
+                        reset_ids.append(cid)
+            for edit_id, edit in list(edits.items()):
+                if isinstance(edit, dict) and str(edit.get("merge_parent_id") or "").strip() == block_id:
+                    reset_ids.append(str(edit_id))
+            for reset_id in set(reset_ids):
+                edits.pop(reset_id, None)
             comic_ocr_cache_support.write_overlay_edits(CACHE_DIR, book_id=book_id, chapter_id=chapter_id, edits=edits)
-            return {"ok": True, "book_id": book_id, "chapter_id": chapter_id, "block_id": block_id, "edit": None}
+            return {"ok": True, "book_id": book_id, "chapter_id": chapter_id, "block_id": block_id, "edit": None, "reset_block_ids": sorted(set(reset_ids))}
 
         source_text = str(body.get("source_text") or "").strip()
         text = str(body.get("text") or "").strip()
@@ -6113,8 +6124,10 @@ class ReaderService:
         source_changed = self._parse_bool(body.get("source_changed"), False)
         translation_edited = self._parse_bool(body.get("translation_edited"), True)
         hidden = self._parse_bool(body.get("hidden"), False)
+        suppressed = self._parse_bool(body.get("suppressed"), False)
         source_lang = normalize_lang_source(str(body.get("source_lang") or "").strip())
         translation_mode = str(body.get("translation_mode") or "").strip()
+        existing_current_edit = edits.get(block_id) if isinstance(edits.get(block_id), dict) else {}
         if source_changed and source_text and not translation_edited:
             text = self._translate_comic_ocr_overlay_source_text(
                 book_id=book_id,
@@ -6124,7 +6137,7 @@ class ReaderService:
             )
         if not text and source_text:
             text = source_text
-        if not text and not hidden:
+        if not text and not hidden and not suppressed:
             raise ApiError(HTTPStatus.BAD_REQUEST, "BAD_REQUEST", "Text overlay không được để trống.")
         try:
             page_index = int(body.get("page_index") or 0)
@@ -6135,6 +6148,15 @@ class ReaderService:
         except Exception:
             font_scale = 100
         font_scale = max(60, min(180, font_scale))
+        box = self._normalize_comic_ocr_manual_box(body.get("box")) if isinstance(body.get("box"), list) else []
+        merged_block_ids = [
+            str(item or "").strip()
+            for item in (body.get("merged_block_ids") if isinstance(body.get("merged_block_ids"), list) else [])
+            if str(item or "").strip()
+        ]
+        merged_block_ids = list(dict.fromkeys([block_id] + merged_block_ids))
+        is_merged = self._parse_bool(body.get("merged"), False) or len(merged_block_ids) > 1
+        now = utc_now_iso()
         edit = {
             "page_index": max(0, page_index),
             "block_id": block_id,
@@ -6144,11 +6166,34 @@ class ReaderService:
             "translation_edited": bool(translation_edited),
             "font_scale": font_scale,
             "hidden": bool(hidden),
-            "updated_at": utc_now_iso(),
+            "suppressed": bool(suppressed),
+            "updated_at": now,
         }
+        if bool(existing_current_edit.get("manual")) or block_id.startswith("manual_") or self._parse_bool(body.get("manual"), False):
+            edit["manual"] = True
+        if box:
+            edit["box"] = box
+        if is_merged:
+            edit["merged"] = True
+            edit["merged_block_ids"] = merged_block_ids
         edits[block_id] = edit
+        affected_edits = {block_id: edit}
+        if is_merged:
+            for child_id in merged_block_ids:
+                if not child_id or child_id == block_id:
+                    continue
+                child_edit = dict(edits.get(child_id) if isinstance(edits.get(child_id), dict) else {})
+                child_edit.update({
+                    "page_index": max(0, page_index),
+                    "block_id": child_id,
+                    "suppressed": True,
+                    "merge_parent_id": block_id,
+                    "updated_at": now,
+                })
+                edits[child_id] = child_edit
+                affected_edits[child_id] = child_edit
         comic_ocr_cache_support.write_overlay_edits(CACHE_DIR, book_id=book_id, chapter_id=chapter_id, edits=edits)
-        return {"ok": True, "book_id": book_id, "chapter_id": chapter_id, "block_id": block_id, "edit": edit}
+        return {"ok": True, "book_id": book_id, "chapter_id": chapter_id, "block_id": block_id, "edit": edit, "edits": affected_edits}
 
     def _translate_comic_ocr_overlay_source_text(
         self,
@@ -6995,12 +7040,23 @@ class ReaderService:
                 edit = edits.get(block_id) if block_id else None
                 if isinstance(edit, dict):
                     used_ids.add(block_id)
+                    if bool(edit.get("suppressed")):
+                        continue
                     text = str(edit.get("text") or "").strip()
                     source_text = str(edit.get("source_text") or "").strip()
                     try:
                         font_scale = int(edit.get("font_scale") or 100)
                     except Exception:
                         font_scale = 100
+                    edit_box = self._normalize_comic_ocr_manual_box(edit.get("box")) if isinstance(edit.get("box"), list) else []
+                    if edit_box:
+                        next_block["box"] = edit_box
+                        next_block["polygon"] = [
+                            [edit_box[0], edit_box[1]],
+                            [edit_box[0] + edit_box[2], edit_box[1]],
+                            [edit_box[0] + edit_box[2], edit_box[1] + edit_box[3]],
+                            [edit_box[0], edit_box[1] + edit_box[3]],
+                        ]
                     safe_edit = {
                         "edited": True,
                         "text": text,
@@ -7009,12 +7065,24 @@ class ReaderService:
                         "translation_edited": bool(edit.get("translation_edited")),
                         "font_scale": max(60, min(180, font_scale)),
                         "hidden": bool(edit.get("hidden")),
+                        "suppressed": bool(edit.get("suppressed")),
                         "updated_at": str(edit.get("updated_at") or ""),
                     }
+                    if edit_box:
+                        safe_edit["box"] = edit_box
+                    if bool(edit.get("merged")):
+                        safe_edit["merged"] = True
+                        safe_edit["merged_block_ids"] = [
+                            str(item or "").strip()
+                            for item in (edit.get("merged_block_ids") or [])
+                            if str(item or "").strip()
+                        ]
                     next_block["overlay_edit"] = safe_edit
                 blocks.append(next_block)
             for edit_id, edit in edits.items():
                 if edit_id in used_ids or not isinstance(edit, dict) or not bool(edit.get("manual")):
+                    continue
+                if bool(edit.get("suppressed")):
                     continue
                 try:
                     edit_page_index = int(edit.get("page_index") or 0)
@@ -7042,6 +7110,13 @@ class ReaderService:
                     "hidden": bool(edit.get("hidden")),
                     "updated_at": str(edit.get("updated_at") or ""),
                 }
+                if bool(edit.get("merged")):
+                    safe_edit["merged"] = True
+                    safe_edit["merged_block_ids"] = [
+                        str(item or "").strip()
+                        for item in (edit.get("merged_block_ids") or [])
+                        if str(item or "").strip()
+                    ]
                 blocks.append({
                     "id": str(edit_id),
                     "box": manual_box,

@@ -2839,6 +2839,11 @@ function comicOcrOverlayEditForBlock(block) {
   return edit && edit.edited === true ? edit : null;
 }
 
+function comicOcrOverlaySuppressedForBlock(block) {
+  const edit = comicOcrOverlayEditForBlock(block);
+  return Boolean(edit && edit.suppressed === true);
+}
+
 function comicOcrSourceTextForBlock(block) {
   const edit = comicOcrOverlayEditForBlock(block);
   if (edit && edit.source_edited === true) return normalizeComicOcrOverlayText(edit.source_text);
@@ -2864,7 +2869,8 @@ function comicOcrOverlayHiddenForBlock(block) {
 }
 
 function comicOcrBlockBox(block) {
-  const box = Array.isArray(block && block.box) ? block.box : [];
+  const edit = comicOcrOverlayEditForBlock(block);
+  const box = Array.isArray(edit && edit.box) ? edit.box : (Array.isArray(block && block.box) ? block.box : []);
   if (box.length < 4) return null;
   const x = clamp01(Number(box[0]) || 0);
   const y = clamp01(Number(box[1]) || 0);
@@ -2946,6 +2952,7 @@ function mergeComicOcrBlocksForOverlay(blocks) {
 function comicOcrOverlayBlocksForPage(pageIndex) {
   return (comicOcrBlocksForPage(pageIndex) || [])
     .map((block) => {
+      if (comicOcrOverlaySuppressedForBlock(block)) return null;
       const box = comicOcrBlockBox(block);
       const text = comicOcrOverlayTextForBlock(block);
       const edit = comicOcrOverlayEditForBlock(block);
@@ -2962,6 +2969,8 @@ function comicOcrOverlayBlocksForPage(pageIndex) {
         translationEdited: Boolean(edit && edit.translation_edited === true),
         fontScale: comicOcrOverlayFontScaleForBlock(block),
         hidden: comicOcrOverlayHiddenForBlock(block),
+        merged: Boolean(edit && edit.merged === true),
+        mergedBlockIds: Array.isArray(edit && edit.merged_block_ids) ? edit.merged_block_ids.map((item) => String(item || "").trim()).filter(Boolean) : [],
       } : null;
     })
     .filter(Boolean)
@@ -3218,6 +3227,10 @@ function applyComicOcrOverlayEditLocal(pageIndex, blockId, edit) {
       translation_edited: edit.translation_edited === true,
       font_scale: Math.max(60, Math.min(180, Number(edit.font_scale || 100) || 100)),
       hidden: edit.hidden === true,
+      suppressed: edit.suppressed === true,
+      box: Array.isArray(edit.box) ? edit.box.slice(0, 4).map((value) => clamp01(Number(value) || 0)) : undefined,
+      merged: edit.merged === true,
+      merged_block_ids: Array.isArray(edit.merged_block_ids) ? edit.merged_block_ids.map((item) => String(item || "").trim()).filter(Boolean) : [],
       updated_at: String(edit.updated_at || ""),
     };
   } else {
@@ -3232,9 +3245,13 @@ function saveComicOcrOverlayEdit({
   sourceText = "",
   fontScale,
   hidden = false,
+  suppressed = false,
   sourceEdited = false,
   sourceChanged = false,
   translationEdited = true,
+  box = null,
+  merged = false,
+  mergedBlockIds = [],
   reset = false,
 }) {
   return state.shell.api("/api/comic-ocr/overlay/edit", {
@@ -3249,14 +3266,116 @@ function saveComicOcrOverlayEdit({
       source_text: sourceText,
       font_scale: fontScale,
       hidden,
+      suppressed,
       source_edited: sourceEdited,
       source_changed: sourceChanged,
       translation_edited: translationEdited,
+      box: Array.isArray(box) ? box : undefined,
+      merged,
+      merged_block_ids: Array.isArray(mergedBlockIds) ? mergedBlockIds : [],
       source_lang: resolveComicOcrSourceLang(),
       translation_mode: normalizeTranslateMode(state.translateMode || "server"),
       reset,
     }),
   });
+}
+
+function applyComicOcrOverlayEditResponse(pageIndex, data, fallbackBlockId = "") {
+  const edits = data && data.edits && typeof data.edits === "object" ? data.edits : null;
+  if (edits) {
+    for (const [blockId, edit] of Object.entries(edits)) {
+      applyComicOcrOverlayEditLocal(pageIndex, blockId, edit);
+    }
+    return;
+  }
+  const resetIds = Array.isArray(data && data.reset_block_ids) ? data.reset_block_ids : [];
+  if (resetIds.length) {
+    for (const blockId of resetIds) {
+      applyComicOcrOverlayEditLocal(pageIndex, blockId, null);
+    }
+    return;
+  }
+  if (fallbackBlockId) {
+    applyComicOcrOverlayEditLocal(pageIndex, fallbackBlockId, data && data.edit);
+  }
+}
+
+function comicOcrBoxCenter(box) {
+  return {
+    x: Number(box[0] || 0) + (Number(box[2] || 0) / 2),
+    y: Number(box[1] || 0) + (Number(box[3] || 0) / 2),
+  };
+}
+
+function comicOcrBoxDistance(a, b) {
+  const ac = comicOcrBoxCenter(a);
+  const bc = comicOcrBoxCenter(b);
+  return Math.hypot(ac.x - bc.x, ac.y - bc.y);
+}
+
+function pickComicOcrNearbyMergeBlocks(block, count) {
+  const pageIndex = Number(block && block.pageIndex) || 0;
+  const targetCount = Math.max(2, Math.min(12, Number.parseInt(String(count || "2"), 10) || 2));
+  const currentId = String((block && block.id) || "").trim();
+  const blocks = comicOcrOverlayBlocksForPage(pageIndex).filter((item) => item && item.id);
+  const current = blocks.find((item) => item.id === currentId);
+  if (!current) return [];
+  const selected = [current];
+  const remaining = blocks.filter((item) => item.id !== currentId);
+  while (selected.length < targetCount && remaining.length) {
+    const unionBox = selected.reduce((acc, item) => (acc ? unionComicOcrBoxes(acc, item.box) : item.box), null);
+    const candidates = remaining
+      .map((item, index) => ({
+        item,
+        index,
+        near: selected.some((selectedItem) => comicOcrBoxesNear(selectedItem.box, item.box)) || (unionBox && comicOcrBoxesNear(unionBox, item.box)),
+        distance: unionBox ? comicOcrBoxDistance(unionBox, item.box) : 0,
+      }))
+      .filter((entry) => entry.near)
+      .sort((a, b) => a.distance - b.distance);
+    if (!candidates.length) break;
+    const picked = candidates[0];
+    selected.push(picked.item);
+    remaining.splice(picked.index, 1);
+  }
+  return selected.length >= targetCount
+    ? selected.sort((a, b) => {
+      const ak = comicOcrBoxSortKey(a.box);
+      const bk = comicOcrBoxSortKey(b.box);
+      return (ak[0] - bk[0]) || (ak[1] - bk[1]);
+    })
+    : [];
+}
+
+async function mergeComicOcrNearbyOverlays(block, count) {
+  const selected = pickComicOcrNearbyMergeBlocks(block, count);
+  if (!selected.length) {
+    state.shell.showToast(state.shell.t("comicOcrOverlayMergeNotEnough"));
+    return;
+  }
+  const pageIndex = Number(block && block.pageIndex) || 0;
+  const blockId = String((block && block.id) || "").trim();
+  const unionBox = selected.reduce((acc, item) => (acc ? unionComicOcrBoxes(acc, item.box) : item.box), null);
+  const sourceText = selected.map((item) => normalizeComicOcrOverlayText(item.sourceText || item.originalSourceText)).filter(Boolean).join(" ");
+  const text = selected.map((item) => normalizeComicOcrOverlayText(item.text)).filter(Boolean).join(" ");
+  const fontScale = Math.max(60, Math.min(180, Number((block && block.fontScale) || 100) || 100));
+  const data = await saveComicOcrOverlayEdit({
+    pageIndex,
+    blockId,
+    text,
+    sourceText,
+    fontScale,
+    hidden: false,
+    sourceEdited: true,
+    sourceChanged: false,
+    translationEdited: true,
+    box: unionBox,
+    merged: true,
+    mergedBlockIds: selected.map((item) => item.id),
+  });
+  applyComicOcrOverlayEditResponse(pageIndex, data, blockId);
+  renderComicOcrOverlays();
+  state.shell.showToast(state.shell.t("comicOcrOverlayMergeSaved"));
 }
 
 function ensureComicOcrOverlayEditor() {
@@ -3286,6 +3405,13 @@ function ensureComicOcrOverlayEditor() {
         <button id="btn-comic-ocr-overlay-scale-plus" class="btn btn-small" type="button">+</button>
       </div>
     </label>
+    <label>
+      <span id="comic-ocr-overlay-merge-label"></span>
+      <div class="comic-ocr-overlay-merge-row">
+        <input id="comic-ocr-overlay-merge-count" type="number" min="2" max="12" step="1" inputmode="numeric" value="2">
+        <button id="btn-comic-ocr-overlay-merge" class="btn" type="button"></button>
+      </div>
+    </label>
     <div class="dialog-actions">
       <button id="btn-comic-ocr-overlay-hide" class="btn" type="button"></button>
       <button id="btn-comic-ocr-overlay-reset" class="btn" type="button"></button>
@@ -3307,6 +3433,9 @@ function ensureComicOcrOverlayEditor() {
     scale: dialog.querySelector("#comic-ocr-overlay-editor-scale"),
     minus: dialog.querySelector("#btn-comic-ocr-overlay-scale-minus"),
     plus: dialog.querySelector("#btn-comic-ocr-overlay-scale-plus"),
+    mergeLabel: dialog.querySelector("#comic-ocr-overlay-merge-label"),
+    mergeCount: dialog.querySelector("#comic-ocr-overlay-merge-count"),
+    merge: dialog.querySelector("#btn-comic-ocr-overlay-merge"),
     hide: dialog.querySelector("#btn-comic-ocr-overlay-hide"),
     reset: dialog.querySelector("#btn-comic-ocr-overlay-reset"),
     cancel: dialog.querySelector("#btn-comic-ocr-overlay-cancel"),
@@ -3355,16 +3484,31 @@ async function openComicOcrOverlayEditor(block) {
   refs.sourceLabel.textContent = state.shell.t("comicOcrOverlaySourceTextLabel");
   refs.textLabel.textContent = state.shell.t("comicOcrOverlayTranslatedTextLabel");
   refs.scaleLabel.textContent = state.shell.t("comicOcrOverlayFontScaleLabel");
+  refs.mergeLabel.textContent = state.shell.t("comicOcrOverlayMergeLabel");
+  refs.merge.textContent = state.shell.t("comicOcrOverlayMergeNearby");
   refs.reset.textContent = state.shell.t("comicOcrOverlayReset");
   refs.cancel.textContent = state.shell.t("cancel");
   refs.save.textContent = state.shell.t("save");
   refs.source.value = initialSource;
   refs.text.value = initialTranslation;
   refs.scale.value = String(Math.max(60, Math.min(180, Number((block && block.fontScale) || 100) || 100)));
+  refs.mergeCount.value = "2";
   syncHiddenButton();
   refs.hide.onclick = () => {
     hidden = !hidden;
     syncHiddenButton();
+  };
+  refs.merge.onclick = async () => {
+    const count = Math.max(2, Math.min(12, Number.parseInt(String(refs.mergeCount.value || "2"), 10) || 2));
+    refs.merge.disabled = true;
+    refs.save.disabled = true;
+    try {
+      await mergeComicOcrNearbyOverlays(block, count);
+      refs.dialog.close();
+    } finally {
+      refs.merge.disabled = false;
+      refs.save.disabled = false;
+    }
   };
   refs.save.onclick = async () => {
     const sourceText = normalizeComicOcrOverlayText(refs.source.value || "");
@@ -3390,7 +3534,7 @@ async function openComicOcrOverlayEditor(block) {
         sourceChanged,
         translationEdited,
       });
-      applyComicOcrOverlayEditLocal(pageIndex, blockId, data && data.edit);
+      applyComicOcrOverlayEditResponse(pageIndex, data, blockId);
       renderComicOcrOverlays();
       refs.dialog.close();
       state.shell.showToast(state.shell.t("comicOcrOverlayEditSaved"));
@@ -3400,8 +3544,8 @@ async function openComicOcrOverlayEditor(block) {
     }
   };
   refs.reset.onclick = async () => {
-    await saveComicOcrOverlayEdit({ pageIndex, blockId, text: "", fontScale: 100, reset: true });
-    applyComicOcrOverlayEditLocal(pageIndex, blockId, null);
+    const data = await saveComicOcrOverlayEdit({ pageIndex, blockId, text: "", fontScale: 100, reset: true });
+    applyComicOcrOverlayEditResponse(pageIndex, data, blockId);
     renderComicOcrOverlays();
     refs.dialog.close();
     state.shell.showToast(state.shell.t("comicOcrOverlayEditReset"));

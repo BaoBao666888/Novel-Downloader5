@@ -3393,6 +3393,13 @@ body.panel-style-clear .reader-content-body {
   align-items: center;
 }
 
+.comic-ocr-overlay-merge-row {
+  display: grid;
+  grid-template-columns: minmax(72px, 96px) minmax(0, 1fr);
+  gap: 8px;
+  align-items: center;
+}
+
 .chapter-block {
   margin: 0 0 1.8em;
   padding: 0 0 1.2em;
