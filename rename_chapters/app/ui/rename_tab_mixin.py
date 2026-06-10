@@ -1,6 +1,7 @@
 import os
 import re
 import json
+import threading
 import urllib.request
 import tkinter as tk
 from tkinter import ttk, scrolledtext, filedialog, messagebox
@@ -92,8 +93,6 @@ class RenameTabMixin:
         self.filename_regex_btns.grid(row=3, column=2, sticky="n", padx=(0, 5), pady=(10, 0))
         self.filename_regex_help_btn = ttk.Button(self.filename_regex_btns, text="?", width=1, command=self.show_regex_guide)
         self.filename_regex_help_btn.pack(side=tk.LEFT)
-        self.filename_regex_suggest_btn = ttk.Button(self.filename_regex_btns, text="Gợi ý", width=6, command=self._suggest_filename_regex)
-        self.filename_regex_suggest_btn.pack(side=tk.LEFT, padx=(4, 0))
         self.filename_regex_hint = ttk.Label(options_frame, text="(Mỗi dòng là một mẫu Regex)")
         self.filename_regex_hint.grid(row=4, column=1, sticky="w", padx=5)
 
@@ -106,8 +105,6 @@ class RenameTabMixin:
         self.content_regex_btns.grid(row=5, column=2, sticky="n", padx=(0, 5), pady=(5, 0))
         self.content_regex_help_btn = ttk.Button(self.content_regex_btns, text="?", width=1, command=self.show_regex_guide)
         self.content_regex_help_btn.pack(side=tk.LEFT)
-        self.content_regex_suggest_btn = ttk.Button(self.content_regex_btns, text="Gợi ý", width=6, command=self._suggest_content_regex)
-        self.content_regex_suggest_btn.pack(side=tk.LEFT, padx=(4, 0))
         self.content_regex_hint = ttk.Label(options_frame, text="(Mỗi dòng là một mẫu Regex)")
         self.content_regex_hint.grid(row=6, column=1, sticky="w", padx=5)
 
@@ -149,6 +146,7 @@ class RenameTabMixin:
         search_entry = ttk.Entry(actions_bar, textvariable=self.search_var)
         search_entry.pack(side=tk.LEFT, fill=tk.X, expand=True)
         search_entry.bind("<KeyRelease>", self._search_files)
+        ttk.Button(actions_bar, text="Làm mới", command=self.refresh_rename_preview).pack(side=tk.LEFT, padx=5)
         ttk.Button(
             actions_bar,
             text="Xóa rác",
@@ -172,6 +170,10 @@ class RenameTabMixin:
         vsb = ttk.Scrollbar(preview_frame, orient="vertical", command=self.tree.yview)
         vsb.grid(row=1, column=1, sticky="ns")
         self.tree.configure(yscrollcommand=vsb.set)
+        self.rename_status_var = tk.StringVar(value="")
+        ttk.Label(preview_frame, textvariable=self.rename_status_var).grid(row=2, column=0, columnspan=2, sticky="w", pady=(5, 0))
+        self._rename_scan_token = 0
+        self._rename_scan_thread = None
 
     def _toggle_rename_advanced(self, force: Optional[bool] = None):
         target = (not self._rename_adv_visible) if force is None else bool(force)
@@ -516,8 +518,53 @@ class RenameTabMixin:
             except Exception:
                 pass
 
+    def _rename_regex_text_value(self, widget_name: str) -> str:
+        widget = getattr(self, widget_name, None)
+        if not widget:
+            return ""
+        try:
+            return widget.get("1.0", "end-1c").strip()
+        except Exception:
+            return ""
+
+    def _rename_regex_lines_from_text(self, text: str) -> list[str]:
+        lines = []
+        for line in str(text or "").splitlines():
+            line = line.strip()
+            if line and line not in lines:
+                lines.append(line)
+        return lines
+
+    def _merge_rename_regex_history(self, key: str, lines: list[str]):
+        if not isinstance(getattr(self, "app_config", None), dict):
+            return
+        existing = self.app_config.get(key)
+        if not isinstance(existing, list):
+            existing = []
+        merged = []
+        for value in list(lines) + list(existing):
+            value = str(value or "").strip()
+            if value and value not in merged:
+                merged.append(value)
+            if len(merged) >= 40:
+                break
+        self.app_config[key] = merged
+
+    def _save_rename_regex_memory(self, *, persist: bool = False) -> tuple[list[str], list[str]]:
+        filename_text = self._rename_regex_text_value("filename_regex_text")
+        content_text = self._rename_regex_text_value("content_regex_text")
+        filename_lines = self._rename_regex_lines_from_text(filename_text)
+        content_lines = self._rename_regex_lines_from_text(content_text)
+        if isinstance(getattr(self, "app_config", None), dict):
+            self.app_config["filename_regexes"] = filename_text
+            self.app_config["content_regexes"] = content_text
+            self._merge_rename_regex_history("rename_filename_regex_history", filename_lines)
+            self._merge_rename_regex_history("rename_content_regex_history", content_lines)
+            if persist:
+                self.save_config()
+        return filename_lines, content_lines
+
     def _reset_rename_scope_state(self):
-        self._clear_rename_regex_fields()
         self.excluded_files.clear()
         self.files_data.clear()
         self.sorted_files_cache.clear()
@@ -530,6 +577,10 @@ class RenameTabMixin:
             self.tree.delete(*self.tree.get_children())
         except Exception:
             pass
+        try:
+            self.rename_status_var.set("")
+        except Exception:
+            pass
 
     def _ensure_rename_scope_for_folder(self, path: str = None) -> bool:
         folder_key = self._rename_folder_key(path or self.folder_path.get())
@@ -539,7 +590,7 @@ class RenameTabMixin:
         self._rename_active_folder_key = folder_key
         self._reset_rename_scope_state()
         if folder_key:
-            self.log("Đã dọn regex/gợi ý Đổi Tên cho thư mục mới.")
+            self.log("Đã làm mới trạng thái Đổi Tên cho thư mục mới.")
         return True
 
     def _on_rename_tab_entered(self):
@@ -554,50 +605,96 @@ class RenameTabMixin:
             self.log(f"Đã chọn thư mục: {path}")
             self.schedule_preview_update(None)
 
-    def schedule_preview_update(self, event=None):
+    def schedule_preview_update(self, event=None, delay: int = 300):
         if getattr(self, "preview_job", None):
-            self.after_cancel(self.preview_job)
-        self.preview_job = self.after(300, self._update_rename_preview)
+            try:
+                self.after_cancel(self.preview_job)
+            except Exception:
+                pass
+        self.preview_job = self.after(delay, self._update_rename_preview)
+
+    def refresh_rename_preview(self):
+        if getattr(self, "preview_job", None):
+            try:
+                self.after_cancel(self.preview_job)
+            except Exception:
+                pass
+            self.preview_job = None
+        self._update_rename_preview()
 
     def _update_rename_preview(self):
+        self.preview_job = None
         path = self.folder_path.get()
         if not os.path.isdir(path):
+            try:
+                self.rename_status_var.set("Chưa chọn thư mục hợp lệ.")
+            except Exception:
+                pass
             return
         self._toggle_force_edit_first_line(schedule=False)
+        filename_regexes, content_regexes = self._save_rename_regex_memory(persist=True)
 
         current_selection = {self.tree.item(item, "values")[1] for item in self.tree.selection()}
         self.tree.delete(*self.tree.get_children())
+        self.tree_filepaths.clear()
         self.files_data.clear()
-
-        self.log("Bắt đầu quét và phân tích lại các file...")
+        self.sorted_files_cache.clear()
         try:
-            files = [f for f in os.listdir(path) if f.lower().endswith(".txt")]
-        except Exception as e:
-            self.log(f"Lỗi khi truy cập thư mục: {e}")
-            messagebox.showerror("Lỗi", f"Không thể đọc các file trong thư mục: {e}")
+            self.rename_status_var.set("Đang tải danh sách file...")
+        except Exception:
+            pass
+
+        token = int(getattr(self, "_rename_scan_token", 0)) + 1
+        self._rename_scan_token = token
+        self.log("Bắt đầu quét và phân tích lại các file...")
+
+        def worker():
+            analyses = []
+            error = None
+            try:
+                files = [f for f in os.listdir(path) if f.lower().endswith(".txt")]
+                for filename in files:
+                    filepath = os.path.join(path, filename)
+                    analyses.append(
+                        logic.analyze_file(
+                            filepath,
+                            custom_filename_regexes=filename_regexes,
+                            custom_content_regexes=content_regexes,
+                        )
+                    )
+            except Exception as exc:
+                error = exc
+            try:
+                self.after(0, lambda: self._finish_rename_preview_scan(token, path, analyses, current_selection, error))
+            except Exception:
+                pass
+
+        thread = threading.Thread(target=worker, name="rename-preview-scan", daemon=True)
+        self._rename_scan_thread = thread
+        thread.start()
+
+    def _finish_rename_preview_scan(self, token: int, path: str, analyses: list[dict], current_selection: set[str], error):
+        if token != getattr(self, "_rename_scan_token", 0):
             return
-
-        for filename in files:
-            filepath = os.path.join(path, filename)
-            fn_regex_list = self.filename_regex_text.get("1.0", tk.END).strip().split("\n")
-            ct_regex_list = self.content_regex_text.get("1.0", tk.END).strip().split("\n")
-            analysis = logic.analyze_file(filepath, custom_filename_regexes=fn_regex_list, custom_content_regexes=ct_regex_list)
-            self.files_data.append(analysis)
-
+        if error is not None:
+            self.log(f"Lỗi khi truy cập thư mục: {error}")
+            try:
+                self.rename_status_var.set(f"Lỗi đọc thư mục: {error}")
+            except Exception:
+                pass
+            messagebox.showerror("Lỗi", f"Không thể đọc các file trong thư mục: {error}")
+            return
+        self.files_data = list(analyses or [])
         self._sort_files()
-
-        for i, analysis in enumerate(self.sorted_files_cache):
-            self._insert_file_to_tree(analysis, i)
-            if analysis["filename"] in current_selection:
-                try:
-                    last_item = self.tree.get_children()[-1]
-                    self.tree.selection_add(last_item)
-                except Exception:
-                    pass
-
+        shown = self._refresh_rename_tree(current_selection=current_selection)
+        self._refresh_credit_selector_from_rename_cache()
         self.log(f"Phân tích hoàn tất cho {len(self.files_data)} file.")
-        self.preview_job = None
+        try:
+            self.rename_status_var.set(f"Đã tải {len(self.files_data)} file, đang hiển thị {shown}.")
+        except Exception:
+            pass
 
+    def _refresh_credit_selector_from_rename_cache(self):
         sorted_filenames = [f["filename"] for f in self.sorted_files_cache]
         if sorted_filenames:
             self.credit_file_selector["values"] = sorted_filenames
@@ -606,7 +703,31 @@ class RenameTabMixin:
             self.credit_file_selector["values"] = []
             self.credit_file_selector.set("")
 
+    def _refresh_rename_tree(self, current_selection: set[str] | None = None) -> int:
+        current_selection = current_selection or set()
+        search_term = ""
+        try:
+            search_term = self.search_var.get().strip().lower()
+        except Exception:
+            search_term = ""
+        self.tree.delete(*self.tree.get_children())
+        self.tree_filepaths.clear()
+        shown = 0
+        for i, analysis in enumerate(self.sorted_files_cache):
+            filename = str(analysis.get("filename") or "")
+            if search_term and search_term not in filename.lower():
+                continue
+            item_id = self._insert_file_to_tree(analysis, i)
+            shown += 1
+            if filename in current_selection and item_id:
+                try:
+                    self.tree.selection_add(item_id)
+                except Exception:
+                    pass
+        return shown
+
     def start_renaming(self):
+        self._save_rename_regex_memory(persist=True)
         if not self.sorted_files_cache:
             messagebox.showwarning("Cảnh báo", "Chưa có file nào để đổi tên.")
             return
@@ -700,18 +821,21 @@ class RenameTabMixin:
     def _sort_and_refresh_ui(self):
         if not self.files_data:
             return
+        current_selection = {self.tree.item(item, "values")[1] for item in self.tree.selection()}
         self._sort_files()
-        self.tree.delete(*self.tree.get_children())
-        for i, analysis in enumerate(self.sorted_files_cache):
-            self._insert_file_to_tree(analysis, i)
+        shown = self._refresh_rename_tree(current_selection=current_selection)
+        try:
+            self.rename_status_var.set(f"Đã sắp xếp lại, đang hiển thị {shown}/{len(self.sorted_files_cache)} file.")
+        except Exception:
+            pass
         self.log("Đã sắp xếp lại danh sách file.")
 
     def _search_files(self, event=None):
-        search_term = self.search_var.get().lower()
-        self.tree.delete(*self.tree.get_children())
-        for i, analysis in enumerate(self.sorted_files_cache):
-            if search_term in analysis["filename"].lower():
-                self._insert_file_to_tree(analysis, i)
+        shown = self._refresh_rename_tree()
+        try:
+            self.rename_status_var.set(f"Đang hiển thị {shown}/{len(self.sorted_files_cache)} file.")
+        except Exception:
+            pass
 
     def _toggle_exclusion(self, exclude: bool):
         selected_items = self.tree.selection()
@@ -766,6 +890,7 @@ class RenameTabMixin:
         except Exception:
             fullpath = analysis.get("filename", "")
         self.tree_filepaths[item_id] = fullpath
+        return item_id
 
     def _generate_preview_name(self, analysis: dict, index: int) -> str:
         custom_titles = self.custom_titles_text.get("1.0", tk.END).strip().split("\n") if self.use_custom_titles.get() else None

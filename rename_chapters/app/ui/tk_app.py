@@ -692,6 +692,10 @@ class RenamerApp(
             'background': dict(DEFAULT_BACKGROUND_SETTINGS),
             'radical_map': {},
             'radical_output_dir': "",
+            'filename_regexes': '',
+            'content_regexes': '',
+            'rename_filename_regex_history': [],
+            'rename_content_regex_history': [],
             'profile_recycle': {},
             'reader_manager': {
                 'port': 17171,
@@ -2534,6 +2538,16 @@ class RenamerApp(
 
     def save_config(self):
         """Thu thập và lưu tất cả cài đặt vào file config.json."""
+        filename_regexes = ""
+        content_regexes = ""
+        if hasattr(self, "_save_rename_regex_memory"):
+            try:
+                self._save_rename_regex_memory(persist=False)
+                filename_regexes = self.app_config.get("filename_regexes", "")
+                content_regexes = self.app_config.get("content_regexes", "")
+            except Exception:
+                filename_regexes = self.app_config.get("filename_regexes", "")
+                content_regexes = self.app_config.get("content_regexes", "")
         # Cập nhật các giá trị từ UI vào self.app_config
         self.app_config.update({
             'folder_path': self.folder_path.get(),
@@ -2541,8 +2555,8 @@ class RenamerApp(
             'sort_strategy': self.sort_strategy.get(),
             'rename_format': self.format_combobox.get(),
             'rename_format_history': list(self.format_combobox['values']),
-            'filename_regexes': '',
-            'content_regexes': '',
+            'filename_regexes': filename_regexes,
+            'content_regexes': content_regexes,
             'credit_text': self.credit_text_widget.get("1.0", tk.END).strip(),
             'credit_position': self.credit_position.get(),
             'credit_line_num': self.credit_line_num.get(),
@@ -2686,6 +2700,20 @@ class RenamerApp(
             
             self.filename_regex_text.delete("1.0", tk.END)
             self.content_regex_text.delete("1.0", tk.END)
+            filename_regexes = str(config_data.get('filename_regexes', '') or '').strip()
+            content_regexes = str(config_data.get('content_regexes', '') or '').strip()
+            if not filename_regexes:
+                filename_history = config_data.get('rename_filename_regex_history', [])
+                if isinstance(filename_history, list):
+                    filename_regexes = "\n".join(str(item).strip() for item in filename_history if str(item).strip())
+            if not content_regexes:
+                content_history = config_data.get('rename_content_regex_history', [])
+                if isinstance(content_history, list):
+                    content_regexes = "\n".join(str(item).strip() for item in content_history if str(item).strip())
+            if filename_regexes:
+                self.filename_regex_text.insert("1.0", filename_regexes)
+            if content_regexes:
+                self.content_regex_text.insert("1.0", content_regexes)
             self.credit_text_widget.delete("1.0", tk.END); self.credit_text_widget.insert("1.0", config_data.get('credit_text', ''))
             self.credit_position.set(config_data.get('credit_position', 'top'))
             self.credit_line_num.set(config_data.get('credit_line_num', 2))
@@ -2765,7 +2793,12 @@ class RenamerApp(
 
             if hasattr(self, "_on_rename_tab_entered"):
                 self._on_rename_tab_entered()
-            if self.folder_path.get(): self.schedule_preview_update()
+            if self.folder_path.get():
+                try:
+                    self.rename_status_var.set("Đang tải danh sách file...")
+                except Exception:
+                    pass
+                self.after(700, self.refresh_rename_preview)
             bg_cfg = config_data.get('background', {})
             if isinstance(bg_cfg, dict):
                 self.background_settings.update(DEFAULT_BACKGROUND_SETTINGS)
