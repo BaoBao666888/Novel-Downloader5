@@ -1,70 +1,57 @@
-<h1>Bản cập nhật Reader - OCR comic và dịch đa ngôn ngữ</h1>
+<h1>Bản cập nhật 0.3.3.5</h1>
 
-<h2>Wikidich</h2>
-<ul>
-  <li>Dòng màu tím giờ chỉ dùng cho truyện gốc đã hoàn thành nhưng trạng thái trên Wikidich/local chưa là <b>Hoàn thành</b>.</li>
-  <li>Khi trạng thái dòng đã chuyển sang <b>Hoàn thành</b>, Reader sẽ trả dòng đó về màu thường nếu không có cảnh báo hoặc cập nhật mới mạnh hơn.</li>
-  <li>Bộ lọc nâng cao hỗ trợ chọn nhiều tag cùng lúc.</li>
-  <li>Thêm lựa chọn <b>Đủ tất cả (AND)</b> hoặc <b>Bất kỳ (OR)</b> khi lọc nhiều tag.</li>
-</ul>
-
-<h2>Xử lý văn bản</h2>
-<ul>
-  <li>Chia file mặc định dùng regex <code>第.*?章</code> và mặc định chia trước regex nếu chưa có lịch sử dùng trước đó.</li>
-  <li>Công cụ nhanh mặc định regex tìm chương là <code>^(第\d+章)</code>.</li>
-  <li>Mục chia file có bảng tìm trong kết quả preview, kèm tổng số kết quả tìm được.</li>
-  <li>Sửa raw trong chia file chỉ cập nhật preview/output chia file, không sửa văn bản gốc đang mở.</li>
-  <li>Công cụ nhanh khi phóng to dùng vùng mục lục rộng hơn, giảm khoảng trống thừa phía dưới.</li>
-  <li>Khi nội dung có lẫn chữ Trung và tiếng Việt, app tránh font YaHei và chọn font an toàn hơn nếu máy có sẵn.</li>
-  <li>Thêm tùy chọn <b>Đậm</b> cho font hiển thị trong cửa sổ xử lý văn bản.</li>
-</ul>
-
-<h2>Đổi tên chương</h2>
-<ul>
-  <li>Regex nâng cao cho tên file và nội dung được lưu ngay khi preview hoặc chạy đổi tên.</li>
-  <li>Khi mở lại app, các regex đã dùng được khôi phục vào đúng hai ô nâng cao.</li>
-  <li>Bỏ nút gợi ý regex khỏi giao diện đổi tên.</li>
-  <li>Preview đổi tên chạy nền để giảm treo khi thư mục có nhiều file truyện dài.</li>
-  <li>Thêm nút <b>Làm mới</b> để quét lại thư mục sau khi file bị sửa bên ngoài, không cần chọn lại thư mục.</li>
-</ul>
-
-<h2>ND5 dữ liệu truyện</h2>
-<ul>
-  <li>Trong cài đặt ND5, tab dữ liệu truyện có ô tìm theo tên truyện hoặc tác giả.</li>
-  <li>Phần thông tin truyện trước khi tải làm nổi bật tên truyện và tác giả để dễ đọc hơn.</li>
-</ul>
-
-<h2>Khám phá và profile trình duyệt</h2>
-<ul>
-  <li>Thêm nút <b>Trang nguồn</b> trong trang Khám phá. Khi nguồn đang chọn có link source trong metadata, bấm nút này sẽ mở ngay trình duyệt tới trang nguồn.</li>
-  <li>Sửa lỗi xóa profile trình duyệt: khi đang ở <b>Profile 1</b> và còn profile khác, Reader sẽ xóa profile mặc định rồi chuyển sang profile còn lại; chỉ tạo lại Profile 1 khi không còn profile nào.</li>
-</ul>
+<p>
+  Novel Studio 0.3.3.5 đi kèm Reader Server 0.2.0 và Reader UI 0.2.0.
+  Bản này tập trung vào OCR comic, dịch đa ngôn ngữ, cache khi đọc ảnh và một số lỗi gây khó chịu khi dùng Reader hằng ngày.
+</p>
 
 <h2>OCR comic</h2>
 <ul>
-  <li>OCR comic dùng runtime/model đã tải sẵn. Nếu user đã tải đủ model thì Reader chạy luôn.</li>
-  <li>Nếu thiếu runtime hoặc model OCR, Reader hiện thông báo yêu cầu tải trước để user biết cần cài gì.</li>
-  <li>Không fallback OCR âm thầm sang engine khác, tránh kết quả sai mà khó phát hiện.</li>
+  <li>OCR comic nhận diện vùng chữ trước rồi mới đọc chữ, giúp chạy nhanh hơn và đặt khung dịch đúng vị trí hơn.</li>
+  <li>Có thể chọn model OCR đã tải bằng mô tả dễ hiểu như <b>Trung/Anh/Nhật</b>, <b>Tiếng Anh</b>, <b>Tiếng Trung</b> hoặc <b>Tiếng Trung - chính xác hơn</b>.</li>
+  <li>Reader lưu cache OCR và bản dịch ngay trong lúc chạy. Nếu dừng giữa chừng, phần đã xong vẫn được dùng lại.</li>
+  <li>OCR và dịch chạy nối tiếp thông minh hơn: trang nào xong trước sẽ hiện trước, các trang đã OCR sẽ được gom vừa đủ để dịch nhanh hơn.</li>
+  <li>Mặc định Reader dịch trước 1 chương sau cho comic OCR. Khi qua chương kế tiếp, Reader tự dùng cache và tiếp tục dịch chương sau nếu bạn không nhảy cóc.</li>
+  <li>Khi rời khỏi chương đang OCR, Reader sẽ dừng OCR ngầm của chương cũ để ưu tiên chương bạn đang đọc.</li>
+  <li>Thiếu runtime hoặc model OCR sẽ có thông báo rõ ràng để tải trước, không còn báo lỗi chung chung.</li>
 </ul>
 
-<h2>Dịch đa ngôn ngữ bằng vBook Translate</h2>
+<h2>Overlay dịch ảnh</h2>
 <ul>
-  <li>Thêm mặc định repo vBook Translate: <code>https://raw.githubusercontent.com/Darkrai9x/vbook-extensions/refs/heads/master/translate.json</code>.</li>
-  <li>Extension loại translate không hiện trong Khám phá, nhưng có thể chọn trong <b>Dịch &amp; xử lý</b>.</li>
-  <li>Thêm mode dịch <b>vBook extension</b> cho truyện không phải tiếng Trung.</li>
-  <li>Thêm lựa chọn ngôn ngữ nguồn: Tự động nhận diện, Tin tưởng extension, tiếng Trung, Anh, Hàn, Nhật, Việt, Thái, Pháp, Đức, Nga và Tây Ban Nha.</li>
-  <li>Khi import TXT/EPUB một hoặc nhiều file, user có thể chọn ngôn ngữ nguồn; mặc định vẫn là tiếng Trung.</li>
+  <li>Overlay OCR dễ đọc hơn, nền ít trong suốt hơn để chữ dịch không bị lẫn với chữ gốc.</li>
+  <li>Double-click hoặc bấm chuột phải vào một khung overlay để sửa text và tăng/giảm cỡ chữ riêng cho khung đó.</li>
+  <li>Phần đã sửa được lưu lại trong cache cho tới khi tải lại chương, xóa cache hoặc xóa truyện.</li>
+  <li>Thêm nhóm <b>OCR Comic</b> trong Cài đặt để chỉnh số ảnh OCR song song, dịch trước chương sau, font, cỡ chữ, kiểu chữ, nền overlay và đánh dấu khung đã sửa.</li>
 </ul>
 
-<h2>Cài đặt dịch theo từng bộ</h2>
+<h2>Dịch đa ngôn ngữ</h2>
 <ul>
-  <li>Trong trang đọc của một bộ, nhóm cài đặt đổi thành <b>Dịch &amp; xử lý (chỉ bộ này)</b>.</li>
-  <li>Cấu hình dịch chỉnh tại đây chỉ lưu cho bộ hiện tại, không ảnh hưởng các bộ khác.</li>
-  <li>Bộ chưa chỉnh riêng sẽ dùng cấu hình global làm mặc định.</li>
+  <li>Thêm sẵn repo vBook Translate: <code>https://raw.githubusercontent.com/Darkrai9x/vbook-extensions/refs/heads/master/translate.json</code>.</li>
+  <li>Extension dịch không hiện trong Khám phá, nhưng có thể chọn trong <b>Dịch &amp; xử lý</b>.</li>
+  <li>Có thêm Google Translate để dùng thay thế khi comic không phải tiếng Trung mà chưa chọn đúng extension dịch.</li>
+  <li>Khi import TXT/EPUB một hoặc nhiều file, có thể chọn ngôn ngữ nguồn; mặc định vẫn là tiếng Trung.</li>
+  <li>Trong trang đọc, nhóm <b>Dịch &amp; xử lý (chỉ bộ này)</b> chỉ lưu cấu hình dịch cho bộ hiện tại.</li>
+</ul>
+
+<h2>Reader</h2>
+<ul>
+  <li>Thêm nút <b>Trang nguồn</b> trong Khám phá. Khi nguồn có link source, bấm nút sẽ mở trình duyệt tới trang đó.</li>
+  <li>Sửa lỗi ảnh bìa không hiện trong thư viện hoặc lịch sử xem với một số nguồn chặn hotlink.</li>
+  <li>Sửa lỗi xóa profile trình duyệt: nếu còn profile khác, Reader không tự tạo lại profile mặc định ngay sau khi xóa.</li>
+  <li>Thông báo import truyện được kết thúc đúng hơn, tránh bị kẹt trạng thái <b>Đang chạy</b> khi truyện và mục lục đã có đủ.</li>
+</ul>
+
+<h2>Novel Studio</h2>
+<ul>
+  <li>Wikidich trả dòng màu tím về màu thường khi trạng thái truyện đã chuyển sang <b>Hoàn thành</b>.</li>
+  <li>Bộ lọc Wikidich hỗ trợ chọn nhiều tag và chọn kiểu lọc <b>Đủ tất cả</b> hoặc <b>Bất kỳ</b>.</li>
+  <li>Các công cụ xử lý văn bản, chia file và đổi tên chương được chỉnh lại để preview ổn định hơn khi dữ liệu lớn.</li>
+  <li>Cài đặt ND5 có ô tìm theo tên truyện hoặc tác giả, giúp tìm dữ liệu truyện nhanh hơn.</li>
 </ul>
 
 <h2>Hướng dẫn cập nhật</h2>
 <ul>
   <li>Nhấn <b>Tải &amp; Cài đặt</b> để cập nhật. Ứng dụng sẽ tự đóng trước khi chạy bộ cài.</li>
+  <li>Sau khi cập nhật Reader Server/UI, mở lại Reader và kiểm tra phần <b>Cài đặt &gt; OCR Comic</b> nếu bạn đang dùng dịch ảnh.</li>
   <li>Nếu cần xem ghi chú bằng trình duyệt, bấm <b>Mở bằng trình duyệt</b>.</li>
 </ul>

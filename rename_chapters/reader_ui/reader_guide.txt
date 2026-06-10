@@ -64,9 +64,22 @@ Reader hiện có thể xem changelog, hướng dẫn và các thông báo dài 
 - `Tự động nhận diện` phù hợp khi dùng truyện/file thông thường; `Tin tưởng extension` phù hợp khi extension tự quyết định ngôn ngữ nguồn.
 - Khi dịch bằng vBook extension, hãy chọn plugin translate, ngôn ngữ nguồn, ngôn ngữ đích và API key nếu extension đó yêu cầu.
 - Nếu truyện không phải tiếng Trung mà chưa cài/chọn extension dịch, Reader sẽ yêu cầu cài extension thay vì ép qua bộ dịch Trung.
-- Với comic OCR, nếu runtime/model OCR đã tải đủ thì Reader dùng luôn; nếu thiếu, hệ thống sẽ hiện thông báo yêu cầu tải model trước.
+- Với comic OCR, hãy xem thêm mục `OCR Comic`; phần này có cài đặt riêng cho model, số ảnh chạy song song, dịch chương sau và overlay.
 
-## 8. Nhập truyện và nguồn vBook
+## 8. OCR Comic
+
+- Trước khi dịch ảnh comic, hãy tải đủ OCR runtime và model cần dùng. Nếu thiếu, Reader sẽ báo rõ cần tải gì trước khi chạy.
+- Model OCR được hiển thị bằng mô tả dễ đọc như `Trung/Anh/Nhật`, `Tiếng Anh`, `Tiếng Trung` hoặc `Tiếng Trung - chính xác hơn`; chọn model gần nhất với ngôn ngữ chính của truyện.
+- Truyện lẫn nhiều ngôn ngữ nên ưu tiên model `Trung/Anh/Nhật` nếu các đoạn phụ chỉ xuất hiện ít; nếu truyện gần như toàn tiếng Anh hoặc toàn tiếng Trung thì dùng model chuyên ngôn ngữ đó.
+- Trong `Cài đặt > OCR Comic`, có thể chỉnh `Số ảnh OCR song song`; mặc định là 2 để cân bằng tốc độ và độ ổn định.
+- `Dịch OCR chương sau` mặc định bật 1 chương. Khi dịch xong chương đang đọc, Reader sẽ chạy ngầm chương kế tiếp và tự dùng cache khi bạn qua chương đó.
+- Nếu rời khỏi chương đang OCR, Reader sẽ dừng OCR ngầm của chương cũ. Khi chuyển sang chương liền kề có bật prefetch, Reader tiếp tục từ chương mới và chương kế tiếp; nếu nhảy cóc thì luồng cũ cũng bị dừng.
+- OCR, dịch và chỉnh overlay được lưu cache dần trong lúc chạy, nên đang chạy giữa chừng mà dừng thì phần đã xong vẫn được dùng lại.
+- Double-click hoặc bấm chuột phải vào một khung overlay để sửa text dịch và tăng/giảm cỡ chữ riêng cho khung đó.
+- Cài đặt overlay gồm cỡ chữ, font, in đậm, in nghiêng, nền overlay và đánh dấu khung đã sửa. Khung đã chỉnh cỡ chữ riêng sẽ giữ cỡ chữ đó cho tới khi reset hoặc xóa cache.
+- Tải lại chương, xóa cache chương/truyện, đổi cài đặt dịch riêng của truyện hoặc xóa truyện sẽ làm cache OCR/dịch/overlay liên quan được dọn theo.
+
+## 9. Nhập truyện và nguồn vBook
 
 - Có thể nhập từ file TXT, EPUB hoặc từ nguồn vBook tuỳ cấu hình hiện có.
 - Khi import TXT/EPUB một hoặc nhiều file, có thể chọn ngôn ngữ nguồn; mặc định là tiếng Trung.
@@ -79,10 +92,11 @@ Reader hiện có thể xem changelog, hướng dẫn và các thông báo dài 
 > [!WARN] Đối với vBook
 > - Hãy cập nhật vbook_runner trong `Nguồn vBook`
 
-## 9. Quản lý cache
+## 10. Quản lý cache
 
 - `Quản lý cache` cho phép dọn riêng từng nhóm dịch `Server`, `Local`, `Mô phỏng`, `Hán Việt`, cùng với `Ảnh` và cache theo truyện.
 - Danh sách truyện được sắp ưu tiên theo dung lượng đang chiếm để dễ tìm đúng truyện cần dọn.
+- Cache OCR comic gồm kết quả OCR, bản dịch và chỉnh sửa overlay; khi cần làm lại hoàn toàn, hãy tải lại chương hoặc xóa cache của truyện.
 
 > [!WARN] Rule của `Xóa cache Trung (RAW)`
 > - Chỉ dùng cho truyện nguồn online `vbook` chưa có quyển hoặc file bổ sung.
@@ -95,7 +109,7 @@ Reader hiện có thể xem changelog, hướng dẫn và các thông báo dài 
 > - Khi dùng action `Xóa truyện`, dữ liệu đó không có cơ chế khôi phục lại trong Reader.
 > - Hãy kiểm tra kỹ trước khi xác nhận vì hệ thống sẽ dọn luôn cache liên quan của truyện đó.
 
-## 10. Xuất file HTML
+## 11. Xuất file HTML
 
 - Với tuỳ chọn `Gộp thành 1 file`, HTML chỉ nạp vài chương quanh vị trí đang xem để giảm lag.
 - Mục lục, giới thiệu và ảnh bìa vẫn có sẵn ngay khi mở file.
@@ -103,21 +117,23 @@ Reader hiện có thể xem changelog, hướng dẫn và các thông báo dài 
 - Nếu bật mã mở file, mã có thể được nhớ trên trình duyệt trong thời gian dài hơn trước.
 - Nếu muốn nhận các cải tiến mới của file HTML, hãy xuất lại file từ Reader.
 
-## 11. Xuất file có bảo vệ nội dung
+## 12. Xuất file có bảo vệ nội dung
 
 - Khi bật bảo vệ, file sẽ chặn sao chép trực tiếp và chặn một số công cụ can thiệp như extension copy hoặc DevTools.
 - Nếu file báo đang có công cụ can thiệp, hãy tắt tiện ích liên quan rồi mở lại.
 - Trên điện thoại, đặc biệt là iPhone, ô nhập mã đã được tối ưu hơn nhưng vẫn nên nhập dứt khoát đủ mã rồi chờ file tự mở.
 
-## 12. TTS và các lưu ý hiện tại
+## 13. TTS và các lưu ý hiện tại
 
 - Một số nguồn TTS có thể hoạt động khác nhau tuỳ cookie và trạng thái đăng nhập.
 - Hiện tại TikTok TTS có thể chưa nhận cookie ổn định trong một số trường hợp.
 - Nếu gọi TTS thất bại, hãy thử lại sau hoặc chuyển sang nguồn khác đang hoạt động tốt hơn.
 
-## 13. Khi cần kiểm tra nhanh
+## 14. Khi cần kiểm tra nhanh
 
 - Không thấy truyện mới trong tìm kiếm: chờ notify cache tên chạy xong rồi thử lại.
 - Import bị dừng: mở notify để xem log, ưu tiên dùng `Tiếp tục` hoặc `Thử lại` trước khi làm lại từ đầu.
+- OCR comic không tự chạy ở chương mới: kiểm tra `Dịch OCR chương sau`; nếu vừa nhảy cóc sang chương khác, Reader sẽ dừng luồng cũ và chỉ chạy lại khi bạn bấm dịch ở chương mới.
+- Muốn sửa bản dịch trên ảnh: double-click hoặc bấm chuột phải vào khung overlay cần sửa.
 - File HTML cũ chưa có cải tiến mới: xuất lại file mới.
 - Muốn xem lại thay đổi của bản đang dùng: mở thẻ `Changelog` trong notify.
