@@ -120,7 +120,7 @@ function decryptDES(encrypted, key, iv) {
 }
 
 /* eslint-disable no-debugger  */
-/* global $ xhr tranStr JSZip saveAs CryptoJS opentype */
+/* global $ xhr tranStr JSZip saveAs CryptoJS opentype fflate ort eSearchOCR cv */
 
 // ============================================================================
 // Main Userscript Runtime
@@ -1159,6 +1159,787 @@ function decryptDES(encrypted, key, iv) {
     }
 
     // ============================================================================
+    // Lazy OCR Runtime
+    // ============================================================================
+
+    const ND_OCR_SCRIPT_URLS = {
+        fflate: 'https://unpkg.com/fflate@0.8.2/umd/index.js',
+        ort: 'https://unpkg.com/onnxruntime-web@1.18.0/dist/ort.wasm.min.js',
+        eSearchOCR: 'https://unpkg.com/@oovz/esearch-ocr/dist/eSearchOCR.umd.js'
+    };
+
+    function ndGetGlobal(name) {
+        return (typeof unsafeWindow !== 'undefined' && unsafeWindow && unsafeWindow[name])
+            || (typeof window !== 'undefined' && window[name])
+            || (typeof globalThis !== 'undefined' && globalThis[name]);
+    }
+
+    async function ndLoadExternalScript(url, checkFn) {
+        if (checkFn && checkFn()) return;
+        await new Promise((resolve, reject) => {
+            const script = document.createElement('script');
+            script.src = url;
+            script.async = false;
+            script.onload = resolve;
+            script.onerror = () => reject(new Error(`Không tải được OCR script: ${url}`));
+            (document.head || document.documentElement).appendChild(script);
+        }).catch(async (scriptError) => {
+            console.warn('[ND OCR] Script tag load lỗi, thử GM_xmlhttpRequest:', scriptError);
+            const code = await new Promise((resolve, reject) => {
+                GM_xmlhttpRequest({
+                    method: 'GET',
+                    url,
+                    timeout: Config.timeout,
+                    onload: (res) => {
+                        if (res.status >= 200 && res.status < 300) resolve(res.responseText || '');
+                        else reject(new Error(`Không tải được ${url}: HTTP ${res.status}`));
+                    },
+                    onerror: () => reject(new Error(`Không tải được ${url}`)),
+                    ontimeout: () => reject(new Error(`Timeout khi tải ${url}`))
+                });
+            });
+            (0, eval)(`${code}\n//# sourceURL=${url}`);
+        });
+        if (checkFn && !checkFn()) throw new Error(`OCR script đã tải nhưng chưa expose global: ${url}`);
+    }
+
+    function ndGmGetValue(key, fallbackValue) {
+        try {
+            return GM_getValue(key, fallbackValue);
+        } catch (error) {
+            console.warn('[ND OCR] GM_getValue lỗi:', error);
+            return fallbackValue;
+        }
+    }
+
+    function ndGmSetValue(key, value) {
+        try {
+            return GM_setValue(key, value);
+        } catch (error) {
+            console.warn('[ND OCR] GM_setValue lỗi:', error);
+            return undefined;
+        }
+    }
+
+    function ndUint8ArrayToBase64(bytes) {
+        const chunkSize = 8192;
+        let binary = '';
+        for (let i = 0; i < bytes.length; i += chunkSize) {
+            binary += String.fromCharCode.apply(null, Array.from(bytes.subarray(i, i + chunkSize)));
+        }
+        return btoa(binary);
+    }
+
+    function ndBase64ToUint8Array(base64) {
+        const binary = atob(base64);
+        const bytes = new Uint8Array(binary.length);
+        for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+        return bytes;
+    }
+
+    function ndUint8ArrayToArrayBuffer(bytes) {
+        return bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength);
+    }
+
+    async function ndFetchArrayBuffer(url, options = {}) {
+        return new Promise((resolve, reject) => {
+            GM_xmlhttpRequest({
+                method: options.method || 'GET',
+                url,
+                headers: options.headers,
+                responseType: 'arraybuffer',
+                timeout: options.timeout || Config.timeout,
+                onload: (res) => {
+                    if (res.status >= 200 && res.status < 300 && res.response) {
+                        resolve(res.response);
+                    } else {
+                        reject(new Error(`HTTP ${res.status} khi tải ${url}`));
+                    }
+                },
+                onerror: () => reject(new Error(`Không tải được ${url}`)),
+                ontimeout: () => reject(new Error(`Timeout khi tải ${url}`))
+            });
+        });
+    }
+
+    async function ndWaitForOpenCv() {
+        const cvLib = ndGetGlobal('cv');
+        if (!cvLib) return;
+        if (cvLib.Mat || cvLib.imread) return;
+        await new Promise((resolve) => {
+            const oldReady = cvLib.onRuntimeInitialized;
+            let done = false;
+            const finish = () => {
+                if (done) return;
+                done = true;
+                resolve();
+            };
+            cvLib.onRuntimeInitialized = function () {
+                if (typeof oldReady === 'function') oldReady.apply(this, arguments);
+                finish();
+            };
+            setTimeout(finish, 30000);
+        });
+    }
+
+    function ndGetOcrLibrary() {
+        const page = typeof unsafeWindow !== 'undefined' ? unsafeWindow : null;
+        const global = typeof globalThis !== 'undefined' ? globalThis : window;
+        return global.eSearchOCR || global.ESearchOCR || global.eSearchOcr
+            || page?.eSearchOCR || page?.ESearchOCR || page?.eSearchOcr;
+    }
+
+    function ndGetOcrInitFn() {
+        const ocrLib = ndGetOcrLibrary();
+        return ocrLib?.init || ocrLib?.default?.init || (typeof ocrLib === 'function' ? ocrLib : null);
+    }
+
+    function ndGetTmExtensionId() {
+        const meta = document.querySelector('meta[name="tm-extension-id"]');
+        return window.tmExtensionId || window.__TM_EXTENSION_ID || meta?.content || '';
+    }
+
+    async function ndRecognizeWithTmExtension(imageDataUrl, timeout = 30000) {
+        const extId = ndGetTmExtensionId();
+        if (!extId) throw new Error('TM Extension Helper chưa được phát hiện.');
+
+        if (typeof chrome !== 'undefined' && chrome.runtime?.sendMessage) {
+            try {
+                return await new Promise((resolve, reject) => {
+                    chrome.runtime.sendMessage(extId, {
+                        cmd: 'CMD_OCR_RECOGNIZE',
+                        image: imageDataUrl
+                    }, (response) => {
+                        if (chrome.runtime.lastError) reject(new Error(chrome.runtime.lastError.message));
+                        else if (response?.success) resolve(response.data);
+                        else reject(new Error(response?.error || 'TM Extension OCR lỗi không rõ.'));
+                    });
+                });
+            } catch (error) {
+                console.warn('[ND OCR] Direct extension OCR lỗi, thử content-script bridge:', error);
+            }
+        }
+
+        return new Promise((resolve, reject) => {
+            const reqId = `nd_ocr_${Date.now()}_${Math.random().toString(36).slice(2)}`;
+            const timer = setTimeout(() => {
+                window.removeEventListener('message', handler);
+                reject(new Error('TM Extension OCR timeout.'));
+            }, timeout);
+            const handler = (event) => {
+                if (event.source !== window) return;
+                if (!event.data || event.data.type !== 'TM_EXT_OCR_RESPONSE' || event.data.reqId !== reqId) return;
+                clearTimeout(timer);
+                window.removeEventListener('message', handler);
+                const response = event.data.data;
+                if (response?.success) resolve(response.data);
+                else reject(new Error(response?.error || 'TM Extension OCR lỗi không rõ.'));
+            };
+            window.addEventListener('message', handler);
+            window.postMessage({
+                type: 'TM_EXT_OCR_REQUEST',
+                reqId,
+                payload: { imageBase64: imageDataUrl }
+            }, '*');
+        });
+    }
+
+    function ndNormalizeOcrResult(result, options = {}) {
+        if (typeof result === 'string') {
+            if (options.fullText) return result.trim();
+            const cleanText = result.trim().replace(/\s+/g, '').replace(/[^\u4e00-\u9fff\u3400-\u4dbf\u3000-\u303f\uff00-\uffef]/g, '');
+            return cleanText ? { text: cleanText.charAt(0), confidence: 0 } : null;
+        }
+        const rawParagraphs = result?.parragraphs || result?.paragraphs || result?.src
+            || result?.data?.parragraphs || result?.data?.paragraphs || [];
+        const paragraphs = Array.isArray(rawParagraphs) ? rawParagraphs : [];
+        let text = result?.text || result?.data?.text || '';
+        if (!text && paragraphs.length) {
+            text = paragraphs
+                .slice()
+                .sort((a, b) => ((a.box?.[0]?.[1] ?? 0) - (b.box?.[0]?.[1] ?? 0)))
+                .map((item) => String(item.parse?.text || item.text || '').trim())
+                .filter(Boolean)
+                .join('\n');
+        }
+        if (options.fullText) return String(text || '').trim();
+        const best = paragraphs.length
+            ? paragraphs.reduce((left, right) => ((right.mean || 0) > (left.mean || 0) ? right : left), paragraphs[0])
+            : null;
+        const cleanText = String(best?.parse?.text || best?.text || text || '')
+            .trim()
+            .replace(/\s+/g, '')
+            .replace(/[^\u4e00-\u9fff\u3400-\u4dbf\u3000-\u303f\uff00-\uffef]/g, '');
+        return cleanText ? { text: cleanText.charAt(0), confidence: best?.mean || 0 } : null;
+    }
+
+    const ND_OCR = {
+        modelLoaded: false,
+        loadingPromise: null,
+        ocrEngine: null,
+        modelCache: {},
+        ppocrDict: '',
+        cacheKey: 'paddleocr_models_v4',
+        cacheVersion: '4.0.0',
+        zipUrls: [
+            'https://drive.usercontent.google.com/u/0/uc?id=1J2xfRuEzDZpuXPnRcBiWhp7ajb-INoGa&export=download',
+            'https://ghfast.top/?q=https://github.com/xushengfeng/eSearch-OCR/releases/download/4.0.0/ch.zip',
+            'https://github.com/xushengfeng/eSearch-OCR/releases/download/4.0.0/ch.zip'
+        ],
+        filesToExtract: ['ppocr_keys_v1.txt', 'ppocr_det.onnx', 'ppocr_rec.onnx'],
+
+        async ensureLibraries() {
+            await ndLoadExternalScript(ND_OCR_SCRIPT_URLS.fflate, () => ndGetGlobal('fflate')?.unzip || ndGetGlobal('fflate')?.unzipSync);
+            await ndLoadExternalScript(ND_OCR_SCRIPT_URLS.ort, () => ndGetGlobal('ort')?.InferenceSession);
+            await ndLoadExternalScript(ND_OCR_SCRIPT_URLS.eSearchOCR, () => ndGetOcrInitFn());
+        },
+
+        async configureONNXRuntime() {
+            const ortLib = ndGetGlobal('ort');
+            if (!ortLib?.env?.wasm) return;
+            const wasmCacheKey = 'paddleocr_ort_wasm_v1_18_0';
+            let wasmBuffer = null;
+            const cachedB64 = ndGmGetValue(wasmCacheKey, null);
+            if (cachedB64) {
+                try {
+                    wasmBuffer = ndBase64ToUint8Array(cachedB64).buffer;
+                    console.log('[ND OCR] Loaded ORT WASM từ TM cache.');
+                } catch (error) {
+                    console.warn('[ND OCR] ORT WASM cache lỗi, tải lại:', error);
+                }
+            }
+            if (!wasmBuffer) {
+                const candidates = ['ort-wasm.wasm', 'ort-wasm-simd.wasm'];
+                for (const fileName of candidates) {
+                    try {
+                        const url = `https://cdn.jsdelivr.net/npm/onnxruntime-web@1.18.0/dist/${fileName}`;
+                        console.log('[ND OCR] Tải ORT WASM:', fileName);
+                        wasmBuffer = await ndFetchArrayBuffer(url, { timeout: Math.max(Config.timeout, 120000) });
+                        ndGmSetValue(wasmCacheKey, ndUint8ArrayToBase64(new Uint8Array(wasmBuffer)));
+                        ndGmSetValue(`${wasmCacheKey}_meta`, { name: fileName });
+                        break;
+                    } catch (error) {
+                        console.warn('[ND OCR] Tải ORT WASM lỗi:', fileName, error);
+                    }
+                }
+            }
+            if (!wasmBuffer) throw new Error('Không tải được ORT WASM cho OCR.');
+            ortLib.env.wasm.wasmBinary = new Uint8Array(wasmBuffer);
+            ortLib.env.wasm.wasmPaths = undefined;
+            ortLib.env.wasm.numThreads = 0;
+            ortLib.env.wasm.simd = true;
+            ortLib.env.logLevel = 'verbose';
+            window.__TM_WASM_BUFFER = wasmBuffer;
+            if (typeof unsafeWindow !== 'undefined') unsafeWindow.__TM_WASM_BUFFER = wasmBuffer;
+        },
+
+        async downloadAndCacheModels() {
+            const storedVersion = ndGmGetValue(`${this.cacheKey}_ver`, null);
+            if (storedVersion === this.cacheVersion) {
+                const cached = {};
+                for (const filename of this.filesToExtract) {
+                    const value = ndGmGetValue(`${this.cacheKey}:${filename}`, null);
+                    if (!value) break;
+                    cached[filename] = ndBase64ToUint8Array(value);
+                }
+                if (this.filesToExtract.every((filename) => cached[filename])) {
+                    this.modelCache = cached;
+                    console.log('[ND OCR] Đã load model PaddleOCR từ TM cache.');
+                    return;
+                }
+            }
+
+            let extracted = null;
+            let lastError = null;
+            for (const url of this.zipUrls) {
+                try {
+                    console.log('[ND OCR] Tải PaddleOCR model zip:', url);
+                    const zipBuffer = await ndFetchArrayBuffer(url, { timeout: Math.max(Config.timeout, 180000) });
+                    const fflateLib = ndGetGlobal('fflate');
+                    const zipBytes = new Uint8Array(zipBuffer);
+                    if (typeof fflateLib.unzipSync === 'function') {
+                        extracted = fflateLib.unzipSync(zipBytes);
+                    } else {
+                        extracted = await new Promise((resolve, reject) => {
+                            fflateLib.unzip(zipBytes, (error, result) => error ? reject(error) : resolve(result));
+                        });
+                    }
+                    break;
+                } catch (error) {
+                    lastError = error;
+                    console.warn('[ND OCR] Tải/giải nén model lỗi:', error);
+                }
+            }
+            if (!extracted) throw lastError || new Error('Không tải được PaddleOCR model.');
+
+            this.modelCache = {};
+            for (const filename of this.filesToExtract) {
+                const foundKey = Object.keys(extracted).find((key) => key === filename || (key.endsWith(filename) && !key.startsWith('__MACOSX')));
+                if (!foundKey) continue;
+                const bytes = extracted[foundKey] instanceof Uint8Array ? extracted[foundKey] : new Uint8Array(extracted[foundKey]);
+                this.modelCache[filename] = bytes;
+                ndGmSetValue(`${this.cacheKey}:${filename}`, ndUint8ArrayToBase64(bytes));
+            }
+            if (!this.filesToExtract.every((filename) => this.modelCache[filename])) {
+                throw new Error('PaddleOCR model zip thiếu file cần thiết.');
+            }
+            ndGmSetValue(`${this.cacheKey}_ver`, this.cacheVersion);
+        },
+
+        async loadDict() {
+            if (this.ppocrDict) return this.ppocrDict;
+            await this.downloadAndCacheModels();
+            const dictBytes = this.modelCache['ppocr_keys_v1.txt'];
+            if (!dictBytes) throw new Error('Dictionary PaddleOCR không có trong cache.');
+            this.ppocrDict = new TextDecoder('utf-8').decode(dictBytes);
+            return this.ppocrDict;
+        },
+
+        async ensureEngine() {
+            if (this.modelLoaded && this.ocrEngine) return this.ocrEngine;
+            if (this.loadingPromise) {
+                await this.loadingPromise;
+                return this.ocrEngine;
+            }
+            this.loadingPromise = (async () => {
+                await this.ensureLibraries();
+                await this.configureONNXRuntime();
+                await this.downloadAndCacheModels();
+                const dictContent = await this.loadDict();
+                const detModel = this.modelCache['ppocr_det.onnx'];
+                const recModel = this.modelCache['ppocr_rec.onnx'];
+                const initFn = ndGetOcrInitFn();
+                const ortLib = ndGetGlobal('ort');
+                if (!initFn || !ortLib) throw new Error('OCR runtime chưa sẵn sàng.');
+                this.ocrEngine = await initFn({
+                    det: {
+                        input: ndUint8ArrayToArrayBuffer(detModel),
+                        ratio: 2.0
+                    },
+                    rec: {
+                        input: ndUint8ArrayToArrayBuffer(recModel),
+                        decodeDic: dictContent,
+                        optimize: { space: false }
+                    },
+                    dev: false,
+                    ort: ortLib
+                });
+                this.modelLoaded = true;
+                console.log('[ND OCR] PaddleOCR engine sẵn sàng.');
+            })();
+            try {
+                await this.loadingPromise;
+            } finally {
+                this.loadingPromise = null;
+            }
+            return this.ocrEngine;
+        },
+
+        async ocrImageData(imageInput, options = {}) {
+            const dataUrl = typeof imageInput === 'string' ? imageInput : imageInput?.dataUrl;
+            const imageData = imageInput?.imageData || imageInput;
+            if (dataUrl) {
+                try {
+                    const extResult = await ndRecognizeWithTmExtension(dataUrl);
+                    const normalized = ndNormalizeOcrResult(extResult, options);
+                    if (options.fullText ? normalized : normalized?.text) return normalized;
+                } catch (error) {
+                    console.warn('[ND OCR] Extension OCR lỗi, fallback local WASM:', error);
+                }
+            }
+
+            const engine = await this.ensureEngine();
+            let result;
+            if (typeof engine === 'function') {
+                result = await engine(dataUrl || imageData);
+            } else if (typeof engine.recognize === 'function') {
+                result = await engine.recognize(dataUrl || imageData);
+            } else if (typeof engine.ocr === 'function') {
+                result = await engine.ocr(dataUrl || imageData);
+            } else {
+                throw new Error('OCR engine không tương thích.');
+            }
+            return ndNormalizeOcrResult(result, options);
+        }
+    };
+
+    try {
+        unsafeWindow.ND_OCR = ND_OCR;
+    } catch (error) { /* ignore */ }
+
+    function ndCanvasImageData(canvas) {
+        const srcCtx = canvas.getContext('2d');
+        const output = document.createElement('canvas');
+        output.width = canvas.width;
+        output.height = canvas.height;
+        const ctx = output.getContext('2d');
+        ctx.fillStyle = '#fff';
+        ctx.fillRect(0, 0, output.width, output.height);
+        ctx.drawImage(canvas, 0, 0);
+        return {
+            imageData: ctx.getImageData(0, 0, output.width, output.height) || srcCtx.getImageData(0, 0, canvas.width, canvas.height),
+            dataUrl: output.toDataURL('image/png')
+        };
+    }
+
+    function ndDecodeCssString(value = '') {
+        return String(value)
+            .replace(/\\([0-9a-fA-F]{1,6})\s?/g, (_, hex) => {
+                const codePoint = Number.parseInt(hex, 16);
+                return Number.isNaN(codePoint) ? '' : String.fromCodePoint(codePoint);
+            })
+            .replace(/\\([\\"'])/g, '$1')
+            .replace(/\\n/g, '\n')
+            .replace(/\\r/g, '\r')
+            .replace(/\\t/g, '\t');
+    }
+
+    function ndTokenizeContentValue(content = '') {
+        const tokens = [];
+        let index = 0;
+        while (index < content.length) {
+            const ch = content[index];
+            if (/\s/.test(ch)) {
+                index += 1;
+                continue;
+            }
+            if (ch === '"' || ch === "'") {
+                const quote = ch;
+                let value = '';
+                index += 1;
+                while (index < content.length) {
+                    const current = content[index];
+                    if (current === quote && content[index - 1] !== '\\') {
+                        index += 1;
+                        break;
+                    }
+                    value += current;
+                    index += 1;
+                }
+                tokens.push({ type: 'string', value });
+                continue;
+            }
+            const identMatch = content.slice(index).match(/^[a-zA-Z-]+/);
+            if (!identMatch) {
+                index += 1;
+                continue;
+            }
+            const name = identMatch[0];
+            index += name.length;
+            if (content[index] === '(') {
+                let depth = 1;
+                let value = '';
+                index += 1;
+                while (index < content.length && depth > 0) {
+                    const current = content[index];
+                    const prev = content[index - 1];
+                    if (current === '(' && prev !== '\\') depth += 1;
+                    else if (current === ')' && prev !== '\\') {
+                        depth -= 1;
+                        if (depth === 0) {
+                            index += 1;
+                            break;
+                        }
+                    }
+                    if (depth > 0) value += current;
+                    index += 1;
+                }
+                tokens.push({ type: 'function', name: name.toLowerCase(), value });
+                continue;
+            }
+            tokens.push({ type: 'word', value: name.toLowerCase() });
+        }
+        return tokens;
+    }
+
+    function ndEvaluatePseudoContent(content = '', element) {
+        const trimmed = String(content || '').trim();
+        if (!trimmed || trimmed === 'none' || trimmed === 'normal') return '';
+        let result = '';
+        let hasSupportedToken = false;
+        ndTokenizeContentValue(trimmed).forEach((token) => {
+            if (token.type === 'string') {
+                result += ndDecodeCssString(token.value);
+                hasSupportedToken = true;
+            } else if (token.type === 'function' && token.name === 'attr') {
+                const attrName = token.value.trim().split(/\s+/)[0];
+                if (attrName) {
+                    result += element.getAttribute(attrName) || '';
+                    hasSupportedToken = true;
+                }
+            }
+        });
+        return hasSupportedToken ? result : '';
+    }
+
+    function ndSpecificity(selector = '') {
+        const idCount = (selector.match(/#[\w-]+/g) || []).length;
+        const classCount = (selector.match(/(\.[\w-]+|\[[^\]]+\]|:[\w-]+)/g) || []).length;
+        const typeCount = (selector.replace(/#[\w-]+|(\.[\w-]+|\[[^\]]+\]|::?[\w-]+)/g, '').match(/[a-zA-Z][\w-]*/g) || []).length;
+        return [idCount, classCount, typeCount];
+    }
+
+    function ndCollectPseudoContentRules(doc) {
+        const rules = [];
+        let order = 0;
+        const visit = (cssRules) => {
+            Array.from(cssRules || []).forEach((rule) => {
+                try {
+                    if (rule.cssRules) visit(rule.cssRules);
+                    const selectorText = rule.selectorText;
+                    const content = rule.style?.getPropertyValue('content');
+                    if (!selectorText || !content || content === 'none' || content === 'normal') return;
+                    selectorText.split(',').forEach((rawSelector) => {
+                        const raw = rawSelector.trim();
+                        const pseudo = /::?before\b/.test(raw) ? '::before' : (/::?after\b/.test(raw) ? '::after' : null);
+                        if (!pseudo) return;
+                        const selector = raw.replace(/::?before\b|::?after\b/g, '').trim();
+                        if (!selector) return;
+                        rules.push({
+                            selector,
+                            pseudo,
+                            content,
+                            important: rule.style.getPropertyPriority('content') === 'important',
+                            specificity: ndSpecificity(selector),
+                            order: order++
+                        });
+                    });
+                } catch (error) { /* ignore inaccessible CSS rules */ }
+            });
+        };
+        Array.from(doc.styleSheets || []).forEach((styleSheet) => {
+            try {
+                visit(styleSheet.cssRules);
+            } catch (error) { /* ignore cross-origin stylesheets */ }
+        });
+        return rules;
+    }
+
+    function ndResolvePseudoFromRules(element, pseudo, rules) {
+        const matched = rules.filter((rule) => {
+            if (rule.pseudo !== pseudo) return false;
+            try {
+                return element.matches(rule.selector);
+            } catch (error) {
+                return false;
+            }
+        });
+        if (!matched.length) return '';
+        matched.sort((left, right) => {
+            if (left.important !== right.important) return left.important ? 1 : -1;
+            for (let i = 0; i < left.specificity.length; i++) {
+                if (left.specificity[i] !== right.specificity[i]) return left.specificity[i] - right.specificity[i];
+            }
+            return left.order - right.order;
+        });
+        return ndEvaluatePseudoContent(matched[matched.length - 1].content, element);
+    }
+
+    function ndResolvePseudoContent(element, ownerWin, pseudo, rules) {
+        try {
+            const computed = ownerWin.getComputedStyle(element, pseudo).content;
+            const computedContent = ndEvaluatePseudoContent(computed, element);
+            if (computedContent) return computedContent;
+        } catch (error) { /* ignore */ }
+        return ndResolvePseudoFromRules(element, pseudo, rules);
+    }
+
+    function ndCollectRenderedText(node, ownerWin, pseudoRules, parts) {
+        if (node.nodeType === Node.TEXT_NODE) {
+            parts.push(node.textContent || '');
+            return;
+        }
+        if (node.nodeType !== Node.ELEMENT_NODE) return;
+        const element = node;
+        const tag = element.tagName?.toLowerCase();
+        if (tag === 'script' || tag === 'style') return;
+        if (tag === 'br') parts.push('\n');
+        const before = ndResolvePseudoContent(element, ownerWin, '::before', pseudoRules);
+        if (before) parts.push(before);
+        Array.from(element.childNodes || []).forEach((child) => ndCollectRenderedText(child, ownerWin, pseudoRules, parts));
+        const after = ndResolvePseudoContent(element, ownerWin, '::after', pseudoRules);
+        if (after) parts.push(after);
+    }
+
+    function ndExtractRenderedText(element, ownerWin, pseudoRules) {
+        const parts = [];
+        ndCollectRenderedText(element, ownerWin, pseudoRules, parts);
+        return parts.join('').replace(/\u200b/g, '');
+    }
+
+    async function ndBuildFontDecodeMap(fontFamily, uniqueChars) {
+        const map = new Map();
+        const BATCH_SIZE = 30;
+        const CHAR_SIZE = 48;
+        const ROW_HEIGHT = 64;
+        const PADDING = 16;
+        const CANVAS_WIDTH = CHAR_SIZE + PADDING * 2;
+        const SCALE = 2;
+        const canvas = document.createElement('canvas');
+        const ctx = canvas.getContext('2d');
+        for (let i = 0; i < uniqueChars.length; i += BATCH_SIZE) {
+            const batch = uniqueChars.slice(i, i + BATCH_SIZE);
+            const canvasHeight = batch.length * ROW_HEIGHT + PADDING * 2;
+            canvas.width = CANVAS_WIDTH * SCALE;
+            canvas.height = canvasHeight * SCALE;
+            ctx.setTransform(SCALE, 0, 0, SCALE, 0, 0);
+            ctx.fillStyle = 'white';
+            ctx.fillRect(0, 0, CANVAS_WIDTH, canvasHeight);
+            ctx.font = `${CHAR_SIZE}px ${fontFamily}`;
+            ctx.fillStyle = 'black';
+            ctx.textBaseline = 'middle';
+            ctx.textAlign = 'center';
+            batch.forEach((ch, index) => {
+                ctx.fillText(ch, CANVAS_WIDTH / 2, PADDING + index * ROW_HEIGHT + ROW_HEIGHT / 2);
+            });
+            let batchOk = false;
+            try {
+                const ocrText = await ND_OCR.ocrImageData(ndCanvasImageData(canvas), { fullText: true });
+                const ocrChars = [...String(ocrText || '').replace(/[\s\n\r]/g, '')];
+                if (ocrChars.length === batch.length) {
+                    batch.forEach((ch, index) => map.set(ch, ocrChars[index]));
+                    batchOk = true;
+                }
+            } catch (error) {
+                console.warn('[ND OCR] Batch OCR lỗi, fallback từng chữ:', error);
+            }
+            if (!batchOk) {
+                for (const ch of batch) {
+                    if (map.has(ch)) continue;
+                    const SIZE = CHAR_SIZE + 32;
+                    canvas.width = SIZE * SCALE;
+                    canvas.height = SIZE * SCALE;
+                    ctx.setTransform(SCALE, 0, 0, SCALE, 0, 0);
+                    ctx.fillStyle = 'white';
+                    ctx.fillRect(0, 0, SIZE, SIZE);
+                    ctx.font = `${CHAR_SIZE}px ${fontFamily}`;
+                    ctx.fillStyle = 'black';
+                    ctx.textBaseline = 'middle';
+                    ctx.textAlign = 'center';
+                    ctx.fillText(ch, SIZE / 2, SIZE / 2);
+                    try {
+                        const result = await ND_OCR.ocrImageData(ndCanvasImageData(canvas));
+                        if (result?.text) map.set(ch, result.text);
+                    } catch (error) {
+                        console.warn('[ND OCR] OCR từng chữ lỗi:', error);
+                    }
+                }
+            }
+            console.log(`[ND OCR] Font map ${Math.min(i + BATCH_SIZE, uniqueChars.length)}/${uniqueChars.length}`);
+        }
+        canvas.width = 0;
+        canvas.height = 0;
+        return map;
+    }
+
+    async function ndDecodeQidianContentByOCR(contentMain) {
+        const ownerDoc = contentMain.ownerDocument;
+        const ownerWin = ownerDoc.defaultView || window;
+        if (ownerDoc.fonts?.ready) await ownerDoc.fonts.ready.catch(() => {});
+        const fontFamily = ownerWin.getComputedStyle(contentMain).fontFamily || 'sans-serif';
+        const paragraphs = Array.from(contentMain.querySelectorAll('p'));
+        if (!paragraphs.length) return null;
+        const pseudoRules = ndCollectPseudoContentRules(ownerDoc);
+        const paraTexts = paragraphs.map((p) => ndExtractRenderedText(p, ownerWin, pseudoRules));
+        const uniqueChars = [...new Set(paraTexts.join(''))].filter((ch) => {
+            const code = ch.charCodeAt(0);
+            return (code >= 0x4E00 && code <= 0x9FA5) || (code >= 0x3400 && code <= 0x4DB5);
+        });
+        if (!uniqueChars.length) return null;
+        const decodeMap = await ndBuildFontDecodeMap(fontFamily, uniqueChars);
+        if (!decodeMap.size) return null;
+        const output = document.createElement('div');
+        paraTexts.forEach((text) => {
+            const decoded = [...text].map((ch) => decodeMap.get(ch) || ch).join('').trim();
+            if (!decoded) return;
+            const p = document.createElement('p');
+            p.textContent = decoded;
+            output.appendChild(p);
+        });
+        return output;
+    }
+
+    async function ndCreateFrameDocument(html, baseUrl, readySelector = 'body') {
+        const frame = document.createElement('iframe');
+        frame.style.cssText = 'position:absolute;left:-99999px;top:-99999px;width:1200px;height:1600px;opacity:0;pointer-events:none;';
+        document.body.appendChild(frame);
+        const srcdoc = String(html || '').replace(/<head([^>]*)>/i, `<head$1><base href="${baseUrl}">`);
+        frame.srcdoc = srcdoc.includes('<base href=') ? srcdoc : `<base href="${baseUrl}">${srcdoc}`;
+        await new Promise((resolve) => {
+            frame.onload = resolve;
+            setTimeout(resolve, 8000);
+        });
+        const doc = frame.contentDocument || frame.contentWindow?.document;
+        if (doc?.fonts?.ready) await doc.fonts.ready.catch(() => {});
+        const started = Date.now();
+        while (doc && readySelector && !doc.querySelector(readySelector) && Date.now() - started < 8000) {
+            await sleep(200);
+        }
+        return { frame, doc };
+    }
+
+    async function ndFetchText(url, options = {}) {
+        const res = await xhr.sync(url, options.data || null, {
+            method: options.method || (options.data ? 'POST' : 'GET'),
+            headers: options.headers,
+            responseType: 'text',
+            timeout: options.timeout || Config.timeout,
+            cache: !!options.cache
+        });
+        return res.responseText || res.response || '';
+    }
+
+    async function ndLoadFontFace(fontFamily, fontUrl) {
+        const buffer = await ndFetchArrayBuffer(fontUrl, {
+            headers: { Referer: 'https://my.jjwxc.net/' },
+            timeout: Math.max(Config.timeout, 120000)
+        });
+        const blobUrl = URL.createObjectURL(new Blob([buffer], { type: 'font/woff2' }));
+        const style = document.createElement('style');
+        style.textContent = `@font-face { font-family: "${fontFamily}"; src: url("${blobUrl}") format("woff2"); }`;
+        document.head.appendChild(style);
+        try {
+            if (document.fonts?.load) await document.fonts.load(`48px "${fontFamily}"`);
+        } catch (error) {
+            console.warn('[ND OCR] Kiểm tra font JJWXC lỗi:', error);
+        }
+        return () => {
+            style.remove();
+            URL.revokeObjectURL(blobUrl);
+        };
+    }
+
+    async function ndBuildJjwxcFontTable(fontName, inputText) {
+        const allChars = [...String(inputText || '').replace(/\u200c/g, '')];
+        const uniqueEncryptedChars = [...new Set(allChars)].filter((ch) => {
+            const code = ch.codePointAt(0);
+            return (code >= 0xE000 && code <= 0xF8FF) || (code >= 0xF0000 && code <= 0xFFFFD);
+        });
+        if (!uniqueEncryptedChars.length) return {};
+        const fontUrl = `https://static.jjwxc.net/tmp/fonts/${fontName}.woff2?h=my.jjwxc.net`;
+        const cleanup = await ndLoadFontFace(fontName, fontUrl);
+        try {
+            const decodeMap = await ndBuildFontDecodeMap(`"${fontName}"`, uniqueEncryptedChars);
+            const table = {};
+            decodeMap.forEach((normalCharacter, encryptedCharacter) => {
+                table[encryptedCharacter] = normalCharacter;
+            });
+            return table;
+        } finally {
+            cleanup();
+        }
+    }
+
+    async function ndReplaceJjwxcCharacters(fontName, inputText) {
+        const table = await ndBuildJjwxcFontTable(fontName, inputText);
+        let outputText = String(inputText || '');
+        Object.entries(table).forEach(([encryptedCharacter, normalCharacter]) => {
+            outputText = outputText.split(encryptedCharacter).join(normalCharacter);
+        });
+        return outputText.replace(/\u200c/g, '');
+    }
+
+    // ============================================================================
     // Rule Registry & Default Selectors
     // ============================================================================
 
@@ -1789,76 +2570,216 @@ function decryptDES(encrypted, key, iv) {
         // 正版
         { // https://www.qidian.com https://www.hongxiu.com https://www.readnovel.com https://www.xs8.cn
             siteName: '起点中文网',
+            filter: () => {
+                const href = window.location.href;
+                if (href.match(/(qidian.com|hongxiu.com|readnovel.com|xs8.cn)\/(info|book)\/\d+/)) return 1;
+                if (href.match(/(qidian.com|hongxiu.com|readnovel.com|xs8.cn)\/chapter/)) return 2;
+                return 0;
+            },
             url: /(qidian.com|hongxiu.com|readnovel.com|xs8.cn)\/(info|book)\/\d+/,
             chapterUrl: /(qidian.com|hongxiu.com|readnovel.com|xs8.cn)\/chapter/,
-            title: 'h1#bookName',
-            writer: 'a.writer-name',
+            title: (doc) => $('#bookName, .book-info > h1 > em, h1#bookName', doc).first().text().trim(),
+            writer: (doc) => $('.author, a.writer-name, .book-info .writer, .book-info > h1 > span', doc).first().text()
+                .replace(/作\s+者[:：]?/, '')
+                .replace(/\s+著$/, '')
+                .trim(),
             intro: (doc) => {
-                let cover = '';
-                let rawCover = $('.book-author img', doc).attr('src') || '';
-
-                if (rawCover) {
-                    cover = rawCover
+                const normalizeCover = (rawCover = '') => {
+                    if (!rawCover) return '';
+                    return rawCover
                         .replace(/^\/\//, 'https://')
-                        .replace(/\/\d+(?:\.\w+)?$/, '');
-                }
-                let attrText = $('.book-info p.book-attribute', doc).text().trim();
-                if (attrText) {
-                    // gom khoảng trắng cho gọn
-                    attrText = attrText.replace(/\s+/g, ' ');
-                }
-                const attrSection = attrText ? `属性：${attrText}` : '';
-                let introHtml = $('.intro-detail p#book-intro-detail', doc).html() || '';
-                let introMain = '';
-
-                if (introHtml) {
-                    introMain = introHtml
-                        .replace(/&lt;/g, '<')
-                        .replace(/&gt;/g, '>')
-                        .replace(/&amp;/g, '&')
-                        .replace(/<br\s*\/?>/gi, '\n')
-                        .replace(/<[^>]+>/g, '')
-                        .replace(/\n{2,}/g, '\n')
-                        .trim();
-                }
-
-                if (introMain) {
-                    introMain = `简介：${introMain}`;
-                }
-
-                const tags = $('.intro-honor-label p.all-label a', doc)
-                    .map((i, el) => $(el).text().trim())
-                    .get()
-                    .filter(Boolean);
-
-                const tagSection = tags.length
-                    ? `标签：${tags.join(', ')}`
-                    : '';
-                return [attrSection, introMain, tagSection, `Link cover: ${cover}`]
+                        .replace(/\/\d+(?:\.\w+)?$/, '')
+                        .replace(/-\d+(?:\.\w+)?$/, '');
+                };
+                const cover = normalizeCover($('#bookImg > img, .book-author img', doc).first().attr('src') || '');
+                const attrText = $('.book-info p.book-attribute, .book-info-detail .tag, .book-information .flag', doc)
+                    .toArray()
+                    .map((el) => $(el).text().replace(/\s+/g, ' ').trim())
                     .filter(Boolean)
-                    .join('\n\n');
+                    .join(' ');
+                const introHtml = $('#book-intro-detail, .book-info-detail .book-intro, .intro-detail p#book-intro-detail', doc).first().html() || '';
+                const introMain = introHtml
+                    .replace(/&lt;/g, '<')
+                    .replace(/&gt;/g, '>')
+                    .replace(/&amp;/g, '&')
+                    .replace(/<br\s*\/?>/gi, '\n')
+                    .replace(/<[^>]+>/g, '')
+                    .replace(/\n{2,}/g, '\n')
+                    .trim();
+                const tags = $('#all-label > a, .intro-honor-label p.all-label a, .book-info > .tag > a, .tag-wrap > .tags', doc)
+                    .toArray()
+                    .map((el) => $(el).text().trim())
+                    .filter(Boolean);
+                return [
+                    attrText ? `属性：${attrText}` : '',
+                    introMain ? `简介：${introMain}` : '',
+                    tags.length ? `标签：${tags.join(', ')}` : '',
+                    cover ? `Link cover: ${cover}` : ''
+                ].filter(Boolean).join('\n\n');
             },
-            cover: (doc) => {
-                let cover = '';
-                let rawCover = $('.book-author img', doc).attr('src') || '';
-
-                if (rawCover) {
-                    cover = rawCover
-                        .replace(/^\/\//, 'https://')
-                        .replace(/\/\d+(?:\.\w+)?$/, '');
-                }
-                return cover;
-            },
+            cover: (doc) => ($('#bookImg > img, .book-author img', doc).first().attr('src') || '')
+                .replace(/^\/\//, 'https://')
+                .replace(/\/\d+(?:\.\w+)?$/, '')
+                .replace(/-\d+(?:\.\w+)?$/, ''),
             chapter: 'ul.volume-chapters li > a',
-            vipChapter: 'ul.volume-chapters li:has(em) > a',
+            vipChapter: 'ul.volume-chapters li:has(em), #j-catalogWrap .volume h3:contains("VIP") ~ ul li a',
             chapterTitle: 'h1.title',
-            content: 'main[data-type="cjk"]',
-            // elementRemove: '.review-count,span[style]',
+            content: 'main[data-type="cjk"], main',
+            getChapters: async (doc) => {
+                const href = window.location.href;
+                const host = window.location.host;
+                const isQidian = /(^|\.)qidian\.com$/i.test(host);
+                const isChapterPage = /(qidian.com|hongxiu.com|readnovel.com|xs8.cn)\/chapter/.test(href);
+                const absoluteUrl = (url) => Rule.helpers.absoluteUrl(url, href);
+                const chapterIdOf = (url) => {
+                    const match = String(url || '').match(/\/(\d+)\/?$/);
+                    return match ? match[1] : null;
+                };
+                const textOf = (el) => (el && (el.textContent || '').replace(/\s+/g, ' ').trim()) || '';
+                const markLink = (link, vip, order) => {
+                    if (!link) return;
+                    link.setAttribute('novel-downloader-chapter', vip ? 'vip' : '');
+                    link.setAttribute('order', String(order));
+                };
+                const currentChapter = () => {
+                    const title = textOf(doc.querySelector('h1.title')) || document.title || href;
+                    const vip = Boolean(doc.querySelector('.vip-limit-wrap, .chapter-locked'));
+                    return [{
+                        title,
+                        url: href,
+                        vip,
+                        isVIP: vip,
+                        qidianNoVip: vip,
+                        chapterId: chapterIdOf(href)
+                    }];
+                };
+
+                if (isChapterPage && !doc.querySelector('.catalog-volume, #j-catalogWrap')) return currentChapter();
+
+                if (!isQidian) {
+                    const chapters = $('ul.volume-chapters li > a', doc).toArray().map((link, index) => {
+                        const vip = $(link).closest('li').find('em, .chapter-locked').length > 0;
+                        markLink(link, vip, index + 1);
+                        return {
+                            title: textOf(link),
+                            url: absoluteUrl($(link).attr('href')),
+                            vip,
+                            isVIP: vip,
+                            chapterId: chapterIdOf($(link).attr('href'))
+                        };
+                    }).filter((chapter) => chapter.url);
+                    return chapters.length ? chapters : (isChapterPage ? currentChapter() : []);
+                }
+
+                if (doc === document && !doc.querySelector('.catalog-volume, #j-catalogWrap > .volume-wrap > .volume')) {
+                    await Rule.helpers.sleep(1200);
+                }
+
+                let order = 0;
+                const chapters = [];
+                const parseSection = (section, options) => {
+                    const volumeNode = section.querySelector(options.volumeSelector);
+                    const headerNode = section.querySelector(options.headerSelector);
+                    const sectionName = textOf(volumeNode)
+                        .split('\n')
+                        .slice(-1)[0]
+                        .split('·')[0]
+                        .trim();
+                    const isVIP = /VIP/i.test(textOf(headerNode || volumeNode));
+                    section.querySelectorAll(options.chapterSelector).forEach((item) => {
+                        const link = item.querySelector('a');
+                        if (!link) return;
+                        order += 1;
+                        const chapterUrl = absoluteUrl(link.getAttribute('href') || link.href);
+                        const isPaid = isVIP
+                            ? (options.paidSelector ? !item.querySelector(options.paidSelector) : !item.querySelector('.chapter-locked'))
+                            : false;
+                        markLink(link, isVIP, order);
+                        chapters.push({
+                            title: textOf(link),
+                            url: chapterUrl,
+                            volume: sectionName,
+                            vip: isVIP,
+                            isVIP,
+                            isPaid,
+                            qidianNoVip: isVIP,
+                            chapterId: chapterIdOf(chapterUrl)
+                        });
+                    });
+                };
+
+                doc.querySelectorAll('.catalog-volume').forEach((section) => parseSection(section, {
+                    volumeSelector: '.volume-name',
+                    headerSelector: '.volume-header',
+                    chapterSelector: 'ul.volume-chapters > li',
+                    paidSelector: '.chapter-locked'
+                }));
+                if (!chapters.length) {
+                    doc.querySelectorAll('#j-catalogWrap > .volume-wrap > .volume').forEach((section) => parseSection(section, {
+                        volumeSelector: 'h3',
+                        headerSelector: 'h3',
+                        chapterSelector: 'ul.cf > li',
+                        paidSelector: 'em.iconfont'
+                    }));
+                }
+                return chapters.length ? chapters : (isChapterPage ? currentChapter() : []);
+            },
+            deal: async (chapter) => {
+                const isVipChapter = Boolean(chapter.vip || chapter.isVIP || chapter.qidianNoVip);
+                const html = chapter.url === window.location.href
+                    ? document.documentElement.outerHTML
+                    : await ndFetchText(chapter.url, {
+                        headers: { Referer: window.location.href },
+                        timeout: Config.timeout
+                    });
+                let frame = null;
+                try {
+                    let doc = chapter.url === window.location.href ? document : Rule.helpers.parseHtml(html);
+                    if (isVipChapter && chapter.url !== window.location.href) {
+                        const rendered = await ndCreateFrameDocument(html, chapter.url, 'main');
+                        frame = rendered.frame;
+                        doc = rendered.doc || doc;
+                    }
+                    if (isVipChapter && doc.querySelector('.vip-limit-wrap')) {
+                        return { content: '', error: 'Qidian VIP cần tài khoản đã mua/được mở khóa trước khi OCR.' };
+                    }
+                    const title = $('h1.title', doc).first().text().trim() || chapter.title;
+                    const content = doc.querySelector('main[data-type="cjk"], main, .read-content, #chapterContent');
+                    if (!content) return { content: '', error: 'Không tìm thấy nội dung Qidian.' };
+
+                    const wrapper = document.createElement('div');
+                    if (isVipChapter) {
+                        console.log(`[Qidian OCR] Bắt đầu decode VIP: ${title || chapter.url}`);
+                        const decodedContent = await ndDecodeQidianContentByOCR(content);
+                        if (!decodedContent || !(decodedContent.textContent || '').trim()) {
+                            return { content: '', error: 'Qidian OCR không decode được nội dung VIP.' };
+                        }
+                        wrapper.appendChild(decodedContent);
+                    } else {
+                        wrapper.innerHTML = content.innerHTML;
+                        wrapper.querySelectorAll('span.review, .review-count, script, style').forEach((el) => el.remove());
+                        wrapper.querySelectorAll('p').forEach((p) => {
+                            if (/^谷[\u4e00-\u9fa5]{0,1}$/.test((p.textContent || '').trim())) p.remove();
+                        });
+                    }
+
+                    const authorSay = doc.querySelector('#r-authorSay div');
+                    if (authorSay && (authorSay.textContent || '').trim()) {
+                        const say = authorSay.cloneNode(true);
+                        say.querySelectorAll('a.avatar, h4, script, style').forEach((el) => el.remove());
+                        if ((say.textContent || '').trim()) {
+                            say.className = 'authorSay';
+                            wrapper.appendChild(document.createElement('hr'));
+                            wrapper.appendChild(say);
+                        }
+                    }
+                    return { title, content: wrapper.innerHTML };
+                } finally {
+                    if (frame) frame.remove();
+                }
+            },
             chapterPrev: (doc) => [$('a', doc).filter((i, el) => el.textContent.trim() === "上一章")],
             chapterNext: (doc) => [$('a', doc).filter((i, el) => el.textContent.trim() === "下一章")],
-            // vip: {
-            //     iframe: async (win) => waitFor(() => win.enContent === undefined && win.cuChapterId === undefined && win.fEnS === undefined),
-            // },
         },
         { // https://www.ciweimao.com
             siteName: '刺猬猫',
