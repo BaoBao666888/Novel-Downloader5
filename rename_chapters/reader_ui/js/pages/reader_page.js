@@ -3945,6 +3945,38 @@ function addComicManualPlaceholder(pageIndex, blockId, box, text) {
   renderComicOcrOverlays();
 }
 
+function findComicOcrResultBlock(result, pageIndex, blockId) {
+  const id = String(blockId || "").trim();
+  if (!id || !result || !Array.isArray(result.pages)) return null;
+  const page = result.pages.find((item) => Number.parseInt(String((item && item.index) || "0"), 10) === Number(pageIndex));
+  if (!page || !Array.isArray(page.blocks)) return null;
+  return page.blocks.find((block) => String((block && block.id) || "").trim() === id) || null;
+}
+
+function mergeComicManualOverlayResult({ pageIndex, blockId, box, data }) {
+  const incomingResult = data && data.result && Array.isArray(data.result.pages) ? data.result : null;
+  if (!state.comicOcrResult || !Array.isArray(state.comicOcrResult.pages)) {
+    if (incomingResult) {
+      state.comicOcrResult = incomingResult;
+      return;
+    }
+    addComicManualPlaceholder(pageIndex, blockId, box, String((data && data.edit && data.edit.text) || state.shell.t("comicManualOcrDone")));
+  }
+  const incomingBlock = findComicOcrResultBlock(incomingResult, pageIndex, blockId);
+  const page = ensureComicOcrResultPage(pageIndex);
+  const existingIndex = page.blocks.findIndex((block) => String((block && block.id) || "").trim() === blockId);
+  if (incomingBlock) {
+    const nextBlock = { ...incomingBlock };
+    if (existingIndex >= 0) {
+      page.blocks[existingIndex] = nextBlock;
+    } else {
+      page.blocks.push(nextBlock);
+    }
+  } else if (data && data.edit) {
+    applyComicOcrOverlayEditLocal(pageIndex, blockId, data.edit);
+  }
+}
+
 async function recognizeComicManualOverlay({ pageIndex, blockId, box }) {
   if (!state.comicOcrCapabilities) {
     await refreshComicOcrCapabilities({ fetchCached: false, syncControls: true });
@@ -4029,11 +4061,7 @@ function startComicManualBoxDraw({ slot, img, pageIndex }) {
     addComicManualPlaceholder(pageIndex, blockId, box, state.shell.t("comicManualOcrWorking"));
     recognizeComicManualOverlay({ pageIndex, blockId, box })
       .then((data) => {
-        if (data && data.result) {
-          state.comicOcrResult = data.result;
-        } else if (data && data.edit) {
-          applyComicOcrOverlayEditLocal(pageIndex, blockId, data.edit);
-        }
+        mergeComicManualOverlayResult({ pageIndex, blockId, box, data });
         state.comicOcrOverlayEnabled = true;
         syncComicOcrControls();
         renderComicOcrOverlays();
