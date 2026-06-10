@@ -27,8 +27,20 @@ TEXT_ENCODING_LABELS = dict(TEXT_ENCODING_OPTIONS)
 SAVE_TEXT_ENCODINGS = ("utf-8", "utf-8-sig", "utf-16", "utf-16-le", "utf-16-be", "gb18030", "big5")
 
 TEXTOPS_CHINESE_FONT = "Microsoft YaHei"
-TEXTOPS_VIETNAMESE_FONT = "Microsoft Sans Serif"
+TEXTOPS_VIETNAMESE_FONT = "Arial"
 TEXTOPS_FALLBACK_FONT = "Segoe UI"
+TEXTOPS_DEFAULT_SPLIT_REGEX = r"第.*?章"
+TEXTOPS_DEFAULT_QUICK_REGEX = r"^(第\d+章)"
+TEXTOPS_MIXED_FONT_CANDIDATES = (
+    "Arial Unicode MS",
+    "Noto Sans CJK SC",
+    "Noto Sans CJK",
+    "Microsoft JhengHei UI",
+    "Microsoft JhengHei",
+    "SimSun",
+    "Arial",
+    TEXTOPS_FALLBACK_FONT,
+)
 TEXTOPS_AUTOSAVE_DELAY_MS = 700
 
 VIETNAMESE_MARKS = set(
@@ -452,17 +464,24 @@ class TextOpsWindow(tk.Toplevel):
         ttk.Label(toolbar, text="Tìm font:").pack(side=tk.LEFT, padx=(18, 4))
         installed_families = set(tkfont.families(self))
         self.installed_font_families = installed_families
-        self.font_families = sorted(installed_families | {TEXTOPS_CHINESE_FONT, TEXTOPS_VIETNAMESE_FONT, TEXTOPS_FALLBACK_FONT})
+        self.font_families = sorted(
+            installed_families
+            | {TEXTOPS_CHINESE_FONT, TEXTOPS_VIETNAMESE_FONT, TEXTOPS_FALLBACK_FONT}
+            | set(TEXTOPS_MIXED_FONT_CANDIDATES)
+        )
         family, size = self.state_store.get_font()
         self.font_search_var = tk.StringVar()
         self.font_family_var = tk.StringVar(value=family)
         self.font_size_var = tk.IntVar(value=size)
+        self.font_bold_var = tk.BooleanVar(value=self.state_store.get_font_weight() == "bold")
         self.font_search_entry = ttk.Entry(toolbar, width=14, textvariable=self.font_search_var)
         self.font_search_entry.pack(side=tk.LEFT)
         self.font_combo = ttk.Combobox(toolbar, values=self.font_families, width=22, textvariable=self.font_family_var)
         self.font_combo.pack(side=tk.LEFT)
         self.font_size_spin = ttk.Spinbox(toolbar, from_=8, to=36, width=4, textvariable=self.font_size_var, command=self.apply_font_from_controls)
         self.font_size_spin.pack(side=tk.LEFT, padx=(4, 0))
+        self.font_bold_check = ttk.Checkbutton(toolbar, text="Đậm", variable=self.font_bold_var, command=self.apply_font_from_controls)
+        self.font_bold_check.pack(side=tk.LEFT, padx=(6, 0))
         self.font_combo.bind("<<ComboboxSelected>>", lambda _e: self.apply_font_from_controls())
         self.font_combo.bind("<Return>", lambda _e: self.apply_font_from_controls())
         self.font_search_entry.bind("<KeyRelease>", self._filter_font_list)
@@ -527,17 +546,35 @@ class TextOpsWindow(tk.Toplevel):
         except Exception:
             return TEXTOPS_FALLBACK_FONT
 
+    def _first_available_font(self, *families: str) -> str:
+        installed = getattr(self, "installed_font_families", set()) or set()
+        for family in families:
+            family = (family or "").strip()
+            if family and family in installed:
+                return family
+        return self._safe_font_family(TEXTOPS_FALLBACK_FONT)
+
     def _detect_font_family(self, content: str) -> str:
         sample = (content or "")[:30000]
         chinese_count = len(CHINESE_CHAR_RE.findall(sample))
         vietnamese_count = sum(1 for ch in sample if ch in VIETNAMESE_MARKS)
-        if chinese_count and chinese_count >= vietnamese_count:
+        if chinese_count and vietnamese_count:
+            return self._first_available_font(*TEXTOPS_MIXED_FONT_CANDIDATES)
+        if chinese_count:
             return self._safe_font_family(TEXTOPS_CHINESE_FONT)
         if vietnamese_count:
             return self._safe_font_family(TEXTOPS_VIETNAMESE_FONT)
         return self._safe_font_family(TEXTOPS_FALLBACK_FONT)
 
-    def _set_doc_font(self, doc: dict, family: str, size: int | None = None, *, manual: bool = False):
+    def _set_doc_font(
+        self,
+        doc: dict,
+        family: str,
+        size: int | None = None,
+        *,
+        manual: bool = False,
+        weight: str | None = None,
+    ):
         if not doc:
             return
         try:
@@ -546,13 +583,17 @@ class TextOpsWindow(tk.Toplevel):
             size = 11
         size = max(8, min(36, size))
         family = self._safe_font_family(family)
+        if weight is None:
+            weight = doc.get("font_weight") or self.state_store.get_font_weight()
+        weight = "bold" if str(weight).lower() == "bold" else "normal"
         doc["font_family"] = family
         doc["font_size"] = size
+        doc["font_weight"] = weight
         if manual:
             doc["font_manual"] = True
-            self.state_store.set_font(family, size)
+            self.state_store.set_font(family, size, weight)
         try:
-            doc["text"].configure(font=(family, size))
+            doc["text"].configure(font=(family, size, weight))
         except Exception:
             pass
         if self._current_doc() is doc:
@@ -573,6 +614,7 @@ class TextOpsWindow(tk.Toplevel):
         try:
             self.font_family_var.set(doc.get("font_family") or self.state_store.get_font()[0])
             self.font_size_var.set(int(doc.get("font_size") or self.state_store.get_font()[1]))
+            self.font_bold_var.set((doc.get("font_weight") or self.state_store.get_font_weight()) == "bold")
         finally:
             self._font_controls_updating = False
 
@@ -729,8 +771,9 @@ class TextOpsWindow(tk.Toplevel):
         text = scrolledtext.ScrolledText(frame, wrap=tk.WORD, undo=True)
         text.grid(row=0, column=0, sticky="nsew")
         _, size = self.state_store.get_font()
+        weight = self.state_store.get_font_weight()
         family = self._detect_font_family(content)
-        text.configure(font=(family, size))
+        text.configure(font=(family, size, weight))
         doc = {
             "tab_id": "",
             "frame": frame,
@@ -745,6 +788,7 @@ class TextOpsWindow(tk.Toplevel):
             "baseline_hash": _content_hash(baseline_content),
             "font_family": family,
             "font_size": size,
+            "font_weight": weight,
             "font_manual": False,
         }
         self.notebook.add(frame, text="")
@@ -1036,7 +1080,8 @@ class TextOpsWindow(tk.Toplevel):
             size = int(self.font_size_var.get())
         except Exception:
             size = 11
-        self._set_doc_font(doc, family, size, manual=True)
+        weight = "bold" if self.font_bold_var.get() else "normal"
+        self._set_doc_font(doc, family, size, manual=True, weight=weight)
 
     def _add_combo_history(self, combo: ttk.Combobox, history_key: str, pin_key: str = ""):
         value = combo.get().strip()
@@ -1513,13 +1558,16 @@ class TextOpsWindow(tk.Toplevel):
         root = ttk.Frame(win, padding=10)
         root.pack(fill=tk.BOTH, expand=True)
         root.columnconfigure(0, weight=1)
-        root.rowconfigure(1, weight=1)
+        root.rowconfigure(1, weight=3)
+        root.rowconfigure(2, weight=1)
 
         options = ttk.LabelFrame(root, text="Tùy chọn chia", padding=10)
         options.grid(row=0, column=0, sticky="ew")
         options.columnconfigure(1, weight=1)
         ttk.Label(options, text="Regex chia:").grid(row=0, column=0, sticky="w")
         regex_combo = self._make_history_combo(options, "split_regex_history", "split", width=38)
+        split_values = list(regex_combo.cget("values") or [])
+        regex_combo.set(split_values[0] if split_values else TEXTOPS_DEFAULT_SPLIT_REGEX)
         regex_combo.grid(row=0, column=1, sticky="ew", padx=(8, 6))
         split_pin_btn = ttk.Button(
             options,
@@ -1535,7 +1583,7 @@ class TextOpsWindow(tk.Toplevel):
             values = self.state_store.get_list("split_format_history") or ["part_{num}.txt"]
             format_combo.set(values[0])
         format_combo.grid(row=1, column=1, sticky="ew", padx=(8, 6), pady=(6, 0))
-        position_var = tk.StringVar(value="after")
+        position_var = tk.StringVar(value="before")
         ttk.Radiobutton(options, text="Chia sau regex", variable=position_var, value="after").grid(row=0, column=3, sticky="w")
         ttk.Radiobutton(options, text="Chia trước regex", variable=position_var, value="before").grid(row=1, column=3, sticky="w", pady=(6, 0))
         regex_combo.bind("<<ComboboxSelected>>", lambda _e: self._sync_textops_pin_button(regex_combo, "split", split_pin_btn))
@@ -1562,9 +1610,38 @@ class TextOpsWindow(tk.Toplevel):
         hsb.grid(row=1, column=0, sticky="ew")
         tree.configure(yscrollcommand=vsb.set, xscrollcommand=hsb.set)
 
+        search_frame = ttk.LabelFrame(root, text="Tìm trong kết quả chia", padding=8)
+        search_frame.grid(row=2, column=0, sticky="nsew", pady=(10, 0))
+        search_frame.columnconfigure(1, weight=1)
+        search_frame.rowconfigure(1, weight=1)
+        search_var = tk.StringVar()
+        search_regex_var = tk.BooleanVar(value=True)
+        ttk.Label(search_frame, text="Tìm:").grid(row=0, column=0, sticky="w")
+        search_entry = ttk.Entry(search_frame, textvariable=search_var)
+        search_entry.grid(row=0, column=1, sticky="ew", padx=(8, 6))
+        ttk.Checkbutton(search_frame, text="Regex", variable=search_regex_var).grid(row=0, column=2, sticky="w", padx=(0, 6))
+        ttk.Button(search_frame, text="Tìm", command=lambda: search_in_chunks()).grid(row=0, column=3, sticky="e")
+        search_tree = ttk.Treeview(
+            search_frame,
+            columns=("#", "Phần", "Dòng", "Khớp"),
+            show="headings",
+            height=5,
+            selectmode="browse",
+        )
+        for col, width in zip(("#", "Phần", "Dòng", "Khớp"), [58, 90, 80, 640]):
+            search_tree.heading(col, text=col)
+            search_tree.column(col, width=width, anchor="w")
+        search_tree.grid(row=1, column=0, columnspan=4, sticky="nsew", pady=(6, 0))
+        search_scroll = ttk.Scrollbar(search_frame, orient="vertical", command=search_tree.yview)
+        search_scroll.grid(row=1, column=4, sticky="ns", pady=(6, 0))
+        search_tree.configure(yscrollcommand=search_scroll.set)
+        search_status = tk.StringVar(value="Chưa tìm.")
+        ttk.Label(search_frame, textvariable=search_status).grid(row=2, column=0, columnspan=5, sticky="w", pady=(4, 0))
+
         status = tk.StringVar(value="")
-        ttk.Label(root, textvariable=status).grid(row=2, column=0, sticky="w", pady=(4, 0))
+        ttk.Label(root, textvariable=status).grid(row=3, column=0, sticky="w", pady=(4, 0))
         preview_state = {"chunks": [], "names": []}
+        search_result_rows = {}
 
         def render_name(index: int) -> str:
             name = TextOperations.render_split_filename(format_combo.get(), index + 1)
@@ -1591,19 +1668,68 @@ class TextOpsWindow(tk.Toplevel):
         def get_chunks():
             return self._split_current_content(regex_combo.get(), position_var.get())
 
-        def preview():
+        def clear_search_results():
+            search_tree.delete(*search_tree.get_children())
+            search_result_rows.clear()
+            search_status.set("Chưa tìm.")
+
+        def build_preview() -> bool:
             self._add_combo_history(regex_combo, "split_regex_history", "split")
             self._add_combo_history(format_combo, "split_format_history")
             chunks, error = get_chunks()
             tree.delete(*tree.get_children())
             if error:
                 status.set(error)
-                return
+                return False
             preview_state["chunks"] = list(chunks)
             preview_state["names"] = [render_name(idx) for idx in range(len(chunks))]
             for idx, chunk in enumerate(chunks, 1):
                 update_tree_row(idx - 1)
-            status.set(f"{len(chunks)} phần. Double-click hoặc bấm Sửa raw để chỉnh nội dung từng phần trước khi tạo file.")
+            clear_search_results()
+            status.set(
+                f"{len(chunks)} phần. Sửa raw chỉ cập nhật preview/output chia file, không sửa văn bản gốc."
+            )
+            return True
+
+        def preview():
+            build_preview()
+
+        def search_in_chunks():
+            pattern = search_var.get().strip()
+            search_tree.delete(*search_tree.get_children())
+            search_result_rows.clear()
+            if not pattern:
+                search_status.set("Nhập nội dung cần tìm.")
+                return
+            if not preview_state.get("chunks") and not build_preview():
+                search_status.set("Không có preview để tìm.")
+                return
+            if search_regex_var.get():
+                try:
+                    matcher = re.compile(pattern, re.MULTILINE)
+                except re.error as exc:
+                    search_status.set(f"Regex không hợp lệ: {exc}")
+                    return
+            else:
+                matcher = re.compile(re.escape(pattern), re.IGNORECASE)
+            display_limit = 1000
+            total = 0
+            for chunk_index, chunk in enumerate(preview_state.get("chunks") or []):
+                for match in matcher.finditer(chunk or ""):
+                    total += 1
+                    if total > display_limit:
+                        continue
+                    line_no = (chunk or "").count("\n", 0, match.start()) + 1
+                    snippet = " ".join(match.group(0).split())
+                    if len(snippet) > 180:
+                        snippet = snippet[:180] + "..."
+                    iid = str(total)
+                    search_result_rows[iid] = chunk_index
+                    search_tree.insert("", "end", iid=iid, values=(total, chunk_index + 1, line_no, snippet))
+            if total > display_limit:
+                search_status.set(f"Tìm thấy {total} kết quả, đang hiển thị {display_limit} kết quả đầu.")
+            else:
+                search_status.set(f"Tìm thấy {total} kết quả.")
 
         def selected_index():
             selected = tree.selection()
@@ -1646,7 +1772,7 @@ class TextOpsWindow(tk.Toplevel):
                 editor_root,
                 wrap=tk.WORD,
                 undo=True,
-                font=(self._safe_font_family(TEXTOPS_CHINESE_FONT), 13),
+                font=(self._detect_font_family(chunks[index]), 13, self.state_store.get_font_weight()),
                 spacing1=6,
                 spacing3=10,
             )
@@ -1671,7 +1797,9 @@ class TextOpsWindow(tk.Toplevel):
                 editor.title(file_name)
                 text_widget.edit_modified(False)
                 update_tree_row(index)
-                status.set(f"Đã cập nhật raw cho {file_name}.")
+                if search_var.get().strip():
+                    search_in_chunks()
+                status.set(f"Đã cập nhật raw cho {file_name} trong preview/output. Văn bản gốc không đổi.")
                 return True
 
             def close_editor():
@@ -1731,12 +1859,21 @@ class TextOpsWindow(tk.Toplevel):
             messagebox.showinfo("Hoàn tất", f"Đã chia thành {count} file.\n{output_dir}", parent=win)
 
         buttons = ttk.Frame(root)
-        buttons.grid(row=3, column=0, sticky="e", pady=(10, 0))
+        buttons.grid(row=4, column=0, sticky="e", pady=(10, 0))
         ttk.Button(buttons, text="Xem trước", command=preview).pack(side=tk.LEFT)
         ttk.Button(buttons, text="Sửa raw...", command=lambda: open_raw_editor()).pack(side=tk.LEFT, padx=(6, 0))
         ttk.Button(buttons, text="Bắt đầu chia", command=execute).pack(side=tk.LEFT, padx=(6, 0))
         ttk.Button(buttons, text="Đóng", command=win.destroy).pack(side=tk.LEFT, padx=(6, 0))
         tree.bind("<Double-1>", open_selected_from_event)
+        search_entry.bind("<Return>", lambda _e: search_in_chunks())
+        search_tree.bind(
+            "<Double-1>",
+            lambda event: (
+                open_raw_editor(search_result_rows.get(search_tree.identify_row(event.y)))
+                if search_tree.identify_row(event.y) in search_result_rows
+                else None
+            ),
+        )
 
     def _split_current_content(self, regex: str, position: str):
         text = self._current_text()
@@ -1778,8 +1915,8 @@ class TextOpsWindow(tk.Toplevel):
         ttk.Label(topbar, text="Công cụ nhanh", font=self._doc_title_font, foreground="#111827").grid(row=0, column=0, sticky="w")
         self._make_maximize_button(topbar, win).grid(row=0, column=1, sticky="e")
 
-        scroll_container, root = self._make_scrollable_content(outer)
-        scroll_container.grid(row=1, column=0, sticky="nsew")
+        root = ttk.Frame(outer)
+        root.grid(row=1, column=0, sticky="nsew")
         root.columnconfigure(0, weight=1)
         root.rowconfigure(1, weight=1)
 
@@ -1790,7 +1927,8 @@ class TextOpsWindow(tk.Toplevel):
         quick_combo = self._make_history_combo(renumber, "quick_regex_history", "quick_regex")
         quick_combo.grid(row=0, column=1, sticky="ew", padx=(8, 6))
         if not quick_combo.get():
-            quick_combo.set(r"第\d+章")
+            quick_values = list(quick_combo.cget("values") or [])
+            quick_combo.set(quick_values[0] if quick_values else TEXTOPS_DEFAULT_QUICK_REGEX)
         pin_btn = ttk.Button(
             renumber,
             text="Ghim" if quick_combo.get() not in self.state_store.get_pins("quick_regex") else "Bỏ ghim",

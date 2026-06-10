@@ -49,9 +49,9 @@ class TextOpsStateStore:
             "find_history": [],
             "replace_find_history": [],
             "replace_history": [],
-            "split_regex_history": [],
+            "split_regex_history": [r"第.*?章"],
             "split_format_history": ["part_{num}.txt"],
-            "quick_regex_history": [r"第\d+章"],
+            "quick_regex_history": [r"^(第\d+章)"],
             "pins": {
                 "find": [],
                 "replace": [],
@@ -60,8 +60,9 @@ class TextOpsStateStore:
                 "quick_regex": [],
             },
             "font": {
-                "family": "Microsoft YaHei",
+                "family": "Segoe UI",
                 "size": 11,
+                "weight": "normal",
             },
             "toolbar_visible": True,
             "autosave_docs": [],
@@ -85,6 +86,10 @@ class TextOpsStateStore:
                         merged["pins"].setdefault(key, value)
                 if not isinstance(merged.get("font"), dict):
                     merged["font"] = self._default_state()["font"]
+                else:
+                    default_font = self._default_state()["font"]
+                    for key, value in default_font.items():
+                        merged["font"].setdefault(key, value)
                 if not isinstance(merged.get("autosave_docs"), list):
                     merged["autosave_docs"] = []
                 self.state = merged
@@ -210,15 +215,24 @@ class TextOpsStateStore:
 
     def get_font(self) -> tuple[str, int]:
         font = self.state.get("font") if isinstance(self.state.get("font"), dict) else {}
-        family = str(font.get("family") or "Microsoft YaHei")
+        family = str(font.get("family") or "Segoe UI")
         try:
             size = int(font.get("size") or 11)
         except Exception:
             size = 11
         return family, max(8, min(36, size))
 
-    def set_font(self, family: str, size: int):
-        self.state["font"] = {"family": family or "Microsoft YaHei", "size": max(8, min(36, int(size or 11)))}
+    def get_font_weight(self) -> str:
+        font = self.state.get("font") if isinstance(self.state.get("font"), dict) else {}
+        return "bold" if str(font.get("weight") or "").lower() == "bold" else "normal"
+
+    def set_font(self, family: str, size: int, weight: str | None = None):
+        current = self.state.get("font") if isinstance(self.state.get("font"), dict) else {}
+        self.state["font"] = {
+            "family": family or "Segoe UI",
+            "size": max(8, min(36, int(size or 11))),
+            "weight": "bold" if str(weight if weight is not None else current.get("weight") or "").lower() == "bold" else "normal",
+        }
         self.save()
 
     def get_toolbar_visible(self) -> bool:
