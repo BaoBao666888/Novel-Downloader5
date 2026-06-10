@@ -1275,6 +1275,14 @@ function startComicOcrChapterRequest({ chapterId, sourceLang, modelKey, targetLa
   });
 }
 
+function cancelComicOcrJob(jobId) {
+  const id = String(jobId || "").trim();
+  if (!id) return Promise.resolve(null);
+  return state.shell.api(`/api/comic-ocr/jobs/${encodeURIComponent(id)}/cancel`, {
+    method: "POST",
+  }).catch(() => null);
+}
+
 function comicOcrPrefetchNextCount() {
   const settings = state.shell && typeof state.shell.getComicOcrSettings === "function"
     ? state.shell.getComicOcrSettings()
@@ -1305,6 +1313,36 @@ function rememberComicOcrAutoFlow(context = {}, chapterId = state.chapterId) {
 
 function clearComicOcrAutoFlow() {
   state.comicOcrAutoFlow = null;
+}
+
+function cancelComicOcrJobsForNavigation({ fromChapterId = "", toChapterId = "", continueFlow = false } = {}) {
+  const fromId = String(fromChapterId || "").trim();
+  const toId = String(toChapterId || "").trim();
+  if (!fromId || !toId || fromId === toId) return;
+  const cancelIds = new Set();
+  if (state.comicOcrJobId) {
+    cancelIds.add(String(state.comicOcrJobId || "").trim());
+  }
+  for (const [chapterId, pending] of state.comicOcrBackgroundJobs.entries()) {
+    const cid = String(chapterId || "").trim();
+    const jobId = String((pending && pending.jobId) || "").trim();
+    if (cid && cid === toId) continue;
+    if (jobId) cancelIds.add(jobId);
+    state.comicOcrBackgroundJobs.delete(chapterId);
+  }
+  if (!continueFlow) {
+    state.comicOcrPrefetchSeq += 1;
+    state.comicOcrPrefetchBusy = false;
+  }
+  if (cancelIds.size) {
+    clearComicOcrPollTimer();
+    state.comicOcrJobId = "";
+    state.comicOcrBusy = false;
+    state.comicOcrStatusText = "";
+    for (const jobId of cancelIds) {
+      cancelComicOcrJob(jobId);
+    }
+  }
 }
 
 function shouldContinueComicOcrAutoFlow(fromChapterId, toChapterId) {
@@ -1457,6 +1495,13 @@ function pollComicOcrJob(jobId, prefetchContext = null) {
         state.shell.showToast(String((data && data.message) || state.shell.t("comicOcrFailed")));
         return;
       }
+      if (status === "cancelled") {
+        state.comicOcrBackgroundJobs.delete(String((prefetchContext && prefetchContext.fromChapterId) || state.chapterId || "").trim());
+        state.comicOcrBusy = false;
+        state.comicOcrStatusText = "";
+        syncComicOcrControls();
+        return;
+      }
       syncComicOcrControls();
       state.comicOcrPollTimer = window.setTimeout(tick, 1200);
     } catch (error) {
@@ -1508,7 +1553,7 @@ async function waitComicOcrPrefetchJob(jobId, flowSeq) {
     if (flowSeq !== state.comicOcrPrefetchSeq) return false;
     const status = String((data && data.status) || "").trim();
     if (status === "completed") return true;
-    if (status === "failed") return false;
+    if (status === "failed" || status === "cancelled") return false;
     await new Promise((resolve) => window.setTimeout(resolve, 1800));
   }
   return false;
@@ -2166,6 +2211,11 @@ async function openChapterById(chapterId, { updateHistory = true, fromToc = fals
   if (previousChapterId && targetChapterId && previousChapterId !== targetChapterId && !continueComicOcr) {
     clearComicOcrAutoFlow();
   }
+  cancelComicOcrJobsForNavigation({
+    fromChapterId: previousChapterId,
+    toChapterId: targetChapterId,
+    continueFlow: continueComicOcr,
+  });
   state.chapterId = chapterId;
   if (updateHistory) {
     window.history.replaceState({}, "", buildReaderUrl(state.book || state.bookId, state.chapterId, state.mode));

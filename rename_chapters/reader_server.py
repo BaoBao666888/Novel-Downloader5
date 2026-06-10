@@ -5973,6 +5973,8 @@ class ReaderService:
         now = utc_now_iso()
         seed = f"{context['book_id']}|{context['chapter_id']}|comic-ocr|{now}|{uuid.uuid4().hex}"
         job_id = f"co_{hash_text(seed)}"
+        cancel_event = threading.Event()
+        context["cancel_event"] = cancel_event
         job = {
             "job_id": job_id,
             "book_id": context["book_id"],
@@ -5991,6 +5993,7 @@ class ReaderService:
             "updated_at": now,
             "finished_at": "",
             "result": None,
+            "_cancel_event": cancel_event,
         }
         worker = threading.Thread(
             target=self._run_comic_ocr_job,
@@ -6011,6 +6014,29 @@ class ReaderService:
             job = self._comic_ocr_jobs.get(jid)
             if not job:
                 raise ApiError(HTTPStatus.NOT_FOUND, "NOT_FOUND", "Không tìm thấy job OCR.")
+            return comic_ocr_jobs_support.serialize_job(job)
+
+    def cancel_comic_ocr_job(self, job_id: str) -> dict[str, Any]:
+        jid = str(job_id or "").strip()
+        if not jid:
+            raise ApiError(HTTPStatus.BAD_REQUEST, "BAD_REQUEST", "Thiếu job_id.")
+        with self._comic_ocr_cv:
+            job = self._comic_ocr_jobs.get(jid)
+            if not job:
+                raise ApiError(HTTPStatus.NOT_FOUND, "NOT_FOUND", "Không tìm thấy job OCR.")
+            status = str(job.get("status") or "").strip().lower()
+            if status in {"completed", "failed", "cancelled"}:
+                return comic_ocr_jobs_support.serialize_job(job)
+            event = job.get("_cancel_event")
+            if isinstance(event, threading.Event):
+                event.set()
+            now = utc_now_iso()
+            job["status"] = "cancelled"
+            job["error_code"] = "CANCELLED"
+            job["message"] = "Đã hủy OCR ảnh comic."
+            job["updated_at"] = now
+            job["finished_at"] = now
+            self._comic_ocr_cv.notify_all()
             return comic_ocr_jobs_support.serialize_job(job)
 
     def get_comic_ocr_chapter_result(
@@ -6304,12 +6330,58 @@ class ReaderService:
 
     def _run_comic_ocr_job(self, job_id: str, context: dict[str, Any]) -> None:
         acquired = False
+        class ComicOcrCancelled(Exception):
+            pass
+
+        cancel_event = context.get("cancel_event")
+
+        def is_cancelled() -> bool:
+            if isinstance(cancel_event, threading.Event) and cancel_event.is_set():
+                return True
+            with self._comic_ocr_cv:
+                job = self._comic_ocr_jobs.get(job_id)
+                return (not job) or str(job.get("status") or "").strip().lower() == "cancelled"
+
+        def check_cancelled() -> None:
+            if is_cancelled():
+                raise ComicOcrCancelled()
+
+        def cancel_pending_futures() -> None:
+            try:
+                translation_futures = list(pending_translations.keys())
+            except NameError:
+                translation_futures = []
+            try:
+                ocr_futures = list(pending_ocr.keys())
+            except NameError:
+                ocr_futures = []
+            for future in translation_futures + ocr_futures:
+                future.cancel()
+
+        def mark_cancelled() -> None:
+            with self._comic_ocr_cv:
+                job = self._comic_ocr_jobs.get(job_id)
+                if not job:
+                    return
+                status = str(job.get("status") or "").strip().lower()
+                if status in {"completed", "failed", "cancelled"}:
+                    return
+                now = utc_now_iso()
+                job["status"] = "cancelled"
+                job["error_code"] = "CANCELLED"
+                job["message"] = "Đã hủy OCR ảnh comic."
+                job["updated_at"] = now
+                job["finished_at"] = now
+                self._comic_ocr_cv.notify_all()
+
         try:
             self._comic_ocr_sem.acquire()
             acquired = True
             with self._comic_ocr_cv:
                 job = self._comic_ocr_jobs.get(job_id)
                 if not job:
+                    return
+                if is_cancelled():
                     return
                 now = utc_now_iso()
                 job["status"] = "running"
@@ -6349,6 +6421,7 @@ class ReaderService:
 
             def queue_translation(*, page_key: str, page: dict[str, Any]) -> None:
                 nonlocal submitted_translations
+                check_cancelled()
                 if not page_blocks(page):
                     if page_key:
                         comic_ocr_cache_support.write_translation_page(CACHE_DIR, page_key, page)
@@ -6363,6 +6436,7 @@ class ReaderService:
                 max_pages = max(1, min(12, int(context.get("translation_batch_max_pages") or 4)))
                 max_chars = max(500, min(20000, int(context.get("translation_batch_max_chars") or 6000)))
                 while translation_queue:
+                    check_cancelled()
                     index, page_key, page = translation_queue[0]
                     blocks = page_blocks(page)
                     next_blocks = len(blocks)
@@ -6382,6 +6456,7 @@ class ReaderService:
             def translate_page_batch(
                 batch: list[tuple[int, str, dict[str, Any]]],
             ) -> list[tuple[int, str, dict[str, Any]]]:
+                check_cancelled()
                 flat_blocks: list[dict[str, Any]] = []
                 slices: list[tuple[int, str, dict[str, Any], int, int]] = []
                 for index, page_key, page in batch:
@@ -6397,6 +6472,7 @@ class ReaderService:
                     normalize_vi_display_text=normalize_vi_display_text,
                     strict=context["translate_mode"] == "vbook_ext",
                 )
+                check_cancelled()
                 translated_pages: list[tuple[int, str, dict[str, Any]]] = []
                 for index, page_key, page, start, count in slices:
                     translated_page = dict(page)
@@ -6405,6 +6481,7 @@ class ReaderService:
                 return translated_pages
 
             def start_translation_batch(executor: ThreadPoolExecutor) -> None:
+                check_cancelled()
                 if pending_translations or not translation_queue:
                     return
                 batch = take_translation_batch()
@@ -6416,8 +6493,11 @@ class ReaderService:
             def finish_translation(future: Future[list[tuple[int, str, dict[str, Any]]]]) -> None:
                 nonlocal translated_done
                 pending_translations.pop(future)
+                check_cancelled()
                 try:
                     translated_pages = future.result()
+                except ComicOcrCancelled:
+                    raise
                 except Exception:
                     for other in list(pending_translations.keys()):
                         other.cancel()
@@ -6437,6 +6517,7 @@ class ReaderService:
 
             def drain_translations(executor: ThreadPoolExecutor, *, block: bool = False) -> None:
                 while pending_translations or translation_queue:
+                    check_cancelled()
                     start_translation_batch(executor)
                     if not pending_translations:
                         return
@@ -6453,6 +6534,7 @@ class ReaderService:
                         continue
 
             def recognize_page(source: Any) -> tuple[int, str, str, dict[str, Any], bool]:
+                check_cancelled()
                 ocr_page_key = str((context.get("ocr_page_keys") or {}).get(source.index) or "")
                 translation_page_key = str((context.get("translation_page_keys") or context.get("page_keys") or {}).get(source.index) or "")
                 page = comic_ocr_cache_support.read_translation_page(CACHE_DIR, translation_page_key) if translation_page_key else None
@@ -6461,6 +6543,7 @@ class ReaderService:
                 page = comic_ocr_cache_support.read_ocr_page(CACHE_DIR, ocr_page_key) if ocr_page_key else None
                 if page is not None:
                     return int(source.index), ocr_page_key, translation_page_key, page, True
+                check_cancelled()
                 data, _content_type = self.fetch_vbook_image(
                     image_url=source.image_url,
                     plugin_id=source.plugin_id,
@@ -6468,6 +6551,7 @@ class ReaderService:
                     use_cache=True,
                 )
                 width, height = comic_ocr_image_source_support.image_size_from_bytes(data)
+                check_cancelled()
                 blocks = comic_ocr_engine_support.recognize(
                     data,
                     source_lang=context["source_lang"],
@@ -6475,6 +6559,7 @@ class ReaderService:
                     width=width,
                     height=height,
                 )
+                check_cancelled()
                 for idx, block in enumerate(blocks):
                     block["id"] = f"p{source.index}_b{idx}"
                     block["order"] = idx + 1
@@ -6496,6 +6581,7 @@ class ReaderService:
 
             def submit_ocr_pages(executor: ThreadPoolExecutor) -> None:
                 while len(pending_ocr) < page_concurrency:
+                    check_cancelled()
                     try:
                         source = next(source_iter)
                     except StopIteration:
@@ -6514,6 +6600,9 @@ class ReaderService:
             ):
                 submit_ocr_pages(ocr_executor)
                 while pending_ocr:
+                    if is_cancelled():
+                        cancel_pending_futures()
+                        raise ComicOcrCancelled()
                     drain_translations(translate_executor, block=False)
                     done_futures, _pending = wait(
                         set(pending_ocr.keys()),
@@ -6524,7 +6613,11 @@ class ReaderService:
                         continue
                     for future in done_futures:
                         pending_ocr.pop(future, None)
-                        page_index, _ocr_page_key, page_key, page, needs_translation = future.result()
+                        try:
+                            page_index, _ocr_page_key, page_key, page, needs_translation = future.result()
+                        except ComicOcrCancelled:
+                            cancel_pending_futures()
+                            raise
                         result_pages_by_index[page_index] = page
                         if needs_translation:
                             queue_translation(page_key=page_key, page=page)
@@ -6542,6 +6635,7 @@ class ReaderService:
 
                 drain_translations(translate_executor, block=True)
 
+            check_cancelled()
             result = self._build_comic_ocr_result_from_cache(context)
             if result is None:
                 raise RuntimeError("Không tạo được kết quả OCR từ cache page.")
@@ -6559,6 +6653,8 @@ class ReaderService:
                 job["finished_at"] = now
                 job["result"] = result
                 self._comic_ocr_cv.notify_all()
+        except ComicOcrCancelled:
+            mark_cancelled()
         except comic_ocr_engine_support.ComicOcrEngineError as exc:
             self._fail_comic_ocr_job(job_id, str(exc.code or "OCR_FAILED"), str(exc.message or "OCR ảnh thất bại."))
         except ApiError as exc:
@@ -6577,6 +6673,10 @@ class ReaderService:
             job = self._comic_ocr_jobs.get(job_id)
             if not job:
                 return
+            current_status = str(job.get("status") or "").strip().lower()
+            next_status = str(updates.get("status") or "").strip().lower()
+            if current_status == "cancelled" and next_status != "cancelled":
+                return
             job.update(updates)
             job["updated_at"] = utc_now_iso()
             self._comic_ocr_cv.notify_all()
@@ -6585,6 +6685,8 @@ class ReaderService:
         with self._comic_ocr_cv:
             job = self._comic_ocr_jobs.get(job_id)
             if not job:
+                return
+            if str(job.get("status") or "").strip().lower() == "cancelled":
                 return
             now = utc_now_iso()
             job["status"] = "failed"

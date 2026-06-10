@@ -33,6 +33,12 @@ def handle_api(
     if method == "POST" and path == "/api/comic-ocr/chapter/translate":
         payload = handler._read_json_body()
         return handler.service.start_comic_ocr_chapter_translation(payload)
+    if method == "POST" and path.startswith("/api/comic-ocr/jobs/") and path.endswith("/cancel"):
+        parts = path.removeprefix("/api/comic-ocr/jobs/").strip("/").split("/")
+        job_id = unquote(parts[0] if parts else "").strip()
+        if not job_id:
+            raise api_error_cls(http_status.BAD_REQUEST, "BAD_REQUEST", "Thiếu job_id.")
+        return handler.service.cancel_comic_ocr_job(job_id)
     if method == "GET" and path.startswith("/api/comic-ocr/jobs/"):
         job_id = unquote(path.removeprefix("/api/comic-ocr/jobs/").strip("/")).strip()
         if not job_id:
