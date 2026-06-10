@@ -76,6 +76,10 @@ Reader hiện có thể xem changelog, hướng dẫn và các thông báo dài 
 - Nếu rời khỏi chương đang OCR, Reader sẽ dừng OCR ngầm của chương cũ. Khi chuyển sang chương liền kề có bật prefetch, Reader tiếp tục từ chương mới và chương kế tiếp; nếu nhảy cóc thì luồng cũ cũng bị dừng.
 - OCR, dịch và chỉnh overlay được lưu cache dần trong lúc chạy, nên đang chạy giữa chừng mà dừng thì phần đã xong vẫn được dùng lại.
 - Double-click hoặc bấm chuột phải vào một khung overlay để sửa text dịch và tăng/giảm cỡ chữ riêng cho khung đó.
+- Trong cửa sổ sửa overlay, có thể sửa cả `Text gốc` và `Bản dịch hiển thị`. Nếu chỉ sửa text gốc, Reader sẽ dịch lại khung đó bằng cấu hình dịch của bộ hiện tại.
+- Nút `Ẩn khung` dùng cho các khung không muốn hiển thị khi đọc. Khung đã ẩn sẽ hiện lại tạm khi rê chuột hoặc chạm vào vùng đó để có thể chỉnh tiếp.
+- Khi model tách khung bị thiếu khung hoặc nhận dư, bấm vào ảnh comic để mở menu ảnh, chọn `Bổ sung khung hội thoại`, rồi kéo trên ảnh để vẽ vùng cần OCR.
+- Khung vẽ thủ công sẽ hiện trạng thái `Đang OCR/dịch...` trong lúc xử lý, sau đó tự lưu thành overlay mới. Khung này cũng có thể sửa text, chỉnh cỡ chữ hoặc ẩn như khung OCR tự động.
 - Cài đặt overlay gồm cỡ chữ, font, in đậm, in nghiêng, nền overlay và đánh dấu khung đã sửa. Khung đã chỉnh cỡ chữ riêng sẽ giữ cỡ chữ đó cho tới khi reset hoặc xóa cache.
 - Tải lại chương, xóa cache chương/truyện, đổi cài đặt dịch riêng của truyện hoặc xóa truyện sẽ làm cache OCR/dịch/overlay liên quan được dọn theo.
 
@@ -135,5 +139,6 @@ Reader hiện có thể xem changelog, hướng dẫn và các thông báo dài 
 - Import bị dừng: mở notify để xem log, ưu tiên dùng `Tiếp tục` hoặc `Thử lại` trước khi làm lại từ đầu.
 - OCR comic không tự chạy ở chương mới: kiểm tra `Dịch OCR chương sau`; nếu vừa nhảy cóc sang chương khác, Reader sẽ dừng luồng cũ và chỉ chạy lại khi bạn bấm dịch ở chương mới.
 - Muốn sửa bản dịch trên ảnh: double-click hoặc bấm chuột phải vào khung overlay cần sửa.
+- Thiếu khung hội thoại trên ảnh: bấm vào ảnh, chọn `Bổ sung khung hội thoại`, kéo vùng cần OCR rồi chờ overlay xử lý xong.
 - File HTML cũ chưa có cải tiến mới: xuất lại file mới.
 - Muốn xem lại thay đổi của bản đang dùng: mở thẻ `Changelog` trong notify.
