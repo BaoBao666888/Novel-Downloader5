@@ -1106,7 +1106,11 @@ def filter_books(data: Dict[str, Any], criteria: Dict[str, Any]) -> List[Dict[st
     summary_q = _normalize(criteria.get("summarySearch", ""))
     extra_link_q = _normalize(criteria.get("extraLinkSearch", ""))
     volume_name_q = _normalize(criteria.get("volumeNameSearch", ""))
-    categories: Iterable[str] = criteria.get("categories", [])
+    categories_raw = criteria.get("categories", [])
+    categories: Iterable[str] = [categories_raw] if isinstance(categories_raw, str) else categories_raw
+    category_mode = str(criteria.get("categoryMode") or "and").strip().lower()
+    if category_mode not in {"and", "or"}:
+        category_mode = "and"
     roles: Iterable[str] = criteria.get("roles", [])
     flags: Iterable[str] = criteria.get("flags", [])
     from_date = criteria.get("fromDate") or ""
@@ -1162,8 +1166,14 @@ def filter_books(data: Dict[str, Any], criteria: Dict[str, Any]) -> List[Dict[st
             if not any(volume_name_q in name_norm for name_norm in volume_names_norm):
                 continue
         if categories:
-            cols = book.get("collections", []) or []
-            if not any(c in cols for c in categories):
+            selected_categories = [str(c) for c in categories if str(c or "").strip()]
+            cols = list(book.get("collections", []) or []) + list(book.get("tags", []) or [])
+            available = {str(c) for c in cols if str(c or "").strip()}
+            if category_mode == "or":
+                matched_categories = any(c in available for c in selected_categories)
+            else:
+                matched_categories = all(c in available for c in selected_categories)
+            if not matched_categories:
                 continue
         if roles:
             flags_obj = book.get("flags", {})

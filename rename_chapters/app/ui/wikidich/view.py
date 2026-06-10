@@ -89,6 +89,7 @@ class WikidichTabView:
         # Filter - Advanced
         self.from_date_var = tk.StringVar(value=filters.get('fromDate', ''))
         self.to_date_var = tk.StringVar(value=filters.get('toDate', ''))
+        self.category_mode_var = tk.StringVar(value=filters.get('categoryMode', 'and') or 'and')
         self.role_vars = {role: tk.BooleanVar(value=role in filters.get('roles', []))
                         for role in wikidich_ext.ROLE_OPTIONS}
         
@@ -307,13 +308,18 @@ class WikidichTabView:
         
         # Categories
         ttk.Label(self.adv_container, text="Thể loại đang có").grid(row=2, column=0, sticky="w", pady=(4, 2))
+        category_mode_frame = ttk.Frame(self.adv_container)
+        category_mode_frame.grid(row=3, column=0, sticky="w", pady=(0, 4))
+        ttk.Label(category_mode_frame, text="Khi chọn nhiều tag:").pack(side=tk.LEFT)
+        ttk.Radiobutton(category_mode_frame, text="Đủ tất cả (AND)", variable=self.category_mode_var, value="and").pack(side=tk.LEFT, padx=(8, 0))
+        ttk.Radiobutton(category_mode_frame, text="Bất kỳ (OR)", variable=self.category_mode_var, value="or").pack(side=tk.LEFT, padx=(8, 0))
         self.category_listbox = tk.Listbox(self.adv_container, selectmode=tk.MULTIPLE, height=6, exportselection=False)
-        self.category_listbox.grid(row=3, column=0, sticky="ew")
+        self.category_listbox.grid(row=4, column=0, sticky="ew")
         
         # Roles
-        ttk.Label(self.adv_container, text="Vai trò của bạn").grid(row=4, column=0, sticky="w", pady=(8, 2))
+        ttk.Label(self.adv_container, text="Vai trò của bạn").grid(row=5, column=0, sticky="w", pady=(8, 2))
         roles_frame = ttk.Frame(self.adv_container)
-        roles_frame.grid(row=5, column=0, sticky="w")
+        roles_frame.grid(row=6, column=0, sticky="w")
         for role in wikidich_ext.ROLE_OPTIONS:
             ttk.Checkbutton(roles_frame, text=self.ROLE_LABELS.get(role, role), 
                            variable=self.role_vars[role]).pack(anchor="w")
@@ -525,6 +531,7 @@ class WikidichTabView:
         """Refresh toàn bộ UI từ state."""
         state = self.controller.state
         self.user_label_var.set(state.data.get('username') or "Chưa đăng nhập")
+        self.refresh_category_options()
         self.refresh_tree(state.filtered)
         self.update_filter_status()
     
@@ -539,6 +546,7 @@ class WikidichTabView:
             'flags': [flag for flag, var in self.flag_vars.items() if var.get()],
             'roles': [role for role, var in self.role_vars.items() if var.get()],
             'categories': self._get_selected_categories(),
+            'categoryMode': self._get_category_mode(),
             'fromDate': self.from_date_var.get().strip(),
             'toDate': self.to_date_var.get().strip(),
             'sortBy': self._sort_label_to_value.get(self.sort_label_var.get(), 'recent')
@@ -552,6 +560,8 @@ class WikidichTabView:
         self.summary_var.set(filters.get('summarySearch', ''))
         self.extra_link_var.set(filters.get('extraLinkSearch', ''))
         self.volume_name_var.set(filters.get('volumeNameSearch', ''))
+        mode = str(filters.get('categoryMode') or 'and').lower()
+        self.category_mode_var.set(mode if mode in ('and', 'or') else 'and')
         self.from_date_var.set(filters.get('fromDate', ''))
         self.to_date_var.set(filters.get('toDate', ''))
         
@@ -559,10 +569,32 @@ class WikidichTabView:
             var.set(flag in filters.get('flags', []))
         for role, var in self.role_vars.items():
             var.set(role in filters.get('roles', []))
+        self._select_categories(filters.get('categories', []))
         
         sort_value = filters.get('sortBy', 'recent')
         sort_label = self._sort_value_to_label.get(sort_value, WD_SORT_OPTIONS[0][1])
         self.sort_label_var.set(sort_label)
+
+    def refresh_category_options(self):
+        selected = set(self.controller.state.filters.get('categories', []) or [])
+        categories = sorted({
+            tag
+            for book in (self.controller.state.data.get('books') or {}).values()
+            for tag in list(book.get('collections') or []) + list(book.get('tags') or [])
+            if tag
+        })
+        self._category_options = categories
+        self.category_listbox.delete(0, tk.END)
+        for tag in categories:
+            self.category_listbox.insert(tk.END, tag)
+        self._select_categories(selected)
+
+    def _select_categories(self, categories):
+        selected = set(categories or [])
+        self.category_listbox.selection_clear(0, tk.END)
+        for idx, tag in enumerate(self._category_options):
+            if tag in selected:
+                self.category_listbox.selection_set(idx)
     
     def set_progress(self, message: str, current: int = 0, total: int = 0):
         """Cập nhật progress bar."""
@@ -592,7 +624,8 @@ class WikidichTabView:
         if filters.get('status') != 'all':
             parts.append(f"TT: {filters['status']}")
         if filters.get('categories'):
-            parts.append(f"{len(filters['categories'])} thể loại")
+            mode_label = "AND" if filters.get('categoryMode', 'and') == 'and' else "OR"
+            parts.append(f"{len(filters['categories'])} tag {mode_label}")
         
         status = ", ".join(parts) if parts else ""
         self.ticker_var.set(f"Đang lọc: {status}" if status else "")
@@ -613,6 +646,10 @@ class WikidichTabView:
         """Lấy categories đang được chọn."""
         indices = self.category_listbox.curselection()
         return [self._category_options[i] for i in indices if i < len(self._category_options)]
+
+    def _get_category_mode(self) -> str:
+        mode = str(self.category_mode_var.get() or "and").strip().lower()
+        return mode if mode in ("and", "or") else "and"
     
     def _update_filter_scroll(self):
         """Update filter canvas scroll region."""

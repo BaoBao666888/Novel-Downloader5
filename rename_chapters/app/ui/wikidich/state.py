@@ -20,6 +20,7 @@ def _default_filters() -> Dict[str, Any]:
         'extraLinkSearch': '',
         'volumeNameSearch': '',
         'categories': [],
+        'categoryMode': 'and',
         'roles': [],
         'flags': [],
         'fromDate': '',

@@ -367,8 +367,26 @@ class WikidichMixin:
         ttk.Button(to_row, text="Xóa", command=lambda: self._wd_clear_date(self.wd_to_date_var)).pack(side=tk.LEFT)
 
         ttk.Label(self.wd_adv_container, text="Thể loại / tag").grid(row=2, column=0, sticky="w", pady=(4, 2))
+        category_mode_frame = ttk.Frame(self.wd_adv_container)
+        category_mode_frame.grid(row=3, column=0, sticky="w", pady=(0, 4))
+        self.wd_category_mode_var = tk.StringVar(value=self.wikidich_filters.get("categoryMode", "and") or "and")
+        ttk.Label(category_mode_frame, text="Khi chọn nhiều tag:").pack(side=tk.LEFT)
+        ttk.Radiobutton(
+            category_mode_frame,
+            text="Đủ tất cả (AND)",
+            variable=self.wd_category_mode_var,
+            value="and",
+            command=self._wd_update_adv_status,
+        ).pack(side=tk.LEFT, padx=(8, 0))
+        ttk.Radiobutton(
+            category_mode_frame,
+            text="Bất kỳ (OR)",
+            variable=self.wd_category_mode_var,
+            value="or",
+            command=self._wd_update_adv_status,
+        ).pack(side=tk.LEFT, padx=(8, 0))
         category_tools = ttk.Frame(self.wd_adv_container)
-        category_tools.grid(row=3, column=0, sticky="ew", pady=(0, 4))
+        category_tools.grid(row=4, column=0, sticky="ew", pady=(0, 4))
         category_tools.columnconfigure(1, weight=1)
         ttk.Label(category_tools, text="Nhóm:").grid(row=0, column=0, sticky="w")
         self.wd_category_group_var = tk.StringVar(value="Tất cả")
@@ -386,13 +404,13 @@ class WikidichMixin:
         self.wd_category_search_entry.grid(row=0, column=3, sticky="ew", padx=(4, 0))
         category_tools.columnconfigure(3, weight=1)
         self.wd_category_listbox = tk.Listbox(self.wd_adv_container, selectmode=tk.MULTIPLE, height=6, exportselection=False)
-        self.wd_category_listbox.grid(row=4, column=0, sticky="ew")
+        self.wd_category_listbox.grid(row=5, column=0, sticky="ew")
         self.wd_category_listbox.bind("<<ListboxSelect>>", lambda _e: self._wd_update_pending_categories_from_visible())
         self.wd_category_group_combo.bind("<<ComboboxSelected>>", lambda _e: self._wd_refresh_category_options())
         self.wd_category_search_var.trace_add("write", lambda *_: self._wd_refresh_category_options())
 
         selected_category_frame = ttk.Frame(self.wd_adv_container)
-        selected_category_frame.grid(row=5, column=0, sticky="ew", pady=(6, 0))
+        selected_category_frame.grid(row=6, column=0, sticky="ew", pady=(6, 0))
         selected_category_frame.columnconfigure(0, weight=1)
         self.wd_selected_category_listbox = tk.Listbox(selected_category_frame, selectmode=tk.MULTIPLE, height=3, exportselection=False)
         self.wd_selected_category_listbox.grid(row=0, column=0, rowspan=2, sticky="ew")
@@ -407,9 +425,9 @@ class WikidichMixin:
             command=self._wd_clear_selected_categories,
         ).grid(row=1, column=1, sticky="ew", padx=(6, 0), pady=(4, 0))
 
-        ttk.Label(self.wd_adv_container, text="Vai trò của bạn").grid(row=6, column=0, sticky="w", pady=(8, 2))
+        ttk.Label(self.wd_adv_container, text="Vai trò của bạn").grid(row=7, column=0, sticky="w", pady=(8, 2))
         roles_frame = ttk.Frame(self.wd_adv_container)
-        roles_frame.grid(row=7, column=0, sticky="w")
+        roles_frame.grid(row=8, column=0, sticky="w")
         role_labels = {
             "poster": "Tôi là người đăng",
             "managerOwner": "Đồng quản lý - chủ",
@@ -763,7 +781,7 @@ class WikidichMixin:
             "wd_progress", "wd_progress_label", "wd_cancel_btn", "wd_progress_frame",
             "_wd_filter_frame", "wd_adv_toggle_btn", "wd_adv_container", "wd_category_group_var",
             "wd_category_group_combo", "wd_category_search_var", "wd_category_search_entry",
-            "wd_category_listbox", "wd_selected_category_listbox",
+            "wd_category_mode_var", "wd_category_listbox", "wd_selected_category_listbox",
             "wd_title_text", "wd_summary_text", "wd_collections_text", "wd_flags_text",
             "wd_links_listbox", "wd_current_links", "wd_auto_pick_btn", "wd_open_link_btn",
             "wd_download_btn", "wd_tree", "_wd_tree_index",
@@ -1221,6 +1239,7 @@ class WikidichMixin:
         self.wikidich_filters['flags'] = [flag for flag, var in self.wd_flag_vars.items() if var.get()]
         self.wikidich_filters['roles'] = [role for role, var in self.wd_role_vars.items() if var.get()]
         self.wikidich_filters['categories'] = self._wd_get_selected_categories()
+        self.wikidich_filters['categoryMode'] = self._wd_get_category_mode()
         self.wikidich_filters['fromDate'] = self.wd_from_date_var.get().strip()
         self.wikidich_filters['toDate'] = self.wd_to_date_var.get().strip()
         self.wikidich_filters['sortBy'] = self._wd_get_sort_value()
@@ -1263,6 +1282,9 @@ class WikidichMixin:
             self.wd_extra_link_var.set(filters.get('extraLinkSearch', ''))
         if hasattr(self, "wd_volume_name_var"):
             self.wd_volume_name_var.set(filters.get('volumeNameSearch', ''))
+        if hasattr(self, "wd_category_mode_var"):
+            mode = str(filters.get('categoryMode') or 'and').lower()
+            self.wd_category_mode_var.set(mode if mode in ('and', 'or') else 'and')
         self._wd_select_categories(filters.get('categories', []))
         self._wd_set_sort_label_from_value(filters.get('sortBy', 'recent'))
         self._wd_toggle_advanced_section(show=self._wd_has_advanced_filters())
@@ -1277,6 +1299,8 @@ class WikidichMixin:
         for var in self.wd_role_vars.values():
             var.set(False)
         self._wd_select_categories([])
+        if hasattr(self, "wd_category_mode_var"):
+            self.wd_category_mode_var.set("and")
         self.wd_from_date_var.set("")
         self.wd_to_date_var.set("")
         if hasattr(self, "wd_extra_link_var"):
@@ -1291,6 +1315,7 @@ class WikidichMixin:
         self._wd_apply_not_found_flags()
         self._wd_collect_advanced_filter_values()
         self.wikidich_filters.setdefault('categories', [])
+        self.wikidich_filters.setdefault('categoryMode', 'and')
         self.wikidich_filters.setdefault('roles', [])
         self.wikidich_filters.setdefault('flags', [])
         self.wikidich_filters.setdefault('fromDate', '')
@@ -1301,6 +1326,7 @@ class WikidichMixin:
             'summarySearch': self.wd_summary_var.get().strip(),
             'extraLinkSearch': getattr(self, "wd_extra_link_var", tk.StringVar(value="")).get().strip() if hasattr(self, "wd_extra_link_var") else "",
             'volumeNameSearch': getattr(self, "wd_volume_name_var", tk.StringVar(value="")).get().strip() if hasattr(self, "wd_volume_name_var") else "",
+            'categoryMode': self._wd_get_category_mode(),
             'status': self.wd_status_var.get(),
             'sortBy': self._wd_get_sort_value()
         })
@@ -1321,6 +1347,11 @@ class WikidichMixin:
     def _wd_get_selected_categories(self):
         self._wd_update_pending_categories_from_visible()
         return list(getattr(self, "_wd_pending_categories", []))
+
+    def _wd_get_category_mode(self):
+        mode_var = getattr(self, "wd_category_mode_var", None)
+        mode = mode_var.get().strip().lower() if mode_var else str(self.wikidich_filters.get("categoryMode") or "and").lower()
+        return mode if mode in ("and", "or") else "and"
 
     def _wd_update_pending_categories_from_visible(self):
         listbox = getattr(self, "wd_category_listbox", None)
@@ -1388,7 +1419,12 @@ class WikidichMixin:
         if not listbox:
             return
         self._wd_update_pending_categories_from_visible()
-        all_categories = sorted({c for b in self.wikidich_data.get('books', {}).values() for c in (b.get('collections') or []) if c})
+        all_categories = sorted({
+            c
+            for b in self.wikidich_data.get('books', {}).values()
+            for c in list(b.get('collections') or []) + list(b.get('tags') or [])
+            if c
+        })
         self._wd_all_category_options = all_categories
         group_var = getattr(self, "wd_category_group_var", None)
         search_var = getattr(self, "wd_category_search_var", None)
@@ -8682,8 +8718,10 @@ class WikidichMixin:
         parts = []
         if self.wd_from_date_var.get().strip() or self.wd_to_date_var.get().strip():
             parts.append("Ngày cập nhật")
-        if self._wd_get_selected_categories():
-            parts.append("Thể loại")
+        selected_categories = self._wd_get_selected_categories()
+        if selected_categories:
+            mode_label = "đủ tất cả" if self._wd_get_category_mode() == "and" else "bất kỳ"
+            parts.append(f"{len(selected_categories)} tag ({mode_label})")
         if any(var.get() for var in getattr(self, "wd_role_vars", {}).values()):
             parts.append("Vai trò")
         text = f"Đang áp dụng lọc nâng cao ({', '.join(parts)})" if parts else ""

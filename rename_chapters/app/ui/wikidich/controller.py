@@ -161,6 +161,7 @@ class WikidichController:
                     'summarySearch': self.app.wd_summary_var.get().strip() if hasattr(self.app, "wd_summary_var") else '',
                     'extraLinkSearch': self.app.wd_extra_link_var.get().strip() if hasattr(self.app, "wd_extra_link_var") else '',
                     'volumeNameSearch': self.app.wd_volume_name_var.get().strip() if hasattr(self.app, "wd_volume_name_var") else '',
+                    'categoryMode': self.app._wd_get_category_mode() if hasattr(self.app, "_wd_get_category_mode") else 'and',
                     'fromDate': self.app.wd_from_date_var.get().strip() if hasattr(self.app, "wd_from_date_var") else '',
                     'toDate': self.app.wd_to_date_var.get().strip() if hasattr(self.app, "wd_to_date_var") else '',
                 }
