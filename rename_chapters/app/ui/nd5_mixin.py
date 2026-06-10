@@ -2336,9 +2336,11 @@ class ND5Mixin:
             ttk.Label(tab_installed, textvariable=installed_status_var).grid(row=2, column=0, sticky="w", pady=(6, 0))
 
             tab_cache.columnconfigure(0, weight=1)
-            tab_cache.rowconfigure(1, weight=1)
+            tab_cache.rowconfigure(2, weight=1)
             cache_status_var = tk.StringVar(value="Đang tải dữ liệu cache...")
+            cache_search_var = tk.StringVar(value="")
             cache_row_map = {}
+            cache_items = []
 
             def _format_cache_size(size_bytes: int) -> str:
                 try:
@@ -2353,18 +2355,29 @@ class ND5Mixin:
                 return f"{num:.1f} {units[idx]}"
 
             def _refresh_book_cache_list():
+                nonlocal cache_items
+                cache_items = self._nd5_list_book_caches()
+                _apply_book_cache_filter()
+
+            def _apply_book_cache_filter(*_args):
                 nonlocal cache_row_map
-                items = self._nd5_list_book_caches()
+                term = cache_search_var.get().strip().lower()
+                items = list(cache_items)
+                if term:
+                    items = [
+                        item for item in items
+                        if term in str(item.get("title") or "").lower()
+                        or term in str(item.get("author") or "").lower()
+                        or term in str(item.get("book_id") or "").lower()
+                    ]
                 cache_row_map = {}
                 cache_tree.delete(*cache_tree.get_children())
-                total_size = 0
-                total_chaps = 0
+                total_size = sum(int(item.get("size_bytes") or 0) for item in cache_items)
+                total_chaps = sum(int(item.get("chapters_count") or 0) for item in cache_items)
                 for idx, item in enumerate(items):
                     iid = f"cache_{idx}"
                     key = str(item.get("cache_key") or "")
                     cache_row_map[iid] = key
-                    total_size += int(item.get("size_bytes") or 0)
-                    total_chaps += int(item.get("chapters_count") or 0)
                     cache_tree.insert(
                         "",
                         "end",
@@ -2381,7 +2394,7 @@ class ND5Mixin:
                         ),
                     )
                 cache_status_var.set(
-                    f"Tổng {len(items)} truyện | {total_chaps} chương đã cache | {_format_cache_size(total_size)}"
+                    f"Hiển thị {len(items)}/{len(cache_items)} truyện | {total_chaps} chương đã cache | {_format_cache_size(total_size)}"
                 )
 
             def _delete_selected_cache():
@@ -2428,6 +2441,12 @@ class ND5Mixin:
                 foreground="#6b7280",
             ).grid(row=0, column=0, sticky="w", pady=(0, 8))
 
+            cache_search_row = ttk.Frame(tab_cache)
+            cache_search_row.grid(row=1, column=0, sticky="ew", pady=(0, 8))
+            cache_search_row.columnconfigure(1, weight=1)
+            ttk.Label(cache_search_row, text="Tìm tên truyện/tác giả:").grid(row=0, column=0, sticky="w")
+            ttk.Entry(cache_search_row, textvariable=cache_search_var).grid(row=0, column=1, sticky="ew", padx=(8, 0))
+
             cache_cols = ("plugin", "book_id", "title", "author", "toc_count", "chap_count", "updated", "size")
             cache_tree = ttk.Treeview(tab_cache, columns=cache_cols, show="headings", selectmode="extended")
             cache_tree.heading("plugin", text="Nguồn")
@@ -2446,20 +2465,21 @@ class ND5Mixin:
             cache_tree.column("chap_count", width=90, anchor="e")
             cache_tree.column("updated", width=150, anchor="w")
             cache_tree.column("size", width=90, anchor="e")
-            cache_tree.grid(row=1, column=0, sticky="nsew")
+            cache_tree.grid(row=2, column=0, sticky="nsew")
             cache_scroll = ttk.Scrollbar(tab_cache, orient="vertical", command=cache_tree.yview)
             cache_tree.configure(yscrollcommand=cache_scroll.set)
-            cache_scroll.grid(row=1, column=1, sticky="ns")
+            cache_scroll.grid(row=2, column=1, sticky="ns")
 
             cache_btns = ttk.Frame(tab_cache)
-            cache_btns.grid(row=2, column=0, sticky="ew", pady=(8, 0))
+            cache_btns.grid(row=3, column=0, sticky="ew", pady=(8, 0))
             cache_btns.columnconfigure(1, weight=1)
             ttk.Button(cache_btns, text="Làm mới", command=_refresh_book_cache_list).grid(row=0, column=0, sticky="w")
             ttk.Button(cache_btns, text="Xóa mục chọn", command=_delete_selected_cache).grid(row=0, column=2, sticky="e")
             ttk.Button(cache_btns, text="Xóa tất cả", command=_delete_all_cache).grid(row=0, column=3, sticky="e", padx=(6, 0))
-            ttk.Label(tab_cache, textvariable=cache_status_var).grid(row=3, column=0, sticky="w", pady=(8, 0))
+            ttk.Label(tab_cache, textvariable=cache_status_var).grid(row=4, column=0, sticky="w", pady=(8, 0))
 
             search_var.trace_add("write", _apply_available_filter)  # type: ignore[arg-type]
+            cache_search_var.trace_add("write", _apply_book_cache_filter)  # type: ignore[arg-type]
             _render_source_list()
             _refresh_installed_plugins()
             _refresh_book_cache_list()
@@ -2821,6 +2841,17 @@ class ND5Mixin:
             info_text.delete("1.0", tk.END)
             if text:
                 info_text.insert("1.0", text)
+                try:
+                    info_text.tag_configure("nd5_info_title", font=("TkDefaultFont", 12, "bold"), foreground="#111827")
+                    info_text.tag_configure("nd5_info_author", font=("TkDefaultFont", 11, "bold"), foreground="#111827")
+                    for label, tag in (("Tên truyện:", "nd5_info_title"), ("Tác giả:", "nd5_info_author")):
+                        start = info_text.search(label, "1.0", tk.END)
+                        while start:
+                            line_end = f"{start} lineend"
+                            info_text.tag_add(tag, start, line_end)
+                            start = info_text.search(label, f"{line_end}+1c", tk.END)
+                except Exception:
+                    pass
             info_text.config(state="disabled")
 
         def _set_cover_image(data: Optional[bytes]):
@@ -3910,9 +3941,9 @@ class ND5Mixin:
         cover_label = ttk.Label(cover_frame, text="Không có bìa", anchor="center", width=18)
         cover_label.grid(row=0, column=0, sticky="n")
 
-        title_label = ttk.Label(cover_frame, textvariable=book_title_var, font=("TkDefaultFont", 11, "bold"), wraplength=180, justify="left")
+        title_label = ttk.Label(cover_frame, textvariable=book_title_var, font=("TkDefaultFont", 13, "bold"), wraplength=190, justify="left")
         title_label.grid(row=1, column=0, sticky="w", pady=(8, 0))
-        meta_label = ttk.Label(cover_frame, textvariable=book_meta_var, foreground="#6b7280", justify="left", wraplength=180)
+        meta_label = ttk.Label(cover_frame, textvariable=book_meta_var, font=("TkDefaultFont", 11, "bold"), foreground="#374151", justify="left", wraplength=190)
         meta_label.grid(row=2, column=0, sticky="w", pady=(4, 0))
         status_label = ttk.Label(cover_frame, textvariable=book_status_var, foreground="#2563eb", justify="left", wraplength=180)
         status_label.grid(row=3, column=0, sticky="w", pady=(4, 0))
