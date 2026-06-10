@@ -2893,6 +2893,29 @@ function comicOcrBoxesNear(a, b) {
   );
 }
 
+function comicOcrBoxesVerticallyMergeable(a, b) {
+  const [ax, ay, aw, ah] = a;
+  const [bx, by, bw, bh] = b;
+  const aRight = ax + aw;
+  const bRight = bx + bw;
+  const xOverlap = Math.max(0, Math.min(aRight, bRight) - Math.max(ax, bx));
+  const minWidth = Math.max(0.001, Math.min(aw, bw));
+  const aCenterX = ax + (aw / 2);
+  const bCenterX = bx + (bw / 2);
+  const centerDeltaX = Math.abs(aCenterX - bCenterX);
+  const sameColumn = xOverlap >= minWidth * 0.32 || centerDeltaX <= Math.max(aw, bw) * 0.72;
+  if (!sameColumn) return false;
+  const verticalGap = ay <= by ? by - (ay + ah) : ay - (by + bh);
+  if (verticalGap < 0) return true;
+  const maxHeight = Math.max(ah, bh);
+  const maxGap = Math.max(0.055, Math.min(0.18, maxHeight * 1.9));
+  return verticalGap <= maxGap;
+}
+
+function comicOcrBoxesMergeCompatible(a, b) {
+  return comicOcrBoxesNear(a, b) || comicOcrBoxesVerticallyMergeable(a, b);
+}
+
 function unionComicOcrBoxes(a, b) {
   const left = Math.min(a[0], b[0]);
   const top = Math.min(a[1], b[1]);
@@ -2918,7 +2941,7 @@ function mergeComicOcrBlocksForOverlay(blocks) {
     changed = false;
     for (let i = 0; i < rows.length && !changed; i += 1) {
       for (let j = i + 1; j < rows.length; j += 1) {
-        if (!comicOcrBoxesNear(rows[i].box, rows[j].box)) continue;
+        if (!comicOcrBoxesMergeCompatible(rows[i].box, rows[j].box)) continue;
         rows[i] = {
           box: unionComicOcrBoxes(rows[i].box, rows[j].box),
           parts: rows[i].parts.concat(rows[j].parts),
@@ -3328,7 +3351,7 @@ function pickComicOcrNearbyMergeBlocks(block, count) {
       .map((item, index) => ({
         item,
         index,
-        near: selected.some((selectedItem) => comicOcrBoxesNear(selectedItem.box, item.box)) || (unionBox && comicOcrBoxesNear(unionBox, item.box)),
+        near: selected.some((selectedItem) => comicOcrBoxesMergeCompatible(selectedItem.box, item.box)) || (unionBox && comicOcrBoxesMergeCompatible(unionBox, item.box)),
         distance: unionBox ? comicOcrBoxDistance(unionBox, item.box) : 0,
       }))
       .filter((entry) => entry.near)
