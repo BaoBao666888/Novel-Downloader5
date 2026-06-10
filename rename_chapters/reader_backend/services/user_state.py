@@ -8,6 +8,7 @@ SIMULATED_LOCAL_LEGACY_BASE_DIR = "local/dichngay_local_pack"
 HANVIET_MODE = "hanviet"
 HANVIET_BASE_DIR = SIMULATED_LOCAL_BASE_DIR
 VBOOK_EXT_MODE = "vbook_ext"
+GOOGLE_TRANSLATE_MODE = "google_translate"
 
 
 def _normalize_simulated_local_payload(raw: Any) -> dict[str, Any]:
@@ -50,9 +51,11 @@ def parse_bool(value: Any, default: bool = True) -> bool:
 
 def normalize_translate_mode(value: Any, default: str = "server") -> str:
     mode = str(value or "").strip().lower()
-    if mode in {"server", "local", HANVIET_MODE, SIMULATED_LOCAL_MODE, VBOOK_EXT_MODE}:
+    if mode in {"google", "google_translate", "gg_translate", "gg"}:
+        return GOOGLE_TRANSLATE_MODE
+    if mode in {"server", "local", HANVIET_MODE, SIMULATED_LOCAL_MODE, VBOOK_EXT_MODE, GOOGLE_TRANSLATE_MODE}:
         return mode
-    if default in {"local", HANVIET_MODE, SIMULATED_LOCAL_MODE, VBOOK_EXT_MODE}:
+    if default in {"local", HANVIET_MODE, SIMULATED_LOCAL_MODE, VBOOK_EXT_MODE, GOOGLE_TRANSLATE_MODE}:
         return default
     return "server"
 

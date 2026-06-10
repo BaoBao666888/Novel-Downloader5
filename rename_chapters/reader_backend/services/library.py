@@ -3,12 +3,13 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
-_CACHE_TRANSLATION_MODES = ("server", "local", "dichngay_local", "hanviet")
+_CACHE_TRANSLATION_MODES = ("server", "local", "dichngay_local", "hanviet", "google_translate")
 _CACHE_TRANSLATION_LABELS = {
     "server": "Server",
     "local": "Local",
     "dichngay_local": "Mô phỏng",
     "hanviet": "Hán Việt",
+    "google_translate": "Google Translate",
 }
 
 
@@ -18,6 +19,8 @@ def _normalize_cache_translation_mode(value: Any) -> str:
         raw = "dichngay_local"
     if raw in {"han_viet", "han-viet"}:
         raw = "hanviet"
+    if raw in {"google", "gg", "gg_translate"}:
+        raw = "google_translate"
     return raw if raw in _CACHE_TRANSLATION_MODES else ""
 
 

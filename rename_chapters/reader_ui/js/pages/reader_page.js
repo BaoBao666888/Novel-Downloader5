@@ -455,6 +455,7 @@ function normalizeTranslateMode(raw) {
   if (mode === "dichngay_local") return "dichngay_local";
   if (mode === "hanviet") return "hanviet";
   if (mode === "vbook_ext") return "vbook_ext";
+  if (["google", "gg", "gg_translate", "google_translate"].includes(mode)) return "google_translate";
   return "server";
 }
 
@@ -710,6 +711,7 @@ function syncModeButtons() {
     else if (state.translateMode === "dichngay_local") refs.btnTranslateMode.textContent = state.shell.t("modeDichNgayLocal");
     else if (state.translateMode === "hanviet") refs.btnTranslateMode.textContent = state.shell.t("modeHanviet");
     else if (state.translateMode === "vbook_ext") refs.btnTranslateMode.textContent = state.shell.t("modeVbookExt");
+    else if (state.translateMode === "google_translate") refs.btnTranslateMode.textContent = state.shell.t("modeGoogleTranslate");
     else refs.btnTranslateMode.textContent = state.shell.t("modeServer");
   }
   syncComicOcrControls();
@@ -7292,6 +7294,7 @@ async function init() {
     else if (state.translateMode === "local") state.translateMode = "dichngay_local";
     else if (state.translateMode === "dichngay_local") state.translateMode = "hanviet";
     else if (state.translateMode === "hanviet") state.translateMode = "vbook_ext";
+    else if (state.translateMode === "vbook_ext") state.translateMode = "google_translate";
     else state.translateMode = "server";
     clearChapterCache();
     cancelPrefetch();
@@ -7299,6 +7302,7 @@ async function init() {
     else if (state.translateMode === "dichngay_local") refs.btnTranslateMode.textContent = state.shell.t("modeDichNgayLocal");
     else if (state.translateMode === "hanviet") refs.btnTranslateMode.textContent = state.shell.t("modeHanviet");
     else if (state.translateMode === "vbook_ext") refs.btnTranslateMode.textContent = state.shell.t("modeVbookExt");
+    else if (state.translateMode === "google_translate") refs.btnTranslateMode.textContent = state.shell.t("modeGoogleTranslate");
     else refs.btnTranslateMode.textContent = state.shell.t("modeServer");
     await loadBook();
     await loadChapter();

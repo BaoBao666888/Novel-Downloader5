@@ -2291,11 +2291,13 @@ class TranslationAdapter:
         source_lang_override: str = "",
     ) -> dict[str, Any]:
         mode_norm = (mode or "server").strip().lower()
-        if mode_norm not in {"server", "local", "hanviet", "dichngay_local", "vbook_ext"}:
+        if mode_norm in {"google", "gg", "gg_translate"}:
+            mode_norm = "google_translate"
+        if mode_norm not in {"server", "local", "hanviet", "dichngay_local", "vbook_ext", "google_translate"}:
             mode_norm = "server"
         effective_name_set = (
             self._server_name_set_for_use(name_set_override)
-            if mode_norm == "server"
+            if mode_norm in {"server", "google_translate"}
             else self._name_set_for_use(name_set_override)
         )
         payload: dict[str, Any] = {
@@ -2327,6 +2329,12 @@ class TranslationAdapter:
                 override_cfg = service_user_state_support.normalize_vbook_ext_translate_settings({"source_lang": override_source})
                 vbook_ext_payload["source_lang"] = override_cfg.get("source_lang") or vbook_ext_payload.get("source_lang") or "trust_ext"
             payload["vbook_ext"] = vbook_ext_payload
+        if mode_norm == "google_translate":
+            payload["google_translate"] = {
+                "source_lang": str(source_lang_override or "auto").strip().lower() or "auto",
+                "target_lang": "vi",
+                "endpoint": "translate.googleapis.com/translate_a/single",
+            }
         return payload
 
     def translation_signature(
@@ -2345,6 +2353,67 @@ class TranslationAdapter:
         raw = json.dumps(payload, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
         return hashlib.sha1(raw.encode("utf-8", errors="ignore")).hexdigest()
 
+    def _translate_google_text_chunks(
+        self,
+        texts: list[str],
+        *,
+        source_lang: str = "",
+        target_lang: str = "vi",
+        timeout_sec: int = 60,
+    ) -> list[str]:
+        out: list[str] = []
+        source = normalize_lang_source(str(source_lang or ""))
+        sl = source if source else "auto"
+        tl = normalize_lang_source(str(target_lang or "vi")) or "vi"
+        timeout = max(5, min(120, int(timeout_sec or 60)))
+        for text in texts or []:
+            value = str(text or "").strip()
+            if not value:
+                out.append("")
+                continue
+            out.append(self._translate_google_one(value, source_lang=sl, target_lang=tl, timeout_sec=timeout))
+        return out
+
+    def _translate_google_one(self, text: str, *, source_lang: str, target_lang: str, timeout_sec: int) -> str:
+        query = (
+            "https://translate.googleapis.com/translate_a/single"
+            f"?client=gtx&sl={quote(str(source_lang or 'auto'))}"
+            f"&tl={quote(str(target_lang or 'vi'))}&dt=t&q={quote(str(text or ''))}"
+        )
+        req = urllib_request.Request(
+            query,
+            headers={
+                "User-Agent": "Mozilla/5.0 NovelDownloader5 Reader",
+                "Accept": "application/json,text/plain,*/*",
+            },
+        )
+        try:
+            with urllib_request.urlopen(req, timeout=timeout_sec) as resp:
+                raw = resp.read()
+        except Exception as exc:
+            raise RuntimeError(f"Google Translate không phản hồi: {exc}") from exc
+        try:
+            payload = json.loads(raw.decode("utf-8", errors="replace"))
+        except Exception as exc:
+            raise RuntimeError("Google Translate trả dữ liệu không hợp lệ.") from exc
+        rows = payload[0] if isinstance(payload, list) and payload else []
+        translated = "".join(
+            str(item[0] or "")
+            for item in rows
+            if isinstance(item, list) and item
+        ).strip()
+        if not translated:
+            raise RuntimeError("Google Translate không trả bản dịch.")
+        return normalize_newlines(translated)
+
+    def _needs_google_translation(self, text: str) -> bool:
+        value = str(text or "")
+        if not value:
+            return False
+        if NAME_PLACEHOLDER_PREFIX in value:
+            return True
+        return any(ch.isalpha() for ch in value)
+
     def translate_detailed(
         self,
         text: str,
@@ -2356,7 +2425,9 @@ class TranslationAdapter:
         started = time.perf_counter()
         source = (text or "").strip()
         mode_norm = (mode or "server").strip().lower()
-        if mode_norm not in {"server", "local", "hanviet", "dichngay_local", "vbook_ext"}:
+        if mode_norm in {"google", "gg", "gg_translate"}:
+            mode_norm = "google_translate"
+        if mode_norm not in {"server", "local", "hanviet", "dichngay_local", "vbook_ext", "google_translate"}:
             mode_norm = "server"
 
         def _log(status: str, **fields: Any) -> None:
@@ -2396,7 +2467,7 @@ class TranslationAdapter:
         settings = self._settings()
         name_set = (
             self._server_name_set_for_use(name_set_override)
-            if mode_norm == "server"
+            if mode_norm in {"server", "google_translate"}
             else self._name_set_for_use(name_set_override)
         )
         vp_set = normalize_name_set(vp_set_override or {})
@@ -2542,7 +2613,8 @@ class TranslationAdapter:
                 continue
             if key in resolved_core:
                 continue
-            if not needs_server_translation(key):
+            needs_translation = self._needs_google_translation(key) if mode_norm == "google_translate" else needs_server_translation(key)
+            if not needs_translation:
                 resolved_core[key] = key
                 continue
             lookup_candidates.append(key)
@@ -2572,13 +2644,21 @@ class TranslationAdapter:
         cache_hit_count = len(uniq_lookup) - len(missing)
         stored_count = 0
         if missing:
-            translated_list = translator_logic.translate_text_chunks(
-                missing,
-                name_set={},
-                settings=settings,
-                update_progress_callback=None,
-                target_lang="vi",
-            )
+            if mode_norm == "google_translate":
+                translated_list = self._translate_google_text_chunks(
+                    missing,
+                    source_lang=source_lang_override,
+                    target_lang="vi",
+                    timeout_sec=int(settings.get("timeoutSec") or 60),
+                )
+            else:
+                translated_list = translator_logic.translate_text_chunks(
+                    missing,
+                    name_set={},
+                    settings=settings,
+                    update_progress_callback=None,
+                    target_lang="vi",
+                )
             to_store: list[tuple[str, str]] = []
             for idx, source_key in enumerate(missing):
                 translated_piece = translated_list[idx] if idx < len(translated_list) else source_key
@@ -6113,37 +6193,40 @@ class ReaderService:
         translator = self.translator_for_book(book_id)
         translate_mode = self.resolve_translate_mode_for_book(body.get("translation_mode") or None, book_id)
         source_lang_override = ""
-        if source_lang and not is_lang_zh(source_lang) and translate_mode != "vbook_ext":
-            raise ApiError(
-                HTTPStatus.BAD_REQUEST,
-                "COMIC_OCR_TRANSLATE_EXTENSION_REQUIRED",
-                "Nguồn ảnh không phải tiếng Trung. Hãy chọn extension dịch vBook trong Dịch & xử lý để dịch OCR ngôn ngữ này.",
-            )
+        if source_lang and not is_lang_zh(source_lang) and translate_mode not in {"vbook_ext", "google_translate"}:
+            translate_mode = "google_translate"
         if translate_mode == "vbook_ext":
-            ext_cfg = service_user_state_support.normalize_vbook_ext_translate_settings(
-                reader_translation_settings.get("vbook_ext") if isinstance(reader_translation_settings, dict) else None
-            )
-            plugin_id = str(ext_cfg.get("plugin_id") or "").strip()
-            if not plugin_id:
-                raise ApiError(
-                    HTTPStatus.BAD_REQUEST,
-                    "VBOOK_TRANSLATE_EXTENSION_NOT_SELECTED",
-                    "Chưa chọn extension dịch vBook. Cài/chọn plugin Translate trong Dịch & xử lý.",
+            try:
+                ext_cfg = service_user_state_support.normalize_vbook_ext_translate_settings(
+                    reader_translation_settings.get("vbook_ext") if isinstance(reader_translation_settings, dict) else None
                 )
-            plugin = self._require_vbook_plugin(plugin_id)
-            if str(getattr(plugin, "type", "") or "").strip().lower() != "translate":
-                raise ApiError(HTTPStatus.BAD_REQUEST, "VBOOK_TRANSLATE_EXTENSION_INVALID", "Plugin đã chọn không phải extension dịch vBook.")
-            if not self._resolve_translate_plugin_script(plugin):
-                raise ApiError(HTTPStatus.BAD_REQUEST, "VBOOK_TRANSLATE_EXTENSION_INVALID", "Extension dịch vBook thiếu script `translate`.")
-            if not callable(getattr(translator, "vbook_translate_callback", None)):
-                raise ApiError(HTTPStatus.BAD_REQUEST, "VBOOK_TRANSLATE_NOT_READY", "vBook Translate chưa sẵn sàng. Kiểm tra vBook runner trong Quản lý nguồn.")
-            source_lang_override = self._vbook_translate_source_override(
-                ext_cfg=ext_cfg,
-                plugin=plugin,
-                source_lang=source_lang,
-            )
-            if remember_book_source_lang and source_lang_override:
-                self._remember_book_vbook_source_lang(book_id, source_lang_override, mode=translate_mode)
+                plugin_id = str(ext_cfg.get("plugin_id") or "").strip()
+                if not plugin_id:
+                    raise ApiError(
+                        HTTPStatus.BAD_REQUEST,
+                        "VBOOK_TRANSLATE_EXTENSION_NOT_SELECTED",
+                        "Chưa chọn extension dịch vBook. Cài/chọn plugin Translate trong Dịch & xử lý.",
+                    )
+                plugin = self._require_vbook_plugin(plugin_id)
+                if str(getattr(plugin, "type", "") or "").strip().lower() != "translate":
+                    raise ApiError(HTTPStatus.BAD_REQUEST, "VBOOK_TRANSLATE_EXTENSION_INVALID", "Plugin đã chọn không phải extension dịch vBook.")
+                if not self._resolve_translate_plugin_script(plugin):
+                    raise ApiError(HTTPStatus.BAD_REQUEST, "VBOOK_TRANSLATE_EXTENSION_INVALID", "Extension dịch vBook thiếu script `translate`.")
+                if not callable(getattr(translator, "vbook_translate_callback", None)):
+                    raise ApiError(HTTPStatus.BAD_REQUEST, "VBOOK_TRANSLATE_NOT_READY", "vBook Translate chưa sẵn sàng. Kiểm tra vBook runner trong Quản lý nguồn.")
+                source_lang_override = self._vbook_translate_source_override(
+                    ext_cfg=ext_cfg,
+                    plugin=plugin,
+                    source_lang=source_lang,
+                )
+                if remember_book_source_lang and source_lang_override:
+                    self._remember_book_vbook_source_lang(book_id, source_lang_override, mode=translate_mode)
+            except ApiError:
+                if source_lang and not is_lang_zh(source_lang):
+                    translate_mode = "google_translate"
+                    source_lang_override = ""
+                else:
+                    raise
         translation_signature = translator.translation_signature(mode=translate_mode, source_lang_override=source_lang_override)
         engine = str(engine_status.get("engine") or self.comic_ocr_settings.get("engine") or "paddleocr")
         engine_version = str(

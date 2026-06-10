@@ -336,7 +336,7 @@ def get_chapter_text(
         return raw_text
     lang_source_norm = str(book.get("lang_source") or "").strip().lower().replace("_", "-").split("-", 1)[0]
     translate_mode_norm = str(translate_mode or "").strip().lower()
-    if lang_source_norm and lang_source_norm != "zh" and translate_mode_norm != "vbook_ext":
+    if lang_source_norm and lang_source_norm != "zh" and translate_mode_norm not in {"vbook_ext", "google_translate"}:
         return _raw_with_book_replacements()
 
     source_for_translation = raw_text

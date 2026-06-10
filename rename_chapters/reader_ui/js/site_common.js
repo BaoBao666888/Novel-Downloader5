@@ -52,6 +52,7 @@ const LOCAL_TRANSLATION_DEFAULT = {
 };
 const SIM_LOCAL_TRANSLATION_MODE = "dichngay_local";
 const VBOOK_EXT_TRANSLATION_MODE = "vbook_ext";
+const GOOGLE_TRANSLATE_MODE = "google_translate";
 const VBOOK_EXT_TRANSLATION_DEFAULT = {
   plugin_id: "",
   source_lang: "trust_ext",
@@ -449,6 +450,13 @@ function ensureSettingsEnhancements(settingsForm, { bookScopedTranslation = fals
     opt.textContent = t("translationModeVbookExt");
     translationModeSelect.appendChild(opt);
   }
+  if (translationModeSelect && !translationModeSelect.querySelector(`option[value="${GOOGLE_TRANSLATE_MODE}"]`)) {
+    const opt = document.createElement("option");
+    opt.id = "translation-mode-google";
+    opt.value = GOOGLE_TRANSLATE_MODE;
+    opt.textContent = t("translationModeGoogle");
+    translationModeSelect.appendChild(opt);
+  }
   const themeSelect = qs("theme-select");
   const themeLabel = themeSelect && themeSelect.closest("label");
   if (themeLabel && !qs("theme-custom-section")) {
@@ -810,6 +818,7 @@ function normalizeTranslationMode(value) {
   if (mode === SIM_LOCAL_TRANSLATION_MODE) return SIM_LOCAL_TRANSLATION_MODE;
   if (mode === "hanviet") return "hanviet";
   if (mode === VBOOK_EXT_TRANSLATION_MODE) return VBOOK_EXT_TRANSLATION_MODE;
+  if (["google", "gg", "gg_translate", GOOGLE_TRANSLATE_MODE].includes(mode)) return GOOGLE_TRANSLATE_MODE;
   return "server";
 }
 
@@ -2219,6 +2228,7 @@ function fillStaticTexts() {
     ["translation-mode-dichngay-local", "translationModeDichNgayLocal"],
     ["translation-mode-hanviet", "translationModeHanviet"],
     ["translation-mode-vbook-ext", "translationModeVbookExt"],
+    ["translation-mode-google", "translationModeGoogle"],
     ["label-server-translate-settings", "serverTranslateSettings"],
     ["label-server-delay-ms", "serverDelayMs"],
     ["label-server-max-chars", "serverMaxChars"],
