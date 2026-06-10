@@ -211,10 +211,45 @@ def write_translation_chapter(cache_dir: Path, key: str, result: dict[str, Any])
     _write_json(path, result if isinstance(result, dict) else {})
 
 
+def overlay_edits_key(*, book_id: str, chapter_id: str) -> str:
+    return f"{_safe_part(book_id)}__{_safe_part(chapter_id)}"
+
+
+def read_overlay_edits(cache_dir: Path, *, book_id: str, chapter_id: str) -> dict[str, Any]:
+    path = _json_path(cache_dir, "overlay_edits", overlay_edits_key(book_id=book_id, chapter_id=chapter_id))
+    data = _read_json(path)
+    if not isinstance(data, dict):
+        return {}
+    edits = data.get("edits")
+    return edits if isinstance(edits, dict) else {}
+
+
+def write_overlay_edits(cache_dir: Path, *, book_id: str, chapter_id: str, edits: dict[str, Any]) -> None:
+    key = overlay_edits_key(book_id=book_id, chapter_id=chapter_id)
+    safe_edits = edits if isinstance(edits, dict) else {}
+    path = _json_path(cache_dir, "overlay_edits", key)
+    if not safe_edits:
+        try:
+            path.unlink()
+        except OSError:
+            pass
+        return
+    _write_json(
+        path,
+        {
+            "book_id": str(book_id or "").strip(),
+            "chapter_id": str(chapter_id or "").strip(),
+            "edits": safe_edits,
+        },
+    )
+
+
 def delete_chapter_family(cache_dir: Path, *, book_id: str, chapter_id: str) -> int:
     root = comic_ocr_root(cache_dir) / "results"
     prefix = f"{str(book_id or '').strip()}__{str(chapter_id or '').strip()}__"
-    return _delete_matching(root, prefix=prefix, folder_names=_RESULT_FOLDERS)
+    deleted = _delete_matching(root, prefix=prefix, folder_names=_RESULT_FOLDERS)
+    deleted += _delete_matching(root, prefix=f"{str(book_id or '').strip()}__{str(chapter_id or '').strip()}", folder_names=("overlay_edits",))
+    return deleted
 
 
 def delete_book_family(cache_dir: Path, *, book_id: str) -> int:
@@ -226,7 +261,7 @@ def delete_book_family(cache_dir: Path, *, book_id: str) -> int:
 def delete_book_translation_family(cache_dir: Path, *, book_id: str) -> int:
     root = comic_ocr_root(cache_dir) / "results"
     prefix = f"{str(book_id or '').strip()}__"
-    return _delete_matching(root, prefix=prefix, folder_names=("pages", "chapters", "translation_pages", "translation_chapters"))
+    return _delete_matching(root, prefix=prefix, folder_names=("pages", "chapters", "translation_pages", "translation_chapters", "overlay_edits"))
 
 
 def _delete_matching(root: Path, *, prefix: str, folder_names: tuple[str, ...]) -> int:
@@ -267,6 +302,7 @@ _RESULT_FOLDERS = (
     "ocr_pages",
     "translation_pages",
     "translation_chapters",
+    "overlay_edits",
 )
 
 

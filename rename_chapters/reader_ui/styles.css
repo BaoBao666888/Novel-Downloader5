@@ -2483,6 +2483,16 @@ p {
   gap: 8px;
 }
 
+.comic-ocr-custom-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.comic-ocr-custom-grid[hidden] {
+  display: none !important;
+}
+
 .local-translation-settings[hidden],
 .comic-ocr-settings[hidden] {
   display: none !important;
@@ -3238,11 +3248,53 @@ body.panel-style-clear .reader-content-body {
   letter-spacing: 0;
   backdrop-filter: blur(0.7px);
   -webkit-backdrop-filter: blur(0.7px);
+  pointer-events: auto;
+  cursor: text;
 }
 
 .reader-comic-ocr-block.is-tight {
   line-height: 1.04;
   padding: 2px 3px;
+}
+
+.reader-comic-ocr-block.is-edited {
+  outline: 1px solid color-mix(in srgb, var(--accent) 62%, transparent);
+  outline-offset: 1px;
+}
+
+.reader-comic-ocr-block.is-edited::after {
+  content: "";
+  position: absolute;
+  top: 3px;
+  right: 3px;
+  width: 5px;
+  height: 5px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--accent) 82%, #fff 18%);
+  box-shadow: 0 0 0 1px color-mix(in srgb, #000 20%, transparent);
+  opacity: 0.84;
+}
+
+.comic-ocr-overlay-editor {
+  width: min(520px, calc(100vw - 28px));
+}
+
+.comic-ocr-overlay-editor label {
+  display: grid;
+  gap: 6px;
+}
+
+.comic-ocr-overlay-editor textarea {
+  width: 100%;
+  min-height: 140px;
+  resize: vertical;
+}
+
+.comic-ocr-overlay-scale-row {
+  display: grid;
+  grid-template-columns: auto minmax(80px, 1fr) auto;
+  gap: 8px;
+  align-items: center;
 }
 
 .chapter-block {

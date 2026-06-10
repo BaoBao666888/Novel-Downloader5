@@ -389,6 +389,8 @@ const state = {
   },
 };
 
+let comicOcrOverlayEditorUi = null;
+
 const TOC_ICON_MARKUP = Object.freeze({
   download: '<svg class="toc-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v10"></path><path d="m8 11 4 4 4-4"></path><path d="M4 18h16"></path></svg>',
   done: '<svg class="toc-icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8.5"></circle><path d="m8.5 12 2.4 2.4 4.6-4.8"></path></svg>',
@@ -2824,6 +2826,30 @@ function normalizeComicOcrOverlayText(value) {
   return String(value || "").replace(/\s+/g, " ").trim();
 }
 
+function comicOcrOverlaySettings() {
+  return state.shell && typeof state.shell.getComicOcrSettings === "function"
+    ? state.shell.getComicOcrSettings()
+    : {};
+}
+
+function comicOcrOverlayEditForBlock(block) {
+  const edit = block && block.overlay_edit && typeof block.overlay_edit === "object" ? block.overlay_edit : null;
+  return edit && edit.edited === true ? edit : null;
+}
+
+function comicOcrOverlayTextForBlock(block) {
+  const edit = comicOcrOverlayEditForBlock(block);
+  if (edit) return normalizeComicOcrOverlayText(edit.text);
+  return normalizeComicOcrOverlayText(block && (block.translated_text || block.source_text));
+}
+
+function comicOcrOverlayFontScaleForBlock(block) {
+  const edit = comicOcrOverlayEditForBlock(block);
+  const raw = edit ? Number(edit.font_scale || 0) : 0;
+  if (!Number.isFinite(raw) || raw <= 0) return 0;
+  return Math.max(60, Math.min(180, raw));
+}
+
 function comicOcrBlockBox(block) {
   const box = Array.isArray(block && block.box) ? block.box : [];
   if (box.length < 4) return null;
@@ -2864,7 +2890,7 @@ function mergeComicOcrBlocksForOverlay(blocks) {
   const rows = [];
   for (const block of blocks || []) {
     const box = comicOcrBlockBox(block);
-    const text = normalizeComicOcrOverlayText(block && (block.translated_text || block.source_text));
+    const text = comicOcrOverlayTextForBlock(block);
     if (!box || !text) continue;
     rows.push({ box, parts: [{ box, text }] });
   }
@@ -2908,8 +2934,18 @@ function comicOcrOverlayBlocksForPage(pageIndex) {
   return (comicOcrBlocksForPage(pageIndex) || [])
     .map((block) => {
       const box = comicOcrBlockBox(block);
-      const text = normalizeComicOcrOverlayText(block && (block.translated_text || block.source_text));
-      return box && text ? { box, text } : null;
+      const text = comicOcrOverlayTextForBlock(block);
+      const edit = comicOcrOverlayEditForBlock(block);
+      return box && text ? {
+        id: String((block && block.id) || "").trim(),
+        pageIndex,
+        box,
+        text,
+        sourceText: normalizeComicOcrOverlayText(block && block.source_text),
+        translatedText: normalizeComicOcrOverlayText(block && block.translated_text),
+        edited: Boolean(edit),
+        fontScale: comicOcrOverlayFontScaleForBlock(block),
+      } : null;
     })
     .filter(Boolean)
     .sort((a, b) => {
@@ -2919,15 +2955,21 @@ function comicOcrOverlayBlocksForPage(pageIndex) {
     });
 }
 
-function comicOcrOverlayFontBounds({ imageWidth, imageHeight, boxWidth, boxHeight, text }) {
+function comicOcrOverlayFontBounds({ imageWidth, imageHeight, boxWidth, boxHeight, text, fontScale = 0 }) {
   const pixelWidth = Math.max(1, Number(imageWidth || 0) * Math.max(0, Number(boxWidth || 0)));
   const pixelHeight = Math.max(1, Number(imageHeight || 0) * Math.max(0, Number(boxHeight || 0)));
   const textLength = Math.max(1, normalizeComicOcrOverlayText(text).length);
   const shortTextBoost = textLength <= 8 ? 1.18 : 1;
   const maxByHeight = pixelHeight * 0.42 * shortTextBoost;
   const maxByWidth = pixelWidth * (textLength <= 4 ? 0.42 : 0.24);
-  const maxFont = Math.max(9, Math.min(28, maxByHeight, maxByWidth));
-  const minFont = Math.max(7, Math.min(11, pixelHeight * 0.24, pixelWidth * 0.18));
+  const settings = comicOcrOverlaySettings();
+  const globalSizeRaw = String((settings && settings.overlay_font_size) || "auto").trim().toLowerCase();
+  const globalScale = globalSizeRaw === "auto"
+    ? 1
+    : (Math.max(70, Math.min(150, Number.parseInt(globalSizeRaw, 10) || 100)) / 100);
+  const scale = fontScale > 0 ? (fontScale / 100) : globalScale;
+  const maxFont = Math.max(9, Math.min(28, maxByHeight, maxByWidth) * scale);
+  const minFont = Math.max(7, Math.min(11, pixelHeight * 0.24, pixelWidth * 0.18) * Math.min(scale, 1.2));
   return { min: minFont, max: Math.max(minFont, maxFont) };
 }
 
@@ -3058,8 +3100,77 @@ function rgbaComicOcrColor(color, alpha) {
   return `rgba(${color.r}, ${color.g}, ${color.b}, ${alpha})`;
 }
 
-function applyComicOcrOverlayPalette(node, sample) {
-  if (!node || !sample) return;
+function rgbaComicOcrHex(hex, alpha) {
+  const text = String(hex || "").trim();
+  if (!/^#[0-9a-f]{6}$/i.test(text)) return `rgba(17, 24, 39, ${alpha})`;
+  const r = Number.parseInt(text.slice(1, 3), 16);
+  const g = Number.parseInt(text.slice(3, 5), 16);
+  const b = Number.parseInt(text.slice(5, 7), 16);
+  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+}
+
+function comicOcrOverlayFontFamilyValue(settings) {
+  const key = String((settings && settings.overlay_font_family) || "default").trim().toLowerCase();
+  if (key === "serif") return "'Noto Serif', 'Palatino Linotype', 'Times New Roman', serif";
+  if (key === "sans") return "'Be Vietnam Pro', 'Segoe UI', Tahoma, sans-serif";
+  if (key === "comic") return "'Comic Sans MS', 'Segoe Print', 'Be Vietnam Pro', sans-serif";
+  if (key === "mono") return "'JetBrains Mono', 'Fira Code', monospace";
+  return "";
+}
+
+function applyComicOcrOverlayTypography(node, settings) {
+  if (!node) return;
+  const family = comicOcrOverlayFontFamilyValue(settings);
+  if (family) node.style.fontFamily = family;
+  node.style.fontWeight = settings && settings.overlay_bold === false ? "500" : "650";
+  node.style.fontStyle = settings && settings.overlay_italic === true ? "italic" : "normal";
+}
+
+function applyComicOcrOverlayPresetPalette(node, preset, settings) {
+  if (!node) return false;
+  const key = String(preset || "").trim().toLowerCase();
+  if (key === "light") {
+    node.style.setProperty("--comic-ocr-bg", "rgba(255, 255, 255, 0.96)");
+    node.style.setProperty("--comic-ocr-border", "rgba(17, 24, 39, 0.24)");
+    node.style.setProperty("--comic-ocr-text", "#111827");
+    node.style.setProperty("--comic-ocr-shadow", "0 6px 18px rgba(15, 23, 42, 0.18)");
+    node.style.setProperty("--comic-ocr-text-shadow", "0 1px 0 rgba(255, 255, 255, 0.42)");
+    return true;
+  }
+  if (key === "dark") {
+    node.style.setProperty("--comic-ocr-bg", "rgba(17, 24, 39, 0.95)");
+    node.style.setProperty("--comic-ocr-border", "rgba(255, 255, 255, 0.28)");
+    node.style.setProperty("--comic-ocr-text", "#f8fafc");
+    node.style.setProperty("--comic-ocr-shadow", "0 7px 20px rgba(0, 0, 0, 0.34)");
+    node.style.setProperty("--comic-ocr-text-shadow", "0 1px 2px rgba(0, 0, 0, 0.55)");
+    return true;
+  }
+  if (key === "paper") {
+    node.style.setProperty("--comic-ocr-bg", "rgba(250, 247, 238, 0.96)");
+    node.style.setProperty("--comic-ocr-border", "rgba(71, 85, 105, 0.26)");
+    node.style.setProperty("--comic-ocr-text", "#1f2937");
+    node.style.setProperty("--comic-ocr-shadow", "0 6px 16px rgba(68, 64, 60, 0.18)");
+    node.style.setProperty("--comic-ocr-text-shadow", "0 1px 0 rgba(255, 255, 255, 0.48)");
+    return true;
+  }
+  if (key === "custom") {
+    const bg = /^#[0-9a-f]{6}$/i.test(String(settings && settings.overlay_custom_bg || "")) ? settings.overlay_custom_bg : "#111827";
+    const text = /^#[0-9a-f]{6}$/i.test(String(settings && settings.overlay_custom_text || "")) ? settings.overlay_custom_text : "#f8fafc";
+    node.style.setProperty("--comic-ocr-bg", rgbaComicOcrHex(bg, 0.95));
+    node.style.setProperty("--comic-ocr-border", "rgba(255, 255, 255, 0.25)");
+    node.style.setProperty("--comic-ocr-text", text);
+    node.style.setProperty("--comic-ocr-shadow", "0 7px 20px rgba(0, 0, 0, 0.30)");
+    node.style.setProperty("--comic-ocr-text-shadow", "0 1px 2px rgba(0, 0, 0, 0.36)");
+    return true;
+  }
+  return false;
+}
+
+function applyComicOcrOverlayPalette(node, sample, settings) {
+  if (!node) return;
+  const preset = String((settings && settings.overlay_background) || "auto").trim().toLowerCase();
+  if (preset && preset !== "auto" && applyComicOcrOverlayPresetPalette(node, preset, settings)) return;
+  if (!sample) return;
   const light = sample.luma >= 145;
   const target = light ? { r: 255, g: 255, b: 255 } : { r: 20, g: 26, b: 40 };
   const bg = mixComicOcrColor(sample, target, light ? 0.82 : 0.68);
@@ -3068,6 +3179,150 @@ function applyComicOcrOverlayPalette(node, sample) {
   node.style.setProperty("--comic-ocr-text", light ? "#111827" : "#f8fafc");
   node.style.setProperty("--comic-ocr-shadow", light ? "0 6px 18px rgba(15, 23, 42, 0.20)" : "0 7px 20px rgba(0, 0, 0, 0.38)");
   node.style.setProperty("--comic-ocr-text-shadow", light ? "0 1px 0 rgba(255, 255, 255, 0.36)" : "0 1px 2px rgba(0, 0, 0, 0.56)");
+}
+
+function findComicOcrBlock(pageIndex, blockId) {
+  const id = String(blockId || "").trim();
+  if (!id || !state.comicOcrResult || !Array.isArray(state.comicOcrResult.pages)) return null;
+  const page = state.comicOcrResult.pages.find((item) => Number.parseInt(String((item && item.index) || "0"), 10) === Number(pageIndex));
+  if (!page || !Array.isArray(page.blocks)) return null;
+  return page.blocks.find((block) => String((block && block.id) || "").trim() === id) || null;
+}
+
+function applyComicOcrOverlayEditLocal(pageIndex, blockId, edit) {
+  const block = findComicOcrBlock(pageIndex, blockId);
+  if (!block) return;
+  if (edit && typeof edit === "object") {
+    block.overlay_edit = {
+      edited: true,
+      text: String(edit.text || "").trim(),
+      font_scale: Math.max(60, Math.min(180, Number(edit.font_scale || 100) || 100)),
+      updated_at: String(edit.updated_at || ""),
+    };
+  } else {
+    delete block.overlay_edit;
+  }
+}
+
+function saveComicOcrOverlayEdit({ pageIndex, blockId, text, fontScale, reset = false }) {
+  return state.shell.api("/api/comic-ocr/overlay/edit", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      book_id: state.bookId,
+      chapter_id: state.chapterId,
+      page_index: pageIndex,
+      block_id: blockId,
+      text,
+      font_scale: fontScale,
+      reset,
+    }),
+  });
+}
+
+function ensureComicOcrOverlayEditor() {
+  if (comicOcrOverlayEditorUi) return comicOcrOverlayEditorUi;
+  const dialog = document.createElement("dialog");
+  dialog.id = "comic-ocr-overlay-editor";
+  dialog.className = "dialog comic-ocr-overlay-editor";
+  dialog.innerHTML = `
+    <div class="dialog-head">
+      <h3 id="comic-ocr-overlay-editor-title"></h3>
+      <button id="btn-comic-ocr-overlay-editor-close" class="btn btn-small" type="button"></button>
+    </div>
+    <p id="comic-ocr-overlay-editor-hint" class="dialog-subtitle"></p>
+    <label>
+      <span id="comic-ocr-overlay-editor-text-label"></span>
+      <textarea id="comic-ocr-overlay-editor-text" rows="5" maxlength="2000"></textarea>
+    </label>
+    <label>
+      <span id="comic-ocr-overlay-editor-scale-label"></span>
+      <div class="comic-ocr-overlay-scale-row">
+        <button id="btn-comic-ocr-overlay-scale-minus" class="btn btn-small" type="button">-</button>
+        <input id="comic-ocr-overlay-editor-scale" type="number" min="60" max="180" step="5" inputmode="numeric">
+        <button id="btn-comic-ocr-overlay-scale-plus" class="btn btn-small" type="button">+</button>
+      </div>
+    </label>
+    <div class="dialog-actions">
+      <button id="btn-comic-ocr-overlay-reset" class="btn" type="button"></button>
+      <button id="btn-comic-ocr-overlay-cancel" class="btn" type="button"></button>
+      <button id="btn-comic-ocr-overlay-save" class="btn btn-primary" type="button"></button>
+    </div>
+  `;
+  document.body.appendChild(dialog);
+  const refs = {
+    dialog,
+    title: dialog.querySelector("#comic-ocr-overlay-editor-title"),
+    close: dialog.querySelector("#btn-comic-ocr-overlay-editor-close"),
+    hint: dialog.querySelector("#comic-ocr-overlay-editor-hint"),
+    textLabel: dialog.querySelector("#comic-ocr-overlay-editor-text-label"),
+    text: dialog.querySelector("#comic-ocr-overlay-editor-text"),
+    scaleLabel: dialog.querySelector("#comic-ocr-overlay-editor-scale-label"),
+    scale: dialog.querySelector("#comic-ocr-overlay-editor-scale"),
+    minus: dialog.querySelector("#btn-comic-ocr-overlay-scale-minus"),
+    plus: dialog.querySelector("#btn-comic-ocr-overlay-scale-plus"),
+    reset: dialog.querySelector("#btn-comic-ocr-overlay-reset"),
+    cancel: dialog.querySelector("#btn-comic-ocr-overlay-cancel"),
+    save: dialog.querySelector("#btn-comic-ocr-overlay-save"),
+  };
+  const closeDialog = () => {
+    if (dialog.open) dialog.close();
+  };
+  const adjustScale = (delta) => {
+    const current = Number.parseInt(String(refs.scale.value || "100"), 10) || 100;
+    refs.scale.value = String(Math.max(60, Math.min(180, current + delta)));
+  };
+  refs.close.addEventListener("click", closeDialog);
+  refs.cancel.addEventListener("click", closeDialog);
+  refs.minus.addEventListener("click", () => adjustScale(-5));
+  refs.plus.addEventListener("click", () => adjustScale(5));
+  dialog.addEventListener("cancel", (event) => {
+    event.preventDefault();
+    closeDialog();
+  });
+  comicOcrOverlayEditorUi = { refs, block: null };
+  return comicOcrOverlayEditorUi;
+}
+
+async function openComicOcrOverlayEditor(block) {
+  const ui = ensureComicOcrOverlayEditor();
+  const { refs } = ui;
+  const pageIndex = Number(block && block.pageIndex) || 0;
+  const blockId = String((block && block.id) || "").trim();
+  if (!blockId) return;
+  ui.block = { pageIndex, blockId };
+  refs.title.textContent = state.shell.t("comicOcrOverlayEditTitle");
+  refs.close.textContent = state.shell.t("close");
+  refs.hint.textContent = state.shell.t("comicOcrOverlayEditHint");
+  refs.textLabel.textContent = state.shell.t("comicOcrOverlayTextLabel");
+  refs.scaleLabel.textContent = state.shell.t("comicOcrOverlayFontScaleLabel");
+  refs.reset.textContent = state.shell.t("comicOcrOverlayReset");
+  refs.cancel.textContent = state.shell.t("cancel");
+  refs.save.textContent = state.shell.t("save");
+  refs.text.value = String((block && block.text) || "").trim();
+  refs.scale.value = String(Math.max(60, Math.min(180, Number((block && block.fontScale) || 100) || 100)));
+  refs.save.onclick = async () => {
+    const text = String(refs.text.value || "").trim();
+    if (!text) return;
+    const fontScale = Math.max(60, Math.min(180, Number.parseInt(String(refs.scale.value || "100"), 10) || 100));
+    const data = await saveComicOcrOverlayEdit({ pageIndex, blockId, text, fontScale });
+    applyComicOcrOverlayEditLocal(pageIndex, blockId, data && data.edit);
+    renderComicOcrOverlays();
+    refs.dialog.close();
+    state.shell.showToast(state.shell.t("comicOcrOverlayEditSaved"));
+  };
+  refs.reset.onclick = async () => {
+    await saveComicOcrOverlayEdit({ pageIndex, blockId, text: "", fontScale: 100, reset: true });
+    applyComicOcrOverlayEditLocal(pageIndex, blockId, null);
+    renderComicOcrOverlays();
+    refs.dialog.close();
+    state.shell.showToast(state.shell.t("comicOcrOverlayEditReset"));
+  };
+  if (!refs.dialog.open) refs.dialog.showModal();
+  window.setTimeout(() => {
+    refs.text.focus();
+    refs.text.select();
+  }, 0);
 }
 
 function clearComicOcrOverlays(root = refs.readerContentBody) {
@@ -3086,9 +3341,10 @@ function renderComicOcrOverlayForSlot(slot, pageIndex) {
   const imageWidth = Math.max(1, img.clientWidth || img.naturalWidth || 1);
   const imageHeight = Math.max(1, img.clientHeight || img.naturalHeight || 1);
   const sampler = createComicOcrImageSampler(img);
+  const settings = comicOcrOverlaySettings();
   const layer = document.createElement("div");
   layer.className = "reader-comic-ocr-layer";
-  layer.setAttribute("aria-hidden", "true");
+  layer.setAttribute("aria-hidden", "false");
   for (const block of blocks) {
     const text = normalizeComicOcrOverlayText(block && block.text);
     const box = Array.isArray(block && block.box) ? block.box : [];
@@ -3101,6 +3357,10 @@ function renderComicOcrOverlayForSlot(slot, pageIndex) {
     const node = document.createElement("div");
     node.className = "reader-comic-ocr-block";
     node.textContent = text;
+    node.dataset.pageIndex = String(pageIndex);
+    node.dataset.blockId = String(block.id || "");
+    node.title = state.shell.t("comicOcrOverlayEditOpenHint");
+    node.classList.toggle("is-edited", Boolean(settings.overlay_mark_edited !== false && block.edited));
     node.style.left = `${x * 100}%`;
     node.style.top = `${y * 100}%`;
     node.style.width = `${w * 100}%`;
@@ -3111,11 +3371,27 @@ function renderComicOcrOverlayForSlot(slot, pageIndex) {
       boxWidth: w,
       boxHeight: h,
       text,
+      fontScale: Number(block.fontScale || 0) || 0,
     });
     node.dataset.minFont = String(bounds.min);
     node.dataset.maxFont = String(bounds.max);
     node.style.fontSize = `${bounds.max.toFixed(2)}px`;
-    applyComicOcrOverlayPalette(node, sampleComicOcrOverlayColor(sampler, [x, y, w, h]));
+    applyComicOcrOverlayTypography(node, settings);
+    applyComicOcrOverlayPalette(node, sampleComicOcrOverlayColor(sampler, [x, y, w, h]), settings);
+    node.addEventListener("dblclick", (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      openComicOcrOverlayEditor(block).catch((error) => {
+        state.shell.showToast(error.message || state.shell.t("toastError"));
+      });
+    });
+    node.addEventListener("contextmenu", (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      openComicOcrOverlayEditor(block).catch((error) => {
+        state.shell.showToast(error.message || state.shell.t("toastError"));
+      });
+    });
     layer.appendChild(node);
   }
   if (layer.childElementCount > 0) {

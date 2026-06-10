@@ -84,6 +84,14 @@ const SERVER_TRANSLATION_DEFAULT = {
 const COMIC_OCR_SETTINGS_DEFAULT = {
   page_concurrency: 2,
   prefetch_next_chapters: 1,
+  overlay_font_size: "auto",
+  overlay_font_family: "default",
+  overlay_bold: true,
+  overlay_italic: false,
+  overlay_background: "auto",
+  overlay_custom_bg: "#111827",
+  overlay_custom_text: "#f8fafc",
+  overlay_mark_edited: true,
 };
 
 const FONT_PRESETS = [
@@ -354,6 +362,68 @@ function buildComicOcrSettingMarkup() {
         <input id="comic-ocr-prefetch-next-input" type="number" min="0" max="10" step="1" inputmode="numeric">
       </label>
       <small class="dialog-subtitle">${t("comicOcrPrefetchNextHint")}</small>
+      <label>
+        <span>${t("comicOcrOverlayFontSize")}</span>
+        <select id="comic-ocr-overlay-font-size-select">
+          <option value="auto">${t("comicOcrOverlayFontSizeAuto")}</option>
+          <option value="85">85%</option>
+          <option value="100">100%</option>
+          <option value="115">115%</option>
+          <option value="130">130%</option>
+          <option value="150">150%</option>
+        </select>
+      </label>
+      <label>
+        <span>${t("comicOcrOverlayFont")}</span>
+        <select id="comic-ocr-overlay-font-select">
+          <option value="default">${t("comicOcrOverlayFontDefault")}</option>
+          <option value="serif">${t("fontPresetSerif")}</option>
+          <option value="sans">${t("fontPresetSans")}</option>
+          <option value="comic">${t("comicOcrOverlayFontComic")}</option>
+          <option value="mono">${t("fontPresetMono")}</option>
+        </select>
+      </label>
+      <label>
+        <span>${t("comicOcrOverlayBold")}</span>
+        <select id="comic-ocr-overlay-bold-select">
+          <option value="on">${t("settingsOn")}</option>
+          <option value="off">${t("settingsOff")}</option>
+        </select>
+      </label>
+      <label>
+        <span>${t("comicOcrOverlayItalic")}</span>
+        <select id="comic-ocr-overlay-italic-select">
+          <option value="off">${t("settingsOff")}</option>
+          <option value="on">${t("settingsOn")}</option>
+        </select>
+      </label>
+      <label>
+        <span>${t("comicOcrOverlayBackground")}</span>
+        <select id="comic-ocr-overlay-background-select">
+          <option value="auto">${t("comicOcrOverlayBackgroundAuto")}</option>
+          <option value="light">${t("comicOcrOverlayBackgroundLight")}</option>
+          <option value="dark">${t("comicOcrOverlayBackgroundDark")}</option>
+          <option value="paper">${t("comicOcrOverlayBackgroundPaper")}</option>
+          <option value="custom">${t("comicOcrOverlayBackgroundCustom")}</option>
+        </select>
+      </label>
+      <div id="comic-ocr-overlay-custom-wrap" class="comic-ocr-custom-grid" hidden>
+        <label>
+          <span>${t("comicOcrOverlayCustomBg")}</span>
+          <input id="comic-ocr-overlay-custom-bg-input" type="color">
+        </label>
+        <label>
+          <span>${t("comicOcrOverlayCustomText")}</span>
+          <input id="comic-ocr-overlay-custom-text-input" type="color">
+        </label>
+      </div>
+      <label>
+        <span>${t("comicOcrOverlayMarkEdited")}</span>
+        <select id="comic-ocr-overlay-mark-edited-select">
+          <option value="on">${t("settingsOn")}</option>
+          <option value="off">${t("settingsOff")}</option>
+        </select>
+      </label>
     </fieldset>`
   );
 }
@@ -862,10 +932,30 @@ function normalizeComicOcrSettings(value) {
   const raw = value && typeof value === "object" ? value : {};
   const concurrency = Number.parseInt(String(raw.page_concurrency ?? COMIC_OCR_SETTINGS_DEFAULT.page_concurrency), 10);
   const prefetchNext = Number.parseInt(String(raw.prefetch_next_chapters ?? COMIC_OCR_SETTINGS_DEFAULT.prefetch_next_chapters), 10);
+  const fontSizeRaw = String(raw.overlay_font_size ?? COMIC_OCR_SETTINGS_DEFAULT.overlay_font_size).trim().toLowerCase();
+  const fontSizeNumber = Number.parseInt(fontSizeRaw, 10);
+  const fontSize = fontSizeRaw === "auto"
+    ? "auto"
+    : Math.max(70, Math.min(150, Number.isFinite(fontSizeNumber) ? fontSizeNumber : 100));
+  const fontFamily = String(raw.overlay_font_family || COMIC_OCR_SETTINGS_DEFAULT.overlay_font_family).trim().toLowerCase();
+  const background = String(raw.overlay_background || COMIC_OCR_SETTINGS_DEFAULT.overlay_background).trim().toLowerCase();
   return {
     page_concurrency: Math.max(1, Math.min(4, Number.isFinite(concurrency) ? concurrency : COMIC_OCR_SETTINGS_DEFAULT.page_concurrency)),
     prefetch_next_chapters: Math.max(0, Math.min(10, Number.isFinite(prefetchNext) ? prefetchNext : COMIC_OCR_SETTINGS_DEFAULT.prefetch_next_chapters)),
+    overlay_font_size: fontSize,
+    overlay_font_family: ["default", "serif", "sans", "comic", "mono"].includes(fontFamily) ? fontFamily : COMIC_OCR_SETTINGS_DEFAULT.overlay_font_family,
+    overlay_bold: raw.overlay_bold !== false,
+    overlay_italic: raw.overlay_italic === true,
+    overlay_background: ["auto", "light", "dark", "paper", "custom"].includes(background) ? background : COMIC_OCR_SETTINGS_DEFAULT.overlay_background,
+    overlay_custom_bg: normalizeHexColor(raw.overlay_custom_bg, COMIC_OCR_SETTINGS_DEFAULT.overlay_custom_bg),
+    overlay_custom_text: normalizeHexColor(raw.overlay_custom_text, COMIC_OCR_SETTINGS_DEFAULT.overlay_custom_text),
+    overlay_mark_edited: raw.overlay_mark_edited !== false,
   };
+}
+
+function normalizeHexColor(value, fallback) {
+  const text = String(value || "").trim();
+  return /^#[0-9a-f]{6}$/i.test(text) ? text : fallback;
 }
 
 function normalizeTocSide(value) {
@@ -2525,6 +2615,15 @@ export async function initShell({ page, onSearchSubmit, onImported, onImportUrl,
   const comicEdgeTintStrengthWrap = qs("comic-edge-tint-strength-wrap");
   const comicOcrPageConcurrencySelect = qs("comic-ocr-page-concurrency-select");
   const comicOcrPrefetchNextInput = qs("comic-ocr-prefetch-next-input");
+  const comicOcrOverlayFontSizeSelect = qs("comic-ocr-overlay-font-size-select");
+  const comicOcrOverlayFontSelect = qs("comic-ocr-overlay-font-select");
+  const comicOcrOverlayBoldSelect = qs("comic-ocr-overlay-bold-select");
+  const comicOcrOverlayItalicSelect = qs("comic-ocr-overlay-italic-select");
+  const comicOcrOverlayBackgroundSelect = qs("comic-ocr-overlay-background-select");
+  const comicOcrOverlayCustomWrap = qs("comic-ocr-overlay-custom-wrap");
+  const comicOcrOverlayCustomBgInput = qs("comic-ocr-overlay-custom-bg-input");
+  const comicOcrOverlayCustomTextInput = qs("comic-ocr-overlay-custom-text-input");
+  const comicOcrOverlayMarkEditedSelect = qs("comic-ocr-overlay-mark-edited-select");
   const translationEnabledSelect = qs("translation-enabled-select");
   const translationModeSelect = qs("translation-mode-select");
   const titleCacheAutoSelect = qs("title-cache-auto-select");
@@ -3830,6 +3929,15 @@ export async function initShell({ page, onSearchSubmit, onImported, onImportUrl,
     if (comicOcrPrefetchNextInput) {
       comicOcrPrefetchNextInput.value = String(state.comicOcrSettings.prefetch_next_chapters);
     }
+    if (comicOcrOverlayFontSizeSelect) comicOcrOverlayFontSizeSelect.value = String(state.comicOcrSettings.overlay_font_size);
+    if (comicOcrOverlayFontSelect) comicOcrOverlayFontSelect.value = String(state.comicOcrSettings.overlay_font_family);
+    if (comicOcrOverlayBoldSelect) comicOcrOverlayBoldSelect.value = state.comicOcrSettings.overlay_bold ? "on" : "off";
+    if (comicOcrOverlayItalicSelect) comicOcrOverlayItalicSelect.value = state.comicOcrSettings.overlay_italic ? "on" : "off";
+    if (comicOcrOverlayBackgroundSelect) comicOcrOverlayBackgroundSelect.value = String(state.comicOcrSettings.overlay_background);
+    if (comicOcrOverlayCustomWrap) comicOcrOverlayCustomWrap.hidden = state.comicOcrSettings.overlay_background !== "custom";
+    if (comicOcrOverlayCustomBgInput) comicOcrOverlayCustomBgInput.value = state.comicOcrSettings.overlay_custom_bg;
+    if (comicOcrOverlayCustomTextInput) comicOcrOverlayCustomTextInput.value = state.comicOcrSettings.overlay_custom_text;
+    if (comicOcrOverlayMarkEditedSelect) comicOcrOverlayMarkEditedSelect.value = state.comicOcrSettings.overlay_mark_edited ? "on" : "off";
   };
 
   const collectComicOcrSettingsFromForm = () => normalizeComicOcrSettings({
@@ -3840,6 +3948,30 @@ export async function initShell({ page, onSearchSubmit, onImported, onImportUrl,
     prefetch_next_chapters: comicOcrPrefetchNextInput
       ? comicOcrPrefetchNextInput.value
       : state.comicOcrSettings && state.comicOcrSettings.prefetch_next_chapters,
+    overlay_font_size: comicOcrOverlayFontSizeSelect
+      ? comicOcrOverlayFontSizeSelect.value
+      : state.comicOcrSettings && state.comicOcrSettings.overlay_font_size,
+    overlay_font_family: comicOcrOverlayFontSelect
+      ? comicOcrOverlayFontSelect.value
+      : state.comicOcrSettings && state.comicOcrSettings.overlay_font_family,
+    overlay_bold: comicOcrOverlayBoldSelect
+      ? comicOcrOverlayBoldSelect.value !== "off"
+      : state.comicOcrSettings && state.comicOcrSettings.overlay_bold,
+    overlay_italic: comicOcrOverlayItalicSelect
+      ? comicOcrOverlayItalicSelect.value === "on"
+      : state.comicOcrSettings && state.comicOcrSettings.overlay_italic,
+    overlay_background: comicOcrOverlayBackgroundSelect
+      ? comicOcrOverlayBackgroundSelect.value
+      : state.comicOcrSettings && state.comicOcrSettings.overlay_background,
+    overlay_custom_bg: comicOcrOverlayCustomBgInput
+      ? comicOcrOverlayCustomBgInput.value
+      : state.comicOcrSettings && state.comicOcrSettings.overlay_custom_bg,
+    overlay_custom_text: comicOcrOverlayCustomTextInput
+      ? comicOcrOverlayCustomTextInput.value
+      : state.comicOcrSettings && state.comicOcrSettings.overlay_custom_text,
+    overlay_mark_edited: comicOcrOverlayMarkEditedSelect
+      ? comicOcrOverlayMarkEditedSelect.value !== "off"
+      : state.comicOcrSettings && state.comicOcrSettings.overlay_mark_edited,
   });
 
   const loadComicOcrSettings = async () => {
@@ -4184,6 +4316,26 @@ export async function initShell({ page, onSearchSubmit, onImported, onImportUrl,
       }
     });
   }
+  [
+    comicOcrOverlayFontSizeSelect,
+    comicOcrOverlayFontSelect,
+    comicOcrOverlayBoldSelect,
+    comicOcrOverlayItalicSelect,
+    comicOcrOverlayBackgroundSelect,
+    comicOcrOverlayCustomBgInput,
+    comicOcrOverlayCustomTextInput,
+    comicOcrOverlayMarkEditedSelect,
+  ].filter(Boolean).forEach((control) => {
+    control.addEventListener("change", async () => {
+      state.comicOcrSettings = collectComicOcrSettingsFromForm();
+      syncComicOcrSettingsForm();
+      try {
+        await persistComicOcrSettings();
+      } catch (error) {
+        showToast(error.message || t("toastError"));
+      }
+    });
+  });
 
   if (translationEnabledSelect) {
     translationEnabledSelect.addEventListener("change", async () => {

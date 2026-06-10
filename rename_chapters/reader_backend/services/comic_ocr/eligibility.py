@@ -51,6 +51,18 @@ def normalize_comic_ocr_settings(raw: Any, *, parse_bool) -> dict[str, Any]:
     layout_crop_sheet_max_height = _safe_int(cfg.get("layout_crop_sheet_max_height"), default=4096, min_value=1024, max_value=12000)
     layout_score_threshold = _safe_float(cfg.get("layout_score_threshold"), default=0.25, min_value=0.01, max_value=0.99)
     layout_nms_threshold = _safe_float(cfg.get("layout_nms_threshold"), default=0.45, min_value=0.05, max_value=0.95)
+    overlay_font_size_raw = str(cfg.get("overlay_font_size") or "auto").strip().lower()
+    overlay_font_size: str | int
+    if overlay_font_size_raw == "auto":
+        overlay_font_size = "auto"
+    else:
+        overlay_font_size = _safe_int(overlay_font_size_raw, default=100, min_value=70, max_value=150)
+    overlay_font_family = str(cfg.get("overlay_font_family") or "default").strip().lower() or "default"
+    if overlay_font_family not in {"default", "serif", "sans", "comic", "mono"}:
+        overlay_font_family = "default"
+    overlay_background = str(cfg.get("overlay_background") or "auto").strip().lower() or "auto"
+    if overlay_background not in {"auto", "light", "dark", "paper", "custom"}:
+        overlay_background = "auto"
     return {
         "enabled": bool(parse_bool(cfg.get("enabled"), True)),
         "engine": engine,
@@ -72,6 +84,14 @@ def normalize_comic_ocr_settings(raw: Any, *, parse_bool) -> dict[str, Any]:
         "layout_score_threshold": layout_score_threshold,
         "layout_nms_threshold": layout_nms_threshold,
         "layout_fallback_full_page": bool(parse_bool(cfg.get("layout_fallback_full_page"), False)),
+        "overlay_font_size": overlay_font_size,
+        "overlay_font_family": overlay_font_family,
+        "overlay_bold": bool(parse_bool(cfg.get("overlay_bold"), True)),
+        "overlay_italic": bool(parse_bool(cfg.get("overlay_italic"), False)),
+        "overlay_background": overlay_background,
+        "overlay_custom_bg": _safe_text(cfg.get("overlay_custom_bg"), default="#111827"),
+        "overlay_custom_text": _safe_text(cfg.get("overlay_custom_text"), default="#f8fafc"),
+        "overlay_mark_edited": bool(parse_bool(cfg.get("overlay_mark_edited"), True)),
     }
 
 
@@ -97,6 +117,14 @@ def build_default_comic_ocr_config() -> dict[str, Any]:
         "layout_score_threshold": 0.25,
         "layout_nms_threshold": 0.45,
         "layout_fallback_full_page": False,
+        "overlay_font_size": "auto",
+        "overlay_font_family": "default",
+        "overlay_bold": True,
+        "overlay_italic": False,
+        "overlay_background": "auto",
+        "overlay_custom_bg": "#111827",
+        "overlay_custom_text": "#f8fafc",
+        "overlay_mark_edited": True,
     }
 
 
@@ -168,3 +196,10 @@ def _safe_float(value: Any, *, default: float, min_value: float, max_value: floa
     except Exception:
         number = default
     return max(min_value, min(max_value, number))
+
+
+def _safe_text(value: Any, *, default: str, max_len: int = 80) -> str:
+    text = str(value or "").strip()
+    if not text:
+        return default
+    return text[:max_len]

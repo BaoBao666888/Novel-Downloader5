@@ -6086,6 +6086,46 @@ class ReaderService:
         deleted = comic_ocr_cache_support.delete_book_translation_family(CACHE_DIR, book_id=bid)
         return {"ok": True, "book_id": bid, "deleted": deleted}
 
+    def update_comic_ocr_overlay_edit(self, payload: dict[str, Any] | None = None) -> dict[str, Any]:
+        body = payload if isinstance(payload, dict) else {}
+        book_id = str(body.get("book_id") or "").strip()
+        chapter_id = str(body.get("chapter_id") or "").strip()
+        block_id = str(body.get("block_id") or "").strip()
+        if not book_id or not chapter_id or not block_id:
+            raise ApiError(HTTPStatus.BAD_REQUEST, "BAD_REQUEST", "Thiếu book_id, chapter_id hoặc block_id.")
+        book = self.storage.find_book(book_id)
+        chapter = self.storage.find_chapter(chapter_id)
+        if not book or not chapter or str(chapter.get("book_id") or "").strip() != book_id:
+            raise ApiError(HTTPStatus.NOT_FOUND, "NOT_FOUND", "Không tìm thấy truyện/chương.")
+        edits = comic_ocr_cache_support.read_overlay_edits(CACHE_DIR, book_id=book_id, chapter_id=chapter_id)
+        if bool(body.get("reset")):
+            edits.pop(block_id, None)
+            comic_ocr_cache_support.write_overlay_edits(CACHE_DIR, book_id=book_id, chapter_id=chapter_id, edits=edits)
+            return {"ok": True, "book_id": book_id, "chapter_id": chapter_id, "block_id": block_id, "edit": None}
+
+        text = str(body.get("text") or "").strip()
+        if not text:
+            raise ApiError(HTTPStatus.BAD_REQUEST, "BAD_REQUEST", "Text overlay không được để trống.")
+        try:
+            page_index = int(body.get("page_index") or 0)
+        except Exception:
+            page_index = 0
+        try:
+            font_scale = int(float(body.get("font_scale") or 100))
+        except Exception:
+            font_scale = 100
+        font_scale = max(60, min(180, font_scale))
+        edit = {
+            "page_index": max(0, page_index),
+            "block_id": block_id,
+            "text": text[:2000],
+            "font_scale": font_scale,
+            "updated_at": utc_now_iso(),
+        }
+        edits[block_id] = edit
+        comic_ocr_cache_support.write_overlay_edits(CACHE_DIR, book_id=book_id, chapter_id=chapter_id, edits=edits)
+        return {"ok": True, "book_id": book_id, "chapter_id": chapter_id, "block_id": block_id, "edit": edit}
+
     def get_comic_ocr_settings(self) -> dict[str, Any]:
         return {
             "ok": True,
@@ -6700,7 +6740,7 @@ class ReaderService:
         result = comic_ocr_cache_support.read_translation_chapter(CACHE_DIR, str(context.get("chapter_key") or ""))
         if not isinstance(result, dict):
             return None
-        return result
+        return self._apply_comic_ocr_overlay_edits(context, result)
 
     def _build_comic_ocr_result(
         self,
@@ -6739,7 +6779,49 @@ class ReaderService:
             pages.append(page)
         result = self._build_comic_ocr_result(context, pages, complete=True)
         comic_ocr_cache_support.write_translation_chapter(CACHE_DIR, context["chapter_key"], result)
-        return result
+        return self._apply_comic_ocr_overlay_edits(context, result)
+
+    def _apply_comic_ocr_overlay_edits(self, context: dict[str, Any], result: dict[str, Any]) -> dict[str, Any]:
+        if not isinstance(result, dict):
+            return result
+        edits = comic_ocr_cache_support.read_overlay_edits(
+            CACHE_DIR,
+            book_id=str(context.get("book_id") or ""),
+            chapter_id=str(context.get("chapter_id") or ""),
+        )
+        if not edits:
+            return result
+        patched = dict(result)
+        pages: list[dict[str, Any]] = []
+        for page in result.get("pages") or []:
+            if not isinstance(page, dict):
+                continue
+            next_page = dict(page)
+            blocks: list[dict[str, Any]] = []
+            for block in page.get("blocks") or []:
+                if not isinstance(block, dict):
+                    continue
+                next_block = dict(block)
+                block_id = str(next_block.get("id") or "").strip()
+                edit = edits.get(block_id) if block_id else None
+                if isinstance(edit, dict):
+                    text = str(edit.get("text") or "").strip()
+                    try:
+                        font_scale = int(edit.get("font_scale") or 100)
+                    except Exception:
+                        font_scale = 100
+                    safe_edit = {
+                        "edited": True,
+                        "text": text,
+                        "font_scale": max(60, min(180, font_scale)),
+                        "updated_at": str(edit.get("updated_at") or ""),
+                    }
+                    next_block["overlay_edit"] = safe_edit
+                blocks.append(next_block)
+            next_page["blocks"] = blocks
+            pages.append(next_page)
+        patched["pages"] = pages
+        return patched
 
     def _contains_cjk_text(self, text: str) -> bool:
         return bool(re.search(r"[\u3400-\u9fff]", str(text or "")))
