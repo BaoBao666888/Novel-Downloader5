@@ -71,9 +71,59 @@ node tools/nd-debug-bridge/cli.js --target 69shuba request https://example.com/c
 # Eval JS ngắn hoặc từ file
 node tools/nd-debug-bridge/cli.js --target 69shuba eval "return {href: location.href, rule: Storage.rule.siteName}"
 node tools/nd-debug-bridge/cli.js --target 69shuba eval --file ./tmp/debug.js
+
+# Inject rule test vào tab hiện tại rồi active rule đó
+node tools/nd-debug-bridge/cli.js --target 69shuba inject-rule ./tmp/69shuba/rule.js
+
+# Test một rule mới trên URL mới: mở tab, đợi reconnect, inject rule, snapshot và chạy getChapters
+node tools/nd-debug-bridge/cli.js test-rule ./tmp/69shuba/rule.js https://www.69shuba.com/book/90509/
 ```
 
 Nếu có nhiều tab userscript mà không truyền `--target`, CLI tự chọn tab mới nhất và in cảnh báo ra stderr. Khi cần chắc chắn, dùng `clients` rồi truyền `--target <id>`.
+
+## Test rule mới từ terminal
+
+`test-rule <file> <url>` dùng một tab Novel Downloader đang nối Debug Bridge làm tab điều khiển để mở URL mới. Tab mới phải tự nạp userscript và Debug Bridge, sau đó CLI sẽ inject rule test vào đầu `Rule.special`, reset `Storage.rule/Storage.mode`, gọi lại `init()`, in `env.snapshot`, rồi chạy `getChapters`.
+
+File rule có thể là một object/array trả về trực tiếp:
+
+```javascript
+({
+  siteName: 'Web Test',
+  url: /example\.com\/book/,
+  getChapters: async function() {
+    return {
+      name: document.title,
+      author: '',
+      chapters: Array.from(document.querySelectorAll('.chapter a')).map(a => ({
+        title: a.textContent.trim(),
+        url: a.href
+      }))
+    };
+  },
+  deal: async function(chapter) {
+    return chapter;
+  }
+})
+```
+
+Hoặc dùng kiểu paste rule quen thuộc:
+
+```javascript
+Rule.special.push({
+  siteName: 'Web Test',
+  url: /example\.com\/book/,
+  getChapters: async function() {
+    return {
+      name: document.title,
+      author: '',
+      chapters: []
+    };
+  }
+});
+```
+
+Rule được inject chỉ sống trong tab debug hiện tại. Khi reload tab hoặc tắt tab thì rule test mất, không ghi vào cấu hình rule tùy chỉnh của user.
 
 ## Dashboard
 
@@ -86,6 +136,7 @@ Dashboard tại `http://127.0.0.1:17888/` vẫn dùng cùng token. Khi nhiều t
 - `browser.openUrl`: mở URL bằng tab target, có thể mở tab mới hoặc chuyển chính tab target.
 - `browser.reload`: reload tab target.
 - `selector.test`: test selector trên DOM trang thật.
+- `rule.inject`: inject rule test vào runtime, ưu tiên trước rule gốc và active lại rule.
 - `rule.current`: xem rule hiện tại.
 - `storage.book`: xem thông tin sách và mẫu chương.
 - `storage.config`: xem config.

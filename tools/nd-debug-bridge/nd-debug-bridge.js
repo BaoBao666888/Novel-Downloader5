@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name        nd-debug-bridge
-// @version     1.1.0
+// @version     1.2.0
 // @include     *
 // ==/UserScript==
 /* eslint-env browser */
@@ -10,7 +10,7 @@
 
     if (window.NDDebugBridge && window.NDDebugBridge.__installed) return;
 
-    const VERSION = '1.1.0';
+    const VERSION = '1.2.0';
     const UI_HOST_ID = 'novel-downloader-shadow-host';
     const PANEL_ID = 'ndDebugBridgePanel';
     const STYLE_ID = 'ndDebugBridgeStyle';
@@ -379,6 +379,42 @@
         return output;
     }
 
+    function normalizeInjectedRule(rule, index = 0) {
+        if (!rule || typeof rule !== 'object') throw new Error(`Rule inject #${index + 1} không phải object`);
+        rule.url = [].concat(rule.url || []).filter(Boolean);
+        rule.chapterUrl = [].concat(rule.chapterUrl || []).filter(Boolean);
+        rule.ignoreUrl = [].concat(rule.ignoreUrl || []).filter(Boolean);
+        rule.__ndDebugRule = true;
+        rule.__ndDebugInjectedAt = new Date().toISOString();
+        return rule;
+    }
+
+    function evaluateRuleCode(code, context) {
+        const names = Object.keys(context).filter(name => /^[A-Za-z_$][\w$]*$/.test(name));
+        const values = names.map(name => context[name]);
+        const ruleList = context.Rule && Array.isArray(context.Rule.special) ? context.Rule.special : null;
+        const beforeRules = ruleList ? ruleList.slice() : [];
+        let result;
+        const source = String(code || '').trim();
+        if (!source) throw new Error('Thiếu code rule');
+        try {
+            result = new Function(...names, `"use strict";\nreturn (${source});`)(...values);
+        } catch (expressionError) {
+            result = new Function(...names, `"use strict";\n${source}`)(...values);
+        }
+        if (ruleList) {
+            const afterRules = ruleList.slice();
+            const injectedByCode = afterRules.filter(rule => !beforeRules.includes(rule));
+            if (afterRules.length !== beforeRules.length || injectedByCode.length) {
+                ruleList.splice(0, ruleList.length, ...beforeRules);
+            }
+            if ((result === undefined || typeof result === 'number') && injectedByCode.length) {
+                result = injectedByCode;
+            }
+        }
+        return result;
+    }
+
     async function runCommand(command, payload = {}) {
         const context = getRuntimeContext();
         if (command === 'ping') {
@@ -451,6 +487,44 @@
         if (command === 'browser.reload') {
             window.setTimeout(() => window.location.reload(), Math.max(0, Number(payload.delayMs || 100)));
             return { reloading: true, url: window.location.href };
+        }
+        if (command === 'rule.inject') {
+            const code = String(payload.code || '');
+            const mode = payload.mode || 'prepend';
+            const result = evaluateRuleCode(code, context);
+            const rules = [].concat(result || []).filter(Boolean).map(normalizeInjectedRule);
+            if (!rules.length) throw new Error('Code không trả về rule nào.');
+            if (!context.Rule || !Array.isArray(context.Rule.special)) throw new Error('Không có Rule.special trong runtime.');
+            if (payload.clearPrevious !== false) {
+                context.Rule.special = context.Rule.special.filter(rule => !(rule && rule.__ndDebugRule));
+            }
+            if (mode === 'append') {
+                context.Rule.special.push(...rules);
+            } else {
+                context.Rule.special.unshift(...rules);
+            }
+            if (payload.activate !== false && context.Storage) {
+                context.Storage.rule = null;
+                context.Storage.mode = null;
+                if (typeof context.init === 'function') {
+                    const initResult = context.init();
+                    if (initResult && typeof initResult.then === 'function') await initResult;
+                }
+            }
+            return {
+                injected: rules.length,
+                mode,
+                activeRule: buildRuleSnapshot(context),
+                activeRuleName: context.Storage && context.Storage.rule && (context.Storage.rule.siteName || context.Storage.rule.name) || '',
+                activeMode: context.Storage && context.Storage.mode,
+                rules: rules.map(rule => ({
+                    siteName: rule.siteName || rule.name || '',
+                    url: serialize(rule.url),
+                    chapterUrl: serialize(rule.chapterUrl),
+                    hasGetChapters: typeof rule.getChapters === 'function',
+                    hasDeal: typeof rule.deal === 'function'
+                }))
+            };
         }
         if (command === 'selector.test') {
             const selector = String(payload.selector || '').trim();

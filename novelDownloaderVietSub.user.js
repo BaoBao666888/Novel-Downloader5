@@ -237,6 +237,7 @@ function decryptDES(encrypted, key, iv) {
             docList([
                 'Chạy server local bằng <code>node tools/nd-debug-bridge/server.js</code>, sau đó mở <b>Debug Bridge</b> trong tab Cài đặt của Quản lý tải xuống. Client bridge sẽ được tải từ server local khi bấm mở.',
                 'Dashboard local cho phép test selector, xem môi trường, xem rule/book/config, chạy <code>getChapters</code>, <code>deal</code> và eval JS ngay trong tab userscript thật.',
+                'CLI debug có thể dùng <code>inject-rule &lt;file&gt;</code> để thử rule trên tab hiện tại, hoặc <code>test-rule &lt;file&gt; &lt;url&gt;</code> để mở tab mới, inject rule test rồi chạy snapshot/getChapters.',
                 'Server local cũng phục vụ Rule Editor để test nhanh khi cần chạy bản trong repo hiện tại.',
                 'Tính năng này mặc định tắt và dùng token local; chỉ bật khi cần debug rule.'
             ]),
@@ -268,6 +269,7 @@ function decryptDES(encrypted, key, iv) {
                 'Thêm rule gốc cho <b>爱丽丝书屋</b>, tự dừng và mở popup khi web yêu cầu nhập mã hoặc chặn cooldown do đọc/tải quá nhanh.',
                 'Khi mở UI tải trên một truyện đang có dữ liệu tải dở, script hỏi có muốn nạp lại các chương đã tải không; nếu chọn dùng thì chỉ nạp dữ liệu, không tự bấm tải.',
                 'Hoàn thiện <b>Debug Bridge</b> local: test selector/rule, chạy <code>getChapters</code>, <code>deal</code>, eval JS và xem đúng môi trường Tampermonkey thật.',
+                'CLI Debug Bridge hỗ trợ inject rule từ file và test rule mới trên URL mới bằng tab trình duyệt thật.',
                 'Debug server có thêm endpoint phục vụ Rule Editor để test local bằng bản trong repo hiện tại.',
                 'Cải thiện bảng Console và Quản lý tải xuống: giữ log object/error/%c, lưu tiếp tục ổn hơn, đồng bộ tiến độ thật, xóa task treo và giữ task đang tải khi dùng <b>Buộc lưu</b>.'
             ]),
@@ -9504,6 +9506,7 @@ function decryptDES(encrypted, key, iv) {
             html2Text,
             replaceWithDict,
             getFromRule,
+            init,
             Storage,
             Config,
             GM_openInTab: typeof GM_openInTab !== 'undefined' ? GM_openInTab : undefined,
@@ -11269,7 +11272,7 @@ function decryptDES(encrypted, key, iv) {
                 Storage.book.writer ? `Tác giả: ${writer}` : '',
                 Storage.book.intro ? `Giới thiệu: ${Storage.book.intro}` : '',
                 Config.reference ? 'Lưu ý trước khi đọc: Cuốn sách này được sản xuất bởi user script NovelDownloader' : '',
-                Config.reference ? 'User script được dịch và bổ sung bởi QB. Không nên share quá nhìu nhoa!' : '',
+                Config.reference ? 'User script được bổ sung và nâng cấp bởi QB. ' : '',
                 Config.reference ? `Địa chỉ nguồn: ${window.location.href}` : '',
             ].filter((i) => i);
             all.push('');

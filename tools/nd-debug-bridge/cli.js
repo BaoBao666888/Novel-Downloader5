@@ -21,6 +21,7 @@ Options:
   --timeout <ms>        Timeout chờ result, mặc định ${DEFAULT_TIMEOUT}
   --json                In raw JSON cho lệnh clients
   --file <path>         File JS cho lệnh eval
+  --wait <ms>           Thời gian đợi tab mới reconnect cho test-rule, mặc định 20000
   --active              browser.openUrl mở tab active
   --inactive            browser.openUrl mở tab inactive
 
@@ -38,6 +39,8 @@ Commands:
   selector <css>                  selector.test
   eval <js>                       Chạy JS trong runtime userscript
   eval --file <path>              Chạy JS từ file
+  inject-rule <file>              Inject rule test vào tab target, ưu tiên trước rule gốc
+  test-rule <file> <url>          Mở URL, đợi tab mới reconnect, inject rule, snapshot + getChapters
   open <url>                      Mở URL bằng tab debug hiện tại, tab mới tự reconnect nếu setting debug đang bật
   navigate <url>                  Chuyển chính tab target tới URL
   reload                          Reload tab target
@@ -47,6 +50,7 @@ Examples:
   node tools/nd-debug-bridge/cli.js --token abc open https://example.com
   node tools/nd-debug-bridge/cli.js --token abc --target alicesw snapshot
   node tools/nd-debug-bridge/cli.js --token abc chapters 100 10
+  node tools/nd-debug-bridge/cli.js --token abc test-rule ./tmp/rule.js https://example.com/book/1
   node tools/nd-debug-bridge/cli.js --token abc eval "return location.href"
 `.trim();
     (exitCode ? console.error : console.log)(text);
@@ -61,6 +65,7 @@ function parseArgs(argv) {
         timeout: DEFAULT_TIMEOUT,
         json: false,
         file: '',
+        wait: Number(process.env.ND_DEBUG_WAIT || 20000),
         active: undefined
     };
     const positional = [];
@@ -73,6 +78,7 @@ function parseArgs(argv) {
         else if (arg === '--timeout') opts.timeout = Number(argv[++i] || DEFAULT_TIMEOUT);
         else if (arg === '--json') opts.json = true;
         else if (arg === '--file') opts.file = argv[++i] || '';
+        else if (arg === '--wait') opts.wait = Number(argv[++i] || 20000);
         else if (arg === '--active') opts.active = true;
         else if (arg === '--inactive') opts.active = false;
         else if (arg.startsWith('--')) throw new Error(`Option không hỗ trợ: ${arg}`);
@@ -93,6 +99,16 @@ function makeWsUrl(serverUrl, token) {
 
 function wait(ms) {
     return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+function normalizeUrl(value) {
+    try {
+        const url = new URL(value);
+        url.hash = '';
+        return url.href;
+    } catch (error) {
+        return String(value || '').split('#')[0];
+    }
 }
 
 function connect(opts) {
@@ -131,6 +147,36 @@ function connect(opts) {
 
 function userscriptClients(clients) {
     return (clients || []).filter(client => client && client.role === 'userscript');
+}
+
+function findClientByUrl(clients, url) {
+    const wanted = normalizeUrl(url);
+    let wantedUrl;
+    try {
+        wantedUrl = new URL(wanted);
+    } catch (error) {
+        return null;
+    }
+    const sameHost = userscriptClients(clients).filter((client) => {
+        try {
+            const page = new URL(client.page || '');
+            return page.host === wantedUrl.host;
+        } catch (error) {
+            return false;
+        }
+    });
+    const exact = sameHost.filter(client => normalizeUrl(client.page || '') === wanted);
+    if (exact.length) return exact[exact.length - 1];
+    const samePath = sameHost.filter((client) => {
+        try {
+            const page = new URL(client.page || '');
+            return page.pathname === wantedUrl.pathname;
+        } catch (error) {
+            return false;
+        }
+    });
+    if (samePath.length) return samePath[samePath.length - 1];
+    return sameHost[sameHost.length - 1] || null;
 }
 
 function formatClient(client) {
@@ -227,6 +273,18 @@ function commandPayload(opts) {
             }
         };
     }
+    if (command === 'inject-rule') {
+        if (!args[0]) throw new Error('Thiếu file rule cho inject-rule.');
+        return {
+            command: 'rule.inject',
+            payload: {
+                code: fs.readFileSync(args[0], 'utf8'),
+                timeout: opts.timeout,
+                activate: true,
+                clearPrevious: true
+            }
+        };
+    }
     if (command === 'open' || command === 'navigate') {
         if (!args[0]) throw new Error(`Thiếu URL cho ${command}.`);
         return {
@@ -267,6 +325,17 @@ async function sendCommand(ws, state, opts, target, command, payload) {
     return resultPromise;
 }
 
+async function waitForClientByUrl(state, url, timeoutMs, excludedIds = new Set()) {
+    const startedAt = Date.now();
+    while (Date.now() - startedAt < timeoutMs) {
+        const candidates = (state.clients || []).filter(client => !excludedIds.has(String(client.id)));
+        const client = findClientByUrl(candidates, url);
+        if (client) return client;
+        await wait(500);
+    }
+    throw new Error(`Timeout chờ tab mới reconnect: ${url}`);
+}
+
 function printClients(clients, json = false) {
     if (json) {
         console.log(JSON.stringify(clients, null, 2));
@@ -289,6 +358,41 @@ async function main() {
         return;
     }
     const target = resolveTarget(state.clients, opts.target);
+    if (opts.command === 'test-rule') {
+        const [ruleFile, url] = opts.args;
+        if (!ruleFile || !url) throw new Error('Usage: test-rule <file> <url>');
+        const code = fs.readFileSync(ruleFile, 'utf8');
+        const existingClientIds = new Set((state.clients || []).map(client => String(client.id)));
+        const openResult = await sendCommand(ws, state, opts, target, 'browser.openUrl', {
+            url,
+            newTab: true,
+            active: opts.active !== undefined ? opts.active : false,
+            timeout: opts.timeout
+        });
+        if (!openResult.ok) throw new Error(JSON.stringify(openResult.error || openResult));
+        const testTarget = await waitForClientByUrl(state, url, opts.wait, existingClientIds);
+        const injectResult = await sendCommand(ws, state, opts, testTarget, 'rule.inject', {
+            code,
+            timeout: opts.timeout,
+            activate: true,
+            clearPrevious: true
+        });
+        const snapshotResult = await sendCommand(ws, state, opts, testTarget, 'env.snapshot', {});
+        let chaptersResult = null;
+        if (injectResult.ok) {
+            chaptersResult = await sendCommand(ws, state, opts, testTarget, 'rule.getChapters', { timeout: opts.timeout });
+        }
+        console.log(JSON.stringify({
+            target: testTarget,
+            open: openResult.ok ? openResult.payload : { error: openResult.error },
+            inject: injectResult.ok ? injectResult.payload : { error: injectResult.error },
+            snapshot: snapshotResult.ok ? snapshotResult.payload : { error: snapshotResult.error },
+            getChapters: chaptersResult ? (chaptersResult.ok ? chaptersResult.payload : { error: chaptersResult.error }) : null
+        }, null, 2));
+        ws.close();
+        if (!injectResult.ok || !snapshotResult.ok || (chaptersResult && !chaptersResult.ok)) process.exitCode = 1;
+        return;
+    }
     const { command, payload } = commandPayload(opts);
     const result = await sendCommand(ws, state, opts, target, command, payload);
     if (!result.ok) {

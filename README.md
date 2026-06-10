@@ -22,7 +22,7 @@
     *   [Violentmonkey](https://violentmonkey.github.io/) (Mã nguồn mở, hỗ trợ nhiều trình duyệt)
     *   Greasemonkey (Chủ yếu cho Firefox phiên bản cũ hơn)
 2.  **Cài đặt script:** Nhấn vào link sau và làm theo hướng dẫn của trình quản lý userscript:
-    *   **[Cài đặt novelDownloaderVietSub (v3.5.448.5)](https://raw.githubusercontent.com/BaoBao666888/Novel-Downloader5/main/novelDownloaderVietSub.user.js)**
+    *   **[Cài đặt novelDownloaderVietSub (v3.5.448.7)](https://raw.githubusercontent.com/BaoBao666888/Novel-Downloader5/main/novelDownloaderVietSub.user.js)**
 
 ## Hướng dẫn sử dụng
 
@@ -47,7 +47,7 @@
 ### Debug Bridge ND5
 
 - Xem hướng dẫn: [Novel Downloader Debug Bridge](tools/nd-debug-bridge/README.md).
-- Debug Bridge dùng server local để test selector, chạy rule, xem `Storage`/`Config`, chạy `getChapters`, `deal` và eval JS ngay trong tab Tampermonkey thật; có CLI terminal ở `tools/nd-debug-bridge/cli.js` để điều khiển tab debug, mở URL mới, chọn target và chạy command nhanh.
+- Debug Bridge dùng server local để test selector, chạy rule, xem `Storage`/`Config`, chạy `getChapters`, `deal` và eval JS ngay trong tab Tampermonkey thật; có CLI terminal ở `tools/nd-debug-bridge/cli.js` để điều khiển tab debug, mở URL mới, inject rule test bằng `inject-rule`, hoặc mở tab mới và test rule bằng `test-rule <file> <url>`.
 - Khi muốn test Rule Editor bằng bản trong repo hiện tại, chạy `node tools/nd-debug-bridge/server.js`; server này cũng phục vụ `/nd-rule-editor.js`.
 
 ### Cung cấp Token JJWXC và API Fanqie
@@ -246,5 +246,4 @@ Khi báo lỗi, vui lòng cung cấp các thông tin sau:
 
 *   Script này được phát triển dựa trên phiên bản gốc của **dodying**.
 *   Cảm ơn tất cả những người đã đóng góp ý tưởng, báo lỗi và sử dụng script.
-
 
