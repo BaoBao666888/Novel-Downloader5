@@ -176,15 +176,18 @@ function saveThemeCache(theme) {
   }
 }
 
-function normalizeHexColor(value) {
-  const raw = String(value || "").trim();
-  if (!raw) return "";
-  if (/^#[0-9a-f]{6}$/i.test(raw)) return raw.toLowerCase();
-  if (/^#[0-9a-f]{3}$/i.test(raw)) {
-    const chars = raw.slice(1).split("");
-    return `#${chars.map((ch) => ch + ch).join("")}`.toLowerCase();
-  }
-  return "";
+function normalizeHexColor(value, fallback = "") {
+  const parseHex = (input) => {
+    const raw = String(input || "").trim();
+    if (!raw) return "";
+    if (/^#[0-9a-f]{6}$/i.test(raw)) return raw.toLowerCase();
+    if (/^#[0-9a-f]{3}$/i.test(raw)) {
+      const chars = raw.slice(1).split("");
+      return `#${chars.map((ch) => ch + ch).join("")}`.toLowerCase();
+    }
+    return "";
+  };
+  return parseHex(value) || parseHex(fallback);
 }
 
 function normalizeThemeTokens(raw) {
@@ -951,11 +954,6 @@ function normalizeComicOcrSettings(value) {
     overlay_custom_text: normalizeHexColor(raw.overlay_custom_text, COMIC_OCR_SETTINGS_DEFAULT.overlay_custom_text),
     overlay_mark_edited: raw.overlay_mark_edited !== false,
   };
-}
-
-function normalizeHexColor(value, fallback) {
-  const text = String(value || "").trim();
-  return /^#[0-9a-f]{6}$/i.test(text) ? text : fallback;
 }
 
 function normalizeTocSide(value) {
