@@ -1521,6 +1521,15 @@
         "www.wangshugu.info",
         "www.wangshugu.org"
       ]
+    },
+    {
+      "name": "精彩小说网",
+      "ruleName": "精彩小说网",
+      "file": "src/rules/special/0168-jingcaiyuedu6-com.rule.js",
+      "kind": "special",
+      "domains": [
+        "jingcaiyuedu6.com"
+      ]
     }
   ]
 }
