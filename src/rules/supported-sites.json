@@ -1420,6 +1420,15 @@
       "domains": [
         "m.mjyhb.com"
       ]
+    },
+    {
+      "name": "大众文学",
+      "ruleName": "大众文学",
+      "file": "src/rules/special/0157-shauthor-com.rule.js",
+      "kind": "special",
+      "domains": [
+        "m.shauthor.com"
+      ]
     }
   ]
 }
