@@ -1652,6 +1652,15 @@
       "domains": [
         "www.biquge.tw"
       ]
+    },
+    {
+      "name": "先锋小说",
+      "ruleName": "先锋小说",
+      "file": "src/rules/special/0182-xfxs1-com.rule.js",
+      "kind": "special",
+      "domains": [
+        "www.xfxs1.com"
+      ]
     }
   ]
 }
