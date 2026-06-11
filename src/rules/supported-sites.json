@@ -1511,6 +1511,16 @@
         "www.yibige.cc",
         "www.yibige.org"
       ]
+    },
+    {
+      "name": "望书阁",
+      "ruleName": "望书阁",
+      "file": "src/rules/special/0167-wangshugu-info.rule.js",
+      "kind": "special",
+      "domains": [
+        "www.wangshugu.info",
+        "www.wangshugu.org"
+      ]
     }
   ]
 }
