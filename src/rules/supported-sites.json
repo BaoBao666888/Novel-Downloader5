@@ -1530,6 +1530,15 @@
       "domains": [
         "jingcaiyuedu6.com"
       ]
+    },
+    {
+      "name": "全书斋",
+      "ruleName": "全书斋",
+      "file": "src/rules/special/0169-quanshuzhai-com.rule.js",
+      "kind": "special",
+      "domains": [
+        "www.quanshuzhai.com"
+      ]
     }
   ]
 }

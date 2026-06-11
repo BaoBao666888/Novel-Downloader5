@@ -10368,6 +10368,21 @@ function decryptDES(encrypted, key, iv) {
                 [/精彩小说网最新地址[^\n\r<]*/g, ''],
             ],
         },
+        { // https://www.quanshuzhai.com/book/*.html
+            siteName: '全书斋',
+            filter: () => {
+                if (window.location.host !== 'www.quanshuzhai.com') return 0;
+                if (document.querySelector('#list-chapterAll > dd > a')) return 1;
+                if (document.querySelector('.readcontent')) return 2;
+                return 0;
+            },
+            title: '.booktitle',
+            writer: 'a.red',
+            intro: '.bookintro',
+            chapter: '#list-chapterAll > dd > a',
+            chapterTitle: 'h1, .readtitle',
+            content: '.readcontent',
+        },
     ];
     Rule.template = [ // 模板网站
         { // http://www.xbiquge.la/54/54439/
