@@ -1501,6 +1501,16 @@
       "domains": [
         "www.uaa.com"
       ]
+    },
+    {
+      "name": "一笔阁",
+      "ruleName": "一笔阁",
+      "file": "src/rules/special/0166-yibige.rule.js",
+      "kind": "special",
+      "domains": [
+        "www.yibige.cc",
+        "www.yibige.org"
+      ]
     }
   ]
 }
