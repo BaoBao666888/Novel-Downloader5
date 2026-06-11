@@ -1576,6 +1576,15 @@
       "domains": [
         "www.quanzhifashi.com"
       ]
+    },
+    {
+      "name": "新笔趣阁",
+      "ruleName": "新笔趣阁",
+      "file": "src/rules/special/0174-boqugew-com.rule.js",
+      "kind": "special",
+      "domains": [
+        "www.boqugew.com"
+      ]
     }
   ]
 }
