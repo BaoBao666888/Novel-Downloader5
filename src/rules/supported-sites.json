@@ -1474,6 +1474,15 @@
       "domains": [
         "twkan.com"
       ]
+    },
+    {
+      "name": "XBookCN",
+      "ruleName": "XBookCN",
+      "file": "src/rules/special/0163-xbookcn-net.rule.js",
+      "kind": "special",
+      "domains": [
+        "book.xbookcn.net"
+      ]
     }
   ]
 }
