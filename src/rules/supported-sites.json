@@ -1456,6 +1456,15 @@
       "domains": [
         "www.zjsw.org"
       ]
+    },
+    {
+      "name": "海外书包",
+      "ruleName": "海外书包",
+      "file": "src/rules/special/0161-haiwaishubao1-com.rule.js",
+      "kind": "special",
+      "domains": [
+        "www.haiwaishubao1.com"
+      ]
     }
   ]
 }
