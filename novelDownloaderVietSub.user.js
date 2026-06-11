@@ -9514,6 +9514,23 @@ function decryptDES(encrypted, key, iv) {
             elementRemove: 'script, style',
             contentReplace: [['zw443sx', '']],
         },
+        { // https://www.trxs.cc https://www.jpxs123.com
+            siteName: '同人小说网',
+            filter: () => {
+                if (!['www.trxs.cc', 'trxs.cc', 'www.jpxs123.com', 'jpxs123.com'].includes(window.location.host)) return 0;
+                if (document.querySelector('div.book_list > ul.clearfix > li > a')) return 1;
+                if (document.querySelector('.read_chapterDetail')) return 2;
+                return 0;
+            },
+            title: (doc) => $('.infos > h1', doc).first().text().split('(')[0].trim(),
+            writer: (doc) => $('.date > span > a, .date > span', doc).first().text().replace(/^作者：?/, '').trim(),
+            intro: '.infos > p',
+            cover: '.pic > img',
+            chapter: 'div.book_list > ul.clearfix > li > a',
+            chapterTitle: '.read_chapterName h1, h1',
+            content: '.read_chapterDetail',
+            elementRemove: 'script, style',
+        },
     ];
     Rule.template = [ // 模板网站
         { // http://www.xbiquge.la/54/54439/

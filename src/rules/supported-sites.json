@@ -1343,6 +1343,18 @@
       "domains": [
         "www.biquge345.com"
       ]
+    },
+    {
+      "name": "同人小说网",
+      "ruleName": "同人小说网",
+      "file": "src/rules/special/0149-trxs-cc.rule.js",
+      "kind": "special",
+      "domains": [
+        "jpxs123.com",
+        "trxs.cc",
+        "www.jpxs123.com",
+        "www.trxs.cc"
+      ]
     }
   ]
 }
