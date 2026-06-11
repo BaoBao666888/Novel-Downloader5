@@ -1634,6 +1634,15 @@
       "domains": [
         "m.fly-dreams.com"
       ]
+    },
+    {
+      "name": "ZGZL",
+      "ruleName": "ZGZL",
+      "file": "src/rules/special/0180-zgzl-net.rule.js",
+      "kind": "special",
+      "domains": [
+        "www.zgzl.net"
+      ]
     }
   ]
 }
