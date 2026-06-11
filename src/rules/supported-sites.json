@@ -1400,6 +1400,17 @@
       "domains": [
         "www.akatsuki-novels.com"
       ]
+    },
+    {
+      "name": "69书吧",
+      "ruleName": "69书吧",
+      "file": "src/rules/special/0155-69shuba.rule.js",
+      "kind": "special",
+      "domains": [
+        "www.69hao.com",
+        "www.69hsw.com",
+        "www.69hsz.net"
+      ]
     }
   ]
 }
