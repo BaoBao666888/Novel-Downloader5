@@ -4,7 +4,7 @@
 
 ## Tính năng chính
 
-*   **Hỗ trợ nhiều trang web:** Tải truyện từ các trang phổ biến như Fanqie, Sang Tác Việt, JJWXC, Qidian, 69shuba, PO18, và nhiều trang khác (xem danh sách rule trong code).
+*   **Hỗ trợ nhiều trang web:** Tải truyện từ các trang phổ biến như Fanqie, JJWXC, Qidian, 69shuba, PO18, và nhiều trang khác.
 *   **Định dạng đa dạng:** Lưu truyện dưới dạng file `.txt`, `.epub` (hỗ trợ ảnh bìa, CSS tùy chỉnh), hoặc `.zip` (mỗi chương một file text).
 *   **Tùy chỉnh linh hoạt:** Cho phép cấu hình số luồng tải, thời gian chờ, định dạng tiêu đề, xử lý văn bản, v.v.
 *   **Hỗ trợ tải ảnh:** Có thể tải ảnh bìa và ảnh trong nội dung truyện khi xuất ra file EPUB.
@@ -12,8 +12,9 @@
 *   **Quản lý tải xuống:** Theo dõi queue/lịch sử, copy summary/lỗi, hủy hoặc retry task trong phiên hiện tại.
 *   **Bảng console trong UI:** Xem log/lỗi ngay trong giao diện script, có nút bật/tắt và copy.
 *   **Rule Editor:** Quản lý nhiều rule tùy chỉnh theo từng mục riêng, có tìm kiếm, template, kiểm tra cấu trúc và autosave draft.
+*   **Danh sách web hỗ trợ:** Mở ngay trong UI, tải data từ repo và tìm nhanh theo domain hoặc tên rule.
 *   **Debug Bridge:** Dashboard local để test selector/rule, chạy `getChapters`, `deal` và eval JS ngay trong môi trường userscript thật.
-*   **Xử lý chương VIP:** Có cơ chế xử lý chương VIP cho một số trang (như JJWXC cần token, Fanqie/STV dùng API riêng...).
+*   **Xử lý chương VIP:** Có cơ chế xử lý chương VIP cho một số trang (như JJWXC dùng token app khi có, Fanqie dùng API riêng...).
 
 ## Cài đặt
 
@@ -22,7 +23,7 @@
     *   [Violentmonkey](https://violentmonkey.github.io/) (Mã nguồn mở, hỗ trợ nhiều trình duyệt)
     *   Greasemonkey (Chủ yếu cho Firefox phiên bản cũ hơn)
 2.  **Cài đặt script:** Nhấn vào link sau và làm theo hướng dẫn của trình quản lý userscript:
-    *   **[Cài đặt novelDownloaderVietSub (v3.5.448.7)](https://raw.githubusercontent.com/BaoBao666888/Novel-Downloader5/main/novelDownloaderVietSub.user.js)**
+    *   **[Cài đặt novelDownloaderVietSub (v3.5.448.8)](https://raw.githubusercontent.com/BaoBao666888/Novel-Downloader5/main/novelDownloaderVietSub.user.js)**
 
 ## Hướng dẫn sử dụng
 
@@ -52,11 +53,11 @@
 
 ### Cung cấp Token JJWXC và API Fanqie
 
-Để tải các chương VIP trên **JJWXC** hoặc sử dụng API thay thế cho **Fanqie** (thay vì gọi trực tiếp API gốc), bạn cần cung cấp thông tin này cho script `novelDownloaderVietSub` thông qua một userscript phụ trợ.
+Rule **JJWXC** mới có thể tải chương public/no-VIP trực tiếp từ web. Với chương VIP đã mua, script sẽ dùng token app Android nếu bạn cung cấp qua `window.tokenOptions`. Với **Fanqie**, bạn có thể cấu hình API thay thế nếu API gốc bị chặn hoặc cần key riêng.
 
 **Tại sao cần làm việc này?**
 
-*   **JJWXC:** Các chương VIP yêu cầu token xác thực cá nhân để truy cập qua API.
+*   **JJWXC:** Chương public/no-VIP không cần token; chương VIP cần token xác thực cá nhân để truy cập qua API app.
 *   **Fanqie:** API gốc của Fanqie có thể bị chặn hoặc yêu cầu cookie phức tạp. Sử dụng API bên ngoài (API riêng của bạn) có thể ổn định hơn.
 
 **Các bước thực hiện:**
@@ -83,7 +84,7 @@
 
       // --- CHỈNH SỬA THÔNG TIN DƯỚI ĐÂY ---
       const tokenOptions = {
-        // Thay "token của bạn" bằng token JJWXC cá nhân của bạn
+        // Tùy chọn: thay "token của bạn" bằng token JJWXC cá nhân nếu cần tải VIP
         Jjwxc: "token của bạn",
 
         // API endpoint cho Fanqie (có thể giữ nguyên hoặc đổi nếu bạn có API riêng)
@@ -102,7 +103,7 @@
     ```
 
 5.  **Chỉnh sửa Token và API:**
-    *   Tìm dòng `Jjwxc: "token của bạn"`. **Quan trọng:** Thay thế `"token của bạn"` bằng **token JJWXC thực tế** của bạn (token này thường lấy từ quá trình đăng nhập vào app JJWXC, bạn cần tự tìm cách lấy). **Không chia sẻ token này cho người khác.**
+    *   Tìm dòng `Jjwxc: "token của bạn"`. Nếu chỉ tải chương public/no-VIP trên JJWXC thì có thể bỏ trống hoặc bỏ key này. Nếu cần tải chương VIP đã mua, thay `"token của bạn"` bằng **token JJWXC thực tế** của bạn (token này thường lấy từ quá trình đăng nhập vào app JJWXC). **Không chia sẻ token này cho người khác.**
     *   Tìm dòng `Fanqie: "..."`. Bạn có thể thay thế bằng một địa chỉ API Fanqie khác nếu bạn có.
 6.  **Lưu Script:** Nhấn "File" -> "Save" hoặc nút Lưu tương ứng. Đảm bảo script này được **bật (enabled)** trong trình quản lý userscript.
 7.  **Hoàn tất:** Script phụ trợ này sẽ tự động chạy trên mọi trang và tạo ra biến `window.tokenOptions`. Script `novelDownloaderVietSub` sẽ tự động tìm và sử dụng biến này khi tải truyện từ JJWXC (VIP) hoặc Fanqie.
@@ -111,7 +112,7 @@
 
 ## Các trang web được hỗ trợ (Tiêu biểu)
 
-Script hỗ trợ một danh sách lớn các trang web. Danh sách các rule xử lý cụ thể nằm trong mã nguồn của script, trong mảng `Rule.special`. Một số trang tiêu biểu đã được thêm/cập nhật rule bao gồm:
+Script hỗ trợ một danh sách lớn các trang web. Trong UI tải chính hoặc tab `Cài đặt` của `Quản lý tải xuống`, bấm `Danh sách hỗ trợ` để tải danh sách public từ `src/rules/supported-sites.json` trên repo và tìm theo domain hoặc tên rule. Một số trang tiêu biểu đã được thêm/cập nhật rule bao gồm:
 
 *   Fanqie (蕃茄小说)
 *   JJWXC (晋江文学城)
@@ -216,7 +217,7 @@ Rule.special.push({
 *   **TM Translate.user.js:** Dịch trang, quản lý name-set, Thư viện đọc offline, OCR, selection toolbar và TTS trong reader; [Cài đặt](https://raw.githubusercontent.com/BaoBao666888/Novel-Downloader5/main/TM%20Translate.user.js) • [Hướng dẫn sử dụng](TM_TRANSLATE_GUIDE.md) • [Hướng dẫn TTS](tools/HUONG_DAN_SU_DUNG_TTS_READER.md).
 *   **Wikidich Book Sync (Refactored).user.js:** Đồng bộ, chép chương từ nguồn (Fanqie, 69shuba, ...) sang Wikidich ngay trên trang sách, xử lý chương ẩn hoặc rỗng; [Cài đặt](https://raw.githubusercontent.com/BaoBao666888/Novel-Downloader5/main/Wikidich%20Book%20Sync%20(Refactored).user.js).
 *   **TruyenWikiDich_Works_Manager.user.js:** Đồng bộ toàn bộ works cá nhân trên Wikidich, lưu vào localForage, hỗ trợ lọc nâng cao và xuất/nhập dữ liệu; [Cài đặt](https://raw.githubusercontent.com/BaoBao666888/Novel-Downloader5/main/TruyenWikiDich_Works_Manager.user.js).
-*   **Wikicv_Library_Archiver.user.js:** Quét, lưu, xem và xuất thư viện Wikicv/Koanchay, hỗ trợ checkpoint, helper và xuất HTML linh hoạt; [Cài đặt](https://raw.githubusercontent.com/BaoBao666888/Novel-Downloader5/main/tools/Wikicv_Library_Archiver.user.js).
+*   **Wikicv_Library_Archiver.user.js:** Quét, lưu, xem và xuất thư viện Wikicv, hỗ trợ checkpoint, helper và xuất HTML linh hoạt; [Cài đặt](https://raw.githubusercontent.com/BaoBao666888/Novel-Downloader5/main/tools/Wikicv_Library_Archiver.user.js).
 *   **TruyenWikiDich_Get_Names.user.js:** Lấy danh sách tên nhân vật, quản lý name desk từ web wiki; [Cài đặt](https://github.com/BaoBao666888/Novel-Downloader5/raw/refs/heads/main/tools/TruyenWikiDich_Get_Names.user.js).
 *   **wkidich-search-to-detail.user.js:** Thêm nút tìm truyện Wikidich và hiển thị link nhúng detail từ API; [Cài đặt](https://raw.githubusercontent.com/BaoBao666888/Novel-Downloader5/main/wkidich-search-to-detail.user.js).
 *   **fanqie-comments.user.js:** Thêm hiển thị comments truyện fanqie trên trang page, cho phép hiển thị & dịch toàn bộ comments; [Cài đặt](https://raw.githubusercontent.com/BaoBao666888/Novel-Downloader5/main/tools/fanqie-comments.user.js)
@@ -224,7 +225,7 @@ Rule.special.push({
 ### Công cụ & thư mục
 
 *   **tools/build-novel-downloader.js:** Build `novelDownloaderVietSub.user.js` từ source core và các file rule; hỗ trợ `extract` khi cần tách lại từ userscript hiện có.
-*   **decode\\Zongcai-Novel-Decoder.user.js:** Giải mã truyện Zongcai; [Cài đặt STV](https://raw.githubusercontent.com/BaoBao666888/Novel-Downloader5/main/decode/STV-Downloader.user.js) • [Cài đặt Zongcai](https://raw.githubusercontent.com/BaoBao666888/Novel-Downloader5/main/decode/Zongcai-Novel-Decoder.user.js).
+*   **decode\\Zongcai-Novel-Decoder.user.js:** Giải mã truyện Zongcai; [Cài đặt Zongcai](https://raw.githubusercontent.com/BaoBao666888/Novel-Downloader5/main/decode/Zongcai-Novel-Decoder.user.js).
 *   **rename_chapters\\***: Ứng dụng Tkinter Rename Chapters (v0.1.5) đổi tên file theo nội dung, sắp xếp, gộp/tách, hỗ trợ fetch metadata (ảnh, mục lục), plugin cho JJWXC/PO18/Qidian/Fanqie va cập nhật tự động; ưu tiên dùng bản build sẵn [Rename Chapters](https://github.com/BaoBao666888/Novel-Downloader5/releases).
 *   **tools/nd-debug-bridge\\***: Server và client Debug Bridge cho ND5; xem [hướng dẫn debug script](tools/nd-debug-bridge/README.md).
 

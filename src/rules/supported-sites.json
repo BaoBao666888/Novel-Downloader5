@@ -1,0 +1,1348 @@
+{
+  "version": 1,
+  "updatedAt": "2026-06-11",
+  "source": "src/rules/special",
+  "sites": [
+    {
+      "name": "动漫之家",
+      "ruleName": "动漫之家",
+      "file": "src/rules/special/0001-manhua-dmzj-com.rule.js",
+      "kind": "special",
+      "domains": [
+        "manhua.dmzj.com"
+      ]
+    },
+    {
+      "name": "漫画堆",
+      "ruleName": "漫画堆",
+      "file": "src/rules/special/0002-manhuabei-com.rule.js",
+      "kind": "special",
+      "domains": [
+        "www.manhuabei.com",
+        "www.manhuafen.com"
+      ]
+    },
+    {
+      "name": "漫画柜",
+      "ruleName": "漫画柜",
+      "file": "src/rules/special/0003-manhuagui-com.rule.js",
+      "kind": "special",
+      "domains": [
+        "www.manhuagui.com"
+      ]
+    },
+    {
+      "name": "UUks",
+      "ruleName": "UUks",
+      "file": "src/rules/special/0004-uuks-org.rule.js",
+      "kind": "special",
+      "domains": [
+        "www.uuks.org"
+      ]
+    },
+    {
+      "name": "思念文学",
+      "ruleName": "思念文学",
+      "file": "src/rules/special/0005-2wxsi-com.rule.js",
+      "kind": "special",
+      "domains": [
+        "www.2wxsi.com"
+      ]
+    },
+    {
+      "name": "52书库",
+      "ruleName": "52书库",
+      "file": "src/rules/special/0006-52shuku-vip.rule.js",
+      "kind": "special",
+      "domains": [
+        "www.52shuku.net",
+        "www.52shuku.vip"
+      ]
+    },
+    {
+      "name": "汉典古籍",
+      "ruleName": "汉典古籍",
+      "file": "src/rules/special/0007-gj-zdic-net.rule.js",
+      "kind": "special",
+      "domains": [
+        "gj.zdic.net"
+      ]
+    },
+    {
+      "name": "九九藏书网",
+      "ruleName": "九九藏书网",
+      "file": "src/rules/special/0008-99csw-com.rule.js",
+      "kind": "special",
+      "domains": [
+        "99csw.com",
+        "www.99csw.com"
+      ]
+    },
+    {
+      "name": "努努书坊",
+      "ruleName": "努努书坊",
+      "file": "src/rules/special/0009-kanunu8-com.rule.js",
+      "kind": "special",
+      "domains": [
+        "kanunu8.com",
+        "www.kanunu8.com"
+      ]
+    },
+    {
+      "name": "努努书坊",
+      "ruleName": "努努书坊",
+      "file": "src/rules/special/0010-kanunu8-com.rule.js",
+      "kind": "special",
+      "domains": [
+        "www.kanunu8.com"
+      ]
+    },
+    {
+      "name": "梦远书城",
+      "ruleName": "梦远书城",
+      "file": "src/rules/special/0011-my2852-com.rule.js",
+      "kind": "special",
+      "domains": [
+        "www.my2852.com"
+      ]
+    },
+    {
+      "name": "天涯书库",
+      "ruleName": "天涯书库",
+      "file": "src/rules/special/0012-tianyabooks-com.rule.js",
+      "kind": "special",
+      "domains": [
+        "tianyabooks.com",
+        "www.tianyabooks.com"
+      ]
+    },
+    {
+      "name": "我要小说网",
+      "ruleName": "我要小说网",
+      "file": "src/rules/special/0013-51xs-com.rule.js",
+      "kind": "special",
+      "domains": [
+        "www.51xs.com"
+      ]
+    },
+    {
+      "name": "起点中文网",
+      "ruleName": "起点中文网",
+      "file": "src/rules/special/0014-qidian-com.rule.js",
+      "kind": "special",
+      "domains": [
+        "hongxiu.com",
+        "qidian.com",
+        "readnovel.com",
+        "www.hongxiu.com",
+        "www.qidian.com",
+        "www.readnovel.com",
+        "www.xs8.cn",
+        "xs8.cn"
+      ]
+    },
+    {
+      "name": "刺猬猫",
+      "ruleName": "刺猬猫",
+      "file": "src/rules/special/0015-ciweimao-com.rule.js",
+      "kind": "special",
+      "domains": [
+        "ciweimao.com",
+        "www.ciweimao.com"
+      ]
+    },
+    {
+      "name": "书耽",
+      "ruleName": "书耽",
+      "file": "src/rules/special/0016-shubl-com.rule.js",
+      "kind": "special",
+      "domains": [
+        "www.shubl.com"
+      ]
+    },
+    {
+      "name": "创世中文网",
+      "ruleName": "创世中文网",
+      "file": "src/rules/special/0017-chuangshi-qq-com.rule.js",
+      "kind": "special",
+      "domains": [
+        "chuangshi.qq.com",
+        "qq.com",
+        "yunqi.qq.com"
+      ]
+    },
+    {
+      "name": "QQ阅读",
+      "ruleName": "QQ阅读",
+      "file": "src/rules/special/0018-dushu-qq-com.rule.js",
+      "kind": "special",
+      "domains": [
+        "book.qq.com",
+        "dushu.qq.com",
+        "qq.com"
+      ]
+    },
+    {
+      "name": "起点国际",
+      "ruleName": "起点国际",
+      "file": "src/rules/special/0019-webnovel-com.rule.js",
+      "kind": "special",
+      "domains": [
+        "webnovel.com",
+        "www.webnovel.com"
+      ]
+    },
+    {
+      "name": "天涯文学",
+      "ruleName": "天涯文学",
+      "file": "src/rules/special/0020-book-tianya-cn.rule.js",
+      "kind": "special",
+      "domains": [
+        "book.tianya.cn"
+      ]
+    },
+    {
+      "name": "3G书城",
+      "ruleName": "3G书城",
+      "file": "src/rules/special/0021-3gsc-com-cn.rule.js",
+      "kind": "special",
+      "domains": [
+        "3gsc.com.cn",
+        "www.3gsc.com.cn"
+      ]
+    },
+    {
+      "name": "纵横",
+      "ruleName": "纵横",
+      "file": "src/rules/special/0022-book-zongheng-com.rule.js",
+      "kind": "special",
+      "domains": [
+        "book.zongheng.com",
+        "huayu.zongheng.com",
+        "zongheng.com"
+      ]
+    },
+    {
+      "name": "17K",
+      "ruleName": "17K",
+      "file": "src/rules/special/0023-17k-com.rule.js",
+      "kind": "special",
+      "domains": [
+        "www.17k.com"
+      ]
+    },
+    {
+      "name": "不可能的世界",
+      "ruleName": "不可能的世界",
+      "file": "src/rules/special/0024-8kana-com.rule.js",
+      "kind": "special",
+      "domains": [
+        "www.8kana.com"
+      ]
+    },
+    {
+      "name": "黑岩",
+      "ruleName": "黑岩",
+      "file": "src/rules/special/0025-heiyan-com.rule.js",
+      "kind": "special",
+      "domains": [
+        "www.heiyan.com",
+        "www.ruochu.com"
+      ]
+    },
+    {
+      "name": "飞卢",
+      "ruleName": "飞卢",
+      "file": "src/rules/special/0026-b-faloo-com.rule.js",
+      "kind": "special",
+      "domains": [
+        "b.faloo.com"
+      ]
+    },
+    {
+      "name": "ihuaben",
+      "ruleName": "ihuaben",
+      "file": "src/rules/special/0027-ihuaben-com.rule.js",
+      "kind": "special",
+      "domains": [
+        "www.69shuba.com",
+        "www.ihuaben.com"
+      ]
+    },
+    {
+      "name": "爱丽丝书屋",
+      "ruleName": "爱丽丝书屋",
+      "file": "src/rules/special/0028-alicesw-com.rule.js",
+      "kind": "special",
+      "domains": [
+        "www.alicesw.com"
+      ]
+    },
+    {
+      "name": "ixdzs",
+      "ruleName": "ixdzs",
+      "file": "src/rules/special/0029-window-location-href.rule.js",
+      "kind": "special",
+      "domains": [
+        "ixdzs.tw",
+        "ixdzs8.com"
+      ]
+    },
+    {
+      "name": "小說之家 (xszj.org)",
+      "ruleName": "小說之家 (xszj.org)",
+      "file": "src/rules/special/0030-xszj-org.rule.js",
+      "kind": "special",
+      "domains": [
+        "xszj.org"
+      ]
+    },
+    {
+      "name": "微风小说 (wfxs)",
+      "ruleName": "微风小说 (wfxs)",
+      "file": "src/rules/special/0031-wfxs.rule.js",
+      "kind": "special",
+      "domains": [
+        "m.wfxs.tw",
+        "www.wfxs.tw"
+      ]
+    },
+    {
+      "name": "短篇小說 (oop.tw)",
+      "ruleName": "短篇小說 (oop.tw)",
+      "file": "src/rules/special/0032-oop-tw.rule.js",
+      "kind": "special",
+      "domains": [
+        "oop.tw",
+        "www.oop.tw"
+      ]
+    },
+    {
+      "name": "一七小说 (1qxs)",
+      "ruleName": "一七小说 (1qxs)",
+      "file": "src/rules/special/0033-window-location-host.rule.js",
+      "kind": "special",
+      "domains": [
+        "m.1qxs.com"
+      ]
+    },
+    {
+      "name": "Qimao (七猫文化)",
+      "ruleName": "Qimao (七猫文化)",
+      "file": "src/rules/special/0034-qimao-com.rule.js",
+      "kind": "special",
+      "domains": [
+        "qimao.com",
+        "www.qimao.com"
+      ]
+    },
+    {
+      "name": "番茄小说 (Fanqie)",
+      "ruleName": "番茄小说 (Fanqie)",
+      "file": "src/rules/special/0035-fanqienovel-com.rule.js",
+      "kind": "special",
+      "domains": [
+        "api5-normal-sinfonlineb.fqnovel.com",
+        "fanqienovel.com"
+      ]
+    },
+    {
+      "name": "爱发电 (Afdian)",
+      "ruleName": "爱发电 (Afdian)",
+      "file": "src/rules/special/0036-afdian-com.rule.js",
+      "kind": "special",
+      "domains": [
+        "afdian.com"
+      ]
+    },
+    {
+      "name": "TruyenWikiDich",
+      "ruleName": "TruyenWikiDich",
+      "file": "src/rules/special/0037-wikicv-net.rule.js",
+      "kind": "special",
+      "domains": [
+        "wikicv.net"
+      ]
+    },
+    {
+      "name": "czbooks",
+      "ruleName": "czbooks",
+      "file": "src/rules/special/0039-czbooks-net.rule.js",
+      "kind": "special",
+      "domains": [
+        "czbooks.net"
+      ]
+    },
+    {
+      "name": "第一版主 (diyibanzhu)",
+      "ruleName": "第一版主 (diyibanzhu)",
+      "file": "src/rules/special/0040-window-location-host-includes.rule.js",
+      "kind": "special",
+      "domains": [
+        "diyibanzhu.me"
+      ]
+    },
+    {
+      "name": "稷下書院(Novel543)",
+      "ruleName": "稷下書院(Novel543)",
+      "file": "src/rules/special/0041-novel543-com.rule.js",
+      "kind": "special",
+      "domains": [
+        "www.novel543.com"
+      ]
+    },
+    {
+      "name": "画本 (ihuaben)",
+      "ruleName": "画本 (ihuaben)",
+      "file": "src/rules/special/0042-ihuaben-com.rule.js",
+      "kind": "special",
+      "domains": [
+        "www.ihuaben.com"
+      ]
+    },
+    {
+      "name": "晋江文学城",
+      "ruleName": "晋江文学城",
+      "file": "src/rules/special/0044-jjwxc-net.rule.js",
+      "kind": "special",
+      "domains": [
+        "www.jjwxc.net"
+      ]
+    },
+    {
+      "name": "潇湘书院",
+      "ruleName": "潇湘书院",
+      "file": "src/rules/special/0045-xxsy-net.rule.js",
+      "kind": "special",
+      "domains": [
+        "www.xxsy.net"
+      ]
+    },
+    {
+      "name": "逐浪",
+      "ruleName": "逐浪",
+      "file": "src/rules/special/0046-zhulang-com.rule.js",
+      "kind": "special",
+      "domains": [
+        "www.xxs8.com",
+        "www.zhulang.com"
+      ]
+    },
+    {
+      "name": "看书网",
+      "ruleName": "看书网",
+      "file": "src/rules/special/0047-kanshu-com.rule.js",
+      "kind": "special",
+      "domains": [
+        "www.kanshu.com"
+      ]
+    },
+    {
+      "name": "微博读书-书城",
+      "ruleName": "微博读书-书城",
+      "file": "src/rules/special/0048-vip-book-sina-com-cn.rule.js",
+      "kind": "special",
+      "domains": [
+        "vip.book.sina.com.cn"
+      ]
+    },
+    {
+      "name": "连城读书",
+      "ruleName": "连城读书",
+      "file": "src/rules/special/0049-lcread-com.rule.js",
+      "kind": "special",
+      "domains": [
+        "www.lcread.com"
+      ]
+    },
+    {
+      "name": "磨铁中文网",
+      "ruleName": "磨铁中文网",
+      "file": "src/rules/special/0050-motie-com.rule.js",
+      "kind": "special",
+      "domains": [
+        "www.motie.com"
+      ]
+    },
+    {
+      "name": "书海小说网",
+      "ruleName": "书海小说网",
+      "file": "src/rules/special/0051-shuhai-com.rule.js",
+      "kind": "special",
+      "domains": [
+        "www.shuhai.com"
+      ]
+    },
+    {
+      "name": "香网",
+      "ruleName": "香网",
+      "file": "src/rules/special/0052-xiang5-com.rule.js",
+      "kind": "special",
+      "domains": [
+        "www.xiang5.com"
+      ]
+    },
+    {
+      "name": "凤鸣轩小说网",
+      "ruleName": "凤鸣轩小说网",
+      "file": "src/rules/special/0053-fmx-cn.rule.js",
+      "kind": "special",
+      "domains": [
+        "read.fmx.cn",
+        "www.fmx.cn"
+      ]
+    },
+    {
+      "name": "酷匠网",
+      "ruleName": "酷匠网",
+      "file": "src/rules/special/0054-kujiang-com.rule.js",
+      "kind": "special",
+      "domains": [
+        "www.kujiang.com"
+      ]
+    },
+    {
+      "name": "塔读文学",
+      "ruleName": "塔读文学",
+      "file": "src/rules/special/0055-tadu-com.rule.js",
+      "kind": "special",
+      "domains": [
+        "www.tadu.com"
+      ]
+    },
+    {
+      "name": "网易云阅读",
+      "ruleName": "网易云阅读",
+      "file": "src/rules/special/0056-yuedu-163-com.rule.js",
+      "kind": "special",
+      "domains": [
+        "yuedu.163.com"
+      ]
+    },
+    {
+      "name": "网易旗下",
+      "ruleName": "网易旗下",
+      "file": "src/rules/special/0057-guofeng-yuedu-163-com.rule.js",
+      "kind": "special",
+      "domains": [
+        "caiwei.yuedu.163.com",
+        "guofeng.yuedu.163.com",
+        "yuedu.163.com"
+      ]
+    },
+    {
+      "name": "阅路小说网",
+      "ruleName": "阅路小说网",
+      "file": "src/rules/special/0058-yueduyun-com.rule.js",
+      "kind": "special",
+      "domains": [
+        "apiuser.yueduyun.com",
+        "www.yueduyun.com"
+      ]
+    },
+    {
+      "name": "原创书殿",
+      "ruleName": "原创书殿",
+      "file": "src/rules/special/0059-ycsd-cn.rule.js",
+      "kind": "special",
+      "domains": [
+        "www.ycsd.cn"
+      ]
+    },
+    {
+      "name": "龙若中文网",
+      "ruleName": "龙若中文网",
+      "file": "src/rules/special/0060-longruo-com.rule.js",
+      "kind": "special",
+      "domains": [
+        "www.longruo.com"
+      ]
+    },
+    {
+      "name": "华夏天空",
+      "ruleName": "华夏天空",
+      "file": "src/rules/special/0061-hxtk-com.rule.js",
+      "kind": "special",
+      "domains": [
+        "www.hxtk.com"
+      ]
+    },
+    {
+      "name": "红薯中文网",
+      "ruleName": "红薯中文网",
+      "file": "src/rules/special/0062-hongshu-com.rule.js",
+      "kind": "special",
+      "domains": [
+        "www.hongshu.com"
+      ]
+    },
+    {
+      "name": "蔷薇书院",
+      "ruleName": "蔷薇书院",
+      "file": "src/rules/special/0063-qwsy-com.rule.js",
+      "kind": "special",
+      "domains": [
+        "www.qwsy.com"
+      ]
+    },
+    {
+      "name": "书连",
+      "ruleName": "书连",
+      "file": "src/rules/special/0064-shulink-com.rule.js",
+      "kind": "special",
+      "domains": [
+        "vip.shulink.com",
+        "www.shulink.com"
+      ]
+    },
+    {
+      "name": "搜读网",
+      "ruleName": "搜读网",
+      "file": "src/rules/special/0065-soudu-net.rule.js",
+      "kind": "special",
+      "domains": [
+        "soudu.net",
+        "wjsw.com",
+        "www.soudu.net",
+        "www.wjsw.com"
+      ]
+    },
+    {
+      "name": "天下书盟",
+      "ruleName": "天下书盟",
+      "file": "src/rules/special/0066-fbook-net.rule.js",
+      "kind": "special",
+      "domains": [
+        "www.fbook.net"
+      ]
+    },
+    {
+      "name": "铁血读书",
+      "ruleName": "铁血读书",
+      "file": "src/rules/special/0067-book-tiexue-net.rule.js",
+      "kind": "special",
+      "domains": [
+        "book.tiexue.net"
+      ]
+    },
+    {
+      "name": "悠空网",
+      "ruleName": "悠空网",
+      "file": "src/rules/special/0068-yokong-com.rule.js",
+      "kind": "special",
+      "domains": [
+        "www.yokong.com"
+      ]
+    },
+    {
+      "name": "创别书城",
+      "ruleName": "创别书城",
+      "file": "src/rules/special/0069-chuangbie-com.rule.js",
+      "kind": "special",
+      "domains": [
+        "www.chuangbie.com"
+      ]
+    },
+    {
+      "name": "陌上香坊",
+      "ruleName": "陌上香坊",
+      "file": "src/rules/special/0070-msxf-cn.rule.js",
+      "kind": "special",
+      "domains": [
+        "www.msxf.cn"
+      ]
+    },
+    {
+      "name": "辣鸡小说",
+      "ruleName": "辣鸡小说",
+      "file": "src/rules/special/0071-lajixs-com.rule.js",
+      "kind": "special",
+      "domains": [
+        "www.lajixs.com"
+      ]
+    },
+    {
+      "name": "POPO原創市集",
+      "ruleName": "POPO原創市集",
+      "file": "src/rules/special/0072-popo-tw.rule.js",
+      "kind": "special",
+      "domains": [
+        "www.popo.tw"
+      ]
+    },
+    {
+      "name": "PO18臉紅心跳",
+      "ruleName": "PO18臉紅心跳",
+      "file": "src/rules/special/0073-po18-tw.rule.js",
+      "kind": "special",
+      "domains": [
+        "www.po18.tw"
+      ]
+    },
+    {
+      "name": "起点台湾",
+      "ruleName": "起点台湾",
+      "file": "src/rules/special/0074-qidian-com-tw.rule.js",
+      "kind": "special",
+      "domains": [
+        "www.qidian.com.tw"
+      ]
+    },
+    {
+      "name": "轻之文库",
+      "ruleName": "轻之文库",
+      "file": "src/rules/special/0075-linovel-net.rule.js",
+      "kind": "special",
+      "domains": [
+        "www.linovel.net"
+      ]
+    },
+    {
+      "name": "长佩文学网",
+      "ruleName": "长佩文学网",
+      "file": "src/rules/special/0076-gongzicp-com.rule.js",
+      "kind": "special",
+      "domains": [
+        "www.gongzicp.com"
+      ]
+    },
+    {
+      "name": "SosadFun|废文",
+      "ruleName": "SosadFun|废文",
+      "file": "src/rules/special/0077-sosad-fun.rule.js",
+      "kind": "special",
+      "domains": [
+        "sosad.fun",
+        "xn--pxtr7m.com",
+        "xn--pxtr7m5ny.com"
+      ]
+    },
+    {
+      "name": "海棠文化线上文学城",
+      "ruleName": "海棠文化线上文学城",
+      "file": "src/rules/special/0078-myhtlmebook-com.rule.js",
+      "kind": "special",
+      "domains": [
+        "www.haitbook.com",
+        "www.myhtebooks.com",
+        "www.myhtlmebook.com"
+      ]
+    },
+    {
+      "name": "豆腐",
+      "ruleName": "豆腐",
+      "file": "src/rules/special/0079-doufu-la.rule.js",
+      "kind": "special",
+      "domains": [
+        "www.doufu.la"
+      ]
+    },
+    {
+      "name": "有毒小说网/息壤中文网",
+      "ruleName": "有毒小说网/息壤中文网",
+      "file": "src/rules/special/0080-youdubook-com.rule.js",
+      "kind": "special",
+      "domains": [
+        "www.xrzww.com",
+        "www.youdubook.com"
+      ]
+    },
+    {
+      "name": "掌阅书城",
+      "ruleName": "掌阅书城",
+      "file": "src/rules/special/0081-ireader-com.rule.js",
+      "kind": "special",
+      "domains": [
+        "www.ireader.com"
+      ]
+    },
+    {
+      "name": "豆瓣阅读",
+      "ruleName": "豆瓣阅读",
+      "file": "src/rules/special/0082-read-douban-com.rule.js",
+      "kind": "special",
+      "domains": [
+        "read.douban.com"
+      ]
+    },
+    {
+      "name": "豆瓣阅读Ebook",
+      "ruleName": "豆瓣阅读Ebook",
+      "file": "src/rules/special/0083-read-douban-com.rule.js",
+      "kind": "special",
+      "domains": [
+        "read.douban.com"
+      ]
+    },
+    {
+      "name": "轻小说文库",
+      "ruleName": "轻小说文库",
+      "file": "src/rules/special/0084-wenku8-net.rule.js",
+      "kind": "special",
+      "domains": [
+        "www.wenku8.net"
+      ]
+    },
+    {
+      "name": "SF轻小说",
+      "ruleName": "SF轻小说",
+      "file": "src/rules/special/0085-book-sfacg-com.rule.js",
+      "kind": "special",
+      "domains": [
+        "book.sfacg.com"
+      ]
+    },
+    {
+      "name": "亲小说网",
+      "ruleName": "亲小说网",
+      "file": "src/rules/special/0086-qinxiaoshuo-com.rule.js",
+      "kind": "special",
+      "domains": [
+        "www.qinxiaoshuo.com"
+      ]
+    },
+    {
+      "name": "轻小说文库(linovelib.com)",
+      "ruleName": "轻小说文库(linovelib.com)",
+      "file": "src/rules/special/0087-linovelib-com.rule.js",
+      "kind": "special",
+      "domains": [
+        "linovelib.com",
+        "www.linovelib.com"
+      ]
+    },
+    {
+      "name": "ESJ Zone",
+      "ruleName": "ESJ Zone",
+      "file": "src/rules/special/0088-esjzone-cc.rule.js",
+      "kind": "special",
+      "domains": [
+        "esjzone.cc",
+        "www.esjzone.cc"
+      ]
+    },
+    {
+      "name": "ESJ Zone 论坛",
+      "ruleName": "ESJ Zone 论坛",
+      "file": "src/rules/special/0089-esjzone-cc.rule.js",
+      "kind": "special",
+      "domains": [
+        "www.esjzone.cc"
+      ]
+    },
+    {
+      "name": "神凑小说网",
+      "ruleName": "神凑小说网",
+      "file": "src/rules/special/0090-shencou-com.rule.js",
+      "kind": "special",
+      "domains": [
+        "www.shencou.com"
+      ]
+    },
+    {
+      "name": "随想轻小说",
+      "ruleName": "随想轻小说",
+      "file": "src/rules/special/0091-book-suixw-com.rule.js",
+      "kind": "special",
+      "domains": [
+        "book.suixw.com"
+      ]
+    },
+    {
+      "name": "繽紛幻想",
+      "ruleName": "繽紛幻想",
+      "file": "src/rules/special/0092-colorful-fantasybooks-com.rule.js",
+      "kind": "special",
+      "domains": [
+        "colorful-fantasybooks.com"
+      ]
+    },
+    {
+      "name": "轻之国度",
+      "ruleName": "轻之国度",
+      "file": "src/rules/special/0093-lightnovel-us.rule.js",
+      "kind": "special",
+      "domains": [
+        "www.lightnovel.us"
+      ]
+    },
+    {
+      "name": "轻之国度",
+      "ruleName": "轻之国度",
+      "file": "src/rules/special/0094-lightnovel-us.rule.js",
+      "kind": "special",
+      "domains": [
+        "www.lightnovel.us"
+      ]
+    },
+    {
+      "name": "小説家になろう",
+      "ruleName": "小説家になろう",
+      "file": "src/rules/special/0095-ncode-syosetu-com.rule.js",
+      "kind": "special",
+      "domains": [
+        "ncode.syosetu.com"
+      ]
+    },
+    {
+      "name": "Wattpad",
+      "ruleName": "Wattpad",
+      "file": "src/rules/special/0096-wattpad-com.rule.js",
+      "kind": "special",
+      "domains": [
+        "www.wattpad.com"
+      ]
+    },
+    {
+      "name": "萌文库",
+      "ruleName": "萌文库",
+      "file": "src/rules/special/0097-xs-kdays-net.rule.js",
+      "kind": "special",
+      "domains": [
+        "xs.kdays.net"
+      ]
+    },
+    {
+      "name": "吾的轻小说",
+      "ruleName": "吾的轻小说",
+      "file": "src/rules/special/0098-biquge1000-com.rule.js",
+      "kind": "special",
+      "domains": [
+        "www.biquge1000.com"
+      ]
+    },
+    {
+      "name": "雷姆轻小说",
+      "ruleName": "雷姆轻小说",
+      "file": "src/rules/special/0099-novel-crazyideal-com.rule.js",
+      "kind": "special",
+      "domains": [
+        "novel.crazyideal.com"
+      ]
+    },
+    {
+      "name": "好看小说网",
+      "ruleName": "好看小说网",
+      "file": "src/rules/special/0100-xiaoshuokan-com.rule.js",
+      "kind": "special",
+      "domains": [
+        "www.xiaoshuokan.com"
+      ]
+    },
+    {
+      "name": "格格党",
+      "ruleName": "格格党",
+      "file": "src/rules/special/0101-ggdtxt-com.rule.js",
+      "kind": "special",
+      "domains": [
+        "www.ggdtxt.com"
+      ]
+    },
+    {
+      "name": "平板电子书网",
+      "ruleName": "平板电子书网",
+      "file": "src/rules/special/0102-qiqint-com.rule.js",
+      "kind": "special",
+      "domains": [
+        "www.qiqint.com"
+      ]
+    },
+    {
+      "name": "黄金屋中文",
+      "ruleName": "黄金屋中文",
+      "file": "src/rules/special/0103-tw-hjwzw-com.rule.js",
+      "kind": "special",
+      "domains": [
+        "hjwzw.com",
+        "tw.hjwzw.com"
+      ]
+    },
+    {
+      "name": "58小说网",
+      "ruleName": "58小说网",
+      "file": "src/rules/special/0104-5858xs-com.rule.js",
+      "kind": "special",
+      "domains": [
+        "www.5858xs.com"
+      ]
+    },
+    {
+      "name": "在线书吧",
+      "ruleName": "在线书吧",
+      "file": "src/rules/special/0105-bookba8-com.rule.js",
+      "kind": "special",
+      "domains": [
+        "www.bookba8.com"
+      ]
+    },
+    {
+      "name": "全本书屋(quanbensw)",
+      "ruleName": "全本书屋(quanbensw)",
+      "file": "src/rules/special/0106-quanbensw-cn.rule.js",
+      "kind": "special",
+      "domains": [
+        "www.quanbensw.cn"
+      ]
+    },
+    {
+      "name": "悠读文学网",
+      "ruleName": "悠读文学网",
+      "file": "src/rules/special/0107-yooread-net.rule.js",
+      "kind": "special",
+      "domains": [
+        "www.yooread.net"
+      ]
+    },
+    {
+      "name": "完本神站",
+      "ruleName": "完本神站",
+      "file": "src/rules/special/0108-wanbentxt-com.rule.js",
+      "kind": "special",
+      "domains": [
+        "www.wanbentxt.com"
+      ]
+    },
+    {
+      "name": "求书帮",
+      "ruleName": "求书帮",
+      "file": "src/rules/special/0109-qiushubang-com.rule.js",
+      "kind": "special",
+      "domains": [
+        "www.qiushubang.com"
+      ]
+    },
+    {
+      "name": "笔下看书阁",
+      "ruleName": "笔下看书阁",
+      "file": "src/rules/special/0110-lhjypx-net.rule.js",
+      "kind": "special",
+      "domains": [
+        "www.lhjypx.net"
+      ]
+    },
+    {
+      "name": "御书阁",
+      "ruleName": "御书阁",
+      "file": "src/rules/special/0111-m-yuzhaige-cc.rule.js",
+      "kind": "special",
+      "domains": [
+        "m.yuzhaige.cc"
+      ]
+    },
+    {
+      "name": "老猫小说",
+      "ruleName": "老猫小说",
+      "file": "src/rules/special/0112-ruth-tshirt-com.rule.js",
+      "kind": "special",
+      "domains": [
+        "www.laomaoxs.com",
+        "www.ruth-tshirt.com"
+      ]
+    },
+    {
+      "name": "19826文学",
+      "ruleName": "19826文学",
+      "file": "src/rules/special/0113-19826-net.rule.js",
+      "kind": "special",
+      "domains": [
+        "www.19826.net"
+      ]
+    },
+    {
+      "name": "乐文小说网",
+      "ruleName": "乐文小说网",
+      "file": "src/rules/special/0114-lewenn-com.rule.js",
+      "kind": "special",
+      "domains": [
+        "www.lewenn.com"
+      ]
+    },
+    {
+      "name": "盗墓笔记",
+      "ruleName": "盗墓笔记",
+      "file": "src/rules/special/0115-daomubiji-org.rule.js",
+      "kind": "special",
+      "domains": [
+        "www.daomubiji.org"
+      ]
+    },
+    {
+      "name": "全本小说网",
+      "ruleName": "全本小说网",
+      "file": "src/rules/special/0116-va-etong-com.rule.js",
+      "kind": "special",
+      "domains": [
+        "www.va-etong.com"
+      ]
+    },
+    {
+      "name": "书趣阁",
+      "ruleName": "书趣阁",
+      "file": "src/rules/special/0117-shuquge-com.rule.js",
+      "kind": "special",
+      "domains": [
+        "www.shuquge.com"
+      ]
+    },
+    {
+      "name": "系统小说网",
+      "ruleName": "系统小说网",
+      "file": "src/rules/special/0118-kuwx-net.rule.js",
+      "kind": "special",
+      "domains": [
+        "www.kuwx.net"
+      ]
+    },
+    {
+      "name": "流氓小说网",
+      "ruleName": "流氓小说网",
+      "file": "src/rules/special/0119-6mxs-com.rule.js",
+      "kind": "special",
+      "domains": [
+        "6mxs.com",
+        "www.6mxs.com",
+        "www.baxianxs.com",
+        "www.iqqxs.com"
+      ]
+    },
+    {
+      "name": "乐文小说网",
+      "ruleName": "乐文小说网",
+      "file": "src/rules/special/0120-22lewen-com.rule.js",
+      "kind": "special",
+      "domains": [
+        "lewen.com",
+        "www.22lewen.com"
+      ]
+    },
+    {
+      "name": "书包网",
+      "ruleName": "书包网",
+      "file": "src/rules/special/0121-shubao202-com.rule.js",
+      "kind": "special",
+      "domains": [
+        "lawen24.com",
+        "www.shubao202.com"
+      ]
+    },
+    {
+      "name": "禁忌书屋",
+      "ruleName": "禁忌书屋",
+      "file": "src/rules/special/0122-cool18-com.rule.js",
+      "kind": "special",
+      "domains": [
+        "www.cool18.com"
+      ]
+    },
+    {
+      "name": "7z小说网",
+      "ruleName": "7z小说网",
+      "file": "src/rules/special/0123-7zxs-cc.rule.js",
+      "kind": "special",
+      "domains": [
+        "www.7zxs.cc"
+      ]
+    },
+    {
+      "name": "青豆小说网",
+      "ruleName": "青豆小说网",
+      "file": "src/rules/special/0124-qdxiaoshuo-net.rule.js",
+      "kind": "special",
+      "domains": [
+        "www.qdxiaoshuo.net"
+      ]
+    },
+    {
+      "name": "书书屋",
+      "ruleName": "书书屋",
+      "file": "src/rules/special/0125-shushuwu8-com.rule.js",
+      "kind": "special",
+      "domains": [
+        "www.shushuwu8.com"
+      ]
+    },
+    {
+      "name": "翠微居小说网",
+      "ruleName": "翠微居小说网",
+      "file": "src/rules/special/0126-cuiweijux-com.rule.js",
+      "kind": "special",
+      "domains": [
+        "www.cuiweijux.com"
+      ]
+    },
+    {
+      "name": "4书包",
+      "ruleName": "4书包",
+      "file": "src/rules/special/0127-4shubao-com.rule.js",
+      "kind": "special",
+      "domains": [
+        "www.4shubao.com"
+      ]
+    },
+    {
+      "name": "喜书网",
+      "ruleName": "喜书网",
+      "file": "src/rules/special/0128-xitxt-net.rule.js",
+      "kind": "special",
+      "domains": [
+        "www.xitxt.net"
+      ]
+    },
+    {
+      "name": "神书网",
+      "ruleName": "神书网",
+      "file": "src/rules/special/0129-shenshuw-com.rule.js",
+      "kind": "special",
+      "domains": [
+        "www.shenshu.info",
+        "www.shenshuw.com"
+      ]
+    },
+    {
+      "name": "全本书屋",
+      "ruleName": "全本书屋",
+      "file": "src/rules/special/0130-quanshuwan-com.rule.js",
+      "kind": "special",
+      "domains": [
+        "www.quanshuwan.com"
+      ]
+    },
+    {
+      "name": "大众小说网",
+      "ruleName": "大众小说网",
+      "file": "src/rules/special/0131-dzwx520-com.rule.js",
+      "kind": "special",
+      "domains": [
+        "www.dzwx520.com"
+      ]
+    },
+    {
+      "name": "魔龙小说网",
+      "ruleName": "魔龙小说网",
+      "file": "src/rules/special/0132-mlxiaoshuo-com.rule.js",
+      "kind": "special",
+      "domains": [
+        "www.mlxiaoshuo.com"
+      ]
+    },
+    {
+      "name": "小强小说网",
+      "ruleName": "小强小说网",
+      "file": "src/rules/special/0133-123xiaoqiang-in.rule.js",
+      "kind": "special",
+      "domains": [
+        "www.123xiaoqiang.in"
+      ]
+    },
+    {
+      "name": "海岸线文学网",
+      "ruleName": "海岸线文学网",
+      "file": "src/rules/special/0134-haxxs8-com.rule.js",
+      "kind": "special",
+      "domains": [
+        "www.haxxs8.com"
+      ]
+    },
+    {
+      "name": "怀素吧小说",
+      "ruleName": "怀素吧小说",
+      "file": "src/rules/special/0135-huaisu8-com.rule.js",
+      "kind": "special",
+      "domains": [
+        "www.huaisu8.com"
+      ]
+    },
+    {
+      "name": "肉肉阅读",
+      "ruleName": "肉肉阅读",
+      "file": "src/rules/special/0136-xxread-net.rule.js",
+      "kind": "special",
+      "domains": [
+        "xxread.net"
+      ]
+    },
+    {
+      "name": "18H",
+      "ruleName": "18H",
+      "file": "src/rules/special/0137-18h-mm-cg-com.rule.js",
+      "kind": "special",
+      "domains": [
+        "18h.mm-cg.com"
+      ]
+    },
+    {
+      "name": "je51",
+      "ruleName": "je51",
+      "file": "src/rules/special/0138-hao-je51-com.rule.js",
+      "kind": "special",
+      "domains": [
+        "hao.je51.com",
+        "je51.com"
+      ]
+    },
+    {
+      "name": "疯情书库",
+      "ruleName": "疯情书库",
+      "file": "src/rules/special/0139-aastory-space.rule.js",
+      "kind": "special",
+      "domains": [
+        "aastory.space"
+      ]
+    },
+    {
+      "name": "疯情阅读",
+      "ruleName": "疯情阅读",
+      "file": "src/rules/special/0140-aaread-club.rule.js",
+      "kind": "special",
+      "domains": [
+        "aaread.club"
+      ]
+    },
+    {
+      "name": "UU看书繁体",
+      "ruleName": "UU看书繁体",
+      "file": "src/rules/special/0142-uukanshu-cc.rule.js",
+      "kind": "special",
+      "domains": [
+        "uukanshu.cc"
+      ]
+    },
+    {
+      "name": "WestNovel",
+      "ruleName": "WestNovel",
+      "file": "src/rules/special/0144-westnovel-com.rule.js",
+      "kind": "special",
+      "domains": [
+        "www.westnovel.com"
+      ]
+    },
+    {
+      "name": "256文学",
+      "ruleName": "256文学",
+      "file": "src/rules/special/0145-256wenku-com.rule.js",
+      "kind": "special",
+      "domains": [
+        "www.256wenku.com"
+      ]
+    },
+    {
+      "name": "笔仙阁",
+      "ruleName": "笔仙阁",
+      "file": "src/rules/special/0146-bixiange-me.rule.js",
+      "kind": "special",
+      "domains": [
+        "bixiange.xyz",
+        "m.bixiange.me"
+      ]
+    },
+    {
+      "name": "笔趣阁345",
+      "ruleName": "笔趣阁345",
+      "file": "src/rules/special/0147-biquge345-com.rule.js",
+      "kind": "special",
+      "domains": [
+        "www.biquge345.com"
+      ]
+    }
+  ]
+}

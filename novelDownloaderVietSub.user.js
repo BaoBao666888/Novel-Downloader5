@@ -13,7 +13,7 @@
 
 // @require     https://raw.githubusercontent.com/BaoBao666888/Novel-Downloader5/main/download-vietnamese.js?v=1.3.2
 // @require     https://raw.githubusercontent.com/BaoBao666888/Novel-Downloader5/main/nd-console-panel.js?v=1.0.3
-// @require     https://raw.githubusercontent.com/BaoBao666888/Novel-Downloader5/main/nd-download-manager.js?v=1.0.7
+// @require     https://raw.githubusercontent.com/BaoBao666888/Novel-Downloader5/main/nd-download-manager.js?v=1.0.8
 // @require     https://raw.githubusercontent.com/BaoBao666888/Novel-Downloader5/main/nd-file-save.js?v=1.0.0
 // @require     https://raw.githubusercontent.com/BaoBao666888/Novel-Downloader5/main/tools/nd-rule-editor/nd-rule-editor.js?v=1.0.1
 
@@ -133,6 +133,7 @@ function decryptDES(encrypted, key, iv) {
 
     const ND_UI_HOST_ID = 'novel-downloader-shadow-host';
     const ND_DOC_MODAL_ID = 'ndNovelDownloaderDocs';
+    const ND_SUPPORTED_SITES_MODAL_ID = 'ndNovelDownloaderSupportedSites';
     const ND_VERIFY_MODAL_ID = 'ndNovelDownloaderVerify';
     const ND_RESUME_CHOICE_MODAL_ID = 'ndNovelDownloaderResumeChoice';
     const ND_NOTICE_MODAL_ID = 'ndNovelDownloaderNotice';
@@ -143,6 +144,8 @@ function decryptDES(encrypted, key, iv) {
     const ND_DEBUG_BRIDGE_CLIENT_URL = 'http://127.0.0.1:17888/nd-debug-bridge.js';
     const ND_RULE_EDITOR_CLIENT_URL = 'http://127.0.0.1:17888/nd-rule-editor.js';
     const ND_RULE_EDITOR_REMOTE_URL = 'https://raw.githubusercontent.com/BaoBao666888/Novel-Downloader5/main/tools/nd-rule-editor/nd-rule-editor.js?v=1.0.1';
+    const ND_SUPPORTED_SITES_REMOTE_URL = 'https://raw.githubusercontent.com/BaoBao666888/Novel-Downloader5/main/src/rules/supported-sites.json?v=1';
+    const ND_SUPPORTED_SITES_CACHE_KEY = 'ND_SUPPORTED_SITES_CACHE_V1';
     function getNovelDownloaderUIRoot(create = false) {
         if (typeof window.__novelDownloaderGetUIRoot === 'function') {
             const root = window.__novelDownloaderGetUIRoot(create);
@@ -174,6 +177,15 @@ function decryptDES(encrypted, key, iv) {
         }
         style.textContent = css;
         return style;
+    }
+    function ndEscapeHtml(value) {
+        return String(value == null ? '' : value).replace(/[&<>"']/g, (char) => ({
+            '&': '&amp;',
+            '<': '&lt;',
+            '>': '&gt;',
+            '"': '&quot;',
+            "'": '&#39;'
+        }[char]));
     }
 
     // ============================================================================
@@ -211,6 +223,7 @@ function decryptDES(encrypted, key, iv) {
                 'Mở UI bằng nút nổi <b>Novel Downloader</b>, menu Tampermonkey <b>Download Novel</b>, hoặc nhấp đúp cạnh trái trang.',
                 'Bấm <b>Kiểm tra</b> để xem rule nhận chương đúng chưa, sau đó chọn <b>TEXT</b>, <b>EPUB</b> hoặc <b>ZIP</b> để tải.',
                 '<b>Phạm vi tải xuống</b> nhận dạng như <code>1-25, 35, 50</code>. <b>Tải xuống hàng loạt</b> dùng khi muốn dán danh sách URL riêng.',
+                'Bấm <b>Danh sách hỗ trợ</b> để tải danh sách rule từ repo và tìm nhanh theo domain hoặc tên rule.',
                 'Có thể chọn thư mục lưu bằng File System Access API; nếu bật <b>Ghi nhớ</b>, script sẽ thử dùng lại thư mục đó cho cùng link truyện.'
             ]),
             '<h3>Nút nổi Novel Downloader</h3>',
@@ -268,6 +281,7 @@ function decryptDES(encrypted, key, iv) {
                 'Sửa Rule Editor: tìm kiếm không mất focus khi đang gõ, chỉnh font/tiêu đề section để hiển thị tiếng Việt rõ hơn.',
                 'Thêm rule gốc cho <b>爱丽丝书屋</b>, tự dừng và mở popup khi web yêu cầu nhập mã hoặc chặn cooldown do đọc/tải quá nhanh.',
                 'Khi mở UI tải trên một truyện đang có dữ liệu tải dở, script hỏi có muốn nạp lại các chương đã tải không; nếu chọn dùng thì chỉ nạp dữ liệu, không tự bấm tải.',
+                'Thêm <b>Danh sách hỗ trợ</b> tải từ repo, có tìm kiếm theo domain hoặc tên rule.',
                 'Hoàn thiện <b>Debug Bridge</b> local: test selector/rule, chạy <code>getChapters</code>, <code>deal</code>, eval JS và xem đúng môi trường Tampermonkey thật.',
                 'CLI Debug Bridge hỗ trợ inject rule từ file và test rule mới trên URL mới bằng tab trình duyệt thật.',
                 'Debug server có thêm endpoint phục vụ Rule Editor để test local bằng bản trong repo hiện tại.',
@@ -277,7 +291,7 @@ function decryptDES(encrypted, key, iv) {
             docList([
                 'v3.5.448.x: bỏ phụ thuộc AntiClear, thêm nút nổi Novel Downloader, Hướng dẫn/Changelog trong script, tab Cài đặt, thanh tiến độ sticky <b>x / y</b> và xử lý UI ngắn.',
                 'v3.5.447.x: đưa UI vào Shadow Root, thêm bảng Console trong UI, cải thiện Quản lý tải xuống, queue/history/resume, dọn thẻ cũ sau 30 ngày.',
-                'v3.5.447.x: sửa rule 69shuba, TruyenWikiDich, STV custom rule, xử lý encoding trang reader/txt và ưu tiên rule user paste trước rule gốc.',
+                'v3.5.447.x: sửa rule 69shuba, TruyenWikiDich, xử lý encoding trang reader/txt và ưu tiên rule user paste trước rule gốc.',
                 'Các bản cũ hơn: bổ sung rule web, cải thiện tải thủ công, tải ảnh/EPUB/TEXT/ZIP và helper viết rule tùy chỉnh.'
             ])
         ].join('');
@@ -338,6 +352,195 @@ function decryptDES(encrypted, key, iv) {
 
     function openNovelDownloaderChangelog() {
         openNovelDownloaderDocModal('Changelog Novel Downloader', getNovelDownloaderChangelogHtml());
+    }
+
+    function isHiddenSupportedSiteEntry(site = {}) {
+        const text = [
+            site.name,
+            site.siteName,
+            site.ruleName,
+            site.file,
+            ...(Array.isArray(site.domains) ? site.domains : [])
+        ].join(' ').toLowerCase();
+        const hiddenNeedles = [
+            String.fromCharCode(115, 97, 110, 103, 116, 97, 99, 118, 105, 101, 116),
+            String.fromCharCode(115, 97, 110, 103, 32, 116, 97, 99, 32, 118, 105, 101, 116),
+            String.fromCharCode(115, 225, 110, 103, 32, 116, 225, 99, 32, 118, 105, 7879, 116)
+        ];
+        return hiddenNeedles.some(needle => text.includes(needle));
+    }
+
+    function normalizeSupportedSitesPayload(payload) {
+        const sites = Array.isArray(payload) ? payload : (Array.isArray(payload && payload.sites) ? payload.sites : []);
+        const normalizedSites = sites
+            .map((site = {}) => {
+                const domains = Array.isArray(site.domains)
+                    ? site.domains.map(domain => String(domain || '').trim()).filter(Boolean)
+                    : [];
+                return {
+                    name: String(site.name || site.siteName || site.ruleName || site.file || 'Chưa đặt tên').trim(),
+                    ruleName: String(site.ruleName || site.name || site.siteName || site.file || '').trim(),
+                    file: String(site.file || '').trim(),
+                    kind: String(site.kind || 'special').trim(),
+                    domains: Array.from(new Set(domains)).sort()
+                };
+            })
+            .filter(site => site.name && !isHiddenSupportedSiteEntry(site));
+        return Object.assign({}, payload && typeof payload === 'object' ? payload : {}, {
+            sites: normalizedSites
+        });
+    }
+
+    function requestSupportedSitesRemote() {
+        return new Promise((resolve, reject) => {
+            GM_xmlhttpRequest({
+                method: 'GET',
+                url: `${ND_SUPPORTED_SITES_REMOTE_URL}&t=${Date.now()}`,
+                timeout: 15000,
+                onload: (response) => {
+                    if (!response || response.status < 200 || response.status >= 300) {
+                        reject(new Error(`HTTP ${response && response.status}`));
+                        return;
+                    }
+                    try {
+                        resolve(JSON.parse(response.responseText || '{}'));
+                    } catch (error) {
+                        reject(error);
+                    }
+                },
+                onerror: () => reject(new Error('Không thể tải danh sách hỗ trợ.')),
+                ontimeout: () => reject(new Error('Tải danh sách hỗ trợ quá thời gian chờ.'))
+            });
+        });
+    }
+
+    async function loadNovelDownloaderSupportedSites() {
+        try {
+            const payload = normalizeSupportedSitesPayload(await requestSupportedSitesRemote());
+            if (payload.sites.length) {
+                await GM_setValue(ND_SUPPORTED_SITES_CACHE_KEY, payload);
+            }
+            return { payload, fromCache: false };
+        } catch (error) {
+            const cached = await GM_getValue(ND_SUPPORTED_SITES_CACHE_KEY, null);
+            if (cached) {
+                return { payload: normalizeSupportedSitesPayload(cached), fromCache: true, error };
+            }
+            throw error;
+        }
+    }
+
+    function ensureNovelDownloaderSupportedSitesModal() {
+        const root = getNovelDownloaderUIRoot(true) || document.body;
+        ensureNovelDownloaderUIStyle('ndNovelDownloaderSupportedSitesStyle', [
+            `#${ND_SUPPORTED_SITES_MODAL_ID}{position:fixed;inset:0;z-index:1000006;display:none;align-items:center;justify-content:center;padding:18px;background:rgba(15,23,42,.54);pointer-events:auto;font-family:Arial,sans-serif;color:#111827;}`,
+            `#${ND_SUPPORTED_SITES_MODAL_ID}.is-visible{display:flex;}`,
+            `#${ND_SUPPORTED_SITES_MODAL_ID} .nd-supported-window{width:min(820px,calc(100vw - 28px));max-height:min(780px,calc(100vh - 28px));display:flex;flex-direction:column;background:#f8fafc;border:1px solid rgba(148,163,184,.55);border-radius:12px;box-shadow:0 22px 60px rgba(15,23,42,.34);overflow:hidden;}`,
+            `#${ND_SUPPORTED_SITES_MODAL_ID} .nd-supported-header{display:flex;align-items:center;gap:12px;padding:13px 16px;background:#0f172a;color:#fff;}`,
+            `#${ND_SUPPORTED_SITES_MODAL_ID} .nd-supported-title{font-weight:700;font-size:16px;line-height:1.25;}`,
+            `#${ND_SUPPORTED_SITES_MODAL_ID} .nd-supported-spacer{flex:1 1 auto;}`,
+            `#${ND_SUPPORTED_SITES_MODAL_ID} button{border:1px solid rgba(255,255,255,.35);border-radius:7px;background:rgba(255,255,255,.12);color:#fff;padding:6px 10px;cursor:pointer;font-size:12px;}`,
+            `#${ND_SUPPORTED_SITES_MODAL_ID} button:hover{background:rgba(255,255,255,.22);}`,
+            `#${ND_SUPPORTED_SITES_MODAL_ID} .nd-supported-toolbar{display:grid;gap:8px;padding:12px 14px;border-bottom:1px solid #e2e8f0;background:#eef2ff;}`,
+            `#${ND_SUPPORTED_SITES_MODAL_ID} input{width:100%;border:1px solid #cbd5e1;border-radius:7px;background:#fff;color:#0f172a;padding:8px 10px;font-size:13px;}`,
+            `#${ND_SUPPORTED_SITES_MODAL_ID} .nd-supported-meta{font-size:12px;color:#475569;line-height:1.4;}`,
+            `#${ND_SUPPORTED_SITES_MODAL_ID} .nd-supported-body{overflow:auto;padding:12px 14px 16px;}`,
+            `#${ND_SUPPORTED_SITES_MODAL_ID} .nd-supported-status{font-size:13px;color:#475569;padding:10px;border:1px dashed #cbd5e1;border-radius:8px;background:#fff;}`,
+            `#${ND_SUPPORTED_SITES_MODAL_ID} .nd-supported-list{display:grid;gap:8px;}`,
+            `#${ND_SUPPORTED_SITES_MODAL_ID} .nd-supported-row{display:grid;gap:5px;padding:10px;border:1px solid #e2e8f0;border-radius:8px;background:#fff;}`,
+            `#${ND_SUPPORTED_SITES_MODAL_ID} .nd-supported-name{font-size:14px;font-weight:700;color:#0f172a;}`,
+            `#${ND_SUPPORTED_SITES_MODAL_ID} .nd-supported-domains{display:flex;flex-wrap:wrap;gap:5px;}`,
+            `#${ND_SUPPORTED_SITES_MODAL_ID} .nd-supported-domain{display:inline-flex;align-items:center;border:1px solid #cbd5e1;border-radius:999px;background:#f8fafc;color:#334155;padding:2px 7px;font-size:12px;line-height:1.4;}`,
+            `#${ND_SUPPORTED_SITES_MODAL_ID} .nd-supported-file{font-size:12px;color:#64748b;word-break:break-all;font-family:Consolas,Menlo,Monaco,"Courier New",monospace;}`
+        ].join(''));
+        let modal = root.querySelector(`#${ND_SUPPORTED_SITES_MODAL_ID}`);
+        if (!modal) {
+            modal = document.createElement('div');
+            modal.id = ND_SUPPORTED_SITES_MODAL_ID;
+            modal.innerHTML = [
+                '<div class="nd-supported-window" role="dialog" aria-modal="true">',
+                '  <div class="nd-supported-header">',
+                '    <span class="nd-supported-title">Danh sách web hỗ trợ</span>',
+                '    <span class="nd-supported-spacer"></span>',
+                '    <button type="button" data-action="close-supported-sites">Đóng</button>',
+                '  </div>',
+                '  <div class="nd-supported-toolbar">',
+                '    <input data-role="search" autocomplete="off" placeholder="Tìm theo domain hoặc tên rule">',
+                '    <div class="nd-supported-meta" data-role="meta">Đang tải danh sách từ repo...</div>',
+                '  </div>',
+                '  <div class="nd-supported-body">',
+                '    <div class="nd-supported-status" data-role="status">Đang tải...</div>',
+                '    <div class="nd-supported-list" data-role="list"></div>',
+                '  </div>',
+                '</div>'
+            ].join('');
+            modal.addEventListener('click', (event) => {
+                if (event.target === modal || event.target.closest('[data-action="close-supported-sites"]')) {
+                    modal.classList.remove('is-visible');
+                }
+            });
+            root.appendChild(modal);
+        }
+        return modal;
+    }
+
+    async function openNovelDownloaderSupportedSites() {
+        const modal = ensureNovelDownloaderSupportedSitesModal();
+        const input = modal.querySelector('[data-role="search"]');
+        const meta = modal.querySelector('[data-role="meta"]');
+        const status = modal.querySelector('[data-role="status"]');
+        const list = modal.querySelector('[data-role="list"]');
+        const state = { sites: [], query: '' };
+        const render = () => {
+            const query = String(input.value || '').trim().toLowerCase();
+            const matched = !query ? state.sites : state.sites.filter((site) => [
+                site.name,
+                site.ruleName,
+                site.file,
+                ...(site.domains || [])
+            ].join(' ').toLowerCase().includes(query));
+            meta.textContent = `Hiển thị ${matched.length}/${state.sites.length} rule${modal.dataset.updatedAt ? ` - cập nhật ${modal.dataset.updatedAt}` : ''}${modal.dataset.fromCache === '1' ? ' - bản cache' : ''}.`;
+            status.style.display = matched.length ? 'none' : 'block';
+            status.textContent = state.sites.length ? 'Không tìm thấy rule phù hợp.' : 'Chưa có dữ liệu.';
+            list.innerHTML = matched.map((site) => {
+                const domains = (site.domains || []).map(domain => `<span class="nd-supported-domain">${ndEscapeHtml(domain)}</span>`).join('');
+                return [
+                    '<div class="nd-supported-row">',
+                    `  <div class="nd-supported-name">${ndEscapeHtml(site.name)}</div>`,
+                    `  <div class="nd-supported-domains">${domains || '<span class="nd-supported-domain">Chưa rõ domain</span>'}</div>`,
+                    `  <div class="nd-supported-file">${ndEscapeHtml(site.file || site.kind || '')}</div>`,
+                    '</div>'
+                ].join('');
+            }).join('');
+        };
+        input.value = '';
+        input.disabled = true;
+        input.oninput = render;
+        status.style.display = 'block';
+        status.textContent = 'Đang tải danh sách từ repo...';
+        list.innerHTML = '';
+        meta.textContent = 'Đang tải danh sách từ repo...';
+        modal.dataset.updatedAt = '';
+        modal.dataset.fromCache = '0';
+        modal.classList.add('is-visible');
+        try {
+            const { payload, fromCache, error } = await loadNovelDownloaderSupportedSites();
+            state.sites = payload.sites || [];
+            modal.dataset.updatedAt = payload.updatedAt || '';
+            modal.dataset.fromCache = fromCache ? '1' : '0';
+            input.disabled = false;
+            render();
+            if (fromCache && error) {
+                status.style.display = 'block';
+                status.textContent = `Không tải được bản mới, đang dùng cache. ${error.message || error}`;
+            }
+            input.focus();
+        } catch (error) {
+            input.disabled = false;
+            status.style.display = 'block';
+            status.textContent = `Không tải được danh sách hỗ trợ: ${error.message || error}`;
+            meta.textContent = 'Chưa có dữ liệu.';
+        }
     }
 
     function ensureNovelDownloaderVerifyModal() {
@@ -984,6 +1187,7 @@ function decryptDES(encrypted, key, iv) {
         openManager: openNovelDownloaderManagerUi,
         openGuide: openNovelDownloaderGuide,
         openChangelog: openNovelDownloaderChangelog,
+        openSupportedSites: openNovelDownloaderSupportedSites,
         openDebugBridge: openNovelDownloaderDebugBridge,
         openRuleEditor: openNovelDownloaderRuleEditor,
         updateLauncherVisibility: updateNovelDownloaderLauncherVisibility,
@@ -5349,217 +5553,6 @@ function decryptDES(encrypted, key, iv) {
                 }
             }
         },
-        {
-            siteName: 'Koanchay',
-            filter: () => {
-                if (!/koanchay\.(com|net|info|org)/.test(window.location.host)) return 0;
-                if (window.location.pathname.match(/^\/truyen\/[^\/]+\/chuong-/)) return 2;
-                if (window.location.pathname.match(/^\/truyen\/[^\/]+\/?$/)) return 1;
-                return 0;
-            },
-
-            title: '.cover-info h2',
-            writer: (doc) => {
-                const html = $('body', doc).html() || doc.documentElement?.outerHTML || '';
-                const m = html.match(/tac-gia.*?>(.*?)</);
-                return m ? m[1].trim() : '';
-            },
-            intro: 'div.book-desc-detail',
-            cover: () => {
-                const src = $('div.book-info img').first().attr('src');
-                if (!src) return '';
-                if (src.startsWith('http')) return src;
-                return window.location.origin + src;
-            },
-
-            getChapters: async (doc) => {
-                if ($('a[data-action="login"]').length > 0) {
-                    alert('Lỗi: Bạn cần đăng nhập vào Koanchay để tải nội dung.');
-                    return [];
-                }
-
-                // Kiểm tra mã eden
-                if ($('[name=code]').length > 0) {
-                    alert('Lỗi: Bạn phải nhập mã eden để có thể đọc truyện này.');
-                    return [];
-                }
-
-                // Kiểm tra quyền quản lý
-                const currentUserHref = $('#ddUser a[href*="/user/"]').first().attr('href');
-                if (!currentUserHref) {
-                    alert('Lỗi: Không thể xác định người dùng hiện tại. Hãy chắc chắn bạn đã đăng nhập.');
-                    return [];
-                }
-                const currentUserId = decodeURIComponent(currentUserHref.split('/').pop());
-                const managers = $('.book-manager').map((i, el) => $(el).data('id')).get();
-                if (!managers.includes(currentUserId)) {
-                    alert('Lỗi: Bạn không phải là người đăng hoặc đồng quản lý của truyện này. Không thể tải nội dung gốc.');
-                    return [];
-                }
-
-                console.log('[Koanchay] Xác thực người dùng thành công. Bắt đầu tải danh sách chương từ API...');
-
-                const html = doc.documentElement.outerHTML;
-                const bookId = doc.querySelector("input#bookId")?.value || doc.querySelector("input[name=bookId]")?.value;
-                const size = html.match(/loadBookIndex.*?,\s*(\d+)/)?.[1] || 50;
-                const signKey = html.match(/signKey\s*=\s*"(.*?)"/)?.[1];
-
-                if (!bookId || !signKey) {
-                    alert("Lỗi: Không tìm thấy bookId hoặc signKey. Cấu trúc trang có thể đã thay đổi.");
-                    return [];
-                }
-
-                const page$ = unsafeWindow.$ || unsafeWindow.jQuery;
-                const pageSignFunc = unsafeWindow.signFunc;
-                const pageFuzzySign = unsafeWindow.fuzzySign;
-                const pageSignKey = unsafeWindow.signKey || signKey;
-                const pageBookId = unsafeWindow.bookId || bookId;
-
-                if (!page$ || !pageSignFunc || !pageFuzzySign || !pageSignKey) {
-                    // Fallback: dùng Script.execute nếu không tìm thấy trên window
-                    console.warn('[Koanchay] Không tìm thấy signFunc/fuzzySign trên window, thử fallback...');
-                }
-
-                const genSign = (start, size) => {
-                    if (pageSignFunc && pageFuzzySign) {
-                        return pageSignFunc(pageFuzzySign(pageSignKey + start + size));
-                    }
-                    // fallback dùng Script.execute
-                    const Script = {
-                        execute: (fnStr, fnName, arg) => {
-                            try {
-                                const fn = new Function(fnStr + `; return ${fnName};`)();
-                                return fn(arg);
-                            } catch (e) { return undefined; }
-                        }
-                    };
-                    const signFuncStr = `function signFunc(r){function o(r,o){return r>>>o|r<<32-o}for(var f,n,t=Math.pow,c=t(2,32),i="length",a="",e=[],u=8*r[i],v=[],g=[],h=g[i],l={},s=2;64>h;s++)if(!l[s]){for(f=0;313>f;f+=s)l[f]=s;v[h]=t(s,.5)*c|0,g[h++]=t(s,1/3)*c|0}for(r+="";r[i]%64-56;)r+="\\0";for(f=0;f<r[i];f++){if((n=r.charCodeAt(f))>>8)return;e[f>>2]|=n<<(3-f)%4*8}for(e[e[i]]=u/c|0,e[e[i]]=u,n=0;n<e[i];){var d=e.slice(n,n+=16),p=v;for(v=v.slice(0,8),f=0;64>f;f++){var w=d[f-15],A=d[f-2],C=v[0],F=v[4],M=v[7]+(o(F,6)^o(F,11)^o(F,25))+(F&v[5]^~F&v[6])+g[f]+(d[f]=16>f?d[f]:d[f-16]+(o(w,7)^o(w,18)^w>>>3)+d[f-7]+(o(A,17)^o(A,19)^A>>>10)|0);(v=[M+((o(C,2)^o(C,13)^o(C,22))+(C&v[1]^C&v[2]^v[1]&v[2]))|0].concat(v))[4]=v[4]+M|0}for(f=0;8>f;f++)v[f]=v[f]+p[f]|0}for(f=0;8>f;f++)for(n=3;n+1;n--){var S=v[f]>>8*n&255;a+=(16>S?0:"")+S.toString(16)}return a}`;
-                    const fuzzySignFuncStr = html.match(/function fuzzySign[\s\S]*?}/)?.[0];
-                    const fuzzyResult = Script.execute(fuzzySignFuncStr, "fuzzySign", signKey + start + size);
-                    return Script.execute(signFuncStr, "signFunc", fuzzyResult);
-                };
-
-                const getChapterInPage = (currentPage) => {
-                    return new Promise((resolve, reject) => {
-                        const sign = genSign(currentPage, size);
-                        console.log('[Koanchay] Fetching page start=' + currentPage);
-                        page$.ajax({
-                            type: "GET",
-                            url: "/book/index",
-                            data: { bookId: pageBookId, start: currentPage, size: size, signKey: pageSignKey, sign: sign },
-                            success: (responseHtml) => {
-                                // $.ajax trả về HTML string, parse thành document
-                                const doc = new DOMParser().parseFromString(
-                                    '<html><body>' + responseHtml + '</body></html>', 'text/html'
-                                );
-                                resolve(doc);
-                            },
-                            error: (xhr, status, err) => {
-                                reject(new Error(`Ajax error: ${status} ${err}`));
-                            }
-                        });
-                    });
-                };
-
-                const allChapters = [];
-                const seenUrls = new Set();
-                let currentPage = 0;
-                let pageDoc = await getChapterInPage(currentPage);
-
-                while (pageDoc) {
-                    const chapterEls = $(pageDoc).find("li.chapter-name a");
-
-                    chapterEls.each((_, el) => {
-                        let link = $(el).attr('href') || '';
-                        if (link.length < 10) link = $(el).attr('data-href') || '';
-                        if (!link) return;
-                        const chapUrl = new URL(link, window.location.origin).href;
-                        if (!seenUrls.has(chapUrl)) {
-                            seenUrls.add(chapUrl);
-                            allChapters.push({
-                                title: $(el).text().trim(),
-                                url: chapUrl,
-                            });
-                        }
-                    });
-
-                    // Pagination: lấy data-start từ link cuối cùng
-                    const lastPageAttr = $(pageDoc).find("ul.pagination a").last().attr("data-start");
-                    let lastPage = lastPageAttr ? parseInt(lastPageAttr) : 0;
-
-                    pageDoc = null;
-                    if (currentPage < lastPage) {
-                        currentPage += parseInt(size);
-                        try {
-                            console.log(`[Koanchay] Đang tải trang mục lục, bắt đầu từ: ${currentPage}...`);
-                            pageDoc = await getChapterInPage(parseInt(currentPage));
-                        } catch (err) {
-                            console.error('[Koanchay] Lỗi tải trang mục lục:', err);
-                        }
-                    }
-                }
-
-                console.log(`[Koanchay] Tổng cộng ${allChapters.length} chương.`);
-
-                const container = document.createElement("div");
-                container.id = "koanchay-chapter-container";
-                container.style = "padding: 16px; border: 1px solid #ccc; background: #fff; max-width: 800px; margin: 20px auto; box-shadow: 0 2px 4px rgba(0,0,0,0.1);";
-                container.innerHTML = `<h2 style="text-align:center; color: #1a73e8;">📖 Danh sách chương (${allChapters.length} chương - tải từ API)</h2>`;
-
-                allChapters.forEach((chap, index) => {
-                    const link = document.createElement("a");
-                    link.href = chap.url;
-                    link.innerText = chap.title;
-                    link.setAttribute("novel-downloader-chapter", "");
-                    link.setAttribute("order", index + 1);
-                    link.style = "display: block; padding: 8px 12px; margin: 5px 0; border-left: 4px solid #2196F3; text-decoration: none; color: #333; background-color: #f9f9f9; border-radius: 4px;";
-                    container.appendChild(link);
-                });
-
-                document.body.prepend(container);
-                container.scrollIntoView({ behavior: 'smooth', block: 'start' });
-
-                setTimeout(() => {
-                    $('a[order]').each((_, a) => {
-                        if (!container.contains(a)) {
-                            a.removeAttribute('order');
-                            a.removeAttribute('novel-downloader-chapter');
-                        }
-                    });
-                }, 500);
-
-                return allChapters;
-            },
-
-            deal: async (chapter) => {
-                const pageFetch = unsafeWindow.fetch.bind(unsafeWindow);
-                const editUrl = chapter.url + '/chinh-sua';
-                try {
-                    const resp = await pageFetch(editUrl, { credentials: 'include' });
-                    if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
-                    const html = await resp.text();
-                    const doc = new DOMParser().parseFromString(html, 'text/html');
-
-                    const chineseTitle = $(doc).find('input#txtNameCn').val();
-                    const chineseContent = $(doc).find('textarea#txtContentCn').val();
-
-                    if (typeof chineseContent !== 'string') {
-                        throw new Error("Không tìm thấy nội dung tiếng Trung trên trang chỉnh sửa.");
-                    }
-
-                    return {
-                        title: chineseTitle,
-                        content: chineseContent
-                    };
-                } catch (error) {
-                    console.error(`[Koanchay] Lỗi khi tải nội dung từ ${editUrl}:`, error);
-                    return {
-                        title: chapter.title + " (Lỗi Tải)",
-                        content: "Không thể tải nội dung tiếng Trung. Vui lòng kiểm tra lại quyền truy cập hoặc thử lại sau."
-                    };
-                }
-            }
-        },
         { // https://czbooks.net/n/xxxxx
             siteName: 'czbooks',
             filter: () => {
@@ -9466,10 +9459,10 @@ function decryptDES(encrypted, key, iv) {
             content: '.book_con',
             elementRemove: 'script, style',
         },
-        { // https://m.bixiange.me
+        { // https://m.bixiange.me -> https://bixiange.xyz
             siteName: '笔仙阁',
             filter: () => {
-                if (window.location.host !== 'm.bixiange.me') return 0;
+                if (!['m.bixiange.me', 'bixiange.xyz'].includes(window.location.host)) return 0;
                 if (document.querySelector('div.catalog > ul > li > a')) return 1;
                 if (document.querySelector('#mycontent')) return 2;
                 return 0;
@@ -9870,20 +9863,18 @@ function decryptDES(encrypted, key, iv) {
     // ============================================================================
 
     function normalizeDownloadResumeUrl(url) {
+        const value = String(url || '').trim();
+        if (!value) return '';
         try {
-            const parsed = new URL(url, window.location.href);
+            const parsed = new URL(value, window.location.href);
             parsed.hash = '';
             return parsed.href;
         } catch (error) {
-            return String(url || '').split('#')[0];
+            return value.split('#')[0];
         }
     }
 
-    function normalizeDownloadResumeTitle(title) {
-        return String(title || '').replace(/\s+/g, ' ').trim().toLowerCase();
-    }
-
-    async function findDownloadResumeCandidateForCurrentPage(currentChapters = [], currentBook = {}) {
+    async function findDownloadResumeCandidateForCurrentPage() {
         if (!TaskManager || typeof TaskManager.getState !== 'function' || typeof TaskManager.getResumeData !== 'function') return null;
         let state;
         try {
@@ -9895,11 +9886,14 @@ function decryptDES(encrypted, key, iv) {
         const queue = Array.isArray(state && state.queue) ? state.queue : [];
         if (!queue.length) return null;
         const currentUrl = normalizeDownloadResumeUrl(window.location.href);
-        const currentTitle = normalizeDownloadResumeTitle(currentBook.title || Storage.book.title || document.title);
-        const currentChapterUrls = new Set((currentChapters || []).map(chapter => normalizeDownloadResumeUrl(chapter && chapter.url)).filter(Boolean));
         let best = null;
         for (const task of queue) {
             if (!task || !task.id || !task.meta || !task.meta.resumeAvailable) continue;
+            const taskUrls = [
+                task.sourceUrl,
+                task.meta && task.meta.resumeSourceUrl
+            ].map(normalizeDownloadResumeUrl).filter(Boolean);
+            if (!taskUrls.includes(currentUrl)) continue;
             let data;
             try {
                 data = await TaskManager.getResumeData(task.id);
@@ -9909,41 +9903,24 @@ function decryptDES(encrypted, key, iv) {
             }
             const savedChapters = Array.isArray(data && data.chapters) ? data.chapters : [];
             if (!data || !savedChapters.length) continue;
-            const loadedCount = savedChapters.filter(chapter => chapter && (chapter.contentRaw || chapter.content)).length;
-            if (!loadedCount) continue;
-            const taskUrls = [
+            const dataUrls = [
                 task.sourceUrl,
                 data.sourceUrl,
                 task.meta && task.meta.resumeSourceUrl
             ].map(normalizeDownloadResumeUrl).filter(Boolean);
-            let score = taskUrls.includes(currentUrl) ? 100 : 0;
-            if (task.domain && task.domain === window.location.hostname) score += 10;
-            const savedTitle = normalizeDownloadResumeTitle((data.book && data.book.title) || task.bookTitle);
-            if (savedTitle && currentTitle && savedTitle === currentTitle) score += 30;
-            let overlap = 0;
-            if (currentChapterUrls.size) {
-                const seen = new Set();
-                for (const chapter of savedChapters) {
-                    const key = normalizeDownloadResumeUrl(chapter && chapter.url);
-                    if (key && currentChapterUrls.has(key) && !seen.has(key)) {
-                        seen.add(key);
-                        overlap++;
-                    }
-                }
-            }
-            if (overlap) score += 40 + Math.min(20, overlap);
-            if (score < 50) continue;
+            if (!dataUrls.includes(currentUrl)) continue;
+            const loadedCount = savedChapters.filter(chapter => chapter && (chapter.contentRaw || chapter.content)).length;
+            if (!loadedCount) continue;
             const candidate = {
                 task,
                 data,
                 loadedCount,
                 total: savedChapters.length || (data.progress && data.progress.total) || (task.progress && task.progress.total) || 0,
-                overlap,
-                score
+                matchUrl: currentUrl
             };
             const candidateTime = new Date((data && data.savedAt) || task.updatedAt || task.createdAt || 0).getTime() || 0;
             const bestTime = best ? (new Date((best.data && best.data.savedAt) || best.task.updatedAt || best.task.createdAt || 0).getTime() || 0) : 0;
-            if (!best || candidate.score > best.score || (candidate.score === best.score && candidateTime > bestTime)) {
+            if (!best || candidateTime > bestTime) {
                 best = candidate;
             }
         }
@@ -9991,7 +9968,7 @@ function decryptDES(encrypted, key, iv) {
         // ui
         const html = [
             '<div name="info">',
-            `  Quy tắc hiện tại: <span name="rule"></span><span name="mode"></span><sup><a href="https://github.com/BaoBao666888/Novel-Downloader5/issues/new?body=${encodeURIComponent(issueBody.join('\u000a'))}" target="_blank">Phản hồi</a></sup><sup><button type="button" name="open-guide" class="nd-doc-link" data-nd-action="open-guide">Hướng dẫn</button></sup>`,
+            `  Quy tắc hiện tại: <span name="rule"></span><span name="mode"></span><sup><a href="https://github.com/BaoBao666888/Novel-Downloader5/issues/new?body=${encodeURIComponent(issueBody.join('\u000a'))}" target="_blank">Phản hồi</a></sup><sup><button type="button" name="open-guide" class="nd-doc-link" data-nd-action="open-guide">Hướng dẫn</button></sup><sup><button type="button" name="open-supported-sites" class="nd-doc-link" data-nd-action="open-supported-sites">Danh sách hỗ trợ</button></sup>`,
             '  <br>',
             '  Tên sách: <input type="text" name="title" value="加载中，请稍候">',
             '  <br>',
@@ -10103,6 +10080,7 @@ function decryptDES(encrypted, key, iv) {
                 event.preventDefault();
                 event.stopPropagation();
                 if (actionButton.dataset.ndAction === 'open-guide') openNovelDownloaderGuide();
+                if (actionButton.dataset.ndAction === 'open-supported-sites') openNovelDownloaderSupportedSites();
                 if (actionButton.dataset.ndAction === 'open-rule-editor') openNovelDownloaderRuleEditor({ container });
                 return;
             }
@@ -10268,26 +10246,29 @@ function decryptDES(encrypted, key, iv) {
 
             // 限制下载范围
             if (container.find('[name="limit"]>[name="range"]').val()) {
-                const arr = container.find('[name="limit"]>[name="range"]').val().split(',').sort();
+                const selectedChapters = [];
+                const selectedIndexes = new Set();
+                const addChapterByNumber = (chapterNumber) => {
+                    const index = Number(chapterNumber) - 1;
+                    if (!Number.isInteger(index) || index < 0 || !(index in Storage.book.chapters) || selectedIndexes.has(index)) return;
+                    selectedIndexes.add(index);
+                    selectedChapters.push(Storage.book.chapters[index]);
+                };
+                const arr = container.find('[name="limit"]>[name="range"]').val().split(',').map(item => item.trim()).filter(Boolean);
                 for (let i = 0; i < arr.length; i++) {
-                    if (arr[i].match(/^(\d+)?-(\d+)?$/)) {
-                        let start = arr[i].match(/^(\d+)?-(\d+)?$/)[1];
-                        if (!start) start = 1;
-                        let end = arr[i].match(/^(\d+)?-(\d+)?$/)[2];
-                        if (!end) end = Storage.book.chapters.length;
-                        for (let j = start - 1; j <= end - 1; j++) {
-                            if (j in Storage.book.chapters) Storage.book.chapters[j].filtered = true;
+                    const rangeMatch = arr[i].match(/^(\d+)?-(\d+)?$/);
+                    if (rangeMatch) {
+                        const start = rangeMatch[1] ? Number(rangeMatch[1]) : 1;
+                        const end = rangeMatch[2] ? Number(rangeMatch[2]) : Storage.book.chapters.length;
+                        const step = start <= end ? 1 : -1;
+                        for (let chapterNumber = start; step > 0 ? chapterNumber <= end : chapterNumber >= end; chapterNumber += step) {
+                            addChapterByNumber(chapterNumber);
                         }
                     } else if (/^\d+$/.test(arr[i])) {
-                        if ((arr[i] - 1) in Storage.book.chapters) Storage.book.chapters[arr[i] - 1].filtered = true;
+                        addChapterByNumber(Number(arr[i]));
                     }
                 }
-                Storage.book.chapters = Storage.book.chapters.filter((i) => {
-                    if (i.filtered) {
-                        delete i.filtered;
-                        return true;
-                    }
-                });
+                Storage.book.chapters = selectedChapters;
             }
             if (container.find('[name="limit"]>[name="batch"]').val()) {
                 Storage.book.chapters = container.find('[name="limit"]>[name="batch"]').val().split('\n').filter((i) => i)
@@ -11308,34 +11289,33 @@ function decryptDES(encrypted, key, iv) {
                 return value;
             }
         };
-        const findChapterByResumeUrl = (chapterList, url) => {
-            const rawKey = String(url || '').trim();
-            const normalizedKey = normalizeChapterUrlKey(rawKey);
-            return (chapterList || []).find((chapter) => {
-                const chapterRawKey = String(chapter && chapter.url || '').trim();
-                return chapterRawKey === rawKey || normalizeChapterUrlKey(chapterRawKey) === normalizedKey;
-            });
-        };
         const mergeResumeChapters = (resumeChapters, currentChapters) => {
-            const savedKeys = new Set();
-            const merged = (resumeChapters || []).map((savedChapter) => {
-                const currentChapter = findChapterByResumeUrl(currentChapters, savedChapter && savedChapter.url);
-                const key = normalizeChapterUrlKey((savedChapter && savedChapter.url) || (currentChapter && currentChapter.url));
-                if (key) savedKeys.add(key);
-                return Object.assign({}, currentChapter || {}, savedChapter || {});
+            const savedByKey = new Map();
+            const savedKeyOrder = [];
+            (resumeChapters || []).forEach((savedChapter) => {
+                const key = normalizeChapterUrlKey(savedChapter && savedChapter.url);
+                if (!key) return;
+                if (!savedByKey.has(key)) savedKeyOrder.push(key);
+                savedByKey.set(key, savedChapter);
             });
-            (currentChapters || []).forEach((currentChapter) => {
+            const usedKeys = new Set();
+            const merged = (currentChapters || []).map((currentChapter) => {
                 const key = normalizeChapterUrlKey(currentChapter && currentChapter.url);
-                if (key && !savedKeys.has(key)) {
-                    savedKeys.add(key);
-                    merged.push(currentChapter);
+                if (key && savedByKey.has(key)) {
+                    usedKeys.add(key);
+                    return Object.assign({}, currentChapter || {}, savedByKey.get(key) || {});
                 }
+                return currentChapter;
+            });
+            savedKeyOrder.forEach((key) => {
+                if (usedKeys.has(key)) return;
+                merged.push(savedByKey.get(key));
             });
             return merged;
         };
 
         if (!pendingResumeData && !pendingResumeTaskId && !options.resumeRequest) {
-            const resumeCandidate = await findDownloadResumeCandidateForCurrentPage(chapters, Storage.book);
+            const resumeCandidate = await findDownloadResumeCandidateForCurrentPage();
             if (resumeCandidate) {
                 const shouldUseResume = await requestNovelDownloaderResumeChoice(resumeCandidate);
                 if (shouldUseResume) {
@@ -11346,6 +11326,18 @@ function decryptDES(encrypted, key, iv) {
                 } else {
                     console.log(`[ND] User chọn tải mới, bỏ qua dữ liệu tải dở task ${resumeCandidate.task.id}.`);
                 }
+            }
+        }
+
+        if (pendingResumeData && Array.isArray(pendingResumeData.chapters) && pendingResumeData.chapters.length) {
+            const resumeSourceUrl = normalizeDownloadResumeUrl(pendingResumeData.sourceUrl || (options.resumeRequest && options.resumeRequest.task && options.resumeRequest.task.sourceUrl));
+            const currentResumeUrl = normalizeDownloadResumeUrl(window.location.href);
+            if (resumeSourceUrl && resumeSourceUrl !== currentResumeUrl) {
+                console.warn(`[ND] Bỏ qua dữ liệu tải dở vì URL nguồn không khớp. saved=${resumeSourceUrl}, current=${currentResumeUrl}`);
+                ndShowToast('Bỏ qua dữ liệu tải dở vì không cùng URL truyện.', 'warning', 3500);
+                pendingResumeData = null;
+                pendingResumeTaskId = null;
+                pendingResumeAutoStart = false;
             }
         }
 

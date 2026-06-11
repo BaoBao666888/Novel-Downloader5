@@ -2,10 +2,10 @@
 // @rule-source: special
 (
 // @rule-begin
-        { // https://m.bixiange.me
+        { // https://m.bixiange.me -> https://bixiange.xyz
             siteName: '笔仙阁',
             filter: () => {
-                if (window.location.host !== 'm.bixiange.me') return 0;
+                if (!['m.bixiange.me', 'bixiange.xyz'].includes(window.location.host)) return 0;
                 if (document.querySelector('div.catalog > ul > li > a')) return 1;
                 if (document.querySelector('#mycontent')) return 2;
                 return 0;

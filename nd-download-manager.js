@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name        nd-download-manager
-// @version     1.0.7
+// @version     1.0.8
 // @include     *
 // ==/UserScript==
 /* eslint-env browser */
@@ -678,6 +678,15 @@
                             </div>
                             <div class="nd-manager-setting-row">
                                 <div class="nd-manager-setting-main">
+                                    <div class="nd-manager-setting-title">Danh sách web hỗ trợ</div>
+                                    <div class="nd-manager-setting-desc">Tải danh sách rule từ repo và tìm nhanh theo domain hoặc tên rule.</div>
+                                </div>
+                                <div class="nd-manager-doc-actions">
+                                    <button type="button" data-action="open-supported-sites">Mở danh sách</button>
+                                </div>
+                            </div>
+                            <div class="nd-manager-setting-row">
+                                <div class="nd-manager-setting-main">
                                     <div class="nd-manager-setting-title">Debug Bridge</div>
                                     <div class="nd-manager-setting-desc">Kết nối dashboard local để chạy selector, rule và code debug trong môi trường userscript thật.</div>
                                 </div>
@@ -781,11 +790,12 @@
                     await TaskManager.clearHistory();
                     return;
                 }
-                if (action === 'open-guide' || action === 'open-changelog' || action === 'open-debug-bridge' || action === 'open-rule-editor') {
+                if (action === 'open-guide' || action === 'open-changelog' || action === 'open-supported-sites' || action === 'open-debug-bridge' || action === 'open-rule-editor') {
                     const api = getMainUiApi();
                     const method = {
                         'open-guide': 'openGuide',
                         'open-changelog': 'openChangelog',
+                        'open-supported-sites': 'openSupportedSites',
                         'open-debug-bridge': 'openDebugBridge',
                         'open-rule-editor': 'openRuleEditor'
                     }[action];
