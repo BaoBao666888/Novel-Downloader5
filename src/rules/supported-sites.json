@@ -1355,6 +1355,15 @@
         "www.jpxs123.com",
         "www.trxs.cc"
       ]
+    },
+    {
+      "name": "完本神站",
+      "ruleName": "完本神站",
+      "file": "src/rules/special/0150-wanbengo-com.rule.js",
+      "kind": "special",
+      "domains": [
+        "www.wanbengo.com"
+      ]
     }
   ]
 }
