@@ -1585,6 +1585,16 @@
       "domains": [
         "www.boqugew.com"
       ]
+    },
+    {
+      "name": "独步小说网",
+      "ruleName": "独步小说网",
+      "file": "src/rules/special/0175-dbxsd-com.rule.js",
+      "kind": "special",
+      "domains": [
+        "www.dbxsd.com",
+        "www.dbxsz.com"
+      ]
     }
   ]
 }
