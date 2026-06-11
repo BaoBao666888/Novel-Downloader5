@@ -1595,6 +1595,18 @@
         "www.dbxsd.com",
         "www.dbxsz.com"
       ]
+    },
+    {
+      "name": "万象书城",
+      "ruleName": "万象书城",
+      "file": "src/rules/special/0176-wxscs-com.rule.js",
+      "kind": "special",
+      "domains": [
+        "wxscs.com",
+        "www.wxscs.com",
+        "wxsck.com",
+        "www.wxsck.com"
+      ]
     }
   ]
 }
