@@ -1548,6 +1548,15 @@
       "domains": [
         "www.dushu.com"
       ]
+    },
+    {
+      "name": "爱下电子书",
+      "ruleName": "爱下电子书",
+      "file": "src/rules/special/0171-aixdzs-com.rule.js",
+      "kind": "special",
+      "domains": [
+        "www.aixdzs.com"
+      ]
     }
   ]
 }
