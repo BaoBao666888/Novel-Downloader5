@@ -1447,6 +1447,15 @@
       "domains": [
         "m.niupizhi.net"
       ]
+    },
+    {
+      "name": "爪机书屋",
+      "ruleName": "爪机书屋",
+      "file": "src/rules/special/0160-zjsw-org.rule.js",
+      "kind": "special",
+      "domains": [
+        "www.zjsw.org"
+      ]
     }
   ]
 }
