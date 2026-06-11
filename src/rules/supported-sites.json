@@ -1465,6 +1465,15 @@
       "domains": [
         "www.haiwaishubao1.com"
       ]
+    },
+    {
+      "name": "台灣小說網",
+      "ruleName": "台灣小說網",
+      "file": "src/rules/special/0162-twkan-com.rule.js",
+      "kind": "special",
+      "domains": [
+        "twkan.com"
+      ]
     }
   ]
 }
