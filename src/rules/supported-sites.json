@@ -1607,6 +1607,15 @@
         "wxsck.com",
         "www.wxsck.com"
       ]
+    },
+    {
+      "name": "一曲书斋",
+      "ruleName": "一曲书斋",
+      "file": "src/rules/special/0177-rmkbr-com.rule.js",
+      "kind": "special",
+      "domains": [
+        "www.rmkbr.com"
+      ]
     }
   ]
 }

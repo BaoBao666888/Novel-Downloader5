@@ -10635,6 +10635,22 @@ function decryptDES(encrypted, key, iv) {
             },
             thread: 1,
         },
+        { // http://www.rmkbr.com/*/*/
+            siteName: '一曲书斋',
+            filter: () => {
+                if (window.location.host !== 'www.rmkbr.com') return 0;
+                if (document.querySelector('dl > dd > a')) return 1;
+                if (document.querySelector('#content')) return 2;
+                return 0;
+            },
+            title: 'h1',
+            writer: '#info > p:nth-of-type(3) > a',
+            intro: '#intro > p',
+            cover: '#fmimg > img',
+            chapter: 'dl > dd > a',
+            chapterTitle: '.bookname h1, h1',
+            content: '#content',
+        },
     ];
     Rule.template = [ // 模板网站
         { // http://www.xbiquge.la/54/54439/
