@@ -1391,6 +1391,15 @@
       "domains": [
         "www.zhenhunxiaoshuo.com"
       ]
+    },
+    {
+      "name": "暁",
+      "ruleName": "暁",
+      "file": "src/rules/special/0154-akatsuki-novels-com.rule.js",
+      "kind": "special",
+      "domains": [
+        "www.akatsuki-novels.com"
+      ]
     }
   ]
 }
