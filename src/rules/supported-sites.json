@@ -1373,6 +1373,15 @@
       "domains": [
         "www.qbtr.cc"
       ]
+    },
+    {
+      "name": "半夏小说",
+      "ruleName": "半夏小说",
+      "file": "src/rules/special/0152-xbanxia-cc.rule.js",
+      "kind": "special",
+      "domains": [
+        "www.xbanxia.cc"
+      ]
     }
   ]
 }
