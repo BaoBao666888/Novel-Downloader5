@@ -1616,6 +1616,15 @@
       "domains": [
         "www.rmkbr.com"
       ]
+    },
+    {
+      "name": "帝书阁",
+      "ruleName": "帝书阁",
+      "file": "src/rules/special/0178-23dishuge-com.rule.js",
+      "kind": "special",
+      "domains": [
+        "www.23dishuge.com"
+      ]
     }
   ]
 }
