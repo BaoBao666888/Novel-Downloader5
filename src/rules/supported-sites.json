@@ -1411,6 +1411,15 @@
         "www.69hsw.com",
         "www.69hsz.net"
       ]
+    },
+    {
+      "name": "三五中文",
+      "ruleName": "三五中文",
+      "file": "src/rules/special/0156-mjyhb-com.rule.js",
+      "kind": "special",
+      "domains": [
+        "m.mjyhb.com"
+      ]
     }
   ]
 }
