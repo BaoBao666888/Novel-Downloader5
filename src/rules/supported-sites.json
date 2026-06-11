@@ -1429,6 +1429,15 @@
       "domains": [
         "m.shauthor.com"
       ]
+    },
+    {
+      "name": "名著阅读",
+      "ruleName": "名著阅读",
+      "file": "src/rules/special/0158-guidaye-cc.rule.js",
+      "kind": "special",
+      "domains": [
+        "b.guidaye.cc"
+      ]
     }
   ]
 }
