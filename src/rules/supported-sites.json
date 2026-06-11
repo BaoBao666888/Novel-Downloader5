@@ -1557,6 +1557,16 @@
       "domains": [
         "www.aixdzs.com"
       ]
+    },
+    {
+      "name": "弟子小说网",
+      "ruleName": "弟子小说网",
+      "file": "src/rules/special/0172-dizishu-cc.rule.js",
+      "kind": "special",
+      "domains": [
+        "www.dizishu.cc",
+        "www.qu-la.com"
+      ]
     }
   ]
 }
