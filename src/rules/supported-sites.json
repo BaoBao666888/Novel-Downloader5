@@ -1382,6 +1382,15 @@
       "domains": [
         "www.xbanxia.cc"
       ]
+    },
+    {
+      "name": "镇魂小说网",
+      "ruleName": "镇魂小说网",
+      "file": "src/rules/special/0153-zhenhunxiaoshuo-com.rule.js",
+      "kind": "special",
+      "domains": [
+        "www.zhenhunxiaoshuo.com"
+      ]
     }
   ]
 }
