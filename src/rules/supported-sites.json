@@ -1643,6 +1643,15 @@
       "domains": [
         "www.zgzl.net"
       ]
+    },
+    {
+      "name": "笔趣阁TW",
+      "ruleName": "笔趣阁TW",
+      "file": "src/rules/special/0181-biquge-tw.rule.js",
+      "kind": "special",
+      "domains": [
+        "www.biquge.tw"
+      ]
     }
   ]
 }
