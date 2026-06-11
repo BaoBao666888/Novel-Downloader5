@@ -1625,6 +1625,15 @@
       "domains": [
         "www.23dishuge.com"
       ]
+    },
+    {
+      "name": "Fly Dreams",
+      "ruleName": "Fly Dreams",
+      "file": "src/rules/special/0179-fly-dreams-com.rule.js",
+      "kind": "special",
+      "domains": [
+        "m.fly-dreams.com"
+      ]
     }
   ]
 }
