@@ -1539,6 +1539,15 @@
       "domains": [
         "www.quanshuzhai.com"
       ]
+    },
+    {
+      "name": "读书网",
+      "ruleName": "读书网",
+      "file": "src/rules/special/0170-dushu-com.rule.js",
+      "kind": "special",
+      "domains": [
+        "www.dushu.com"
+      ]
     }
   ]
 }
