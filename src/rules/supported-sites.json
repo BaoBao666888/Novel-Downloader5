@@ -1483,6 +1483,15 @@
       "domains": [
         "book.xbookcn.net"
       ]
+    },
+    {
+      "name": "60看书",
+      "ruleName": "60看书",
+      "file": "src/rules/special/0164-60ksw-com.rule.js",
+      "kind": "special",
+      "domains": [
+        "www.60ksw.com"
+      ]
     }
   ]
 }
