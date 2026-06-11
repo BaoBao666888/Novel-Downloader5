@@ -260,16 +260,6 @@
       ]
     },
     {
-      "name": "ihuaben",
-      "ruleName": "ihuaben",
-      "file": "src/rules/special/0027-ihuaben-com.rule.js",
-      "kind": "special",
-      "domains": [
-        "www.69shuba.com",
-        "www.ihuaben.com"
-      ]
-    },
-    {
       "name": "爱丽丝书屋",
       "ruleName": "爱丽丝书屋",
       "file": "src/rules/special/0028-alicesw-com.rule.js",
