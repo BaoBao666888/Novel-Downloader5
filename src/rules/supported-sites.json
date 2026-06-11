@@ -1438,6 +1438,15 @@
       "domains": [
         "b.guidaye.cc"
       ]
+    },
+    {
+      "name": "无限小说网",
+      "ruleName": "无限小说网",
+      "file": "src/rules/special/0159-niupizhi-net.rule.js",
+      "kind": "special",
+      "domains": [
+        "m.niupizhi.net"
+      ]
     }
   ]
 }
