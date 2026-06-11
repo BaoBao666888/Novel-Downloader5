@@ -1567,6 +1567,15 @@
         "www.dizishu.cc",
         "www.qu-la.com"
       ]
+    },
+    {
+      "name": "全职小说网",
+      "ruleName": "全职小说网",
+      "file": "src/rules/special/0173-quanzhifashi-com.rule.js",
+      "kind": "special",
+      "domains": [
+        "www.quanzhifashi.com"
+      ]
     }
   ]
 }
