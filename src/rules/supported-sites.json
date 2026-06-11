@@ -1364,6 +1364,15 @@
       "domains": [
         "www.wanbengo.com"
       ]
+    },
+    {
+      "name": "全本同人小说",
+      "ruleName": "全本同人小说",
+      "file": "src/rules/special/0151-qbtr-cc.rule.js",
+      "kind": "special",
+      "domains": [
+        "www.qbtr.cc"
+      ]
     }
   ]
 }
