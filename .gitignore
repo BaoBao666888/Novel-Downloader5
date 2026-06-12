@@ -22,7 +22,6 @@ rename_chapters/wikidich/
 fanqie_bridge/
 rename_chapters/tools/
 logs/
-novelDownloaderVietSub.beta.user.js
 junk_patterns.json
 utils_data.py
 forum_tab_mixin.py
@@ -34,3 +33,4 @@ tmp/
 gdown/
 rename_chapters/reader_ui/translate/
 scripts/
+private/
