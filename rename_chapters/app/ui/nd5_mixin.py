@@ -2778,7 +2778,7 @@ class ND5Mixin:
 
         def _normalize_newlines(text: str):
             text = text.replace("\r\n", "\n").replace("\r", "\n")
-            return re.sub(r"\n{2,}", "\n", text)
+            return re.sub(r"\n{2,}", "\n", html.unescape(text))
 
         def _resolve_output_path(path: str):
             if not os.path.exists(path):
@@ -4241,8 +4241,10 @@ class ND5Mixin:
                     return re.sub(r"\n{2,}", "\n", "\n\n".join(p for p in paragraphs if p))
                 return re.sub(r"\n{2,}", "\n", soup.get_text("\n", strip=True))
             except Exception:
-                return re.sub(r"\n{2,}", "\n", text.replace("\r\n", "\n").replace("\r", "\n"))
-        return re.sub(r"\n{2,}", "\n", text.replace("\r\n", "\n").replace("\r", "\n"))
+                text = text.replace("\r\n", "\n").replace("\r", "\n")
+                return re.sub(r"\n{2,}", "\n", html.unescape(text))
+        text = text.replace("\r\n", "\n").replace("\r", "\n")
+        return re.sub(r"\n{2,}", "\n", html.unescape(text))
 
     def _prepare_auto_update_dir(self, book_id: str):
         root = getattr(self, "_auto_update_temp_root", os.path.join(BASE_DIR, "tmp_auto_update"))

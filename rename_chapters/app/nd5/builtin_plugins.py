@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import datetime
+import html
 import json
 import re
 import time
@@ -521,6 +522,7 @@ class FanqieBridgePlugin:
             return {}
 
     def _normalize_newlines(self, text: str):
+        text = html.unescape(str(text or ""))
         return re.sub(r"\n{2,}", "\n", text.replace("\r\n", "\n").replace("\r", "\n"))
 
     def content_to_text(self, content: str) -> str:
