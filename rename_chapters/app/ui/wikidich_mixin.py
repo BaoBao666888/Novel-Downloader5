@@ -3646,6 +3646,7 @@ class WikidichMixin:
             self._wd_chapter_book_label.config(text=book_title or self._wd_chapter_book_label.cget("text"))
         self._wd_set_chapter_status(f"Đã tải {len(chapters)} chương.")
         self._wd_set_chapter_buttons_state(bool(chapters))
+        self._wd_continue_history_repair_after_chapters()
 
     def _wd_on_chapter_select(self, event=None):
         tree = getattr(self, "_wd_chapter_tree", None)
@@ -3846,7 +3847,15 @@ class WikidichMixin:
         edit_url = url.rstrip("/") + "/chinh-sua"
         self._wd_open_edit_modal(chapter, edit_url)
 
-    def _wd_open_edit_modal(self, chapter: dict, edit_url: str):
+    def _wd_open_edit_modal(
+        self,
+        chapter: dict,
+        edit_url: str,
+        *,
+        prefill_title: Optional[str] = None,
+        prefill_content: Optional[str] = None,
+        on_saved=None,
+    ):
         session, _user, proxies = self._wd_build_wiki_session(include_user=True)
         if not session:
             messagebox.showinfo("Thiếu cookie", "Hãy mở trình duyệt tích hợp và đăng nhập Wikidich trước khi sửa chương.", parent=self._wd_chapter_win or self)
@@ -3890,15 +3899,42 @@ class WikidichMixin:
         close_btn = ttk.Button(btn_frame, text="Đóng", command=win.destroy)
         save_btn.pack(side=tk.RIGHT)
         close_btn.pack(side=tk.RIGHT, padx=(6, 0))
+        content_loaded = {"value": False}
+
+        def _mark_dirty(*_args):
+            if not content_loaded["value"]:
+                return
+            status_lbl.config(text="Bạn vừa sửa nội dung/tiêu đề. Hãy nhấn Lưu để đồng bộ lên server.")
+
+        def _on_content_modified(_event=None):
+            try:
+                if not content_text.edit_modified():
+                    return
+                content_text.edit_modified(False)
+            except Exception:
+                pass
+            _mark_dirty()
+
+        name_var.trace_add("write", _mark_dirty)
+        content_text.bind("<<Modified>>", _on_content_modified)
 
         def _fill(data: dict):
             if not win.winfo_exists():
                 return
-            name_var.set(data.get("name_cn", ""))
+            content_loaded["value"] = False
+            name_var.set(prefill_title if prefill_title is not None else data.get("name_cn", ""))
             content_text.delete("1.0", tk.END)
-            content_text.insert("1.0", data.get("content_cn", ""))
+            content_text.insert("1.0", prefill_content if prefill_content is not None else data.get("content_cn", ""))
+            try:
+                content_text.edit_modified(False)
+            except Exception:
+                pass
+            content_loaded["value"] = True
             save_btn.config(state=tk.NORMAL)
-            status_lbl.config(text="Đã tải. Sửa và bấm Lưu để cập nhật.")
+            if prefill_content is not None or prefill_title is not None:
+                status_lbl.config(text="Đã điền nội dung từ file lỗi. Hãy nhấn Lưu để đồng bộ lên server.")
+            else:
+                status_lbl.config(text="Đã tải. Sửa và bấm Lưu để cập nhật.")
             try:
                 name_entry.focus_set()
             except Exception:
@@ -3917,6 +3953,11 @@ class WikidichMixin:
             status_lbl.config(text=msg)
             if ok:
                 messagebox.showinfo("Đã lưu", "Lưu chương thành công.", parent=win)
+                if callable(on_saved):
+                    try:
+                        on_saved(chapter, win)
+                    except Exception as exc:
+                        self.log(f"[Wikidich] Callback sau lưu chương lỗi: {exc}")
 
         def _do_load():
             try:
@@ -5914,6 +5955,10 @@ class WikidichMixin:
             except Exception:
                 entry["num"] = 0
             try:
+                entry["order"] = int(item.get("order") or 0)
+            except Exception:
+                entry["order"] = 0
+            try:
                 entry["four_byte"] = int(item.get("four_byte") or 0)
             except Exception:
                 entry["four_byte"] = 0
@@ -5923,6 +5968,186 @@ class WikidichMixin:
                 entry["emoji"] = 0
             normalized.append(entry)
         return normalized
+
+    def _wd_mark_autoupdate_history_warning_fixed(self, item: dict, default_message: str = ""):
+        if not isinstance(item, dict):
+            return
+        current_message = str(item.get("message") or "").strip()
+        warning_message = str(item.get("warning_message") or "").strip()
+        clean_message = current_message
+        if warning_message:
+            clean_message = clean_message.replace(f" Cảnh báo: {warning_message}", "").strip()
+            clean_message = clean_message.replace(f"Cảnh báo: {warning_message}", "").strip()
+        if "Cảnh báo:" in clean_message:
+            clean_message = clean_message.split("Cảnh báo:", 1)[0].strip()
+        if not clean_message:
+            clean_message = default_message or "Đã đánh dấu sửa xong cảnh báo UTF-8/icon."
+        item["message"] = clean_message[:500]
+        item.pop("warning", None)
+        item.pop("warning_message", None)
+        item.pop("warning_files", None)
+        item["warning_resolved"] = True
+        self._wd_save_autoupdate_state()
+
+    def _wd_decode_upload_text_file(self, path: str) -> str:
+        with open(path, "rb") as f:
+            raw = f.read()
+        for enc in ("utf-8-sig", "utf-16", "gb18030", "utf-8"):
+            try:
+                return raw.decode(enc)
+            except Exception:
+                continue
+        return raw.decode("utf-8", errors="replace")
+
+    def _wd_history_entry_target_chapter_number(self, history_item: dict, entry: dict, queue_index: int) -> int:
+        num = self._wd_int_or_none((entry or {}).get("num"))
+        if num and num > 0:
+            return num
+        base = self._wd_int_or_none((history_item or {}).get("wiki_chapters_before")) or 0
+        order = self._wd_int_or_none((entry or {}).get("order")) or (queue_index + 1)
+        return base + order if base and order else 0
+
+    def _wd_start_history_repair_flow(self, history_item: dict, parent_win=None, refresh_callback=None, sync_callback=None):
+        if not isinstance(history_item, dict):
+            return
+        bid = str(history_item.get("book_id") or "").strip()
+        site = str(history_item.get("site") or "").strip().lower()
+        if site in ("wikidich", "koanchay"):
+            self._wd_show_site_tab(site)
+        books = self.wikidich_data.get("books", {}) if isinstance(self.wikidich_data, dict) else {}
+        book = books.get(bid) if isinstance(books, dict) else None
+        if not isinstance(book, dict):
+            messagebox.showerror("Không tìm thấy truyện", "Không tìm thấy truyện này trong dữ liệu local.", parent=parent_win or self)
+            return
+        entries = self._wd_normalize_icon_warning_files(history_item.get("warning_files") or [])
+        if not entries:
+            messagebox.showerror("Thiếu file lỗi", "Bản ghi này không có danh sách file lỗi để sửa ngay.", parent=parent_win or self)
+            return
+        self.wd_selected_book = book
+        self._wd_show_detail(book)
+        self._wd_select_tree_item(bid)
+        self._wd_history_repair_flow = {
+            "book_id": bid,
+            "book": book,
+            "history_item": history_item,
+            "entries": entries,
+            "index": 0,
+            "editing": False,
+            "parent": parent_win,
+            "refresh_callback": refresh_callback,
+            "sync_callback": sync_callback,
+        }
+        self._wd_open_chapter_list()
+
+    def _wd_continue_history_repair_after_chapters(self):
+        flow = getattr(self, "_wd_history_repair_flow", None)
+        if not isinstance(flow, dict) or flow.get("editing"):
+            return
+        selected = getattr(self, "wd_selected_book", None) or {}
+        if str(selected.get("id") or "") != str(flow.get("book_id") or ""):
+            return
+        self._wd_open_history_repair_current()
+
+    def _wd_open_history_repair_current(self):
+        flow = getattr(self, "_wd_history_repair_flow", None)
+        if not isinstance(flow, dict) or flow.get("editing"):
+            return
+        entries = flow.get("entries") or []
+        idx = int(flow.get("index") or 0)
+        if idx >= len(entries):
+            self._wd_finish_history_repair_flow()
+            return
+        entry = entries[idx]
+        target_num = self._wd_history_entry_target_chapter_number(flow.get("history_item") or {}, entry, idx)
+        chapter = None
+        chapter_iid = None
+        for iid, ch in getattr(self, "_wd_chapter_data", []) or []:
+            try:
+                ch_num = int(ch.get("number") or 0)
+            except Exception:
+                ch_num = 0
+            if target_num and ch_num == target_num:
+                chapter = ch
+                chapter_iid = iid
+                break
+        if not chapter:
+            messagebox.showerror(
+                "Không tìm thấy chương",
+                f"Không tìm thấy chương #{target_num or '?'} trong DS Chương. Cửa sổ DS Chương vẫn giữ nguyên để bạn tự xử lý.",
+                parent=flow.get("parent") or self._wd_chapter_win or self,
+            )
+            self._wd_history_repair_flow = None
+            return
+        tree = getattr(self, "_wd_chapter_tree", None)
+        if tree and chapter_iid:
+            try:
+                tree.selection_set(chapter_iid)
+                tree.focus(chapter_iid)
+                tree.see(chapter_iid)
+            except Exception:
+                pass
+        path = str(entry.get("path") or "")
+        if not path or not os.path.isfile(path):
+            messagebox.showerror("Không tìm thấy file", f"File lỗi không còn tồn tại:\n{path}", parent=flow.get("parent") or self)
+            self._wd_history_repair_flow = None
+            return
+        try:
+            content = self._wd_decode_upload_text_file(path)
+        except Exception as exc:
+            messagebox.showerror("Không đọc được file", f"Không đọc được file lỗi:\n{path}\n\n{exc}", parent=flow.get("parent") or self)
+            self._wd_history_repair_flow = None
+            return
+        title = str(entry.get("raw_title") or "").strip()
+        if not title:
+            for line in content.splitlines():
+                if line.strip():
+                    title = line.strip()
+                    break
+        url = (self._wd_normalize_url_for_site(chapter.get("url")) or "").split("#")[0]
+        if not url:
+            messagebox.showerror("Thiếu link chương", "Không tìm thấy link chương để mở sửa.", parent=flow.get("parent") or self)
+            self._wd_history_repair_flow = None
+            return
+        flow["editing"] = True
+        edit_url = url.rstrip("/") + "/chinh-sua"
+        self._wd_open_edit_modal(
+            chapter,
+            edit_url,
+            prefill_title=title or None,
+            prefill_content=content,
+            on_saved=self._wd_on_history_repair_saved,
+        )
+
+    def _wd_on_history_repair_saved(self, _chapter: dict, edit_win):
+        flow = getattr(self, "_wd_history_repair_flow", None)
+        if not isinstance(flow, dict):
+            return
+        try:
+            if edit_win and edit_win.winfo_exists():
+                edit_win.destroy()
+        except Exception:
+            pass
+        flow["index"] = int(flow.get("index") or 0) + 1
+        flow["editing"] = False
+        if flow["index"] >= len(flow.get("entries") or []):
+            self._wd_finish_history_repair_flow()
+            return
+        self.after(120, self._wd_open_history_repair_current)
+
+    def _wd_finish_history_repair_flow(self):
+        flow = getattr(self, "_wd_history_repair_flow", None)
+        if not isinstance(flow, dict):
+            return
+        item = flow.get("history_item")
+        self._wd_mark_autoupdate_history_warning_fixed(item, default_message="Đã sửa xong các chương cảnh báo UTF-8/icon.")
+        refresh_cb = flow.get("refresh_callback")
+        sync_cb = flow.get("sync_callback")
+        self._wd_history_repair_flow = None
+        if callable(refresh_cb):
+            refresh_cb()
+        if callable(sync_cb):
+            sync_cb()
+        messagebox.showinfo("Sửa xong", "Đã lưu hết các chương có cảnh báo trong bản ghi này.", parent=flow.get("parent") or self)
 
     def _wd_prune_autoupdate_history(self, max_days: int = 30, persist: bool = True):
         history = self._wd_get_autoupdate_history_entries()
@@ -6506,9 +6731,9 @@ class WikidichMixin:
 
         actions = ttk.Frame(frame)
         actions.grid(row=2, column=0, sticky="ew")
-        open_btn = ttk.Button(actions, text="Mở truyện", state=tk.DISABLED)
+        open_btn = ttk.Button(actions, text="Sửa ngay", state=tk.DISABLED)
         open_btn.pack(side=tk.LEFT, padx=(0, 6))
-        fix_warning_btn = ttk.Button(actions, text="Sửa", state=tk.DISABLED)
+        fix_warning_btn = ttk.Button(actions, text="Xem file", state=tk.DISABLED)
         fix_warning_btn.pack(side=tk.LEFT, padx=(0, 6))
         ttk.Button(actions, text="Xóa ngày đã chọn", command=_delete_day).pack(side=tk.LEFT)
         ttk.Button(actions, text="Xóa toàn bộ", command=_delete_all).pack(side=tk.LEFT, padx=(6, 0))
@@ -6533,15 +6758,21 @@ class WikidichMixin:
             return book if isinstance(book, dict) and book.get("url") else None
 
         def _sync_history_action_buttons(_event=None):
-            open_btn.config(state=tk.NORMAL if _selected_history_book() else tk.DISABLED)
             item = _selected_history_item()
+            open_btn.config(state=tk.NORMAL if (_selected_history_book() and _history_can_fix_warning(item)) else tk.DISABLED)
             fix_warning_btn.config(state=tk.NORMAL if _history_can_fix_warning(item) else tk.DISABLED)
 
-        def _open_selected_book(_event=None):
+        def _repair_selected_history_item(_event=None):
+            item = _selected_history_item()
             book = _selected_history_book()
-            if not book:
+            if not book or not _history_can_fix_warning(item):
                 return
-            self._wd_open_link(book.get("url", ""))
+            self._wd_start_history_repair_flow(
+                item,
+                parent_win=win,
+                refresh_callback=_refresh,
+                sync_callback=_sync_history_action_buttons,
+            )
 
         def _open_files_in_text_ops(paths: list, parent_win):
             clean_paths = []
@@ -6590,7 +6821,7 @@ class WikidichMixin:
             title = str(item.get("title") or item.get("book_id") or "Truyện cảnh báo").strip()
             fix_win = tk.Toplevel(win)
             self._apply_window_icon(fix_win)
-            fix_win.title(f"Sửa cảnh báo icon - {title}")
+            fix_win.title(f"Xem file cảnh báo icon - {title}")
             fix_win.geometry("900x460")
             fix_win.columnconfigure(0, weight=1)
             fix_win.rowconfigure(0, weight=1)
@@ -6691,22 +6922,7 @@ class WikidichMixin:
                     parent=fix_win,
                 ):
                     return
-                current_message = str(item.get("message") or "").strip()
-                warning_message = str(item.get("warning_message") or "").strip()
-                clean_message = current_message
-                if warning_message:
-                    clean_message = clean_message.replace(f" Cảnh báo: {warning_message}", "").strip()
-                    clean_message = clean_message.replace(f"Cảnh báo: {warning_message}", "").strip()
-                if "Cảnh báo:" in clean_message:
-                    clean_message = clean_message.split("Cảnh báo:", 1)[0].strip()
-                if not clean_message:
-                    clean_message = "Đã đánh dấu sửa xong cảnh báo UTF-8/icon."
-                item["message"] = clean_message[:500]
-                item.pop("warning", None)
-                item.pop("warning_message", None)
-                item.pop("warning_files", None)
-                item["warning_resolved"] = True
-                self._wd_save_autoupdate_state()
+                self._wd_mark_autoupdate_history_warning_fixed(item)
                 _refresh()
                 _sync_history_action_buttons()
                 messagebox.showinfo("Đã đánh dấu", "Đã đánh dấu truyện này là đã sửa xong cảnh báo UTF-8/icon.", parent=win)
@@ -6727,10 +6943,10 @@ class WikidichMixin:
                 file_tree.selection_set(first)
                 file_tree.focus(first)
 
-        open_btn.config(command=_open_selected_book)
+        open_btn.config(command=_repair_selected_history_item)
         fix_warning_btn.config(command=_open_warning_fix_window)
         tree.bind("<<TreeviewSelect>>", _sync_history_action_buttons)
-        tree.bind("<Double-Button-1>", _open_selected_book)
+        tree.bind("<Double-Button-1>", _repair_selected_history_item)
 
         _refresh()
         _sync_history_action_buttons()
