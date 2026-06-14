@@ -48,6 +48,10 @@ def create_book(
     for idx, ch in enumerate(chapters, start=1):
         chapter_title = (ch.get("title") or f"Chương {idx}").strip() or f"Chương {idx}"
         chapter_text = (ch.get("text") or "").strip()
+        try:
+            word_count = int(ch.get("word_count") if ch.get("word_count") is not None else len(chapter_text))
+        except Exception:
+            word_count = len(chapter_text)
         chapter_id = f"ch_{hash_text(f'{book_id}|{idx}|{chapter_title}')}"
         raw_key = f"raw_{hash_text(f'{chapter_id}|{chapter_text}')}"
         storage.write_cache(raw_key, lang_source, chapter_text)
@@ -64,7 +68,7 @@ def create_book(
                 None,
                 None,
                 created_at,
-                len(chapter_text),
+                max(0, word_count),
             )
         )
 

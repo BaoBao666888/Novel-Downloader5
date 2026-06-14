@@ -158,6 +158,7 @@ EXPORT_DIR = LOCAL_DIR / "reader_exports"
 COVER_DIR = LOCAL_DIR / "reader_covers"
 SUPPLEMENT_SOURCE_DIR = LOCAL_DIR / "reader_supplement_sources"
 VBOOK_IMAGE_CACHE_DIR = CACHE_DIR / "vbook_image_cache"
+COMIC_IMPORT_DIR = CACHE_DIR / "comic_imports"
 IMPORT_PREVIEW_DIR = CACHE_DIR / "import_previews"
 DB_PATH = LOCAL_DIR / "reader_library.db"
 DEFAULT_UI_DIR = RUNTIME_ROOT / "reader_ui"
@@ -4754,6 +4755,8 @@ class ReaderService:
             parse_epub_book=parse_epub_book,
             parse_txt_book=parse_txt_book,
             normalize_vbook_display_text=normalize_vbook_display_text,
+            comic_import_dir=COMIC_IMPORT_DIR,
+            encode_comic_payload=encode_comic_payload,
             progress_callback=progress_callback,
         )
 
@@ -5069,6 +5072,8 @@ class ReaderService:
             parse_epub_book=parse_epub_book,
             parse_txt_book=parse_txt_book,
             normalize_vbook_display_text=normalize_vbook_display_text,
+            comic_import_dir=COMIC_IMPORT_DIR,
+            encode_comic_payload=encode_comic_payload,
         )
 
     def import_vbook_url(

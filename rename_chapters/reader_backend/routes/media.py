@@ -53,6 +53,12 @@ def _resolve_disk_media(path: str, deps: MediaDeps) -> tuple[str, Path] | None:
     if path.startswith("/media/epub/"):
         filename = Path(deps.unquote_func(path.removeprefix("/media/epub/").strip()).replace("\\", "/")).name
         return filename, deps.cache_dir / "epub_sources" / filename
+    if path.startswith("/media/comic/"):
+        rel = deps.unquote_func(path.removeprefix("/media/comic/").strip("/")).replace("\\", "/")
+        parts = [part for part in rel.split("/") if part]
+        if not parts or any(part in {".", ".."} for part in parts):
+            return "", deps.cache_dir / "__missing_comic_media__"
+        return parts[-1], deps.cache_dir / "comic_imports" / Path(*parts)
     return None
 
 

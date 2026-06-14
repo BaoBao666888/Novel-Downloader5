@@ -1,12 +1,17 @@
 from __future__ import annotations
 
+import hashlib
 import json
+import mimetypes
 import re
 import shutil
 import time
 import uuid
 from pathlib import Path
 from typing import Any
+from urllib.parse import quote
+
+from reader_backend.text import comic_import as comic_import_support
 
 
 def import_preview_root(*, import_preview_dir: Path) -> Path:
@@ -188,17 +193,52 @@ def parse_local_import_payload(
     )
     lang = normalize_lang_source(lang_source) or "zh"
 
-    if ext == "epub":
+    if ext != "epub" and comic_import_support.is_comic_import_extension(name):
         if callable(progress_callback):
-            progress_callback("parse_epub", "Đang phân tích EPUB.")
-        parsed = parse_epub_book(
+            progress_callback("parse_comic", "Đang phân tích file comic.")
+        parsed = comic_import_support.parse_comic_book(
+            name,
             file_bytes,
             custom_title=title,
             custom_author=author,
             custom_summary=summary,
-            parser_settings=settings.get("epub"),
             lang_source=lang,
         )
+    elif ext == "epub":
+        if callable(progress_callback):
+            progress_callback("parse_epub", "Đang phân tích EPUB.")
+        epub_error: Exception | None = None
+        try:
+            parsed = parse_epub_book(
+                file_bytes,
+                custom_title=title,
+                custom_author=author,
+                custom_summary=summary,
+                parser_settings=settings.get("epub"),
+                lang_source=lang,
+            )
+            text_total = sum(
+                len(str((chapter or {}).get("text") or "").strip())
+                for chapter in (parsed.get("chapters") if isinstance(parsed, dict) else []) or []
+                if isinstance(chapter, dict)
+            )
+            if text_total < 80:
+                raise ValueError("EPUB gần như không có text, thử đọc như comic.")
+        except Exception as exc:
+            epub_error = exc
+            if callable(progress_callback):
+                progress_callback("parse_comic_epub", "EPUB không có text rõ ràng, đang thử đọc ảnh comic.")
+            try:
+                parsed = comic_import_support.parse_comic_book(
+                    name,
+                    file_bytes,
+                    custom_title=title,
+                    custom_author=author,
+                    custom_summary=summary,
+                    lang_source=lang,
+                )
+            except Exception:
+                raise epub_error
     elif ext == "txt":
         if callable(progress_callback):
             progress_callback("parse_txt", "Đang phân tích TXT và tách chương.")
@@ -212,7 +252,7 @@ def parse_local_import_payload(
             parser_settings=settings.get("txt"),
         )
     else:
-        raise ValueError("V1 chỉ hỗ trợ import TXT và EPUB.")
+        raise ValueError("V1 chỉ hỗ trợ import TXT, EPUB, CBZ/ZIP comic và ảnh.")
 
     metadata = parsed.get("metadata") if isinstance(parsed.get("metadata"), dict) else {}
     chapters = parsed.get("chapters") if isinstance(parsed.get("chapters"), list) else []
@@ -221,20 +261,23 @@ def parse_local_import_payload(
     if callable(progress_callback):
         progress_callback("build_preview", f"Đã tách {len(chapters)} chương, đang dựng dữ liệu preview.", chapter_count=len(chapters))
 
-    chapter_preview = []
-    for idx, chapter in enumerate(chapters, start=1):
-        if not isinstance(chapter, dict):
-            continue
-        raw_title = str(chapter.get("title") or f"Chương {idx}").strip() or f"Chương {idx}"
-        raw_text = str(chapter.get("text") or "")
-        chapter_preview.append(
-            {
-                "index": idx,
-                "title": raw_title,
-                "word_count": len(raw_text),
-                "preview": normalize_vbook_display_text(raw_text[:140], single_line=False),
-            }
-        )
+    if str(parsed.get("source_type") or "").strip() == "comic" and isinstance(parsed.get("chapter_preview"), list):
+        chapter_preview = [dict(item or {}) for item in parsed.get("chapter_preview") or [] if isinstance(item, dict)]
+    else:
+        chapter_preview = []
+        for idx, chapter in enumerate(chapters, start=1):
+            if not isinstance(chapter, dict):
+                continue
+            raw_title = str(chapter.get("title") or f"Chương {idx}").strip() or f"Chương {idx}"
+            raw_text = str(chapter.get("text") or "")
+            chapter_preview.append(
+                {
+                    "index": idx,
+                    "title": raw_title,
+                    "word_count": len(raw_text),
+                    "preview": normalize_vbook_display_text(raw_text[:140], single_line=False),
+                }
+            )
 
     return {
         "file_name": name,
@@ -248,6 +291,7 @@ def parse_local_import_payload(
             "chapter_count": len(chapter_preview),
             "has_cover": bool(metadata.get("has_cover")),
             "detected_lang": normalize_lang_source(metadata.get("detected_lang") or ""),
+            "image_count": int(metadata.get("image_count") or 0),
         },
         "chapters": [dict(item or {}) for item in chapters if isinstance(item, dict)],
         "chapter_preview": chapter_preview,
@@ -258,19 +302,110 @@ def parse_local_import_payload(
     }
 
 
-def create_book_from_local_import(service, parsed: dict[str, Any], file_bytes: bytes, *, normalize_lang_source, progress_callback=None) -> dict[str, Any]:
+def _comic_asset_url(asset_id: str, rel_path: str) -> str:
+    asset = re.sub(r"[^a-zA-Z0-9_-]", "", str(asset_id or ""))
+    rel = str(rel_path or "").replace("\\", "/").strip("/")
+    return f"/media/comic/{quote(asset)}/{quote(rel, safe='/')}"
+
+
+def _comic_image_suffix(name: str) -> str:
+    suffix = Path(str(name or "").lower()).suffix
+    if suffix in comic_import_support.IMAGE_EXTENSIONS:
+        return suffix
+    guessed = mimetypes.guess_extension(mimetypes.guess_type(str(name or ""))[0] or "")
+    return guessed if guessed in comic_import_support.IMAGE_EXTENSIONS else ".jpg"
+
+
+def _persist_comic_import_assets(
+    parsed: dict[str, Any],
+    *,
+    comic_import_dir: Path,
+    encode_comic_payload,
+) -> tuple[list[dict[str, Any]], Path]:
+    chapters = parsed.get("chapters") if isinstance(parsed.get("chapters"), list) else []
+    seed = f"{parsed.get('file_name') or 'comic'}|{time.time_ns()}|{uuid.uuid4().hex}"
+    asset_id = f"comic_{hashlib.sha1(seed.encode('utf-8')).hexdigest()[:24]}"
+    asset_root = comic_import_dir / asset_id
+    asset_root.mkdir(parents=True, exist_ok=False)
+    output_chapters: list[dict[str, Any]] = []
+    try:
+        for chapter_index, chapter in enumerate(chapters, start=1):
+            if not isinstance(chapter, dict):
+                continue
+            images = chapter.get("images") if isinstance(chapter.get("images"), list) else []
+            urls: list[str] = []
+            chapter_dir = asset_root / f"chapter_{chapter_index:04d}"
+            chapter_dir.mkdir(parents=True, exist_ok=True)
+            for image_index, image in enumerate(images, start=1):
+                if not isinstance(image, dict):
+                    continue
+                data = bytes(image.get("data") or b"")
+                if not data:
+                    continue
+                suffix = _comic_image_suffix(str(image.get("name") or image.get("source_path") or "page.jpg"))
+                rel_path = f"chapter_{chapter_index:04d}/page_{image_index:04d}{suffix}"
+                (asset_root / rel_path).write_bytes(data)
+                urls.append(_comic_asset_url(asset_id, rel_path))
+            if not urls:
+                continue
+            title = str(chapter.get("title") or f"Chương {chapter_index}").strip() or f"Chương {chapter_index}"
+            output_chapters.append(
+                {
+                    "title": title,
+                    "text": encode_comic_payload(urls),
+                    "word_count": len(urls),
+                }
+            )
+        if not output_chapters:
+            raise ValueError("Không có ảnh comic hợp lệ để lưu.")
+        return output_chapters, asset_root
+    except Exception:
+        shutil.rmtree(asset_root, ignore_errors=True)
+        raise
+
+
+def create_book_from_local_import(
+    service,
+    parsed: dict[str, Any],
+    file_bytes: bytes,
+    *,
+    normalize_lang_source,
+    progress_callback=None,
+    comic_import_dir: Path | None = None,
+    encode_comic_payload=None,
+) -> dict[str, Any]:
     metadata = parsed.get("metadata") if isinstance(parsed.get("metadata"), dict) else {}
     chapters = parsed.get("chapters") if isinstance(parsed.get("chapters"), list) else []
+    source_type = str(parsed.get("source_type") or "txt").strip() or "txt"
+    source_file_path = ""
+    persisted_comic_root: Path | None = None
+    if source_type == "comic":
+        if comic_import_dir is None or not callable(encode_comic_payload):
+            raise ValueError("Thiếu cấu hình lưu ảnh comic.")
+        if callable(progress_callback):
+            progress_callback("save_comic_assets", "Đang lưu ảnh comic vào cache.")
+        chapters, persisted_comic_root = _persist_comic_import_assets(
+            parsed,
+            comic_import_dir=comic_import_dir,
+            encode_comic_payload=encode_comic_payload,
+        )
+        source_file_path = str(persisted_comic_root)
     if callable(progress_callback):
         progress_callback("save_book", f"Đang lưu metadata và {len(chapters)} chương vào DB.", chapter_count=len(chapters))
-    created = service.storage.create_book(
-        title=str(metadata.get("title") or "Untitled").strip() or "Untitled",
-        author=str(metadata.get("author") or "").strip(),
-        lang_source=normalize_lang_source(metadata.get("lang_source") or "") or "zh",
-        source_type=str(parsed.get("source_type") or "txt").strip() or "txt",
-        summary=str(metadata.get("summary") or "").strip(),
-        chapters=[dict(item or {}) for item in chapters if isinstance(item, dict)],
-    )
+    try:
+        created = service.storage.create_book(
+            title=str(metadata.get("title") or "Untitled").strip() or "Untitled",
+            author=str(metadata.get("author") or "").strip(),
+            lang_source=normalize_lang_source(metadata.get("lang_source") or "") or "zh",
+            source_type=source_type,
+            summary=str(metadata.get("summary") or "").strip(),
+            chapters=[dict(item or {}) for item in chapters if isinstance(item, dict)],
+            source_file_path=source_file_path,
+        )
+    except Exception:
+        if persisted_comic_root is not None:
+            shutil.rmtree(persisted_comic_root, ignore_errors=True)
+        raise
     book_id = str((created or {}).get("book_id") or "").strip()
     if not book_id:
         return created
@@ -526,6 +661,8 @@ def commit_import_token(
     parse_epub_book,
     parse_txt_book,
     normalize_vbook_display_text,
+    comic_import_dir: Path | None = None,
+    encode_comic_payload=None,
     progress_callback=None,
 ) -> dict[str, Any]:
     try:
@@ -571,6 +708,8 @@ def commit_import_token(
             file_bytes,
             normalize_lang_source=normalize_lang_source,
             progress_callback=progress_callback,
+            comic_import_dir=comic_import_dir,
+            encode_comic_payload=encode_comic_payload,
         )
         if callable(progress_callback):
             progress_callback("cleanup", "Đang dọn file tạm.")
@@ -606,6 +745,8 @@ def import_file(
     parse_epub_book,
     parse_txt_book,
     normalize_vbook_display_text,
+    comic_import_dir: Path | None = None,
+    encode_comic_payload=None,
 ) -> dict[str, Any]:
     parsed = parse_local_import_payload(
         service,
@@ -627,6 +768,8 @@ def import_file(
         parsed,
         file_bytes,
         normalize_lang_source=normalize_lang_source,
+        comic_import_dir=comic_import_dir,
+        encode_comic_payload=encode_comic_payload,
     )
 
 
