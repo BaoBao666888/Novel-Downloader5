@@ -2785,7 +2785,7 @@ function decryptDES(encrypted, key, iv) {
         // ui
         const html = [
             '<div name="info">',
-            `  Quy tắc hiện tại: <span name="rule"></span><span name="mode"></span><sup><a href="https://github.com/BaoBao666888/Novel-Downloader5/issues/new?body=${encodeURIComponent(issueBody.join('\u000a'))}" target="_blank">Phản hồi</a></sup><sup><button type="button" name="open-guide" class="nd-doc-link" data-nd-action="open-guide">Hướng dẫn</button></sup><sup><button type="button" name="open-supported-sites" class="nd-doc-link" data-nd-action="open-supported-sites">Danh sách hỗ trợ</button></sup>`,
+            `  Quy tắc hiện tại: <span name="rule"></span><span name="mode"></span><sup><a href="https://github.com/BaoBao666888/Novel-Downloader5/issues/new?body=${encodeURIComponent(issueBody.join('\u000a'))}" target="_blank">Phản hồi</a></sup><sup><button type="button" name="open-guide" class="nd-doc-link" data-nd-action="open-guide">HD</button></sup><sup><button type="button" name="open-supported-sites" class="nd-doc-link" data-nd-action="open-supported-sites">DS hỗ trợ</button></sup>`,
             '  <br>',
             '  Tên sách: <input type="text" name="title" value="加载中，请稍候">',
             '  <br>',

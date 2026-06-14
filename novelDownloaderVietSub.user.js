@@ -2,7 +2,7 @@
 // ==UserScript==
 // @name        novelDownloaderVietSub
 // @description Menu Download Novel hoặc nhấp đúp vào cạnh trái của trang để hiển thị bảng điều khiển
-// @version     3.5.448.9
+// @version     3.5.448.10
 // @author      dodying | BaoBao
 // @namespace   https://github.com/BaoBao666888/Novel-Downloader5
 // @supportURL  https://github.com/BaoBao666888/Novel-Downloader5/issues
@@ -3110,7 +3110,79 @@ function decryptDES(encrypted, key, iv) {
             chapter: '#chapter_list .chapter_item>a',
             vipChapter: '#chapter_list .chapter_item:has(.lock)>a',
             chapterTitle: '.article-title',
-            deal: async (chapter) => Rule.special.find((i) => i.siteName === '刺猬猫').deal(chapter),
+            _fetch: (url, options = {}) => {
+                const fetchImpl = (typeof unsafeWindow !== 'undefined' && typeof unsafeWindow.fetch === 'function')
+                    ? unsafeWindow.fetch.bind(unsafeWindow)
+                    : window.fetch.bind(window);
+                return fetchImpl(url, {
+                    credentials: 'include',
+                    cache: 'no-store',
+                    ...options,
+                });
+            },
+            _ensureDecrypt: async () => {
+                if (unsafeWindow.$ && typeof unsafeWindow.$.myDecrypt === 'function') return;
+                const rule = Rule.special.find((i) => i.siteName === '书耽');
+                const scripts = [
+                    '/resources/js/enjs.min.js',
+                    '/resources/js/plugins/jquery.base64.min.js',
+                    '/resources/js/myEncrytExtend-min.js',
+                ];
+                for (const path of scripts) {
+                    const res = await rule._fetch(`https://www.shubl.com${path}`);
+                    if (!res.ok) throw new Error(`Không tải được script giải mã Shubl: ${path}`);
+                    unsafeWindow.eval(await res.text());
+                }
+                if (!(unsafeWindow.$ && typeof unsafeWindow.$.myDecrypt === 'function')) {
+                    throw new Error('Không khởi tạo được hàm giải mã Shubl.');
+                }
+            },
+            deal: async (chapter) => {
+                const rule = Rule.special.find((i) => i.siteName === '书耽');
+                await rule._ensureDecrypt();
+                const chapterUrl = new URL(chapter.url, window.location.href).href;
+                const chapterId = (chapterUrl.match(/\/(\d+)(?:[?#].*)?$/) || [])[1];
+                if (!chapterId) throw new Error(`Không lấy được ID chương Shubl: ${chapterUrl}`);
+
+                const fetchJson = async (url, options = {}) => {
+                    const { headers = {}, ...restOptions } = options;
+                    const res = await rule._fetch(url, {
+                        referrer: chapterUrl,
+                        ...restOptions,
+                        headers: {
+                            'X-Requested-With': 'XMLHttpRequest',
+                            ...headers,
+                        },
+                    });
+                    const text = await res.text();
+                    try {
+                        return JSON.parse(text);
+                    } catch (error) {
+                        throw new Error(`Shubl trả JSON không hợp lệ (${res.status}): ${text.slice(0, 120)}`);
+                    }
+                };
+
+                const session = await fetchJson(`https://www.shubl.com/chapter/ajax_get_session_code?chapter_id=${chapterId}`);
+                const accessKey = session && session.chapter_access_key;
+                if (session.code !== 100000 || !accessKey) {
+                    throw new Error(session.tip || `Không lấy được access key Shubl cho chương ${chapterId}`);
+                }
+
+                const params = new URLSearchParams({
+                    chapter_id: chapterId,
+                    chapter_access_key: accessKey,
+                });
+                const json = await fetchJson(`https://www.shubl.com/chapter/get_book_chapter_detail_info?${params.toString()}`);
+                if (json.code !== 100000 || !json.chapter_content) {
+                    throw new Error(json.tip || `Shubl không trả nội dung cho chương ${chapterId}`);
+                }
+
+                return unsafeWindow.$.myDecrypt({
+                    content: json.chapter_content,
+                    keys: json.encryt_keys,
+                    accessKey,
+                });
+            },
             elementRemove: 'span',
             chapterPrev: '#J_BtnPagePrev',
             chapterNext: '#J_BtnPageNext',
@@ -11281,7 +11353,7 @@ function decryptDES(encrypted, key, iv) {
         // ui
         const html = [
             '<div name="info">',
-            `  Quy tắc hiện tại: <span name="rule"></span><span name="mode"></span><sup><a href="https://github.com/BaoBao666888/Novel-Downloader5/issues/new?body=${encodeURIComponent(issueBody.join('\u000a'))}" target="_blank">Phản hồi</a></sup><sup><button type="button" name="open-guide" class="nd-doc-link" data-nd-action="open-guide">Hướng dẫn</button></sup><sup><button type="button" name="open-supported-sites" class="nd-doc-link" data-nd-action="open-supported-sites">Danh sách hỗ trợ</button></sup>`,
+            `  Quy tắc hiện tại: <span name="rule"></span><span name="mode"></span><sup><a href="https://github.com/BaoBao666888/Novel-Downloader5/issues/new?body=${encodeURIComponent(issueBody.join('\u000a'))}" target="_blank">Phản hồi</a></sup><sup><button type="button" name="open-guide" class="nd-doc-link" data-nd-action="open-guide">HD</button></sup><sup><button type="button" name="open-supported-sites" class="nd-doc-link" data-nd-action="open-supported-sites">DS hỗ trợ</button></sup>`,
             '  <br>',
             '  Tên sách: <input type="text" name="title" value="加载中，请稍候">',
             '  <br>',
