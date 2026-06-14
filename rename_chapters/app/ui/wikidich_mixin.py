@@ -2316,7 +2316,8 @@ class WikidichMixin:
         btn = getattr(self, "wd_auto_update_btn", None)
         if btn:
             has_fanqie = bool(self._wd_get_fanqie_link(book))
-            if has_fanqie:
+            has_linked_folder = bool(self._wd_get_linked_folder(book))
+            if has_fanqie or has_linked_folder:
                 self._wd_set_flow_button_visible(btn, True)
                 btn.config(state=tk.NORMAL)
             else:
@@ -2531,6 +2532,10 @@ class WikidichMixin:
         preview_full = bool(prefill.get("full_preview"))
         prefill_source_label = prefill.get("source_label") or ""
         prefill_warns = list(prefill.get("warn_messages") or [])
+        prefill_initial_dir = str(prefill.get("initial_dir") or "").strip()
+        prefill_history_source = str(prefill.get("history_source") or "").strip() or "manual_edit"
+        prefill_close_on_success = bool(prefill.get("close_on_success"))
+        prefill_wiki_chapters_before = self._wd_int_or_none(prefill.get("wiki_chapters_before"))
         current_raw_title_only = {"value": prefill_raw_title_only}
         edit_page_url = self._wd_normalize_url_for_site(book.get("url", "")) + "/chinh-sua"
         win = tk.Toplevel(self)
@@ -2645,6 +2650,7 @@ class WikidichMixin:
             paths = filedialog.askopenfilenames(
                 parent=win,
                 title="Chọn file chương (.txt)",
+                initialdir=prefill_initial_dir or (self.folder_path.get() if hasattr(self, "folder_path") else "") or BASE_DIR,
                 filetypes=[("Text files", "*.txt"), ("All files", "*.*")]
             )
             if not paths:
@@ -2907,13 +2913,30 @@ class WikidichMixin:
                 )
                 if upload_res.get("ok"):
                     count_added = int(upload_res.get("uploaded_count") or len(parsed_files))
-                    self.after(0, lambda: (
-                        _set_status("Upload thành công"),
-                        _log("Upload thành công.", "ok"),
-                        messagebox.showinfo("Thành công", "Đã upload file lên Wikidich.", parent=win),
-                        self._wd_handle_uploaded_chapters(book, count_added),
-                        _enable_actions(),
-                    ))
+                    warning_snapshot = dict(manual_upload_warning.get("value") or {})
+                    parsed_snapshot = [dict(item) for item in parsed_files]
+                    count_before = prefill_wiki_chapters_before
+                    if count_before is None:
+                        count_before = self._wd_int_or_none(book.get("chapters")) or 0
+
+                    def _on_upload_success():
+                        _set_status("Upload thành công")
+                        _log("Upload thành công.", "ok")
+                        self._wd_append_manual_upload_history(
+                            book,
+                            parsed_snapshot,
+                            upload_res,
+                            source=prefill_history_source,
+                            warning_info=warning_snapshot,
+                            wiki_chapters_before=count_before,
+                        )
+                        messagebox.showinfo("Thành công", "Đã upload file lên Wikidich.", parent=win)
+                        self._wd_handle_uploaded_chapters(book, count_added)
+                        _enable_actions()
+                        if prefill_close_on_success and win.winfo_exists():
+                            win.destroy()
+
+                    self.after(0, _on_upload_success)
                 else:
                     err_msg = upload_res.get("error_message") or "Upload thất bại."
                     self.after(0, lambda m=err_msg: (
@@ -4101,6 +4124,107 @@ class WikidichMixin:
         messagebox.showinfo("Chọn tự động", f"{message}\nSẽ chuyển sang tab Đổi Tên.", parent=self)
         self.schedule_preview_update(None)
         self._select_tab_by_name("Đổi Tên")
+
+    def _wd_pick_linked_upload_dir(self, link_path: str) -> str:
+        mode = getattr(self, "wikidich_auto_pick_mode", "extract_then_pick")
+        if mode == "extract_then_pick":
+            try:
+                return self._wd_extract_latest_archive(link_path)
+            except Exception as exc:
+                self.log(f"[Wikidich] Không giải nén được/tìm thấy archive mới nhất, thử chọn thư mục con: {exc}")
+        return self._wd_pick_latest_subdir(link_path)
+
+    def _wd_collect_text_files_in_dir(self, target_dir: str) -> list:
+        paths = []
+        for root, _dirs, files in os.walk(target_dir):
+            for name in files:
+                if os.path.splitext(name)[1].lower() == ".txt":
+                    paths.append(os.path.join(root, name))
+        paths.sort(key=lambda p: os.path.basename(p).lower())
+        return paths
+
+    def _wd_prepare_linked_folder_upload_payload(self, book: dict, target_dir: str) -> dict:
+        paths = self._wd_collect_text_files_in_dir(target_dir)
+        if not paths:
+            return {"ok": False, "error_message": f"Không tìm thấy file .txt trong thư mục: {target_dir}"}
+        parse_settings = self._wd_build_upload_parse_settings()
+        parsed = self._wd_parse_upload_file_paths(paths, parse_settings)
+        parse_errors = list(parsed.get("parse_errors") or [])
+        parsed_files = list(parsed.get("parsed_files") or [])
+        if parse_errors:
+            return {"ok": False, "error_message": "\n".join(parse_errors[:10])}
+        if len(parsed_files) < 2:
+            return {"ok": False, "error_message": "Cần ít nhất 2 file chương để Auto Update bằng thư mục liên kết."}
+
+        warn_messages = []
+        missing = parsed.get("missing") or []
+        if missing:
+            warn_messages.append("Thiếu chương: " + ", ".join(str(m) for m in missing[:40]))
+        try:
+            warn_kb = float(parse_settings.get("warn_kb", DEFAULT_UPLOAD_SETTINGS["warn_kb"]))
+        except Exception:
+            warn_kb = DEFAULT_UPLOAD_SETTINGS["warn_kb"]
+        warn_kb = max(0.0, warn_kb)
+        if warn_kb > 0:
+            warn_bytes = warn_kb * 1024
+            small = [p for p in parsed_files if p.get("size", 0) and p["size"] < warn_bytes]
+            if small:
+                names = ", ".join(os.path.basename(p["path"]) for p in small[:5])
+                more = "" if len(small) <= 5 else f"... (+{len(small) - 5})"
+                warn_messages.append(f"{len(small)} file < {int(warn_kb)}KB: {names}{more}")
+
+        nums = [item.get("num") for item in parsed_files if isinstance(item.get("num"), int)]
+        desc_text = ""
+        if nums:
+            desc_text = f"{min(nums)}-{max(nums)}"
+        return {
+            "ok": True,
+            "parsed_files": parsed_files,
+            "desc": desc_text,
+            "select_append_volume": True,
+            "full_preview": True,
+            "raw_title_only": False,
+            "source_label": f"Tự chọn {len(parsed_files)} file từ thư mục: {target_dir}",
+            "warn_messages": warn_messages,
+            "initial_dir": target_dir,
+            "history_source": "manual_auto_update",
+            "close_on_success": True,
+            "wiki_chapters_before": self._wd_int_or_none((book or {}).get("chapters")) or 0,
+        }
+
+    def _wd_auto_update_linked_folder(self, book: dict):
+        link_path = self._wd_get_linked_folder(book)
+        if not link_path or not os.path.isdir(link_path):
+            messagebox.showinfo("Chưa liên kết", "Truyện chưa có thư mục liên kết hoặc thư mục không tồn tại.", parent=self)
+            return
+        if self._wd_loading:
+            messagebox.showinfo("Đang chạy", "Vui lòng chờ tác vụ Wikidich hiện tại kết thúc.", parent=self)
+            return
+
+        def _worker():
+            self._wd_loading = True
+            self._wd_loading_site = getattr(self, "wd_site", "wikidich")
+            try:
+                self._wd_set_progress("Đang chọn thư mục mới nhất...", 0, 1)
+                target_dir = self._wd_pick_linked_upload_dir(link_path)
+                payload = self._wd_prepare_linked_folder_upload_payload(book, target_dir)
+                if not payload.get("ok"):
+                    msg = payload.get("error_message") or "Không chuẩn bị được file upload."
+                    self.after(0, lambda m=msg: messagebox.showerror("Auto update", m, parent=self))
+                    self._wd_set_progress("Auto update không có file hợp lệ", 0, 1)
+                    return
+                self._wd_set_progress("Sẵn sàng upload từ thư mục liên kết", 0, 1)
+                self.after(0, lambda b=dict(book), p=dict(payload): self._wd_open_wiki_edit_uploader(prefill=p, book_override=b))
+            except Exception as exc:
+                self.log(f"[Wikidich] Lỗi Auto update thư mục liên kết: {exc}")
+                self.after(0, lambda e=str(exc): messagebox.showerror("Auto update", e, parent=self))
+            finally:
+                self._wd_loading = False
+                self._wd_loading_site = None
+                self._wd_progress_running = False
+                self._wd_set_progress("Chờ thao tác...", 0, 1)
+
+        threading.Thread(target=_worker, daemon=True).start()
 
 
     def _wd_open_update_dialog(self):
@@ -5898,6 +6022,61 @@ class WikidichMixin:
         self._wd_autoupdate_history_entries = history
         self._wd_prune_autoupdate_history(max_days=30, persist=False)
         self._wd_save_autoupdate_state()
+
+    def _wd_append_manual_upload_history(
+        self,
+        book: dict,
+        parsed_files: list,
+        upload_res: dict,
+        *,
+        source: str = "manual_edit",
+        warning_info: Optional[dict] = None,
+        wiki_chapters_before: int = 0,
+    ):
+        if not isinstance(book, dict) or not upload_res or not upload_res.get("ok"):
+            return
+        now = datetime.now()
+        site, profile, _safe_site, _safe_profile = self._wd_get_autoupdate_scope()
+        source_key = (source or "manual_edit").strip()
+        source_label = "Auto Update tay" if source_key == "manual_auto_update" else "Chỉnh sửa tay"
+        uploaded_count = int(upload_res.get("uploaded_count") or len(parsed_files or []) or 0)
+        new_before = 0
+        bid = str(book.get("id") or "").strip()
+        try:
+            new_before = int((self.wd_new_chapters or {}).get(bid, 0) or 0)
+        except Exception:
+            new_before = 0
+        warning_info = warning_info or {}
+        warning_type = ""
+        warning_message = ""
+        warning_files = []
+        if warning_info.get("has_warning"):
+            warning_type = str(warning_info.get("warning") or "upload_text_encoding_or_icon")
+            warning_message = str(warning_info.get("message") or "Có file không phải UTF-8 hoặc có ký tự 4-byte.")
+            warning_files = self._wd_normalize_icon_warning_files(warning_info.get("files") or [])
+        item = {
+            "run_id": now.strftime("manual-%Y%m%d%H%M%S%f"),
+            "date": now.strftime("%Y-%m-%d"),
+            "time": now.strftime("%H:%M:%S"),
+            "site": site,
+            "profile": profile,
+            "book_id": bid,
+            "title": str(book.get("title") or bid),
+            "result": "success",
+            "message": f"{source_label}: upload thành công.",
+            "new_before": new_before,
+            "uploaded_count": uploaded_count,
+            "manual": True,
+            "source": source_key,
+            "wiki_chapters_before": int(wiki_chapters_before or 0),
+        }
+        if warning_type:
+            item["warning"] = warning_type
+            item["warning_message"] = warning_message[:500]
+            item["message"] = f"{item['message']} Cảnh báo: {warning_message}"[:500]
+        if warning_files:
+            item["warning_files"] = warning_files
+        self._wd_append_autoupdate_history([item])
 
     def _wd_get_autoupdate_candidates(self) -> list:
         candidates = []
@@ -9203,6 +9382,101 @@ class WikidichMixin:
                 return vol
         return None
 
+    def _wd_build_upload_parse_settings(self) -> dict:
+        upload_cfg = {**DEFAULT_UPLOAD_SETTINGS, **(self.wikidich_upload_settings or {})}
+        return {
+            "filename_regex": upload_cfg.get("filename_regex", DEFAULT_UPLOAD_SETTINGS["filename_regex"]),
+            "content_regex": upload_cfg.get("content_regex", DEFAULT_UPLOAD_SETTINGS["content_regex"]),
+            "template": upload_cfg.get("template", DEFAULT_UPLOAD_SETTINGS["template"]),
+            "priority": upload_cfg.get("priority", DEFAULT_UPLOAD_SETTINGS["priority"]),
+            "warn_kb": upload_cfg.get("warn_kb", DEFAULT_UPLOAD_SETTINGS["warn_kb"]),
+            "sort_by_number": bool(upload_cfg.get("sort_by_number", DEFAULT_UPLOAD_SETTINGS["sort_by_number"])),
+        }
+
+    def _wd_parse_upload_file_paths(self, paths: list, parse_settings: Optional[dict] = None) -> dict:
+        parse_settings = parse_settings or self._wd_build_upload_parse_settings()
+        priority = (parse_settings.get("priority", "filename") or "filename").lower()
+        fn_regex = parse_settings.get("filename_regex", "")
+        ct_regex = parse_settings.get("content_regex", "")
+        pattern_fn = re.compile(fn_regex, re.IGNORECASE) if fn_regex else None
+        pattern_ct = re.compile(ct_regex, re.IGNORECASE) if ct_regex else None
+        parsed_files = []
+        parse_errors = []
+
+        def _match(text, pattern):
+            if not text or not pattern:
+                return None
+            m = pattern.search(text)
+            if not m or not m.group(1):
+                return None
+            try:
+                num = int(m.group(1))
+            except Exception:
+                return None
+            title = m.group(2) or ""
+            return num, title
+
+        files_info = []
+        for raw_path in paths or []:
+            path = str(raw_path or "")
+            if not path:
+                continue
+            try:
+                size = os.path.getsize(path)
+            except Exception:
+                size = 0
+            files_info.append((path, size))
+
+        for path, size in files_info:
+            name = os.path.basename(path)
+            base = os.path.splitext(name)[0]
+            first_line = ""
+            info = None
+            if priority == "filename":
+                info = _match(base, pattern_fn)
+                if not info:
+                    try:
+                        with open(path, "r", encoding="utf-8", errors="ignore") as f:
+                            first_line = (f.readline() or "").strip()
+                    except Exception:
+                        first_line = ""
+                    info = _match(first_line, pattern_ct)
+            else:
+                try:
+                    with open(path, "r", encoding="utf-8", errors="ignore") as f:
+                        first_line = (f.readline() or "").strip()
+                except Exception:
+                    first_line = ""
+                info = _match(first_line, pattern_ct)
+                if not info:
+                    info = _match(base, pattern_fn)
+            if not info:
+                parse_errors.append(f"{name}: Không tìm thấy số chương (tên/dòng đầu).")
+                continue
+            num, raw_title = info
+            parsed_files.append({"path": path, "num": num, "raw_title": raw_title, "size": size})
+
+        if parse_settings.get("sort_by_number", True):
+            parsed_files.sort(key=lambda x: x["num"])
+        else:
+            parsed_files.sort(key=lambda x: os.path.basename(x["path"]).lower())
+        nums = [p["num"] for p in parsed_files]
+        missing = []
+        if nums:
+            nums_set = set(nums)
+            for number in range(nums[0], nums[-1] + 1):
+                if number not in nums_set:
+                    missing.append(number)
+        dupes = sorted({n for n in nums if nums.count(n) > 1})
+        if dupes:
+            parse_errors.append("Có chương trùng: " + ", ".join(str(d) for d in dupes))
+        return {
+            "parsed_files": parsed_files,
+            "parse_errors": parse_errors,
+            "missing": missing,
+            "dupes": dupes,
+        }
+
     def _wd_scan_upload_files_for_icon_warning(self, parsed_files: list, max_samples: int = 6) -> dict:
         if not parsed_files:
             return {"has_warning": False, "message": ""}
@@ -10007,11 +10281,14 @@ class WikidichMixin:
     def _wd_auto_update_fanqie(self):
         book = getattr(self, "wd_selected_book", None)
         if not book:
-            messagebox.showinfo("Chưa chọn truyện", "Chọn một truyện có link Fanqie trước.", parent=self)
+            messagebox.showinfo("Chưa chọn truyện", "Chọn một truyện có link Fanqie hoặc Liên kết thư mục trước.", parent=self)
             return
         fanqie_link = self._wd_get_fanqie_link(book)
         if not fanqie_link:
-            messagebox.showinfo("Không có link Fanqie", "Chỉ hỗ trợ Auto update cho truyện có link Fanqie.", parent=self)
+            if self._wd_get_linked_folder(book):
+                self._wd_auto_update_linked_folder(book)
+                return
+            messagebox.showinfo("Không có nguồn", "Auto update cần link Fanqie hoặc Liên kết thư mục.", parent=self)
             return
         if self._wd_loading:
             messagebox.showinfo("Đang chạy", "Vui lòng chờ tác vụ Wikidich hiện tại kết thúc.", parent=self)
@@ -10290,6 +10567,9 @@ class WikidichMixin:
                 "raw_title_only": True,
                 "source_label": f"Tự động tải {len(parsed_files)} chương mới",
                 "warn_messages": warn_messages,
+                "history_source": "manual_auto_update",
+                "close_on_success": True,
+                "wiki_chapters_before": wiki_chapters,
             }, book_override=b))
         except Exception as exc:
             self.log(f"[Fanqie][Auto] Lỗi: {exc}")
