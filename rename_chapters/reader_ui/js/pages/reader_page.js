@@ -392,6 +392,7 @@ const state = {
 let comicOcrOverlayEditorUi = null;
 let comicImageActionMenuUi = null;
 let comicManualDrawState = null;
+let comicOcrMergeSelectionState = null;
 
 const TOC_ICON_MARKUP = Object.freeze({
   download: '<svg class="toc-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v10"></path><path d="m8 11 4 4 4-4"></path><path d="M4 18h16"></path></svg>',
@@ -2916,6 +2917,24 @@ function comicOcrBoxesMergeCompatible(a, b) {
   return comicOcrBoxesNear(a, b) || comicOcrBoxesVerticallyMergeable(a, b);
 }
 
+function comicOcrBoxEdgeGap(a, b) {
+  const [ax, ay, aw, ah] = a;
+  const [bx, by, bw, bh] = b;
+  const gapX = Math.max(0, Math.max(ax, bx) - Math.min(ax + aw, bx + bw));
+  const gapY = Math.max(0, Math.max(ay, by) - Math.min(ay + ah, by + bh));
+  return { x: gapX, y: gapY };
+}
+
+function comicOcrBoxesMergeSelectable(a, b) {
+  if (comicOcrBoxesMergeCompatible(a, b)) return true;
+  const gap = comicOcrBoxEdgeGap(a, b);
+  const maxWidth = Math.max(Number(a[2]) || 0, Number(b[2]) || 0);
+  const maxHeight = Math.max(Number(a[3]) || 0, Number(b[3]) || 0);
+  const maxGapX = Math.max(0.035, Math.min(0.16, maxWidth * 1.2));
+  const maxGapY = Math.max(0.04, Math.min(0.2, maxHeight * 1.75));
+  return gap.x <= maxGapX && gap.y <= maxGapY;
+}
+
 function unionComicOcrBoxes(a, b) {
   const left = Math.min(a[0], b[0]);
   const top = Math.min(a[1], b[1]);
@@ -3351,7 +3370,7 @@ function pickComicOcrNearbyMergeBlocks(block, count) {
       .map((item, index) => ({
         item,
         index,
-        near: selected.some((selectedItem) => comicOcrBoxesMergeCompatible(selectedItem.box, item.box)) || (unionBox && comicOcrBoxesMergeCompatible(unionBox, item.box)),
+        near: selected.some((selectedItem) => comicOcrBoxesMergeSelectable(selectedItem.box, item.box)) || (unionBox && comicOcrBoxesMergeSelectable(unionBox, item.box)),
         distance: unionBox ? comicOcrBoxDistance(unionBox, item.box) : 0,
       }))
       .filter((entry) => entry.near)
@@ -3370,19 +3389,39 @@ function pickComicOcrNearbyMergeBlocks(block, count) {
     : [];
 }
 
-async function mergeComicOcrNearbyOverlays(block, count) {
-  const selected = pickComicOcrNearbyMergeBlocks(block, count);
-  if (!selected.length) {
-    state.shell.showToast(state.shell.t("comicOcrOverlayMergeNotEnough"));
-    return;
+function comicOcrNearbyMergeCandidates(block) {
+  const pageIndex = Number(block && block.pageIndex) || 0;
+  const anchorId = String((block && block.id) || "").trim();
+  if (!anchorId) return { anchor: null, candidates: [] };
+  const blocks = comicOcrOverlayBlocksForPage(pageIndex).filter((item) => item && item.id);
+  const anchor = blocks.find((item) => item.id === anchorId) || null;
+  if (!anchor) return { anchor: null, candidates: [] };
+  const seen = new Set([anchorId]);
+  const queue = [anchor];
+  const candidates = [];
+  while (queue.length) {
+    const current = queue.shift();
+    for (const item of blocks) {
+      if (!item || seen.has(item.id)) continue;
+      if (!comicOcrBoxesMergeSelectable(current.box, item.box)) continue;
+      seen.add(item.id);
+      candidates.push(item);
+      queue.push(item);
+    }
   }
+  candidates.sort((a, b) => comicOcrBoxDistance(anchor.box, a.box) - comicOcrBoxDistance(anchor.box, b.box));
+  return { anchor, candidates: candidates.slice(0, 18) };
+}
+
+async function saveComicOcrMergedOverlays(block, selected) {
+  if (!block || !Array.isArray(selected) || selected.length < 2) return null;
   const pageIndex = Number(block && block.pageIndex) || 0;
   const blockId = String((block && block.id) || "").trim();
   const unionBox = selected.reduce((acc, item) => (acc ? unionComicOcrBoxes(acc, item.box) : item.box), null);
   const sourceText = selected.map((item) => normalizeComicOcrOverlayText(item.sourceText || item.originalSourceText)).filter(Boolean).join(" ");
   const text = selected.map((item) => normalizeComicOcrOverlayText(item.text)).filter(Boolean).join(" ");
   const fontScale = Math.max(60, Math.min(180, Number((block && block.fontScale) || 100) || 100));
-  const data = await saveComicOcrOverlayEdit({
+  return saveComicOcrOverlayEdit({
     pageIndex,
     blockId,
     text,
@@ -3396,9 +3435,158 @@ async function mergeComicOcrNearbyOverlays(block, count) {
     merged: true,
     mergedBlockIds: selected.map((item) => item.id),
   });
+}
+
+async function mergeComicOcrNearbyOverlays(block, count) {
+  const selected = pickComicOcrNearbyMergeBlocks(block, count);
+  if (!selected.length) {
+    state.shell.showToast(state.shell.t("comicOcrOverlayMergeNotEnough"));
+    return;
+  }
+  const pageIndex = Number(block && block.pageIndex) || 0;
+  const blockId = String((block && block.id) || "").trim();
+  const data = await saveComicOcrMergedOverlays(block, selected);
   applyComicOcrOverlayEditResponse(pageIndex, data, blockId);
   renderComicOcrOverlays();
   state.shell.showToast(state.shell.t("comicOcrOverlayMergeSaved"));
+}
+
+function removeComicOcrMergeSelectionToolbar() {
+  if (comicOcrMergeSelectionState && comicOcrMergeSelectionState.toolbar) {
+    comicOcrMergeSelectionState.toolbar.remove();
+    comicOcrMergeSelectionState.toolbar = null;
+  }
+}
+
+function stopComicOcrMergeSelection({ render = true } = {}) {
+  removeComicOcrMergeSelectionToolbar();
+  comicOcrMergeSelectionState = null;
+  if (render) renderComicOcrOverlays();
+}
+
+function comicOcrMergeSelectedBlocks() {
+  const selection = comicOcrMergeSelectionState;
+  if (!selection || !(selection.selectedIds instanceof Set)) return [];
+  return comicOcrOverlayBlocksForPage(selection.pageIndex)
+    .filter((item) => item && selection.selectedIds.has(item.id))
+    .sort((a, b) => {
+      const ak = comicOcrBoxSortKey(a.box);
+      const bk = comicOcrBoxSortKey(b.box);
+      return (ak[0] - bk[0]) || (ak[1] - bk[1]);
+    });
+}
+
+function updateComicOcrMergeSelectionToolbar() {
+  const selection = comicOcrMergeSelectionState;
+  if (!selection || !selection.toolbar) return;
+  const countNode = selection.toolbar.querySelector("[data-role='count']");
+  const confirmButton = selection.toolbar.querySelector("[data-action='confirm']");
+  const count = selection.selectedIds instanceof Set ? selection.selectedIds.size : 0;
+  if (countNode) countNode.textContent = state.shell.t("comicOcrOverlayMergeSelectedCount", { count });
+  if (confirmButton) confirmButton.disabled = selection.busy === true || count < 2;
+}
+
+function toggleComicOcrMergeSelectionBlock(blockId) {
+  const selection = comicOcrMergeSelectionState;
+  const id = String(blockId || "").trim();
+  if (!selection || !id || !(selection.candidateIds instanceof Set) || !selection.candidateIds.has(id)) return;
+  if (id === selection.anchorId) {
+    selection.selectedIds.add(id);
+  } else if (selection.selectedIds.has(id)) {
+    selection.selectedIds.delete(id);
+  } else {
+    selection.selectedIds.add(id);
+  }
+  updateComicOcrMergeSelectionToolbar();
+  renderComicOcrOverlays();
+}
+
+async function confirmComicOcrMergeSelection() {
+  const selection = comicOcrMergeSelectionState;
+  if (!selection || selection.busy) return;
+  const selected = comicOcrMergeSelectedBlocks();
+  if (selected.length < 2) {
+    state.shell.showToast(state.shell.t("comicOcrOverlayMergeNotEnough"));
+    updateComicOcrMergeSelectionToolbar();
+    return;
+  }
+  const anchor = selected.find((item) => item.id === selection.anchorId) || selected[0];
+  selection.busy = true;
+  updateComicOcrMergeSelectionToolbar();
+  try {
+    const data = await saveComicOcrMergedOverlays(anchor, selected);
+    applyComicOcrOverlayEditResponse(selection.pageIndex, data, selection.anchorId);
+    stopComicOcrMergeSelection({ render: false });
+    renderComicOcrOverlays();
+    state.shell.showToast(state.shell.t("comicOcrOverlayMergeSaved"));
+  } catch (error) {
+    selection.busy = false;
+    updateComicOcrMergeSelectionToolbar();
+    throw error;
+  }
+}
+
+function ensureComicOcrMergeSelectionToolbar() {
+  const selection = comicOcrMergeSelectionState;
+  if (!selection) return null;
+  if (selection.toolbar) return selection.toolbar;
+  const toolbar = document.createElement("div");
+  toolbar.className = "reader-comic-ocr-merge-toolbar";
+  toolbar.innerHTML = `
+    <div>
+      <strong>${state.shell.t("comicOcrOverlayMergeSelectTitle")}</strong>
+      <span data-role="count"></span>
+    </div>
+    <p>${state.shell.t("comicOcrOverlayMergeSelectHint")}</p>
+    <div class="reader-comic-ocr-merge-actions">
+      <button type="button" class="btn" data-action="cancel">${state.shell.t("comicOcrOverlayMergeCancel")}</button>
+      <button type="button" class="btn btn-primary" data-action="confirm">${state.shell.t("comicOcrOverlayMergeConfirm")}</button>
+    </div>
+  `;
+  toolbar.addEventListener("click", (event) => {
+    const button = event.target instanceof Element ? event.target.closest("button[data-action]") : null;
+    if (!button) return;
+    event.preventDefault();
+    const action = String(button.getAttribute("data-action") || "").trim();
+    if (action === "cancel") {
+      stopComicOcrMergeSelection();
+    } else if (action === "confirm") {
+      confirmComicOcrMergeSelection().catch((error) => {
+        state.shell.showToast(error.message || state.shell.t("toastError"));
+      });
+    }
+  });
+  document.body.appendChild(toolbar);
+  selection.toolbar = toolbar;
+  updateComicOcrMergeSelectionToolbar();
+  return toolbar;
+}
+
+function startComicOcrOverlayMergeSelection(block, count = 2) {
+  const pageIndex = Number(block && block.pageIndex) || 0;
+  const blockId = String((block && block.id) || "").trim();
+  const { anchor, candidates } = comicOcrNearbyMergeCandidates(block);
+  if (!anchor || !candidates.length) {
+    state.shell.showToast(state.shell.t("comicOcrOverlayMergeNotEnough"));
+    return false;
+  }
+  stopComicOcrMergeSelection({ render: false });
+  const initialCount = Math.max(2, Math.min(12, Number.parseInt(String(count || "2"), 10) || 2));
+  const candidateIds = new Set([blockId, ...candidates.map((item) => item.id)]);
+  const selectedIds = new Set([blockId]);
+  candidates.slice(0, Math.max(1, initialCount - 1)).forEach((item) => selectedIds.add(item.id));
+  comicOcrMergeSelectionState = {
+    chapterId: state.chapterId,
+    pageIndex,
+    anchorId: blockId,
+    candidateIds,
+    selectedIds,
+    busy: false,
+    toolbar: null,
+  };
+  ensureComicOcrMergeSelectionToolbar();
+  renderComicOcrOverlays();
+  return true;
 }
 
 function ensureComicOcrOverlayEditor() {
@@ -3526,14 +3714,12 @@ async function openComicOcrOverlayEditor(block) {
   };
   refs.merge.onclick = async () => {
     const count = Math.max(2, Math.min(12, Number.parseInt(String(refs.mergeCount.value || "2"), 10) || 2));
-    refs.merge.disabled = true;
-    refs.save.disabled = true;
     try {
-      await mergeComicOcrNearbyOverlays(block, count);
-      refs.dialog.close();
-    } finally {
-      refs.merge.disabled = false;
-      refs.save.disabled = false;
+      if (startComicOcrOverlayMergeSelection(block, count)) {
+        refs.dialog.close();
+      }
+    } catch (error) {
+      state.shell.showToast(error.message || state.shell.t("toastError"));
     }
   };
   refs.delete.onclick = async () => {
@@ -3661,9 +3847,20 @@ function renderComicOcrOverlayForSlot(slot, pageIndex) {
     node.textContent = text;
     node.dataset.pageIndex = String(pageIndex);
     node.dataset.blockId = String(block.id || "");
-    node.title = state.shell.t("comicOcrOverlayEditOpenHint");
+    const mergeSelection = comicOcrMergeSelectionState && comicOcrMergeSelectionState.pageIndex === pageIndex
+      ? comicOcrMergeSelectionState
+      : null;
+    const isMergeCandidate = Boolean(mergeSelection && mergeSelection.candidateIds instanceof Set && mergeSelection.candidateIds.has(String(block.id || "")));
+    const isMergeSelected = Boolean(mergeSelection && mergeSelection.selectedIds instanceof Set && mergeSelection.selectedIds.has(String(block.id || "")));
+    const isMergeAnchor = Boolean(mergeSelection && mergeSelection.anchorId === String(block.id || ""));
+    node.title = isMergeCandidate
+      ? state.shell.t("comicOcrOverlayMergeSelectHint")
+      : state.shell.t("comicOcrOverlayEditOpenHint");
     node.classList.toggle("is-edited", Boolean(settings.overlay_mark_edited !== false && block.edited));
     node.classList.toggle("is-hidden", Boolean(block.hidden));
+    node.classList.toggle("is-merge-candidate", isMergeCandidate);
+    node.classList.toggle("is-merge-selected", isMergeSelected);
+    node.classList.toggle("is-merge-anchor", isMergeAnchor);
     node.style.left = `${x * 100}%`;
     node.style.top = `${y * 100}%`;
     node.style.width = `${w * 100}%`;
@@ -3681,14 +3878,26 @@ function renderComicOcrOverlayForSlot(slot, pageIndex) {
     node.style.fontSize = `${bounds.max.toFixed(2)}px`;
     applyComicOcrOverlayTypography(node, settings);
     applyComicOcrOverlayPalette(node, sampleComicOcrOverlayColor(sampler, [x, y, w, h]), settings);
+    if (isMergeCandidate) {
+      node.addEventListener("click", (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        toggleComicOcrMergeSelectionBlock(block.id);
+      });
+    }
     node.addEventListener("dblclick", (event) => {
       event.preventDefault();
       event.stopPropagation();
+      if (comicOcrMergeSelectionState) return;
       openComicOcrOverlayEditor(block).catch((error) => {
         state.shell.showToast(error.message || state.shell.t("toastError"));
       });
     });
     node.addEventListener("pointerdown", (event) => {
+      if (isMergeCandidate) {
+        event.stopPropagation();
+        return;
+      }
       if (!block.hidden) return;
       event.preventDefault();
       event.stopPropagation();
@@ -3708,6 +3917,7 @@ function renderComicOcrOverlayForSlot(slot, pageIndex) {
     node.addEventListener("contextmenu", (event) => {
       event.preventDefault();
       event.stopPropagation();
+      if (comicOcrMergeSelectionState) return;
       openComicOcrOverlayEditor(block).catch((error) => {
         state.shell.showToast(error.message || state.shell.t("toastError"));
       });
@@ -3722,6 +3932,10 @@ function renderComicOcrOverlayForSlot(slot, pageIndex) {
 
 function renderComicOcrOverlays() {
   if (!refs.readerContentBody) return;
+  if (comicOcrMergeSelectionState && comicOcrMergeSelectionState.chapterId !== state.chapterId) {
+    removeComicOcrMergeSelectionToolbar();
+    comicOcrMergeSelectionState = null;
+  }
   clearComicOcrOverlays();
   if (state.chapterContentType !== "images" || !state.comicOcrOverlayEnabled || !state.comicOcrResult) return;
   refs.readerContentBody.querySelectorAll(".reader-comic-slot.loaded").forEach((slot) => {

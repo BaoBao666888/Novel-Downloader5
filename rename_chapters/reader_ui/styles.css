@@ -3404,6 +3404,61 @@ body.panel-style-clear .reader-content-body {
   opacity: 0.96;
 }
 
+.reader-comic-ocr-block.is-merge-candidate {
+  cursor: pointer;
+  outline: 2px dashed color-mix(in srgb, var(--accent) 82%, #fff 18%);
+  outline-offset: 3px;
+}
+
+.reader-comic-ocr-block.is-merge-selected {
+  outline-style: solid;
+  outline-color: color-mix(in srgb, #22c55e 82%, #fff 18%);
+  box-shadow:
+    0 0 0 3px color-mix(in srgb, #22c55e 28%, transparent),
+    var(--comic-ocr-shadow, 0 8px 20px rgb(15 23 42 / 24%));
+}
+
+.reader-comic-ocr-block.is-merge-anchor {
+  outline-color: color-mix(in srgb, var(--accent) 88%, #fff 12%);
+}
+
+.reader-comic-ocr-merge-toolbar {
+  position: fixed;
+  left: 50%;
+  bottom: max(14px, env(safe-area-inset-bottom));
+  z-index: 80;
+  display: grid;
+  width: min(92vw, 520px);
+  gap: 8px;
+  padding: 10px;
+  border: 1px solid color-mix(in srgb, var(--line) 78%, transparent);
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--surface) 94%, #000 6%);
+  color: var(--text);
+  box-shadow: 0 12px 32px color-mix(in srgb, #000 26%, transparent);
+  transform: translateX(-50%);
+}
+
+.reader-comic-ocr-merge-toolbar > div:first-child {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  font-size: 13px;
+}
+
+.reader-comic-ocr-merge-toolbar p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.reader-comic-ocr-merge-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
 .comic-ocr-overlay-editor {
   width: min(520px, calc(100vw - 28px));
 }
