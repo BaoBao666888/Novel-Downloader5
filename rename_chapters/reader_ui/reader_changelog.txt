@@ -17,16 +17,25 @@
 > - Double-click hoặc bấm chuột phải vào một khung OCR để sửa text dịch và tăng/giảm cỡ chữ riêng cho khung đó.
 > - Có thể sửa cả text gốc và bản dịch. Nếu chỉ sửa text gốc, Reader sẽ dịch lại riêng khung đó và ghi đè bản dịch cũ.
 > - Có thể ẩn từng khung overlay; khung ẩn sẽ biến mất khi đọc nhưng hiện lại tạm khi rê chuột hoặc chạm vào vùng đó để chỉnh tiếp.
-> - Có thể gộp nhiều khung gần nhau: nhập số khung muốn gộp trong cửa sổ sửa overlay rồi bấm `Gộp`.
+> - Có thể gộp nhiều khung gần nhau: mở chế độ gộp, chọn trực tiếp các khung gần khung hiện tại rồi xác nhận.
+> - Có thể xóa hẳn một khung overlay khỏi cache tới khi OCR lại chương.
 > - Text đã sửa được lưu vào cache cứng và dùng lại cho tới khi tải lại chương, xóa cache hoặc xóa truyện.
 > - Có thêm nhóm cài đặt overlay trong `Cài đặt > OCR Comic`: cỡ chữ, font, in đậm, in nghiêng, nền overlay và đánh dấu khung đã sửa.
 > - Khung đã chỉnh riêng cỡ chữ sẽ không bị cài đặt cỡ chữ global ghi đè, còn font/nền/đậm/nghiêng vẫn đi theo cài đặt chung.
 
 > [!NEW] Bổ sung khung hội thoại thủ công
-> - Khi bấm vào ảnh comic, Reader hiện menu riêng với các thao tác sao chép ảnh, sao chép link ảnh, mở ảnh trong thẻ mới, lưu ảnh và bổ sung khung hội thoại.
-> - Chọn `Bổ sung khung hội thoại`, kéo trên ảnh để vẽ khung; Reader sẽ crop vùng đó, OCR/dịch ưu tiên và gán lại thành overlay mới.
+> - Trên desktop, bấm chuột phải vào ảnh comic để mở menu ảnh. Trên mobile, nhấn giữ để mở cùng menu.
+> - Menu có các thao tác sao chép ảnh, sao chép link ảnh, mở ảnh trong thẻ mới, lưu ảnh và bổ sung khung hội thoại.
+> - Chọn `Bổ sung khung hội thoại`, kéo trên ảnh để vẽ khung. Sau khi vẽ, Reader cho xác nhận, hủy hoặc vẽ lại trước khi OCR.
 > - Trong lúc OCR/dịch khung thủ công, overlay hiện trạng thái để biết Reader đang xử lý.
 > - Khung thủ công cũng được lưu cache và có thể sửa/ẩn/reset như các khung OCR tự động.
+> - Thêm khung thủ công không còn làm mất các overlay cũ trên trang.
+
+> [!NEW] Import comic vào thư viện
+> - Reader hỗ trợ import comic local từ CBZ, ZIP ảnh, EPUB comic và ảnh rời.
+> - EPUB comic ưu tiên thứ tự spine/chapter; nếu EPUB thiếu metadata, Reader fallback theo thứ tự ảnh/file.
+> - Có thể bổ sung ảnh vào truyện comic đã có: nối vào chương hiện tại hoặc tạo chương mới.
+> - Lịch sử file bổ sung comic có thể gỡ, khôi phục và tải lại nguồn giống truyện chữ.
 
 > [!NEW] Dịch đa ngôn ngữ
 > - Reader thêm sẵn repo vBook Translate: `https://raw.githubusercontent.com/Darkrai9x/vbook-extensions/refs/heads/master/translate.json`.
@@ -39,6 +48,8 @@
 > - Trang `Khám phá` có nút `Trang nguồn`; khi nguồn đang chọn có link source, bấm nút sẽ mở trình duyệt tới trang đó.
 > - Ảnh bìa từ các nguồn bị chặn hotlink được tải qua đường proxy/cache ổn định hơn, giúp thư viện và lịch sử xem hiện bìa lại.
 > - Xóa profile trình duyệt đúng hơn: nếu còn profile khác, Reader không tự tạo lại profile mặc định ngay sau khi xóa.
+> - vBook runner bổ sung thêm helper/browser tương thích với vBook beta; browser bridge vẫn chạy khi app thu xuống khay.
+> - Reader Server build gom thêm dependency tách khung OCR comic để bản exe không báo thiếu thư viện.
 
 > [!NOTE] Cache OCR
 > - Cache OCR, cache dịch và phần chỉnh overlay được lưu dần trong lúc chạy.

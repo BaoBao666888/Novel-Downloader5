@@ -420,7 +420,7 @@ def _sync_update_notes(version):
 
 
 ENV_VARS = _load_env_file(os.path.join(BASE_DIR, '.env'))
-APP_VERSION = ENV_VARS.get('APP_VERSION', '0.3.3.5')
+APP_VERSION = ENV_VARS.get('APP_VERSION', '0.3.3.6')
 USE_LOCAL_MANIFEST_ONLY = _env_bool('USE_LOCAL_MANIFEST_ONLY', False, ENV_VARS)
 SYNC_VERSIONED_FILES = _env_bool('SYNC_VERSIONED_FILES', False, ENV_VARS)
 if SYNC_VERSIONED_FILES:
@@ -3557,7 +3557,9 @@ VÍ DỤ 3: Chia theo các dòng có 5 dấu sao trở lên
         -   **Cấu trúc tên file**: Đặt tên cho các file con được tạo ra.
         -   **Chia sau/trước regex**: Quyết định dòng khớp với regex sẽ thuộc về file trước đó hay file sau đó.
         -   **Xem trước**: Hiển thị danh sách các phần sẽ được tạo ra, có tên file và thanh cuộn.
-        -   **Sửa raw**: Double-click một dòng hoặc bấm **Sửa raw...** để mở cửa sổ xem/sửa nội dung phần đó. Khi đóng mà có sửa, app hỏi có lưu vào preview không.
+        -   **Sửa file gốc khi lưu raw**: Bật mặc định. Khi bật, lưu trong cửa sổ sửa raw sẽ cập nhật đúng đoạn trong văn bản gốc; khi tắt chỉ cập nhật preview/output.
+        -   **Sửa raw**: Double-click một dòng hoặc bấm **Sửa raw...** để mở cửa sổ xem/sửa nội dung phần đó. Khi đóng mà có sửa, app hỏi có lưu không.
+        -   File có xuống dòng kiểu cũ CRLF/CR sẽ được chuẩn hóa khi mở/lưu để tránh sinh ký tự xuống dòng lạ trong lúc chèn sửa.
         -   **BẮT ĐẦU CHIA FILE**: Thực hiện việc chia file. Các file con sẽ được lưu trong một thư mục mới.
 
         **--- Cửa sổ: Công cụ Nhanh ---**

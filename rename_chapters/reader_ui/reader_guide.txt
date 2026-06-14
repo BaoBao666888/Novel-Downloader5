@@ -78,17 +78,22 @@ Reader hiện có thể xem changelog, hướng dẫn và các thông báo dài 
 - Double-click hoặc bấm chuột phải vào một khung overlay để sửa text dịch và tăng/giảm cỡ chữ riêng cho khung đó.
 - Trong cửa sổ sửa overlay, có thể sửa cả `Text gốc` và `Bản dịch hiển thị`. Nếu chỉ sửa text gốc, Reader sẽ dịch lại khung đó bằng cấu hình dịch của bộ hiện tại.
 - Nút `Ẩn khung` dùng cho các khung không muốn hiển thị khi đọc. Khung đã ẩn sẽ hiện lại tạm khi rê chuột hoặc chạm vào vùng đó để có thể chỉnh tiếp.
-- Nếu nhiều khung nằm gần nhau nhưng bị tách nhỏ, mở một khung, nhập số khung muốn gộp ở `Gộp khung gần` rồi bấm `Gộp`. Reader sẽ gộp box và text theo thứ tự đọc, đồng thời ẩn các khung con.
-- Khi model tách khung bị thiếu khung hoặc nhận dư, bấm vào ảnh comic để mở menu ảnh, chọn `Bổ sung khung hội thoại`, rồi kéo trên ảnh để vẽ vùng cần OCR.
-- Khung vẽ thủ công sẽ hiện trạng thái `Đang OCR/dịch...` trong lúc xử lý, sau đó tự lưu thành overlay mới. Khung này cũng có thể sửa text, chỉnh cỡ chữ hoặc ẩn như khung OCR tự động.
+- Nút `Xóa khung` trong cửa sổ sửa overlay sẽ xóa khung khỏi cache tới khi OCR lại chương.
+- Nếu nhiều khung nằm gần nhau nhưng bị tách nhỏ, mở một khung rồi bấm `Gộp` để vào chế độ chọn. Chọn các khung gần khung hiện tại theo mọi hướng rồi xác nhận; Reader sẽ gộp box và text theo thứ tự đọc, đồng thời ẩn các khung con.
+- Khi model tách khung bị thiếu khung hoặc nhận dư, bấm chuột phải vào ảnh comic trên desktop hoặc nhấn giữ trên mobile để mở menu ảnh, chọn `Bổ sung khung hội thoại`, rồi kéo trên ảnh để vẽ vùng cần OCR.
+- Sau khi vẽ khung thủ công, Reader sẽ hỏi xác nhận, hủy hoặc vẽ lại. Chỉ khi xác nhận thì khung mới được đưa vào OCR/dịch.
+- Khung vẽ thủ công sẽ hiện trạng thái `Đang OCR/dịch...` trong lúc xử lý, sau đó tự lưu thành overlay mới. Khung này cũng có thể sửa text, chỉnh cỡ chữ, gộp, xóa hoặc ẩn như khung OCR tự động.
 - Cài đặt overlay gồm cỡ chữ, font, in đậm, in nghiêng, nền overlay và đánh dấu khung đã sửa. Khung đã chỉnh cỡ chữ riêng sẽ giữ cỡ chữ đó cho tới khi reset hoặc xóa cache.
 - Tải lại chương, xóa cache chương/truyện, đổi cài đặt dịch riêng của truyện hoặc xóa truyện sẽ làm cache OCR/dịch/overlay liên quan được dọn theo.
 
 ## 9. Nhập truyện và nguồn vBook
 
-- Có thể nhập từ file TXT, EPUB hoặc từ nguồn vBook tuỳ cấu hình hiện có.
+- Có thể nhập từ file TXT, EPUB, CBZ, ZIP ảnh, ảnh rời hoặc từ nguồn vBook tuỳ cấu hình hiện có.
 - Khi import TXT/EPUB một hoặc nhiều file, có thể chọn ngôn ngữ nguồn; mặc định là tiếng Trung.
+- EPUB comic sẽ ưu tiên thứ tự spine/chapter trong file; nếu metadata thiếu hoặc lạ, Reader fallback theo thứ tự ảnh/file.
+- Với truyện comic đã có trong thư viện, trang thông tin truyện cho phép bổ sung ảnh vào chương hiện tại hoặc tạo chương mới. Lịch sử file bổ sung có thể gỡ, khôi phục và tải lại nguồn.
 - Trong mục `Nguồn vBook`, nên kiểm tra cập nhật vBook Runner trước khi nhập hoặc tìm truyện.
+- Nếu app đang thu xuống khay, browser bridge vẫn có thể chạy để extension vBook lấy dữ liệu.
 - Khi chọn nguồn trong `Khám phá`, nếu nguồn có link metadata thì nút `Trang nguồn` sẽ mở trình duyệt tới trang gốc của nguồn đó.
 - Nếu dùng nhiều profile trình duyệt, hãy chọn đúng profile trước khi xóa; Reader sẽ xóa profile đang chọn thay vì tự bật lại profile mặc định.
 - Nếu một đợt import bị dừng giữa chừng, hãy mở notify để xem còn lỗi ở bước nào.
@@ -140,6 +145,6 @@ Reader hiện có thể xem changelog, hướng dẫn và các thông báo dài 
 - Import bị dừng: mở notify để xem log, ưu tiên dùng `Tiếp tục` hoặc `Thử lại` trước khi làm lại từ đầu.
 - OCR comic không tự chạy ở chương mới: kiểm tra `Dịch OCR chương sau`; nếu vừa nhảy cóc sang chương khác, Reader sẽ dừng luồng cũ và chỉ chạy lại khi bạn bấm dịch ở chương mới.
 - Muốn sửa bản dịch trên ảnh: double-click hoặc bấm chuột phải vào khung overlay cần sửa.
-- Thiếu khung hội thoại trên ảnh: bấm vào ảnh, chọn `Bổ sung khung hội thoại`, kéo vùng cần OCR rồi chờ overlay xử lý xong.
+- Thiếu khung hội thoại trên ảnh: chuột phải hoặc nhấn giữ ảnh, chọn `Bổ sung khung hội thoại`, kéo vùng cần OCR, xác nhận khung rồi chờ overlay xử lý xong.
 - File HTML cũ chưa có cải tiến mới: xuất lại file mới.
 - Muốn xem lại thay đổi của bản đang dùng: mở thẻ `Changelog` trong notify.

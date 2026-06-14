@@ -2182,6 +2182,8 @@ Ghi chú:
 - File UTF-16/Unicode, GB2312/GB18030/CP936 sẽ được chuyển thành Unicode khi mở; nếu nội dung đáng ngờ, app mở bảng chọn encoding có preview.
 - Menu File > Mở lại với mã... cho phép chọn encoding thủ công. Menu File > Chọn mã lưu... mặc định UTF-8 nhưng có thể đổi khi cần.
 - Chia file mở bằng cửa sổ riêng, có bảng cuộn và editor raw cho từng phần preview bằng double-click hoặc nút Sửa raw.
+- Trong Chia file, tùy chọn "Sửa file gốc khi lưu raw" được bật mặc định. Khi bật, lưu raw sẽ cập nhật đúng đoạn trong văn bản gốc; khi tắt chỉ cập nhật preview/output.
+- File có xuống dòng kiểu cũ CRLF/CR được chuẩn hóa nội bộ khi mở và lưu để tránh chèn/sửa text bị sinh ký tự xuống dòng lạ.
 - Công cụ nhanh mở bằng cửa sổ riêng, có nút phóng to và vùng cuộn.
 - Menu Hiển thị > Hiện thanh công cụ dùng để thu gọn/mở lại dải nút phía trên.
 - TextOps tự chọn Microsoft Sans Serif cho tiếng Việt, Microsoft YaHei cho tiếng Trung, và Segoe UI cho ngôn ngữ khác.

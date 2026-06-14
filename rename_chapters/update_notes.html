@@ -1,58 +1,58 @@
-<h1>Bản cập nhật 0.3.3.5</h1>
+<h1>Bản cập nhật 0.3.3.6</h1>
 
 <p>
-  Novel Studio 0.3.3.5 đi kèm Reader Server 0.2.0 và Reader UI 0.2.0.
-  Bản này tập trung vào OCR comic, dịch đa ngôn ngữ, cache khi đọc ảnh và một số lỗi gây khó chịu khi dùng Reader hằng ngày.
+  Novel Studio 0.3.3.6 đi kèm Reader Server 0.2.0 và Reader UI 0.2.0.
+  Bản này tập trung làm OCR comic dễ sửa hơn, nhập comic vào thư viện tốt hơn,
+  ổn định vBook/browser và sửa các lỗi nhỏ khi xử lý văn bản.
 </p>
 
 <h2>OCR comic</h2>
 <ul>
-  <li>OCR comic nhận diện vùng chữ trước rồi mới đọc chữ, giúp chạy nhanh hơn và đặt khung dịch đúng vị trí hơn.</li>
-  <li>Có thể chọn model OCR đã tải bằng mô tả dễ hiểu như <b>Trung/Anh/Nhật</b>, <b>Tiếng Anh</b>, <b>Tiếng Trung</b> hoặc <b>Tiếng Trung - chính xác hơn</b>.</li>
-  <li>Reader lưu cache OCR và bản dịch ngay trong lúc chạy. Nếu dừng giữa chừng, phần đã xong vẫn được dùng lại.</li>
-  <li>OCR và dịch chạy nối tiếp thông minh hơn: trang nào xong trước sẽ hiện trước, các trang đã OCR sẽ được gom vừa đủ để dịch nhanh hơn.</li>
-  <li>Mặc định Reader dịch trước 1 chương sau cho comic OCR. Khi qua chương kế tiếp, Reader tự dùng cache và tiếp tục dịch chương sau nếu bạn không nhảy cóc.</li>
-  <li>Khi rời khỏi chương đang OCR, Reader sẽ dừng OCR ngầm của chương cũ để ưu tiên chương bạn đang đọc.</li>
-  <li>Thiếu runtime hoặc model OCR sẽ có thông báo rõ ràng để tải trước, không còn báo lỗi chung chung.</li>
+  <li>Vẽ khung hội thoại thủ công giờ có bước xác nhận: sau khi kéo khung, bạn có thể xác nhận, hủy hoặc vẽ lại trước khi OCR.</li>
+  <li>Menu ảnh comic chuyển sang chuột phải trên desktop hoặc nhấn giữ trên mobile, tránh hiện menu khi chỉ bấm đọc truyện.</li>
+  <li>Có thể xóa hẳn một khung overlay khỏi cache cho tới khi OCR lại chương.</li>
+  <li>Gộp overlay linh hoạt hơn: chọn trực tiếp các khung gần nhau theo mọi hướng rồi xác nhận gộp.</li>
+  <li>Khi thêm khung thủ công, các overlay cũ không còn biến mất giữa chừng.</li>
+  <li>Cache OCR, cache dịch và các chỉnh sửa overlay vẫn được lưu dần trong lúc chạy.</li>
 </ul>
 
-<h2>Overlay dịch ảnh</h2>
+<h2>Nhập comic</h2>
 <ul>
-  <li>Overlay OCR dễ đọc hơn, nền ít trong suốt hơn để chữ dịch không bị lẫn với chữ gốc.</li>
-  <li>Double-click hoặc bấm chuột phải vào một khung overlay để sửa text và tăng/giảm cỡ chữ riêng cho khung đó.</li>
-  <li>Phần đã sửa được lưu lại trong cache cho tới khi tải lại chương, xóa cache hoặc xóa truyện.</li>
-  <li>Thêm nhóm <b>OCR Comic</b> trong Cài đặt để chỉnh số ảnh OCR song song, dịch trước chương sau, font, cỡ chữ, kiểu chữ, nền overlay và đánh dấu khung đã sửa.</li>
+  <li>Reader hỗ trợ import comic local từ CBZ, ZIP ảnh, EPUB comic và ảnh rời.</li>
+  <li>EPUB comic ưu tiên đọc thứ tự spine/chapter; nếu EPUB thiếu metadata, Reader sẽ fallback theo thứ tự ảnh/file.</li>
+  <li>Có thể bổ sung ảnh vào một truyện comic đã có: nối vào chương hiện tại hoặc tạo chương mới.</li>
+  <li>Lịch sử file bổ sung cho comic hỗ trợ gỡ, khôi phục và tải lại nguồn giống truyện chữ.</li>
+  <li>Khi xóa truyện comic local, Reader dọn cả ảnh import và cache OCR liên quan.</li>
 </ul>
 
-<h2>Dịch đa ngôn ngữ</h2>
+<h2>vBook và Reader</h2>
 <ul>
-  <li>Thêm sẵn repo vBook Translate</li>
-  <li>Extension dịch không hiện trong Khám phá, nhưng có thể chọn trong <b>Dịch &amp; xử lý</b>.</li>
-  <li>Có thêm Google Translate để dùng thay thế khi comic không phải tiếng Trung mà chưa chọn đúng extension dịch.</li>
-  <li>Khi import TXT/EPUB một hoặc nhiều file, có thể chọn ngôn ngữ nguồn; mặc định vẫn là tiếng Trung.</li>
-  <li>Trong trang đọc, nhóm <b>Dịch &amp; xử lý (chỉ bộ này)</b> chỉ lưu cấu hình dịch cho bộ hiện tại.</li>
+  <li>vBook runner được bổ sung nhiều hàm tương thích hơn với vBook beta, giúp extension dùng browser chạy ổn định hơn.</li>
+  <li>Khi app thu xuống khay, browser bridge vẫn có thể chạy để extension vBook tiếp tục lấy dữ liệu.</li>
+  <li>Browser ẩn được xử lý giống tab đang nhìn thấy hơn, sửa lỗi một số extension không lấy được dữ liệu chương.</li>
+  <li>Reader Server build đã gom thêm dependency tách khung OCR comic để bản exe không báo thiếu thư viện.</li>
 </ul>
 
-<h2>Reader</h2>
+<h2>Xử lý văn bản</h2>
 <ul>
-  <li>Thêm nút <b>Trang nguồn</b> trong Khám phá. Khi nguồn có link source, bấm nút sẽ mở trình duyệt tới trang đó.</li>
-  <li>Sửa lỗi ảnh bìa không hiện trong thư viện hoặc lịch sử xem với một số nguồn chặn hotlink.</li>
-  <li>Sửa lỗi xóa profile trình duyệt: nếu còn profile khác, Reader không tự tạo lại profile mặc định ngay sau khi xóa.</li>
-  <li>Thông báo import truyện được kết thúc đúng hơn, tránh bị kẹt trạng thái <b>Đang chạy</b> khi truyện và mục lục đã có đủ.</li>
+  <li>Trong Chia file, tùy chọn <b>Sửa file gốc khi lưu raw</b> được bật mặc định. Khi lưu raw, đoạn tương ứng trong văn bản gốc cũng được cập nhật.</li>
+  <li>Có thể tắt tùy chọn này để giữ hành vi cũ: chỉ sửa preview/output chia file.</li>
+  <li>Sửa lỗi file có kiểu xuống dòng lạ sinh thêm ký tự CR khi chèn/sửa text; nội dung được chuẩn hóa ổn định hơn khi mở, lưu, chia file và dùng công cụ nhanh.</li>
+  <li>Nhận diện mã GBK/GB18030 ổn hơn, tránh nhận nhầm thành Unicode trong một số file tiếng Trung.</li>
 </ul>
 
-<h2>Novel Studio</h2>
+<h2>Các cải tiến từ bản 0.3.3.5</h2>
 <ul>
-  <li>Wikidich trả dòng màu tím về màu thường khi trạng thái truyện đã chuyển sang <b>Hoàn thành</b>.</li>
-  <li>Bộ lọc Wikidich hỗ trợ chọn nhiều tag và chọn kiểu lọc <b>Đủ tất cả</b> hoặc <b>Bất kỳ</b>.</li>
-  <li>Các công cụ xử lý văn bản, chia file và đổi tên chương được chỉnh lại để preview ổn định hơn khi dữ liệu lớn.</li>
-  <li>Cài đặt ND5 có ô tìm theo tên truyện hoặc tác giả, giúp tìm dữ liệu truyện nhanh hơn.</li>
-  <li>Fanqie bridge decode HTML entity trong text plain, tránh còn chuỗi như <code>&amp;#34;</code> khi ghi file hoặc upload.</li>
+  <li>OCR comic nhận diện vùng chữ trước rồi mới đọc chữ, có chọn model OCR bằng mô tả dễ hiểu.</li>
+  <li>Overlay dịch ảnh có cài đặt font, cỡ chữ, nền overlay, in đậm/nghiêng và đánh dấu khung đã sửa.</li>
+  <li>Reader có Google Translate dự phòng và repo vBook Translate mặc định trong phần Dịch &amp; xử lý.</li>
+  <li>Trang Khám phá có nút <b>Trang nguồn</b>, ảnh bìa bị chặn hotlink hiển thị ổn hơn, xóa profile trình duyệt đúng hơn.</li>
+  <li>Wikidich trả màu dòng về bình thường khi truyện chuyển sang trạng thái <b>Hoàn thành</b>.</li>
 </ul>
 
 <h2>Hướng dẫn cập nhật</h2>
 <ul>
   <li>Nhấn <b>Tải &amp; Cài đặt</b> để cập nhật. Ứng dụng sẽ tự đóng trước khi chạy bộ cài.</li>
-  <li>Sau khi cập nhật Reader Server/UI, mở lại Reader và kiểm tra phần <b>Cài đặt &gt; OCR Comic</b> nếu bạn đang dùng dịch ảnh.</li>
-  <li>Nếu cần xem ghi chú bằng trình duyệt, bấm <b>Mở bằng trình duyệt</b>.</li>
+  <li>Sau khi cập nhật Reader Server/UI, mở lại Reader và kiểm tra <b>Cài đặt &gt; OCR Comic</b> nếu bạn đang dùng dịch ảnh.</li>
+  <li>Nếu dùng extension vBook lấy chương qua browser, nên cập nhật vBook runner trong Reader sau khi cài bản mới.</li>
 </ul>
