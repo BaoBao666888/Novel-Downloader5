@@ -349,7 +349,7 @@ class TextOpsMixin:
             self.selected_file.set(filepath)
             try:
                 with open(filepath, 'r', encoding='utf-8') as f:
-                    content = f.read()
+                    content = TextOperations.normalize_text_newlines(f.read())
                 self.text_content.delete('1.0', tk.END)
                 self.text_content.insert('1.0', content)
                 self.text_content.edit_reset()
@@ -445,7 +445,7 @@ class TextOpsMixin:
         if not messagebox.askyesno("Xác nhận", f"Lưu các thay đổi vào file:\n{os.path.basename(filepath)}?"):
             return False
         try:
-            content = self.text_content.get("1.0", tk.END)
+            content = TextOperations.normalize_text_newlines(self.text_content.get("1.0", "end-1c"))
             with open(filepath, 'w', encoding='utf-8') as f:
                 f.write(content)
             self.text_modified.set(False)
@@ -465,7 +465,7 @@ class TextOpsMixin:
         )
         if new_filepath:
             try:
-                content = self.text_content.get("1.0", tk.END)
+                content = TextOperations.normalize_text_newlines(self.text_content.get("1.0", "end-1c"))
                 with open(new_filepath, 'w', encoding='utf-8') as f:
                     f.write(content)
                 self.selected_file.set(new_filepath)
@@ -638,7 +638,7 @@ class TextOpsMixin:
             return
         try:
             with open(toc_path, "r", encoding="utf-8") as f:
-                toc_content = f.read()
+                toc_content = TextOperations.normalize_text_newlines(f.read())
             self.toc_content_text.delete("1.0", tk.END)
             self.toc_content_text.insert("1.0", toc_content)
         except Exception as e:
@@ -649,7 +649,7 @@ class TextOpsMixin:
         target_widget = self.text_content if source == "current" else self.toc_content_text
         source_name = "File hiện tại" if source == "current" else "Mục lục"
 
-        current_content = target_widget.get("1.0", tk.END)
+        current_content = TextOperations.normalize_text_newlines(target_widget.get("1.0", "end-1c"))
         if not current_content.strip():
             messagebox.showwarning("Thông báo", f"Không có nội dung trong {source_name} để xử lý.", parent=self)
             return
@@ -678,8 +678,8 @@ class TextOpsMixin:
         messagebox.showinfo("Hoàn tất", f"Đã đánh số lại thành công {count} chương trong {source_name}.", parent=self)
 
     def _add_titles_from_toc_in_text(self):
-        current_content = self.text_content.get("1.0", tk.END)
-        toc_content = self.toc_content_text.get("1.0", tk.END).strip()
+        current_content = TextOperations.normalize_text_newlines(self.text_content.get("1.0", "end-1c"))
+        toc_content = TextOperations.normalize_text_newlines(self.toc_content_text.get("1.0", "end-1c")).strip()
 
         if not current_content.strip() or not toc_content:
             messagebox.showwarning("Thiếu thông tin", "Vui lòng đảm bảo cả file truyện và nội dung mục lục đều đã có.", parent=self)

@@ -8,6 +8,13 @@ class TextOperations:
     SPLIT_FORMAT_PATTERN = re.compile(r'\{([^{}]+)\}')
 
     @staticmethod
+    def normalize_text_newlines(content: str | None) -> str:
+        """Use LF internally so Tk text indexes do not drift on CR-only lines."""
+        if content is None:
+            return ""
+        return str(content).replace("\r\n", "\n").replace("\r", "\n")
+
+    @staticmethod
     def render_split_filename(template: str, num: int) -> str:
         """
         Hỗ trợ cú pháp {num}, {num+n}, {num-n} trong định dạng tên file.
@@ -123,7 +130,7 @@ class TextOperations:
     @staticmethod
     def replace_all(text_widget, find_text, replace_text, match_case=False, match_word=False, use_regex=False):
         """Replace all occurrences of the search text."""
-        content = text_widget.get('1.0', tk.END)
+        content = TextOperations.normalize_text_newlines(text_widget.get('1.0', tk.END))
         count = 0
         
         if use_regex:
@@ -177,7 +184,7 @@ class TextOperations:
         """
         try:
             with open(filepath, 'r', encoding='utf-8') as f:
-                content = f.read()
+                content = TextOperations.normalize_text_newlines(f.read())
         except Exception as e:
             return [], f"Không thể đọc file: {str(e)}"
 
@@ -219,7 +226,7 @@ class TextOperations:
         """
         try:
             with open(filepath, 'r', encoding='utf-8') as f:
-                content = f.read()
+                content = TextOperations.normalize_text_newlines(f.read())
         except Exception as e:
             return [], f"Không thể đọc file: {str(e)}"
 
@@ -267,7 +274,7 @@ class TextOperations:
         """
         try:
             with open(filepath, 'r', encoding='utf-8') as f:
-                content = f.read()
+                content = TextOperations.normalize_text_newlines(f.read())
 
             matches = list(re.finditer(split_regex, content, re.MULTILINE))
             if not matches:

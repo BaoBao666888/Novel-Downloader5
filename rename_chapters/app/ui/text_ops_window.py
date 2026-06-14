@@ -101,7 +101,7 @@ def _ordered_text_encodings(raw: bytes) -> list[str]:
             add("utf-16-be")
             add("utf-16")
 
-    for encoding in ("gb18030", "gb2312", "cp936", "big5", "cp950", "utf-16-le", "utf-16-be"):
+    for encoding in ("gb18030", "gb2312", "cp936", "big5", "cp950"):
         add(encoding)
     return encodings
 
@@ -135,9 +135,10 @@ def _decode_text_bytes_auto(raw: bytes) -> tuple[str, str, float]:
         candidates.append((_decoded_text_score(text), -order, encoding, text))
     if candidates:
         score, _order, encoding, text = max(candidates, key=lambda item: (item[0], item[1]))
-        return text, encoding, score
+        return TextOperations.normalize_text_newlines(text), encoding, score
     try:
         text = raw.decode("utf-8", errors="replace")
+        text = TextOperations.normalize_text_newlines(text)
         return text, "utf-8-replace", _decoded_text_score(text)
     except Exception as exc:
         raise last_error or exc
@@ -216,6 +217,7 @@ def select_text_encoding_dialog(parent, path: str, raw: bytes, initial_encoding:
             preview.insert("1.0", f"Không đọc được bằng {_encoding_label(encoding)}:\n{error}")
             status_var.set("Chọn encoding khác.")
         else:
+            text = TextOperations.normalize_text_newlines(text)
             preview.insert("1.0", text[:20000])
             status_var.set(f"Preview: {_encoding_label(encoding)} [{encoding}]")
         preview.configure(state="disabled")
@@ -225,7 +227,7 @@ def select_text_encoding_dialog(parent, path: str, raw: bytes, initial_encoding:
         if error:
             messagebox.showerror("Encoding", f"Không đọc được bằng {_encoding_label(encoding)}:\n{error}", parent=win)
             return
-        result["text"] = text
+        result["text"] = TextOperations.normalize_text_newlines(text)
         result["encoding"] = encoding
         win.destroy()
 
@@ -625,7 +627,7 @@ class TextOpsWindow(tk.Toplevel):
             path = os.path.normpath(str(item.get("path") or "")) if item.get("path") else ""
             if self._has_doc_autosave(doc_id, path):
                 continue
-            content = str(item.get("content") or "")
+            content = TextOperations.normalize_text_newlines(str(item.get("content") or ""))
             title = os.path.basename(path) if path else str(item.get("title") or "Chưa lưu")
             baseline = ""
             if path and os.path.exists(path):
@@ -674,7 +676,7 @@ class TextOpsWindow(tk.Toplevel):
         doc["autosave_after_id"] = None
         if not doc.get("modified"):
             return
-        content = doc["text"].get("1.0", "end-1c")
+        content = TextOperations.normalize_text_newlines(doc["text"].get("1.0", "end-1c"))
         if not content and not doc.get("path"):
             return
         doc_id = doc.get("autosave_id") or f"draft-{uuid.uuid4().hex}"
@@ -704,7 +706,7 @@ class TextOpsWindow(tk.Toplevel):
 
     def _doc_content(self, doc: dict) -> str:
         text = doc.get("text")
-        return text.get("1.0", "end-1c") if text else ""
+        return TextOperations.normalize_text_newlines(text.get("1.0", "end-1c")) if text else ""
 
     def _set_doc_baseline(self, doc: dict, content: str):
         doc["baseline_hash"] = _content_hash(content)
@@ -765,6 +767,8 @@ class TextOpsWindow(tk.Toplevel):
         baseline_content: str | None = None,
     ) -> dict:
         baseline_content = content if baseline_content is None else baseline_content
+        content = TextOperations.normalize_text_newlines(content)
+        baseline_content = TextOperations.normalize_text_newlines(baseline_content)
         frame = ttk.Frame(self.notebook)
         frame.rowconfigure(0, weight=1)
         frame.columnconfigure(0, weight=1)
@@ -825,7 +829,7 @@ class TextOpsWindow(tk.Toplevel):
                 return True
         autosaved = self.state_store.find_autosave_for_path(path)
         if autosaved:
-            content = str(autosaved.get("content") or "")
+            content = TextOperations.normalize_text_newlines(str(autosaved.get("content") or ""))
             encoding = str(autosaved.get("encoding") or "utf-8")
             try:
                 baseline, _baseline_encoding = read_text_file_auto(path)
@@ -963,7 +967,7 @@ class TextOpsWindow(tk.Toplevel):
 
     def _save_doc_to_path(self, doc: dict, path: str) -> bool:
         try:
-            content = doc["text"].get("1.0", "end-1c")
+            content = TextOperations.normalize_text_newlines(doc["text"].get("1.0", "end-1c"))
             save_encoding = doc.get("save_encoding") or "utf-8"
             with open(path, "w", encoding=save_encoding) as handle:
                 handle.write(content)
@@ -1368,7 +1372,7 @@ class TextOpsWindow(tk.Toplevel):
         text = self._current_text()
         if not text or not find_what:
             return [], None, 0
-        content = text.get("1.0", "end-1c")
+        content = TextOperations.normalize_text_newlines(text.get("1.0", "end-1c"))
         limit = None if show_all else 200
         results = []
         total = 0
@@ -1682,7 +1686,7 @@ class TextOpsWindow(tk.Toplevel):
             text = self._current_text()
             if not text:
                 return ""
-            return _content_hash(text.get("1.0", "end-1c"))
+            return _content_hash(TextOperations.normalize_text_newlines(text.get("1.0", "end-1c")))
 
         def preview_is_stale() -> bool:
             expected = str(preview_state.get("source_hash") or "")
@@ -1865,7 +1869,7 @@ class TextOpsWindow(tk.Toplevel):
                 return True
 
             def save_editor():
-                next_content = text_widget.get("1.0", "end-1c")
+                next_content = TextOperations.normalize_text_newlines(text_widget.get("1.0", "end-1c"))
                 if not apply_chunk_to_source(next_content):
                     return False
                 chunks[index] = next_content
@@ -1967,7 +1971,7 @@ class TextOpsWindow(tk.Toplevel):
         text = self._current_text()
         if not text:
             return ([], [], "Không có tài liệu.") if include_ranges else ([], "Không có tài liệu.")
-        content = text.get("1.0", "end-1c")
+        content = TextOperations.normalize_text_newlines(text.get("1.0", "end-1c"))
         if not regex:
             return ([], [], "Vui lòng nhập regex.") if include_ranges else ([], "Vui lòng nhập regex.")
         try:
@@ -2076,7 +2080,7 @@ class TextOpsWindow(tk.Toplevel):
                 messagebox.showerror("Lỗi", "Số bắt đầu phải là số nguyên.", parent=win)
                 return
             new_content, count, error = TextOperations.renumber_chapters(
-                target.get("1.0", "end-1c"),
+                TextOperations.normalize_text_newlines(target.get("1.0", "end-1c")),
                 quick_combo.get(),
                 replace_entry.get(),
                 start_num,
@@ -2094,8 +2098,8 @@ class TextOpsWindow(tk.Toplevel):
             if not target:
                 return
             new_content, count, error = TextOperations.apply_toc_to_content(
-                target.get("1.0", "end-1c"),
-                toc_text.get("1.0", "end-1c").strip(),
+                TextOperations.normalize_text_newlines(target.get("1.0", "end-1c")),
+                TextOperations.normalize_text_newlines(toc_text.get("1.0", "end-1c")).strip(),
                 toc_regex.get(),
                 main_regex.get(),
                 mode_var.get(),
