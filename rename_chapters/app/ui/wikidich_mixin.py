@@ -1926,13 +1926,16 @@ class WikidichMixin:
             value = new_map.get(book_id)
             if isinstance(value, int) and value > 0:
                 new_value = value
+        origin_completed = self._wd_is_origin_completed(book) and not self._wd_is_book_completed(book)
         if new_value:
             if new_value >= high_thresh:
                 return "high_new"
+            if origin_completed:
+                return "origin_completed"
             if book_id and isinstance(marked_ids, set) and book_id in marked_ids:
                 return "auto_marked_new"
             return "has_new"
-        if self._wd_is_origin_completed(book) and not self._wd_is_book_completed(book):
+        if origin_completed:
             return "origin_completed"
         return ""
 
@@ -3672,6 +3675,16 @@ class WikidichMixin:
                 base_url=self._wd_get_base_url(),
                 proxies=proxies
             )
+            server_chapter_count = len(chapters) if isinstance(chapters, list) else None
+            if server_chapter_count is not None and (updated or {}).get("chapters") is None:
+                updated["chapters"] = server_chapter_count
+            updated = self._wd_merge_server_book_info(
+                book,
+                updated,
+                server_chapters=server_chapter_count,
+                silent=False,
+                context="DS Chương",
+            )
             # Đánh lại số thứ tự chương theo thứ tự server (1..n) từ trên xuống
             if isinstance(chapters, list):
                 for idx, ch in enumerate(chapters, start=1):
@@ -5311,6 +5324,120 @@ class WikidichMixin:
             self.log(f"[Wikidich] Lỗi sync số chương từ Works: {exc}")
         return None
 
+    def _wd_int_or_none(self, value):
+        if value in (None, ""):
+            return None
+        try:
+            return int(value)
+        except Exception:
+            return None
+
+    def _wd_merge_server_book_info(
+        self,
+        book: dict,
+        server_info: dict,
+        *,
+        server_chapters=None,
+        silent: bool = False,
+        context: str = "Đồng bộ chương",
+    ) -> dict:
+        if not isinstance(book, dict):
+            book = {}
+        if not isinstance(server_info, dict):
+            server_info = {}
+        merged = dict(book)
+        for key, value in server_info.items():
+            if value not in (None, ""):
+                merged[key] = value
+        merged["server_lower"] = False
+        merged.update(
+            {
+                "title": server_info.get("title") or book.get("title", ""),
+                "url": server_info.get("url") or book.get("url", ""),
+                "author": server_info.get("author") or book.get("author", ""),
+                "status": server_info.get("status") or book.get("status", ""),
+                "updated_text": server_info.get("updated_text") or book.get("updated_text", ""),
+            }
+        )
+
+        current_chapters = self._wd_int_or_none(book.get("chapters")) or 0
+        server_chapters_int = self._wd_int_or_none(server_chapters)
+        if server_chapters_int is None:
+            server_chapters_int = self._wd_int_or_none(server_info.get("chapters"))
+
+        cur_upd = self._wd_clean_updated_text(book.get("updated_text") or "")
+        new_upd = self._wd_clean_updated_text(server_info.get("updated_text") or merged.get("updated_text") or "")
+        cur_ts = self._wd_date_to_ts(cur_upd)
+        new_ts = self._wd_date_to_ts(new_upd)
+
+        lower_count = server_chapters_int is not None and server_chapters_int < current_chapters
+        lower_date = bool(cur_ts and new_ts and new_ts < cur_ts)
+        overwrite_lower = False
+        if (lower_count or lower_date) and not silent:
+            overwrite_lower = self._wd_confirm_server_lower_overwrite(
+                book,
+                server_chapters_int,
+                new_upd,
+                context=context,
+                lower_count=lower_count,
+                lower_date=lower_date,
+            )
+
+        if server_chapters_int is not None:
+            if lower_count and not overwrite_lower:
+                merged["chapters"] = current_chapters
+                merged["server_lower"] = True
+            else:
+                merged["chapters"] = server_chapters_int
+
+        if lower_date and not overwrite_lower:
+            merged["updated_text"] = book.get("updated_text", "")
+            merged["server_lower"] = True
+        elif new_upd:
+            merged["updated_text"] = new_upd
+
+        if merged.get("server_lower"):
+            merged["server_lower_reason"] = "Server < local"
+        else:
+            merged.pop("server_lower_reason", None)
+        return merged
+
+    def _wd_confirm_server_lower_overwrite(
+        self,
+        book: dict,
+        server_chapters,
+        server_updated: str,
+        *,
+        context: str,
+        lower_count: bool,
+        lower_date: bool,
+    ) -> bool:
+        local_chapters = self._wd_int_or_none((book or {}).get("chapters")) or 0
+        server_chapters_text = "" if server_chapters is None else str(server_chapters)
+        local_updated = self._wd_clean_updated_text((book or {}).get("updated_text") or "") or "(trống)"
+        server_updated_text = self._wd_clean_updated_text(server_updated or "") or "(trống)"
+        reasons = []
+        if lower_count:
+            reasons.append("số chương server nhỏ hơn local")
+        if lower_date:
+            reasons.append("ngày cập nhật server cũ hơn local")
+        title = str((book or {}).get("title") or (book or {}).get("id") or "truyện").strip()
+        msg = (
+            f"{context} phát hiện dữ liệu Wikidich của '{title}' thấp hơn local:\n\n"
+            f"- Local: {local_chapters} chương, cập nhật {local_updated}\n"
+            f"- Server: {server_chapters_text or '(không rõ)'} chương, cập nhật {server_updated_text}\n\n"
+            f"Lý do: {', '.join(reasons)}.\n\n"
+            "Bạn có muốn ghi đè local bằng dữ liệu server không?\n"
+            "Chọn Không sẽ giữ local và tiếp tục tô màu cam để nhắc kiểm tra."
+        )
+
+        def _ask():
+            return messagebox.askyesno("Server nhỏ hơn local", msg, parent=self)
+
+        if threading.current_thread() is threading.main_thread():
+            return bool(_ask())
+        return bool(self._wd_sync_prompt(_ask))
+
     def _wd_sync_counts_from_server(self, books: list, silent: bool = False):
         not_found = []
         session, current_user, proxies = self._wd_build_wiki_session(include_user=True)
@@ -5332,16 +5459,6 @@ class WikidichMixin:
             bid = book.get("id")
             updated_info = self._wd_fetch_book_from_works(session, book, current_user, proxies=proxies)
             if updated_info:
-                merged = dict(book)
-                merged["server_lower"] = False
-                merged.update({
-                    "title": updated_info.get("title") or book.get("title", ""),
-                    "url": updated_info.get("url") or book.get("url", ""),
-                    "author": updated_info.get("author") or book.get("author", ""),
-                    "status": updated_info.get("status") or book.get("status", ""),
-                    "updated_text": updated_info.get("updated_text") or book.get("updated_text", ""),
-                })
-                # so sánh số chương, chỉ tăng
                 try:
                     current_chapters = int(book.get("chapters") or 0)
                 except Exception:
@@ -5362,7 +5479,7 @@ class WikidichMixin:
                             server_chapters = detail_counts.get("chapters")
                             updated_info["chapters"] = server_chapters
                             if detail_counts.get("updated_text"):
-                                merged["updated_text"] = detail_counts.get("updated_text")
+                                updated_info["updated_text"] = detail_counts.get("updated_text")
                     except ValueError as ve:
                         if "redirected to home" in str(ve):
                              not_found.append(dict(book))
@@ -5379,33 +5496,13 @@ class WikidichMixin:
                     self.log(f"[SyncCounts] {book.get('title', bid)}: local={current_chapters} server={server_chapters}")
                 except Exception:
                     pass
-                if server_chapters is not None:
-                    try:
-                        server_chapters = int(server_chapters)
-                    except Exception:
-                        server_chapters = None
-                if server_chapters is not None:
-                    if server_chapters < current_chapters:
-                        merged["chapters"] = current_chapters
-                        merged["server_lower"] = True
-                    elif server_chapters > current_chapters:
-                        merged["chapters"] = server_chapters
-                    else:
-                        merged["chapters"] = current_chapters
-                # so sánh ngày cập nhật, chỉ mới hơn thì nhận
-                cur_upd = self._wd_clean_updated_text(book.get("updated_text") or "")
-                new_upd = self._wd_clean_updated_text(updated_info.get("updated_text") or "")
-                cur_ts = self._wd_date_to_ts(cur_upd)
-                new_ts = self._wd_date_to_ts(new_upd)
-                if cur_ts and new_ts and new_ts < cur_ts:
-                    merged["updated_text"] = book.get("updated_text", "")
-                    merged["server_lower"] = True
-                elif new_upd:
-                    merged["updated_text"] = new_upd
-                if merged.get("server_lower"):
-                    merged["server_lower_reason"] = "Server < local"
-                else:
-                    merged.pop("server_lower_reason", None)
+                merged = self._wd_merge_server_book_info(
+                    book,
+                    updated_info,
+                    server_chapters=server_chapters,
+                    silent=silent,
+                    context="Đồng bộ chương",
+                )
                 if bid:
                     # cập nhật in-place để giữ tham chiếu danh sách đang hiển thị
                     if isinstance(self.wikidich_data.get("books"), dict) and bid in self.wikidich_data["books"]:
@@ -5427,30 +5524,12 @@ class WikidichMixin:
                         max_retries=int(getattr(self, "api_settings", {}).get("wiki_retry_count", 5))
                     )
                     if bid:
-                        try:
-                            current_chapters = int(book.get("chapters") or 0)
-                        except Exception:
-                            current_chapters = 0
-                        try:
-                            fb_chapters = int(fallback.get("chapters") or 0)
-                        except Exception:
-                            fb_chapters = 0
-                        if fb_chapters < current_chapters:
-                            fallback["chapters"] = current_chapters
-                            fallback["server_lower"] = True
-                        else:
-                            fallback["server_lower"] = False
-                        cur_upd = self._wd_clean_updated_text(book.get("updated_text") or "")
-                        new_upd = self._wd_clean_updated_text(fallback.get("updated_text") or "")
-                        cur_ts = self._wd_date_to_ts(cur_upd)
-                        new_ts = self._wd_date_to_ts(new_upd)
-                        if cur_ts and new_ts and new_ts < cur_ts:
-                            fallback["updated_text"] = book.get("updated_text", "")
-                            fallback["server_lower"] = True
-                        if fallback.get("server_lower"):
-                            fallback["server_lower_reason"] = "Server < local"
-                        else:
-                            fallback.pop("server_lower_reason", None)
+                        fallback = self._wd_merge_server_book_info(
+                            book,
+                            fallback,
+                            silent=silent,
+                            context="Đồng bộ chương",
+                        )
                         # cập nhật in-place
                         if isinstance(self.wikidich_data.get("books"), dict) and bid in self.wikidich_data["books"]:
                             book_obj = self.wikidich_data["books"][bid]
