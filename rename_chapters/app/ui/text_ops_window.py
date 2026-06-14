@@ -1586,6 +1586,12 @@ class TextOpsWindow(tk.Toplevel):
         position_var = tk.StringVar(value="before")
         ttk.Radiobutton(options, text="Chia sau regex", variable=position_var, value="after").grid(row=0, column=3, sticky="w")
         ttk.Radiobutton(options, text="Chia trước regex", variable=position_var, value="before").grid(row=1, column=3, sticky="w", pady=(6, 0))
+        edit_source_var = tk.BooleanVar(value=True)
+        ttk.Checkbutton(
+            options,
+            text="Sửa file gốc khi lưu raw",
+            variable=edit_source_var,
+        ).grid(row=2, column=1, columnspan=3, sticky="w", padx=(8, 0), pady=(6, 0))
         regex_combo.bind("<<ComboboxSelected>>", lambda _e: self._sync_textops_pin_button(regex_combo, "split", split_pin_btn))
         regex_combo.bind("<KeyRelease>", lambda _e: self._sync_textops_pin_button(regex_combo, "split", split_pin_btn))
 
@@ -1640,7 +1646,7 @@ class TextOpsWindow(tk.Toplevel):
 
         status = tk.StringVar(value="")
         ttk.Label(root, textvariable=status).grid(row=3, column=0, sticky="w", pady=(4, 0))
-        preview_state = {"chunks": [], "names": []}
+        preview_state = {"chunks": [], "names": [], "ranges": [], "source_hash": ""}
         search_result_rows = {}
 
         def render_name(index: int) -> str:
@@ -1666,7 +1672,21 @@ class TextOpsWindow(tk.Toplevel):
                 tree.insert("", "end", iid=iid, values=values)
 
         def get_chunks():
-            return self._split_current_content(regex_combo.get(), position_var.get())
+            return self._split_current_content(regex_combo.get(), position_var.get(), include_ranges=True)
+
+        def source_edit_status(chunks_count: int) -> str:
+            target = "file gốc + preview/output" if edit_source_var.get() else "preview/output"
+            return f"{chunks_count} phần. Sửa raw sẽ cập nhật {target}."
+
+        def current_source_hash() -> str:
+            text = self._current_text()
+            if not text:
+                return ""
+            return _content_hash(text.get("1.0", "end-1c"))
+
+        def preview_is_stale() -> bool:
+            expected = str(preview_state.get("source_hash") or "")
+            return bool(expected and expected != current_source_hash())
 
         def clear_search_results():
             search_tree.delete(*search_tree.get_children())
@@ -1676,20 +1696,26 @@ class TextOpsWindow(tk.Toplevel):
         def build_preview() -> bool:
             self._add_combo_history(regex_combo, "split_regex_history", "split")
             self._add_combo_history(format_combo, "split_format_history")
-            chunks, error = get_chunks()
+            chunks, ranges, error = get_chunks()
             tree.delete(*tree.get_children())
             if error:
                 status.set(error)
                 return False
             preview_state["chunks"] = list(chunks)
             preview_state["names"] = [render_name(idx) for idx in range(len(chunks))]
+            preview_state["ranges"] = list(ranges)
+            preview_state["source_hash"] = current_source_hash()
             for idx, chunk in enumerate(chunks, 1):
                 update_tree_row(idx - 1)
             clear_search_results()
-            status.set(
-                f"{len(chunks)} phần. Sửa raw chỉ cập nhật preview/output chia file, không sửa văn bản gốc."
-            )
+            status.set(source_edit_status(len(chunks)))
             return True
+
+        def update_source_edit_status(*_args):
+            if preview_state.get("chunks"):
+                status.set(source_edit_status(len(preview_state.get("chunks") or [])))
+
+        edit_source_var.trace_add("write", update_source_edit_status)
 
         def preview():
             build_preview()
@@ -1789,8 +1815,60 @@ class TextOpsWindow(tk.Toplevel):
                     editor.title(f"* {file_name}")
                     text_widget.edit_modified(False)
 
+            def apply_chunk_to_source(next_content: str) -> bool:
+                if not edit_source_var.get():
+                    return True
+                if preview_is_stale():
+                    messagebox.showwarning(
+                        "Preview đã cũ",
+                        "Văn bản gốc đã thay đổi sau lần preview gần nhất. Hãy bấm Xem trước lại rồi sửa raw để tránh ghi nhầm đoạn.",
+                        parent=editor,
+                    )
+                    return False
+                doc = self._current_doc()
+                source_text = self._current_text()
+                ranges = preview_state.get("ranges") or []
+                if not doc or not source_text or index >= len(ranges):
+                    messagebox.showerror("Sửa raw", "Không xác định được đoạn trong văn bản gốc.", parent=editor)
+                    return False
+                start, end = ranges[index]
+                start = max(0, int(start))
+                end = max(start, int(end))
+                try:
+                    scroll = source_text.yview()
+                    insert_mark = source_text.index(tk.INSERT)
+                    source_text.delete(f"1.0+{start}c", f"1.0+{end}c")
+                    source_text.insert(f"1.0+{start}c", next_content)
+                    try:
+                        source_text.mark_set(tk.INSERT, insert_mark)
+                    except tk.TclError:
+                        source_text.mark_set(tk.INSERT, f"1.0+{start + len(next_content)}c")
+                    try:
+                        source_text.yview_moveto(scroll[0])
+                    except Exception:
+                        pass
+                except Exception as exc:
+                    messagebox.showerror("Sửa raw", f"Không cập nhật được văn bản gốc:\n{exc}", parent=editor)
+                    return False
+                delta = len(next_content) - (end - start)
+                next_ranges = []
+                for range_index, (range_start, range_end) in enumerate(ranges):
+                    if range_index < index:
+                        next_ranges.append((range_start, range_end))
+                    elif range_index == index:
+                        next_ranges.append((start, start + len(next_content)))
+                    else:
+                        next_ranges.append((range_start + delta, range_end + delta))
+                preview_state["ranges"] = next_ranges
+                preview_state["source_hash"] = current_source_hash()
+                self._refresh_doc_modified_state(doc)
+                return True
+
             def save_editor():
-                chunks[index] = text_widget.get("1.0", "end-1c")
+                next_content = text_widget.get("1.0", "end-1c")
+                if not apply_chunk_to_source(next_content):
+                    return False
+                chunks[index] = next_content
                 preview_state["chunks"] = chunks
                 modified["value"] = False
                 title_var.set(file_name)
@@ -1799,7 +1877,8 @@ class TextOpsWindow(tk.Toplevel):
                 update_tree_row(index)
                 if search_var.get().strip():
                     search_in_chunks()
-                status.set(f"Đã cập nhật raw cho {file_name} trong preview/output. Văn bản gốc không đổi.")
+                target = "văn bản gốc và preview/output" if edit_source_var.get() else "preview/output"
+                status.set(f"Đã cập nhật raw cho {file_name} trong {target}.")
                 return True
 
             def close_editor():
@@ -1828,13 +1907,22 @@ class TextOpsWindow(tk.Toplevel):
         def execute():
             self._add_combo_history(regex_combo, "split_regex_history", "split")
             self._add_combo_history(format_combo, "split_format_history")
+            if preview_state.get("chunks") and preview_is_stale():
+                messagebox.showwarning(
+                    "Preview đã cũ",
+                    "Văn bản gốc đã thay đổi sau lần preview gần nhất. Hãy bấm Xem trước lại trước khi chia file.",
+                    parent=win,
+                )
+                return
             if not preview_state.get("chunks"):
-                chunks, error = get_chunks()
+                chunks, ranges, error = get_chunks()
                 if error:
                     messagebox.showerror("Lỗi", error, parent=win)
                     return
                 preview_state["chunks"] = list(chunks)
                 preview_state["names"] = [render_name(idx) for idx in range(len(chunks))]
+                preview_state["ranges"] = list(ranges)
+                preview_state["source_hash"] = current_source_hash()
             doc = self._current_doc()
             base_path = doc.get("path") if doc else ""
             if base_path:
@@ -1875,23 +1963,26 @@ class TextOpsWindow(tk.Toplevel):
             ),
         )
 
-    def _split_current_content(self, regex: str, position: str):
+    def _split_current_content(self, regex: str, position: str, *, include_ranges: bool = False):
         text = self._current_text()
         if not text:
-            return [], "Không có tài liệu."
+            return ([], [], "Không có tài liệu.") if include_ranges else ([], "Không có tài liệu.")
         content = text.get("1.0", "end-1c")
         if not regex:
-            return [], "Vui lòng nhập regex."
+            return ([], [], "Vui lòng nhập regex.") if include_ranges else ([], "Vui lòng nhập regex.")
         try:
             matches = list(re.finditer(regex, content, re.MULTILINE))
         except re.error as exc:
-            return [], f"Regex không hợp lệ: {exc}"
+            return ([], [], f"Regex không hợp lệ: {exc}") if include_ranges else ([], f"Regex không hợp lệ: {exc}")
         if not matches:
-            return [], "Không tìm thấy điểm chia nào."
+            return ([], [], "Không tìm thấy điểm chia nào.") if include_ranges else ([], "Không tìm thấy điểm chia nào.")
         split_points = [match.end() if position == "after" else match.start() for match in matches]
         split_points.insert(0, 0)
         split_points.append(len(content))
         chunks = [content[split_points[i]:split_points[i + 1]] for i in range(len(split_points) - 1)]
+        if include_ranges:
+            ranges = [(split_points[i], split_points[i + 1]) for i in range(len(split_points) - 1)]
+            return chunks, ranges, None
         return chunks, None
 
     def open_quick_tools_dialog(self, initial_toc: str = ""):
