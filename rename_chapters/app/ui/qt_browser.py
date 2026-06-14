@@ -685,10 +685,14 @@ def _bridge_bootstrap_js() -> str:
     if (!window.__RCBridgeVars) {
       window.__RCBridgeVars = {};
     }
+    if (typeof window.__RCBridgeVarsRevision !== 'number') {
+      window.__RCBridgeVarsRevision = 0;
+    }
     window.Cache = window.Cache || {};
     window.Cache.putVariable = function(key, value) {
       try {
         window.__RCBridgeVars[String(key)] = String(value == null ? '' : value);
+        window.__RCBridgeVarsRevision = (Number(window.__RCBridgeVarsRevision) || 0) + 1;
       } catch (_) {}
     };
     window.Cache.getVariable = function(key) {
@@ -870,30 +874,107 @@ class _HiddenBridgeSession:
 
     def run_js(self, req_id: str, script: str, wait_ms: int, finish: Callable[[dict], None]):
         wait_ms = max(0, int(wait_ms or 0))
-        full_script = _bridge_bootstrap_js() + "\n" + str(script or "")
+        full_script = (
+            _bridge_bootstrap_js()
+            + "\ntry{window.__RCBridgeRunStartRevision=Number(window.__RCBridgeVarsRevision)||0;}catch(_){};\n"
+            + str(script or "")
+        )
         timer = QTimer(self.owner)
         timer.setSingleShot(True)
-        self.owner._retain_bridge_objects(req_id, timer)
+        poller = QTimer(self.owner)
+        poller.setInterval(120)
+        self.owner._retain_bridge_objects(req_id, timer, poller)
+        state = {"done": False, "polling": False}
 
-        def inspect_dom():
-            self._capture_html(
-                lambda html_text, url_text, title_text: finish(
-                    {
-                        "ok": True,
-                        "html": html_text,
-                        "url": url_text,
-                        "title": title_text,
-                    }
-                )
+        def complete_html(html_text: str):
+            if state["done"]:
+                return
+            state["done"] = True
+            try:
+                timer.stop()
+            except Exception:
+                pass
+            try:
+                poller.stop()
+            except Exception:
+                pass
+            finish(
+                {
+                    "ok": True,
+                    "html": str(html_text or ""),
+                    "url": self.page.url().toString(),
+                    "title": self.page.title(),
+                }
             )
 
+        def inspect_dom():
+            if state["done"]:
+                return
+            self._capture_html(
+                lambda html_text, url_text, title_text: complete_html(html_text)
+            )
+
+        def format_js_result(result) -> str:
+            if isinstance(result, (dict, list)):
+                try:
+                    return json.dumps(result, ensure_ascii=False)
+                except Exception:
+                    return str(result)
+            return str(result)
+
+        def poll_bridge_vars():
+            if state["done"] or state["polling"]:
+                return
+            state["polling"] = True
+
+            def _after_poll(result):
+                state["polling"] = False
+                if state["done"]:
+                    return
+                try:
+                    changed = bool(result)
+                except Exception:
+                    changed = False
+                if changed:
+                    inspect_dom()
+
+            try:
+                self.page.runJavaScript(
+                    """
+(function(){
+  try {
+    return (Number(window.__RCBridgeVarsRevision)||0) > (Number(window.__RCBridgeRunStartRevision)||0);
+  } catch (_) {
+    return false;
+  }
+})();
+""",
+                    _after_poll,
+                )
+            except Exception:
+                state["polling"] = False
+
+        def _after_run(result):
+            if state["done"]:
+                return
+            if result is not None:
+                complete_html(format_js_result(result))
+                return
+            if wait_ms <= 0:
+                inspect_dom()
+                return
+            poller.timeout.connect(poll_bridge_vars)
+            timer.timeout.connect(inspect_dom)
+            timer.start(max(1, wait_ms))
+            poller.start()
+            QTimer.singleShot(0, poll_bridge_vars)
+
         try:
-            self.page.runJavaScript(full_script)
+            self.page.runJavaScript(full_script, _after_run)
         except Exception as exc:
+            state["done"] = True
             finish({"ok": False, "error": f"runJavaScript lỗi: {exc}"})
             return
-        timer.timeout.connect(inspect_dom)
-        timer.start(max(1, wait_ms))
 
     def get_html(self, req_id: str, wait_ms: int, finish: Callable[[dict], None]):
         wait_ms = max(0, int(wait_ms or 0))
