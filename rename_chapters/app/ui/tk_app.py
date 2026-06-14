@@ -1484,10 +1484,19 @@ class RenamerApp(
     def on_browser_overlay_opened(self):
         self._set_browser_menu_state(False)
         self._update_cookie_menu_state()
+        try:
+            self._ensure_browser_rpc_bridge()
+        except Exception:
+            pass
 
     def on_browser_overlay_closed(self):
         self._set_browser_menu_state(True)
         self._update_cookie_menu_state()
+        try:
+            self._ensure_browser_rpc_bridge()
+            self._browser_bridge_save_state(force=True)
+        except Exception:
+            pass
 
     def _open_in_app_browser(self, url: str, force_overlay: bool = False):
         url = (url or "").strip()
@@ -2524,10 +2533,6 @@ class RenamerApp(
                 pass
         try:
             self._browser_bridge_save_state(force=True)
-        except Exception:
-            pass
-        try:
-            self._stop_browser_rpc_bridge()
         except Exception:
             pass
         self.save_config()
