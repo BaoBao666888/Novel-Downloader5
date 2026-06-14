@@ -3579,6 +3579,16 @@ body.panel-style-clear .reader-content-body {
   border-color: color-mix(in srgb, var(--accent) 74%, var(--line));
 }
 
+.btn-danger {
+  border-color: color-mix(in srgb, #dc2626 62%, var(--line));
+  background: color-mix(in srgb, #dc2626 12%, var(--surface-alt));
+  color: color-mix(in srgb, #fecaca 28%, var(--text));
+}
+
+.btn-danger:hover {
+  border-color: color-mix(in srgb, #dc2626 82%, var(--line));
+}
+
 .btn-small {
   padding: 7px 10px;
   font-size: 12px;

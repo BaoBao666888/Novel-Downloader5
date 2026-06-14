@@ -3437,6 +3437,7 @@ function ensureComicOcrOverlayEditor() {
     </label>
     <div class="dialog-actions">
       <button id="btn-comic-ocr-overlay-hide" class="btn" type="button"></button>
+      <button id="btn-comic-ocr-overlay-delete" class="btn btn-danger" type="button"></button>
       <button id="btn-comic-ocr-overlay-reset" class="btn" type="button"></button>
       <button id="btn-comic-ocr-overlay-cancel" class="btn" type="button"></button>
       <button id="btn-comic-ocr-overlay-save" class="btn btn-primary" type="button"></button>
@@ -3460,6 +3461,7 @@ function ensureComicOcrOverlayEditor() {
     mergeCount: dialog.querySelector("#comic-ocr-overlay-merge-count"),
     merge: dialog.querySelector("#btn-comic-ocr-overlay-merge"),
     hide: dialog.querySelector("#btn-comic-ocr-overlay-hide"),
+    delete: dialog.querySelector("#btn-comic-ocr-overlay-delete"),
     reset: dialog.querySelector("#btn-comic-ocr-overlay-reset"),
     cancel: dialog.querySelector("#btn-comic-ocr-overlay-cancel"),
     save: dialog.querySelector("#btn-comic-ocr-overlay-save"),
@@ -3509,6 +3511,7 @@ async function openComicOcrOverlayEditor(block) {
   refs.scaleLabel.textContent = state.shell.t("comicOcrOverlayFontScaleLabel");
   refs.mergeLabel.textContent = state.shell.t("comicOcrOverlayMergeLabel");
   refs.merge.textContent = state.shell.t("comicOcrOverlayMergeNearby");
+  refs.delete.textContent = state.shell.t("comicOcrOverlayDelete");
   refs.reset.textContent = state.shell.t("comicOcrOverlayReset");
   refs.cancel.textContent = state.shell.t("cancel");
   refs.save.textContent = state.shell.t("save");
@@ -3531,6 +3534,43 @@ async function openComicOcrOverlayEditor(block) {
     } finally {
       refs.merge.disabled = false;
       refs.save.disabled = false;
+    }
+  };
+  refs.delete.onclick = async () => {
+    const confirmed = await state.shell.confirmDialog({
+      title: state.shell.t("comicOcrOverlayDeleteConfirmTitle"),
+      message: state.shell.t("comicOcrOverlayDeleteConfirm"),
+      confirmText: state.shell.t("comicOcrOverlayDelete"),
+    });
+    if (!confirmed) return;
+    refs.delete.disabled = true;
+    refs.save.disabled = true;
+    refs.hide.disabled = true;
+    refs.reset.disabled = true;
+    try {
+      const data = await saveComicOcrOverlayEdit({
+        pageIndex,
+        blockId,
+        text: "",
+        sourceText: "",
+        fontScale: 100,
+        hidden: false,
+        suppressed: true,
+        sourceEdited: false,
+        sourceChanged: false,
+        translationEdited: false,
+        merged: Boolean(block && block.merged),
+        mergedBlockIds: Array.isArray(block && block.mergedBlockIds) ? block.mergedBlockIds : [],
+      });
+      applyComicOcrOverlayEditResponse(pageIndex, data, blockId);
+      renderComicOcrOverlays();
+      refs.dialog.close();
+      state.shell.showToast(state.shell.t("comicOcrOverlayDeleted"));
+    } finally {
+      refs.delete.disabled = false;
+      refs.save.disabled = false;
+      refs.hide.disabled = false;
+      refs.reset.disabled = false;
     }
   };
   refs.save.onclick = async () => {
