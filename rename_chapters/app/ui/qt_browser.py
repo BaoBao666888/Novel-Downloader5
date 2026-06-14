@@ -654,6 +654,34 @@ def _bridge_bootstrap_js() -> str:
     return """
 (function(){
   try {
+    try {
+      Object.defineProperty(document, 'hidden', {
+        configurable: true,
+        get: function(){ return false; }
+      });
+    } catch (_) {}
+    try {
+      Object.defineProperty(document, 'visibilityState', {
+        configurable: true,
+        get: function(){ return 'visible'; }
+      });
+    } catch (_) {}
+    try {
+      Object.defineProperty(document, 'webkitHidden', {
+        configurable: true,
+        get: function(){ return false; }
+      });
+    } catch (_) {}
+    try {
+      Object.defineProperty(document, 'webkitVisibilityState', {
+        configurable: true,
+        get: function(){ return 'visible'; }
+      });
+    } catch (_) {}
+    try {
+      document.hasFocus = function(){ return true; };
+      window.focus = window.focus || function(){};
+    } catch (_) {}
     if (!window.__RCBridgeVars) {
       window.__RCBridgeVars = {};
     }
