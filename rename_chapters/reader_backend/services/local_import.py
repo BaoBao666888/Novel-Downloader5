@@ -364,6 +364,172 @@ def _persist_comic_import_assets(
         raise
 
 
+def _is_comic_book_payload(book: dict[str, Any] | None) -> bool:
+    source_type = str((book or {}).get("source_type") or "").strip().lower()
+    return source_type in {"comic", "vbook_comic", "vbook_session_comic"}
+
+
+def _path_is_inside(path: Path, root: Path) -> bool:
+    try:
+        path.resolve().relative_to(root.resolve())
+        return True
+    except Exception:
+        return False
+
+
+def _comic_asset_root_for_book(book: dict[str, Any], *, comic_import_dir: Path) -> tuple[str, Path, bool]:
+    source_path = str((book or {}).get("source_file_path") or "").strip()
+    if source_path:
+        candidate = Path(source_path)
+        if _path_is_inside(candidate, comic_import_dir):
+            return candidate.name, candidate, False
+    book_id = re.sub(r"[^a-zA-Z0-9_-]", "", str((book or {}).get("book_id") or "book"))
+    if not book_id:
+        book_id = hashlib.sha1(uuid.uuid4().hex.encode("utf-8")).hexdigest()[:24]
+    asset_id = f"comic_{hashlib.sha1(book_id.encode('utf-8')).hexdigest()[:24]}"
+    return asset_id, comic_import_dir / asset_id, not bool(source_path)
+
+
+def _comic_chapter_preview_from_chapters(chapters: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    preview: list[dict[str, Any]] = []
+    for index, chapter in enumerate(chapters or [], start=1):
+        images = chapter.get("images") if isinstance(chapter.get("images"), list) else []
+        first_image = images[0] if images else {}
+        preview.append(
+            {
+                "index": index,
+                "title": str(chapter.get("title") or f"Chương {index}").strip() or f"Chương {index}",
+                "word_count": len(images),
+                "image_count": len(images),
+                "preview": str((first_image or {}).get("source_path") or (first_image or {}).get("name") or "").strip(),
+            }
+        )
+    return preview
+
+
+def _build_comic_supplement_payload(
+    files: list[tuple[str, bytes]],
+    *,
+    chapter_title: str = "",
+) -> dict[str, Any]:
+    source_files = [(str(name or f"image_{index:04d}.jpg").strip(), bytes(data or b"")) for index, (name, data) in enumerate(files or [], start=1)]
+    source_files = [(name or f"image_{index:04d}.jpg", data) for index, (name, data) in enumerate(source_files, start=1) if data]
+    if not source_files:
+        raise ValueError("Thiếu file ảnh comic để bổ sung.")
+
+    image_only = all(comic_import_support.is_image_filename(name) for name, _ in source_files)
+    chapters: list[dict[str, Any]] = []
+    parser_names: list[str] = []
+    if image_only:
+        images = [
+            {
+                "name": name,
+                "data": data,
+                "media_type": "",
+                "source_path": name,
+            }
+            for name, data in source_files
+        ]
+        title = str(chapter_title or "").strip() or _guess_title_from_source_name(source_files[0][0], fallback="Chương bổ sung")
+        chapters = [{"title": title, "images": images}]
+        parser_names.append("images")
+    else:
+        for filename, file_bytes in source_files:
+            parsed = comic_import_support.parse_comic_book(filename, file_bytes, lang_source="zh")
+            diagnostics = parsed.get("diagnostics") if isinstance(parsed.get("diagnostics"), dict) else {}
+            parser = str(diagnostics.get("parser") or parsed.get("file_ext") or Path(filename).suffix.lstrip(".") or "comic").strip()
+            if parser:
+                parser_names.append(parser)
+            for chapter in parsed.get("chapters") or []:
+                if isinstance(chapter, dict) and chapter.get("images"):
+                    chapters.append(dict(chapter))
+
+    if not chapters:
+        raise ValueError("Không tìm thấy ảnh hợp lệ trong file comic.")
+    image_count = sum(len(chapter.get("images") or []) for chapter in chapters)
+    return {
+        "file_name": f"{len(source_files)} file comic" if len(source_files) > 1 else source_files[0][0],
+        "file_ext": "comic",
+        "source_type": "supplement_comic",
+        "metadata": {
+            "chapter_count": len(chapters),
+            "file_count": len(source_files),
+            "upload_mode": "multi" if len(source_files) > 1 else "single",
+            "parse_mode": "comic",
+            "image_count": image_count,
+            "detected_lang": "",
+        },
+        "chapters": chapters,
+        "chapter_preview": _comic_chapter_preview_from_chapters(chapters),
+        "diagnostics": {
+            "parse_mode": "comic",
+            "file_count": len(source_files),
+            "image_count": image_count,
+            "parsers": list(dict.fromkeys(parser_names)),
+        },
+    }
+
+
+def _guess_title_from_source_name(name: str, *, fallback: str) -> str:
+    stem = Path(str(name or "")).stem.replace("_", " ").strip()
+    stem = re.sub(r"\s+", " ", stem)
+    return stem or fallback
+
+
+def _persist_comic_supplement_assets(
+    parsed: dict[str, Any],
+    *,
+    book: dict[str, Any],
+    comic_import_dir: Path,
+    encode_comic_payload,
+) -> tuple[list[dict[str, Any]], Path, str, bool]:
+    if not callable(encode_comic_payload):
+        raise ValueError("Thiếu codec lưu ảnh comic.")
+    asset_id, asset_root, should_attach_to_book = _comic_asset_root_for_book(book, comic_import_dir=comic_import_dir)
+    asset_root.mkdir(parents=True, exist_ok=True)
+    supplement_dir = f"supplement_{time.time_ns()}_{uuid.uuid4().hex[:8]}"
+    created_root = asset_root / supplement_dir
+    output_chapters: list[dict[str, Any]] = []
+    try:
+        for chapter_index, chapter in enumerate(parsed.get("chapters") or [], start=1):
+            if not isinstance(chapter, dict):
+                continue
+            images = chapter.get("images") if isinstance(chapter.get("images"), list) else []
+            urls: list[str] = []
+            rel_paths: list[str] = []
+            for image_index, image in enumerate(images, start=1):
+                if not isinstance(image, dict):
+                    continue
+                data = bytes(image.get("data") or b"")
+                if not data:
+                    continue
+                suffix = _comic_image_suffix(str(image.get("name") or image.get("source_path") or "page.jpg"))
+                rel_path = f"{supplement_dir}/chapter_{chapter_index:04d}/page_{image_index:04d}{suffix}"
+                target_path = asset_root / rel_path
+                target_path.parent.mkdir(parents=True, exist_ok=True)
+                target_path.write_bytes(data)
+                rel_paths.append(rel_path)
+                urls.append(_comic_asset_url(asset_id, rel_path))
+            if not urls:
+                continue
+            title = str(chapter.get("title") or f"Chương {chapter_index}").strip() or f"Chương {chapter_index}"
+            output_chapters.append(
+                {
+                    "title": title,
+                    "images": urls,
+                    "asset_rel_paths": rel_paths,
+                    "text": encode_comic_payload(urls),
+                    "word_count": len(urls),
+                }
+            )
+        if not output_chapters:
+            raise ValueError("Không có ảnh comic hợp lệ để lưu.")
+        return output_chapters, asset_root, str(created_root), should_attach_to_book
+    except Exception:
+        shutil.rmtree(created_root, ignore_errors=True)
+        raise
+
+
 def create_book_from_local_import(
     service,
     parsed: dict[str, Any],
@@ -1019,8 +1185,7 @@ def _load_book_supplement_context(
     book = service.storage.find_book(bid)
     if not book:
         raise ApiError(HTTPStatus.NOT_FOUND, "NOT_FOUND", "Không tìm thấy truyện.")
-    if bool(book.get("is_comic")):
-        raise ApiError(HTTPStatus.BAD_REQUEST, "BAD_REQUEST", "Truyện tranh chưa hỗ trợ bổ sung TXT.")
+    is_comic = _is_comic_book_payload(book)
 
     volumes_payload = service.storage.list_chapters_paged(
         bid,
@@ -1034,6 +1199,29 @@ def _load_book_supplement_context(
     target_mode_key = _normalize_supplement_target_mode(target_mode)
     target_volume_id = str(volume_id or "").strip()
     volume_title = str(new_volume_title or "").strip()
+    if is_comic:
+        if target_mode_key == "existing":
+            if not target_volume_id:
+                raise ApiError(HTTPStatus.BAD_REQUEST, "BAD_REQUEST", "Thiếu chương nhận ảnh bổ sung.")
+            with service.storage._connect() as conn:
+                row = conn.execute(
+                    """
+                    SELECT chapter_id, title_raw
+                    FROM chapters
+                    WHERE book_id = ?
+                      AND chapter_id = ?
+                      AND trim(COALESCE(deleted_at, '')) = ''
+                    LIMIT 1
+                    """,
+                    (bid, target_volume_id),
+                ).fetchone()
+            if not row:
+                raise ApiError(HTTPStatus.BAD_REQUEST, "BAD_REQUEST", "Không tìm thấy chương nhận ảnh bổ sung.")
+            volume_title = str(row["title_raw"] or "").strip() or "Chương đã chọn"
+        elif not volume_title:
+            raise ApiError(HTTPStatus.BAD_REQUEST, "BAD_REQUEST", "Thiếu tên chương mới.")
+        return book, volume_rows, target_mode_key, target_volume_id, volume_title
+
     if target_mode_key == "existing":
         selected_volume = None
         for item in volume_rows:
@@ -1067,20 +1255,24 @@ def _book_supplement_preview_payload(
     chapter_preview = parsed.get("chapter_preview") if isinstance(parsed.get("chapter_preview"), list) else []
     volume_rows = [dict(item or {}) for item in (volumes or []) if isinstance(item, dict)]
     selected_volume = None
+    is_comic = _is_comic_book_payload(book)
     if target_mode == "existing":
-        for item in volume_rows:
-            if str(item.get("volume_id") or "").strip() == str(volume_id or "").strip():
-                selected_volume = item
-                break
+        if not is_comic:
+            for item in volume_rows:
+                if str(item.get("volume_id") or "").strip() == str(volume_id or "").strip():
+                    selected_volume = item
+                    break
     target_volume_title = (
-        str((selected_volume or {}).get("title_display") or (selected_volume or {}).get("title_raw") or "").strip()
-        if target_mode == "existing"
+        str(new_volume_title or "").strip()
+        if is_comic and target_mode == "existing"
+        else str((selected_volume or {}).get("title_display") or (selected_volume or {}).get("title_raw") or "").strip()
+        if target_mode == "existing" and not is_comic
         else str(new_volume_title or "").strip()
     )
     return {
         "file_name": parsed.get("file_name"),
         "file_ext": parsed.get("file_ext"),
-        "source_type": "supplement_txt",
+        "source_type": "supplement_comic" if is_comic else "supplement_txt",
         "metadata": {
             "title": str(book.get("title_display") or book.get("title") or "").strip(),
             "author": str(book.get("author_display") or book.get("author") or "").strip(),
@@ -1091,6 +1283,7 @@ def _book_supplement_preview_payload(
             "upload_mode": str(metadata.get("upload_mode") or "single").strip() or "single",
             "parse_mode": str(metadata.get("parse_mode") or "single").strip() or "single",
             "detected_lang": str(metadata.get("detected_lang") or "").strip(),
+            "image_count": int(metadata.get("image_count") or 0),
         },
         "chapters": chapter_preview,
         "diagnostics": parsed.get("diagnostics") if isinstance(parsed.get("diagnostics"), dict) else {},
@@ -1128,21 +1321,8 @@ def prepare_book_supplement_file(
     normalize_vbook_display_text,
 ) -> dict[str, Any]:
     bid = str(book_id or "").strip()
-    source_files: list[tuple[str, bytes]] = []
-    for index, item in enumerate(files or [], start=1):
-        try:
-            filename, file_bytes = item
-        except Exception:
-            continue
-        safe_name = str(filename or f"supplement_{index}.txt").strip() or f"supplement_{index}.txt"
-        if Path(safe_name).suffix.lower() != ".txt":
-            raise ApiError(HTTPStatus.BAD_REQUEST, "BAD_REQUEST", "Hiện chỉ hỗ trợ bổ sung file TXT.")
-        source_files.append((safe_name, bytes(file_bytes or b"")))
-    if not source_files:
-        raise ApiError(HTTPStatus.BAD_REQUEST, "BAD_REQUEST", "Thiếu file TXT để bổ sung.")
-
     cleanup_import_previews(import_preview_dir=import_preview_dir)
-    book, volume_rows, target_mode_key, target_volume_id, _ = _load_book_supplement_context(
+    book, volume_rows, target_mode_key, target_volume_id, target_title = _load_book_supplement_context(
         service,
         bid,
         target_mode=target_mode,
@@ -1151,10 +1331,32 @@ def prepare_book_supplement_file(
         ApiError=ApiError,
         HTTPStatus=HTTPStatus,
     )
+    is_comic = _is_comic_book_payload(book)
+    source_files: list[tuple[str, bytes]] = []
+    for index, item in enumerate(files or [], start=1):
+        try:
+            filename, file_bytes = item
+        except Exception:
+            continue
+        safe_name = str(filename or f"supplement_{index}.txt").strip() or f"supplement_{index}.txt"
+        if is_comic:
+            if not comic_import_support.is_comic_import_extension(safe_name):
+                raise ApiError(HTTPStatus.BAD_REQUEST, "BAD_REQUEST", "Comic chỉ hỗ trợ bổ sung ảnh, CBZ/ZIP hoặc EPUB comic.")
+        elif Path(safe_name).suffix.lower() != ".txt":
+            raise ApiError(HTTPStatus.BAD_REQUEST, "BAD_REQUEST", "Hiện chỉ hỗ trợ bổ sung file TXT.")
+        source_files.append((safe_name, bytes(file_bytes or b"")))
+    if not source_files:
+        message = "Thiếu file ảnh comic để bổ sung." if is_comic else "Thiếu file TXT để bổ sung."
+        raise ApiError(HTTPStatus.BAD_REQUEST, "BAD_REQUEST", message)
     upload_mode_key = _normalize_supplement_upload_mode(upload_mode, file_count=len(source_files))
     parse_mode_key = _normalize_supplement_multi_parse_mode(multi_parse_mode)
 
-    if upload_mode_key == "single":
+    if is_comic:
+        parsed = _build_comic_supplement_payload(
+            source_files,
+            chapter_title=target_title if target_mode_key == "new" else "",
+        )
+    elif upload_mode_key == "single":
         safe_name, file_bytes = source_files[0]
         parsed = parse_local_import_payload(
             service,
@@ -1216,7 +1418,7 @@ def prepare_book_supplement_file(
             "multi_parse_mode": parse_mode_key,
             "target_mode": target_mode_key,
             "volume_id": target_volume_id,
-            "new_volume_title": str(new_volume_title or "").strip(),
+            "new_volume_title": str(target_title if is_comic else new_volume_title or "").strip(),
             "note": str(note or "").strip(),
             "created_at": utc_now_iso(),
             "updated_at": utc_now_iso(),
@@ -1233,7 +1435,7 @@ def prepare_book_supplement_file(
             parsed,
             target_mode=target_mode_key,
             volume_id=target_volume_id,
-            new_volume_title=new_volume_title,
+            new_volume_title=target_title if is_comic else new_volume_title,
             note=note,
             volumes=volume_rows,
         ),
@@ -1261,7 +1463,10 @@ def commit_book_supplement_token(
     parse_txt_book,
     decode_text_with_fallback,
     normalize_vbook_display_text,
+    comic_import_dir: Path | None = None,
+    encode_comic_payload=None,
 ) -> dict[str, Any]:
+    persisted_comic_dir = ""
     try:
         state = load_import_preview_state(
             token,
@@ -1308,9 +1513,38 @@ def commit_book_supplement_token(
         book = service.storage.find_book(bid)
         if not book:
             raise ApiError(HTTPStatus.NOT_FOUND, "NOT_FOUND", "Không tìm thấy truyện.")
+        is_comic = _is_comic_book_payload(book)
         upload_mode_key = _normalize_supplement_upload_mode(upload_mode or state.get("upload_mode") or "", file_count=len(source_files))
         parse_mode_key = _normalize_supplement_multi_parse_mode(multi_parse_mode or state.get("multi_parse_mode") or "")
-        if upload_mode_key == "single":
+        target_mode_key = _normalize_supplement_target_mode(target_mode or state.get("target_mode") or "existing")
+        if is_comic:
+            if comic_import_dir is None or not callable(encode_comic_payload):
+                raise ApiError(HTTPStatus.INTERNAL_SERVER_ERROR, "BAD_COMIC_IMPORT_CONFIG", "Thiếu cấu hình lưu ảnh comic.")
+            parsed = _build_comic_supplement_payload(
+                source_files,
+                chapter_title=str(new_volume_title or state.get("new_volume_title") or "").strip() if target_mode_key == "new" else "",
+            )
+            comic_chapters, comic_asset_root, persisted_comic_dir, attach_asset_root = _persist_comic_supplement_assets(
+                parsed,
+                book=book,
+                comic_import_dir=comic_import_dir,
+                encode_comic_payload=encode_comic_payload,
+            )
+            result = service.storage.append_book_comic_supplement(
+                bid,
+                comic_chapters,
+                file_name=str(state.get("file_name") or parsed.get("file_name") or "comic"),
+                file_mode=upload_mode_key,
+                target_mode=target_mode_key,
+                chapter_id=str(volume_id or state.get("volume_id") or "").strip(),
+                new_chapter_title=str(new_volume_title or state.get("new_volume_title") or "").strip(),
+                note=str(note or state.get("note") or "").strip(),
+                source_files=source_files,
+                source_store_dir=supplement_source_dir,
+                comic_asset_root=str(comic_asset_root),
+                attach_asset_root_to_book=attach_asset_root,
+            )
+        elif upload_mode_key == "single":
             parsed = parse_local_import_payload(
                 service,
                 source_files[0][0],
@@ -1326,6 +1560,7 @@ def commit_book_supplement_token(
                 parse_txt_book=parse_txt_book,
                 normalize_vbook_display_text=normalize_vbook_display_text,
             )
+            result = None
         else:
             parsed = _build_multi_file_supplement_payload(
                 source_files,
@@ -1333,19 +1568,21 @@ def commit_book_supplement_token(
                 decode_text_with_fallback=decode_text_with_fallback,
                 normalize_vbook_display_text=normalize_vbook_display_text,
             )
-        result = service.storage.append_book_supplement(
-            bid,
-            [dict(item or {}) for item in (parsed.get("chapters") or []) if isinstance(item, dict)],
-            file_name=str(state.get("file_name") or "supplement.txt"),
-            file_mode=upload_mode_key,
-            parse_mode=parse_mode_key,
-            target_mode=_normalize_supplement_target_mode(target_mode or state.get("target_mode") or "existing"),
-            volume_id=str(volume_id or state.get("volume_id") or "").strip(),
-            new_volume_title=str(new_volume_title or state.get("new_volume_title") or "").strip(),
-            note=str(note or state.get("note") or "").strip(),
-            source_files=source_files,
-            source_store_dir=supplement_source_dir,
-        )
+            result = None
+        if not is_comic:
+            result = service.storage.append_book_supplement(
+                bid,
+                [dict(item or {}) for item in (parsed.get("chapters") or []) if isinstance(item, dict)],
+                file_name=str(state.get("file_name") or "supplement.txt"),
+                file_mode=upload_mode_key,
+                parse_mode=parse_mode_key,
+                target_mode=target_mode_key,
+                volume_id=str(volume_id or state.get("volume_id") or "").strip(),
+                new_volume_title=str(new_volume_title or state.get("new_volume_title") or "").strip(),
+                note=str(note or state.get("note") or "").strip(),
+                source_files=source_files,
+                source_store_dir=supplement_source_dir,
+            )
         remove_import_preview_state(
             token,
             import_preview_dir=import_preview_dir,
@@ -1354,6 +1591,8 @@ def commit_book_supplement_token(
         )
         return result
     except Exception:
+        if persisted_comic_dir:
+            shutil.rmtree(persisted_comic_dir, ignore_errors=True)
         cancel_import_preview_tokens(
             [token],
             import_preview_dir=import_preview_dir,

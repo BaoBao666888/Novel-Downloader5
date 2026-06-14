@@ -71,9 +71,11 @@ def build_book_volume_manage_policy(
     is_default_volume: bool,
     deleted_retention_days: int = 30,
 ) -> dict[str, Any]:
+    source_type = str((book or {}).get("source_type") or "").strip().lower()
     is_remote_book = is_remote_library_source(book)
-    can_append = (not is_default_volume) or (not is_remote_book)
-    can_delete = (not is_default_volume) or (not is_remote_book)
+    is_comic_book = source_type in {"comic", "vbook_comic", "vbook_session_comic"}
+    can_append = is_comic_book or (not is_default_volume) or (not is_remote_book)
+    can_delete = is_comic_book or (not is_default_volume) or (not is_remote_book)
     return {
         "source_mode": "link" if is_remote_book else "file",
         "is_remote_book": bool(is_remote_book),
@@ -172,7 +174,7 @@ def list_book_volumes(
         ).fetchall()
         batch_rows = conn.execute(
             """
-            SELECT batch_id, volume_id, file_mode, note, payload_json, stack_order, chapter_count,
+            SELECT batch_id, volume_id, source_kind, file_mode, note, payload_json, stack_order, chapter_count,
                    created_at, updated_at
             FROM book_supplement_batches
             WHERE book_id = ?
@@ -198,6 +200,8 @@ def list_book_volumes(
             "batch_id": str(batch_item.get("batch_id") or "").strip(),
             "stack_order": int(batch_item.get("stack_order") or 0),
             "chapter_count": int(batch_item.get("chapter_count") or 0),
+            "image_count": max(0, int(payload.get("image_count") or 0)),
+            "source_kind": str(batch_item.get("source_kind") or payload.get("source_kind") or "").strip(),
             "note": str(batch_item.get("note") or "").strip(),
             "file_name": str(payload.get("file_name") or "").strip() or "supplement.txt",
             "file_mode": str(batch_item.get("file_mode") or payload.get("file_mode") or "single").strip() or "single",

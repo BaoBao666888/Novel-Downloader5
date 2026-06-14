@@ -128,7 +128,7 @@ def _build_batch_state_map(
 
     batch_rows = conn.execute(
         """
-        SELECT batch_id, volume_id, file_mode, note, payload_json, stack_order, chapter_count,
+        SELECT batch_id, volume_id, source_kind, file_mode, note, payload_json, stack_order, chapter_count,
                created_at, updated_at, deleted_at, delete_expire_at
         FROM book_supplement_batches
         WHERE book_id = ?
@@ -178,6 +178,8 @@ def _build_batch_state_map(
             "volume_title": str(payload.get("volume_title") or volume_info.get("title_raw") or "").strip(),
             "stack_order": stack_order,
             "chapter_count": max(0, int(row["chapter_count"] or 0)),
+            "image_count": max(0, int(payload.get("image_count") or 0)),
+            "source_kind": str(row["source_kind"] or payload.get("source_kind") or "").strip(),
             "file_name": str(payload.get("file_name") or "").strip() or "supplement.txt",
             "file_mode": str(row["file_mode"] or payload.get("file_mode") or "single").strip() or "single",
             "parse_mode": str(payload.get("parse_mode") or "single").strip() or "single",
@@ -246,6 +248,7 @@ def cleanup_expired_book_recycle_bin(storage, *, utc_now_iso, supplement_source_
     removed_chapter_ids: list[str] = []
     removed_cache_keys: set[str] = set()
     removed_batch_ids: list[str] = []
+    removed_comic_asset_paths: list[tuple[Path, Path]] = []
     removed_volume_ids: list[str] = []
     removed_history_ids: list[str] = []
 
@@ -280,7 +283,7 @@ def cleanup_expired_book_recycle_bin(storage, *, utc_now_iso, supplement_source_
 
         batch_rows = conn.execute(
             """
-            SELECT batch_id
+            SELECT batch_id, payload_json
             FROM book_supplement_batches
             WHERE trim(COALESCE(deleted_at, '')) <> ''
               AND trim(COALESCE(delete_expire_at, '')) <> ''
@@ -289,6 +292,28 @@ def cleanup_expired_book_recycle_bin(storage, *, utc_now_iso, supplement_source_
             (now,),
         ).fetchall()
         removed_batch_ids = [str(row["batch_id"] or "").strip() for row in batch_rows if str(row["batch_id"] or "").strip()]
+        for row in batch_rows:
+            try:
+                payload = json.loads(str(row["payload_json"] or "{}"))
+            except Exception:
+                payload = {}
+            if not isinstance(payload, dict):
+                continue
+            asset_root = Path(str(payload.get("comic_asset_root") or "").strip())
+            rel_paths = payload.get("asset_rel_paths") if isinstance(payload.get("asset_rel_paths"), list) else []
+            if not str(asset_root).strip() or not rel_paths:
+                continue
+            for raw_rel in rel_paths:
+                rel = str(raw_rel or "").replace("\\", "/").strip("/")
+                if not rel:
+                    continue
+                try:
+                    root_resolved = asset_root.resolve()
+                    target = (asset_root / rel).resolve()
+                    target.relative_to(root_resolved)
+                except Exception:
+                    continue
+                removed_comic_asset_paths.append((target, root_resolved))
         if removed_batch_ids:
             placeholders = ",".join("?" for _ in removed_batch_ids)
             conn.execute(
@@ -356,11 +381,24 @@ def cleanup_expired_book_recycle_bin(storage, *, utc_now_iso, supplement_source_
                     removed_source_batches += 1
             except Exception:
                 continue
+    removed_comic_assets = 0
+    for target, asset_root in removed_comic_asset_paths:
+        try:
+            if target.exists() and target.is_file():
+                target.unlink()
+                removed_comic_assets += 1
+            parent = target.parent
+            while parent != asset_root and parent.exists() and not any(parent.iterdir()):
+                parent.rmdir()
+                parent = parent.parent
+        except Exception:
+            continue
     return {
         "deleted_chapters": int(len(removed_chapter_ids)),
         "deleted_batches": int(len(removed_batch_ids)),
         "deleted_volumes": int(len(removed_volume_ids)),
         "deleted_history_events": int(len(removed_history_ids)),
+        "deleted_comic_assets": int(removed_comic_assets),
         "deleted_source_batches": int(removed_source_batches),
         "cache_deleted": int(cache_stats.get("cache_deleted") or 0),
         "deleted_files": int(cache_stats.get("deleted_files") or 0),

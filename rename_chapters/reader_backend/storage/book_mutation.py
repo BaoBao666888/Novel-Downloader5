@@ -9,6 +9,7 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
 
+from reader_backend.core.content_media import decode_comic_payload, encode_comic_payload
 from reader_backend.storage.library import (
     build_book_search_text,
     build_chapter_search_text,
@@ -877,6 +878,75 @@ def _remove_supplement_source_batch_dir(batch_id: str, *, source_store_dir: Path
         pass
 
 
+def _normalize_comic_supplement_chapters(chapters: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    normalized: list[dict[str, Any]] = []
+    for idx, item in enumerate(chapters or [], start=1):
+        if not isinstance(item, dict):
+            continue
+        images = [str(url or "").strip() for url in (item.get("images") or []) if str(url or "").strip()]
+        if not images:
+            text_payload = decode_comic_payload(str(item.get("text") or ""))
+            images = [str(url or "").strip() for url in (text_payload or {}).get("images", []) if str(url or "").strip()]
+        if not images:
+            continue
+        title = str(item.get("title") or f"Chương {idx}").strip() or f"Chương {idx}"
+        asset_rel_paths = [
+            str(path or "").replace("\\", "/").strip("/")
+            for path in (item.get("asset_rel_paths") or [])
+            if str(path or "").strip()
+        ]
+        normalized.append(
+            {
+                "title": title,
+                "images": images,
+                "asset_rel_paths": asset_rel_paths,
+                "text": encode_comic_payload(images),
+                "word_count": len(images),
+            }
+        )
+    return normalized
+
+
+def _comic_images_from_raw(raw_text: str) -> list[str]:
+    payload = decode_comic_payload(raw_text or "")
+    if payload is None:
+        return []
+    return [str(url or "").strip() for url in payload.get("images", []) if str(url or "").strip()]
+
+
+def _remove_comic_appended_images(current_images: list[str], appended_images: list[str], previous_images: list[str]) -> list[str]:
+    current = [str(url or "").strip() for url in current_images or [] if str(url or "").strip()]
+    appended = [str(url or "").strip() for url in appended_images or [] if str(url or "").strip()]
+    previous = [str(url or "").strip() for url in previous_images or [] if str(url or "").strip()]
+    if not appended:
+        return current
+    if previous and current == previous + appended:
+        return previous
+    if len(current) >= len(appended) and current[-len(appended):] == appended:
+        return current[:-len(appended)]
+    for start in range(max(0, len(current) - len(appended)), -1, -1):
+        if current[start:start + len(appended)] == appended:
+            return current[:start] + current[start + len(appended):]
+    appended_set = set(appended)
+    return [url for url in current if url not in appended_set]
+
+
+def _append_comic_images_if_missing(current_images: list[str], appended_images: list[str], previous_images: list[str]) -> list[str]:
+    current = [str(url or "").strip() for url in current_images or [] if str(url or "").strip()]
+    appended = [str(url or "").strip() for url in appended_images or [] if str(url or "").strip()]
+    previous = [str(url or "").strip() for url in previous_images or [] if str(url or "").strip()]
+    if not appended:
+        return current
+    if current == previous:
+        return previous + appended
+    if len(current) >= len(appended) and current[-len(appended):] == appended:
+        return current
+    for start in range(0, max(0, len(current) - len(appended)) + 1):
+        if current[start:start + len(appended)] == appended:
+            return current
+    return current + appended
+
+
 def append_book_supplement(
     storage,
     book_id: str,
@@ -1209,6 +1279,402 @@ def append_book_supplement(
     }
 
 
+def append_book_comic_supplement(
+    storage,
+    book_id: str,
+    chapters: list[dict[str, Any]],
+    *,
+    file_name: str = "",
+    file_mode: str = "single",
+    target_mode: str = "existing",
+    chapter_id: str = "",
+    new_chapter_title: str = "",
+    note: str = "",
+    source_files: list[tuple[str, bytes]] | None = None,
+    source_store_dir: Path | None = None,
+    comic_asset_root: str = "",
+    attach_asset_root_to_book: bool = False,
+    utc_now_iso,
+    hash_text,
+    deleted_retention_days: int = 30,
+) -> dict[str, Any]:
+    bid = str(book_id or "").strip()
+    if not bid:
+        raise ValueError("Thiếu book_id.")
+    book = storage.find_book(bid)
+    if not book:
+        raise ValueError("Không tìm thấy truyện.")
+    source_type = str(book.get("source_type") or "").strip().lower()
+    if source_type not in {"comic", "vbook_comic", "vbook_session_comic"}:
+        raise ValueError("Chỉ truyện tranh mới hỗ trợ bổ sung ảnh.")
+
+    normalized_chapters = _normalize_comic_supplement_chapters(chapters)
+    if not normalized_chapters:
+        raise ValueError("Không có ảnh comic hợp lệ để bổ sung.")
+
+    target_mode_key = str(target_mode or "existing").strip().lower()
+    if target_mode_key not in {"existing", "new"}:
+        target_mode_key = "existing"
+    file_mode_key = _normalize_supplement_file_mode(file_mode)
+    note_text = str(note or "").strip()
+    now = utc_now_iso()
+    lang_source = str(book.get("lang_source") or "").strip() or "zh"
+    source_manifest: list[dict[str, Any]] = []
+    persisted_source_dir: Path | None = None
+    asset_rel_paths = [
+        path
+        for chapter in normalized_chapters
+        for path in (chapter.get("asset_rel_paths") or [])
+        if str(path or "").strip()
+    ]
+
+    try:
+        with storage._connect() as conn:
+            default_volume_id = ensure_default_book_volume(
+                storage,
+                bid,
+                conn=conn,
+                hash_text=hash_text,
+                utc_now_iso=utc_now_iso,
+            )
+            if attach_asset_root_to_book and str(comic_asset_root or "").strip():
+                conn.execute(
+                    """
+                    UPDATE books
+                    SET source_file_path = CASE
+                            WHEN trim(COALESCE(source_file_path, '')) = '' THEN ?
+                            ELSE source_file_path
+                        END,
+                        updated_at = ?
+                    WHERE book_id = ?
+                    """,
+                    (str(comic_asset_root or "").strip(), now, bid),
+                )
+
+            if target_mode_key == "existing":
+                target_chapter_id = str(chapter_id or "").strip()
+                if not target_chapter_id:
+                    raise ValueError("Thiếu chương nhận ảnh bổ sung.")
+                chapter_row = conn.execute(
+                    """
+                    SELECT chapter_id, volume_id, title_raw, raw_key, chapter_order
+                    FROM chapters
+                    WHERE book_id = ?
+                      AND chapter_id = ?
+                      AND trim(COALESCE(deleted_at, '')) = ''
+                    LIMIT 1
+                    """,
+                    (bid, target_chapter_id),
+                ).fetchone()
+                if not chapter_row:
+                    raise ValueError("Không tìm thấy chương nhận ảnh bổ sung.")
+                raw_key = str(chapter_row["raw_key"] or "").strip()
+                raw_text = storage.read_cache(raw_key) or ""
+                previous_images = _comic_images_from_raw(raw_text)
+                if not previous_images:
+                    raise ValueError("Chương này chưa có payload ảnh comic để nối thêm.")
+                appended_images = [
+                    url
+                    for chapter in normalized_chapters
+                    for url in (chapter.get("images") or [])
+                    if str(url or "").strip()
+                ]
+                if not appended_images:
+                    raise ValueError("Không có ảnh comic hợp lệ để bổ sung.")
+                target_volume_id = str(chapter_row["volume_id"] or "").strip() or default_volume_id
+                stack_order = int(
+                    conn.execute(
+                        """
+                        SELECT COALESCE(MAX(stack_order), 0) AS c
+                        FROM book_supplement_batches
+                        WHERE book_id = ?
+                          AND volume_id = ?
+                          AND trim(COALESCE(deleted_at, '')) = ''
+                        """,
+                        (bid, target_volume_id),
+                    ).fetchone()["c"] or 0
+                ) + 1
+                batch_id = f"sup_{hash_text(f'{bid}|comic_append|{target_chapter_id}|{stack_order}|{now}|{file_name}|{note_text}')}"
+                source_manifest, persisted_source_dir = _persist_supplement_source_files(
+                    batch_id,
+                    source_files,
+                    source_store_dir=source_store_dir,
+                )
+                next_images = previous_images + appended_images
+                storage.write_cache(raw_key, lang_source, encode_comic_payload(next_images), conn=conn)
+                conn.execute(
+                    "UPDATE chapters SET word_count = ?, updated_at = ? WHERE chapter_id = ?",
+                    (len(next_images), now, target_chapter_id),
+                )
+                batch_payload = {
+                    "file_name": str(file_name or "").strip() or "comic",
+                    "file_mode": file_mode_key,
+                    "parse_mode": "comic",
+                    "target_mode": "existing",
+                    "operation": "append_images",
+                    "volume_id": target_volume_id,
+                    "volume_title": str(chapter_row["title_raw"] or "").strip(),
+                    "target_chapter_id": target_chapter_id,
+                    "target_chapter_title": str(chapter_row["title_raw"] or "").strip(),
+                    "previous_images": previous_images,
+                    "appended_images": appended_images,
+                    "image_count": len(appended_images),
+                    "source_mode": "link" if is_remote_library_source(book) else "file",
+                    "source_file_count": len(source_manifest),
+                    "source_files": source_manifest,
+                    "comic_asset_root": str(comic_asset_root or "").strip(),
+                    "asset_rel_paths": asset_rel_paths,
+                }
+                conn.execute(
+                    """
+                    INSERT INTO book_supplement_batches(
+                        batch_id, book_id, volume_id, source_kind, file_mode, note, payload_json,
+                        stack_order, chapter_count, created_at, updated_at, deleted_at, delete_expire_at
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    """,
+                    (
+                        batch_id,
+                        bid,
+                        target_volume_id,
+                        "comic_append_images",
+                        file_mode_key,
+                        note_text,
+                        json.dumps(batch_payload, ensure_ascii=False, separators=(",", ":")),
+                        stack_order,
+                        0,
+                        now,
+                        now,
+                        "",
+                        "",
+                    ),
+                )
+                append_book_change_event(
+                    storage,
+                    book_id=bid,
+                    event_type="supplement_added",
+                    event_scope="chapter",
+                    ref_id=target_chapter_id,
+                    payload={
+                        "batch_id": batch_id,
+                        "volume_id": target_volume_id,
+                        "volume_title": str(chapter_row["title_raw"] or "").strip(),
+                        "target_chapter_id": target_chapter_id,
+                        "target_chapter_title": str(chapter_row["title_raw"] or "").strip(),
+                        "source_kind": "comic_append_images",
+                        "operation": "append_images",
+                        "note": note_text,
+                        "chapter_count": 0,
+                        "image_count": len(appended_images),
+                        "stack_order": stack_order,
+                        "file_name": str(file_name or "").strip() or "comic",
+                        "file_mode": file_mode_key,
+                        "parse_mode": "comic",
+                        "source_file_count": len(source_manifest),
+                        "source_mode": "link" if is_remote_library_source(book) else "file",
+                    },
+                    conn=conn,
+                    hash_text=hash_text,
+                    utc_now_iso=utc_now_iso,
+                )
+                conn.execute("UPDATE books SET updated_at = ? WHERE book_id = ?", (now, bid))
+                return_payload = {
+                    "batch_id": batch_id,
+                    "volume_id": target_volume_id,
+                    "target_chapter_id": target_chapter_id,
+                    "added_chapters": 0,
+                    "added_images": len(appended_images),
+                    "created_volume": False,
+                }
+            else:
+                target_volume_id = default_volume_id
+                volume_row = conn.execute(
+                    """
+                    SELECT volume_id, title_raw
+                    FROM book_volumes
+                    WHERE book_id = ?
+                      AND volume_id = ?
+                      AND trim(COALESCE(deleted_at, '')) = ''
+                    LIMIT 1
+                    """,
+                    (bid, target_volume_id),
+                ).fetchone()
+                volume_title = str((volume_row or {})["title_raw"] if volume_row else "Mục lục").strip() or "Mục lục"
+                stack_order = int(
+                    conn.execute(
+                        """
+                        SELECT COALESCE(MAX(stack_order), 0) AS c
+                        FROM book_supplement_batches
+                        WHERE book_id = ?
+                          AND volume_id = ?
+                          AND trim(COALESCE(deleted_at, '')) = ''
+                        """,
+                        (bid, target_volume_id),
+                    ).fetchone()["c"] or 0
+                ) + 1
+                batch_id = f"sup_{hash_text(f'{bid}|comic_new|{target_volume_id}|{stack_order}|{now}|{file_name}|{note_text}')}"
+                source_manifest, persisted_source_dir = _persist_supplement_source_files(
+                    batch_id,
+                    source_files,
+                    source_store_dir=source_store_dir,
+                )
+                anchor_order = int(
+                    conn.execute(
+                        """
+                        SELECT COALESCE(MAX(chapter_order), 0) AS c
+                        FROM chapters
+                        WHERE book_id = ?
+                          AND volume_id = ?
+                          AND trim(COALESCE(deleted_at, '')) = ''
+                        """,
+                        (bid, target_volume_id),
+                    ).fetchone()["c"] or 0
+                )
+                batch_payload = {
+                    "file_name": str(file_name or "").strip() or "comic",
+                    "file_mode": file_mode_key,
+                    "parse_mode": "comic",
+                    "target_mode": "new",
+                    "operation": "new_chapter",
+                    "volume_id": target_volume_id,
+                    "volume_title": volume_title,
+                    "image_count": sum(len(chapter.get("images") or []) for chapter in normalized_chapters),
+                    "source_mode": "link" if is_remote_library_source(book) else "file",
+                    "source_file_count": len(source_manifest),
+                    "source_files": source_manifest,
+                    "comic_asset_root": str(comic_asset_root or "").strip(),
+                    "asset_rel_paths": asset_rel_paths,
+                }
+                conn.execute(
+                    """
+                    INSERT INTO book_supplement_batches(
+                        batch_id, book_id, volume_id, source_kind, file_mode, note, payload_json,
+                        stack_order, chapter_count, created_at, updated_at, deleted_at, delete_expire_at
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    """,
+                    (
+                        batch_id,
+                        bid,
+                        target_volume_id,
+                        "comic_new_chapter",
+                        file_mode_key,
+                        note_text,
+                        json.dumps(batch_payload, ensure_ascii=False, separators=(",", ":")),
+                        stack_order,
+                        len(normalized_chapters),
+                        now,
+                        now,
+                        "",
+                        "",
+                    ),
+                )
+                chapter_rows: list[tuple[Any, ...]] = []
+                for idx, item in enumerate(normalized_chapters, start=1):
+                    chapter_title = str(item.get("title") or f"Chương {idx}").strip() or f"Chương {idx}"
+                    if len(normalized_chapters) == 1 and str(new_chapter_title or "").strip():
+                        chapter_title = str(new_chapter_title or "").strip()
+                    chapter_text = encode_comic_payload(list(item.get("images") or []))
+                    chapter_key = f"{bid}|{target_volume_id}|{batch_id}|comic|{idx}|{chapter_title}"
+                    new_chapter_id = f"ch_{hash_text(chapter_key)}"
+                    raw_key = f"raw_{hash_text(f'{new_chapter_id}|{chapter_text}')}"
+                    storage.write_cache(raw_key, lang_source, chapter_text, conn=conn)
+                    chapter_rows.append(
+                        (
+                            new_chapter_id,
+                            bid,
+                            anchor_order + idx,
+                            target_volume_id,
+                            "supplement",
+                            batch_id,
+                            stack_order,
+                            note_text,
+                            chapter_title,
+                            None,
+                            build_chapter_search_text(title_raw=chapter_title, title_vi=""),
+                            raw_key,
+                            None,
+                            None,
+                            now,
+                            len(item.get("images") or []),
+                            "",
+                            0,
+                            "",
+                            "",
+                        )
+                    )
+                conn.executemany(
+                    """
+                    INSERT INTO chapters(
+                        chapter_id, book_id, chapter_order, volume_id, origin_type, supplement_batch_id,
+                        supplement_stack_order, supplement_note, title_raw, title_vi, search_text,
+                        raw_key, trans_key, trans_sig, updated_at, word_count, remote_url, is_vip,
+                        deleted_at, delete_expire_at
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    """,
+                    chapter_rows,
+                )
+                storage.sync_chapter_search_texts(book_ids=[bid], conn=conn)
+                visible_count = int(
+                    conn.execute(
+                        """
+                        SELECT COUNT(1) AS c
+                        FROM chapters
+                        WHERE book_id = ?
+                          AND trim(COALESCE(deleted_at, '')) = ''
+                        """,
+                        (bid,),
+                    ).fetchone()["c"] or 0
+                )
+                conn.execute(
+                    "UPDATE books SET chapter_count = ?, updated_at = ? WHERE book_id = ?",
+                    (visible_count, now, bid),
+                )
+                append_book_change_event(
+                    storage,
+                    book_id=bid,
+                    event_type="supplement_added",
+                    event_scope="volume",
+                    ref_id=target_volume_id,
+                    payload={
+                        "batch_id": batch_id,
+                        "volume_id": target_volume_id,
+                        "volume_title": volume_title,
+                        "source_kind": "comic_new_chapter",
+                        "operation": "new_chapter",
+                        "note": note_text,
+                        "chapter_count": len(normalized_chapters),
+                        "image_count": sum(len(chapter.get("images") or []) for chapter in normalized_chapters),
+                        "stack_order": stack_order,
+                        "file_name": str(file_name or "").strip() or "comic",
+                        "file_mode": file_mode_key,
+                        "parse_mode": "comic",
+                        "source_file_count": len(source_manifest),
+                        "created_volume": False,
+                        "source_mode": "link" if is_remote_library_source(book) else "file",
+                    },
+                    conn=conn,
+                    hash_text=hash_text,
+                    utc_now_iso=utc_now_iso,
+                )
+                return_payload = {
+                    "batch_id": batch_id,
+                    "volume_id": target_volume_id,
+                    "added_chapters": len(normalized_chapters),
+                    "added_images": sum(len(chapter.get("images") or []) for chapter in normalized_chapters),
+                    "created_volume": False,
+                }
+    except Exception:
+        if persisted_source_dir is not None:
+            shutil.rmtree(persisted_source_dir, ignore_errors=True)
+        raise
+
+    return {
+        "ok": True,
+        "book": storage.get_book_detail(bid),
+        "note": note_text,
+        **return_payload,
+    }
+
+
 def rename_book_volume(
     storage,
     book_id: str,
@@ -1313,7 +1779,7 @@ def delete_book_supplement_batch(
     with storage._connect() as conn:
         batch_row = conn.execute(
             """
-            SELECT batch_id, book_id, volume_id, file_mode, note, payload_json, stack_order, chapter_count,
+            SELECT batch_id, book_id, volume_id, source_kind, file_mode, note, payload_json, stack_order, chapter_count,
                    created_at, updated_at, deleted_at, delete_expire_at
             FROM book_supplement_batches
             WHERE book_id = ? AND batch_id = ?
@@ -1357,6 +1823,86 @@ def delete_book_supplement_batch(
         current_stack = int(batch_row["stack_order"] or 0)
         if current_stack != max_active_stack:
             raise ValueError("Chỉ xóa được đợt bổ sung mới nhất của quyển trước.")
+
+        payload = _parse_supplement_batch_payload(batch_row["payload_json"])
+        source_kind = str(batch_row["source_kind"] or "").strip().lower()
+        if source_kind == "comic_append_images":
+            target_chapter_id = str(payload.get("target_chapter_id") or "").strip()
+            appended_images = [str(url or "").strip() for url in (payload.get("appended_images") or []) if str(url or "").strip()]
+            previous_images = [str(url or "").strip() for url in (payload.get("previous_images") or []) if str(url or "").strip()]
+            if not target_chapter_id or not appended_images:
+                raise ValueError("Đợt bổ sung ảnh này thiếu dữ liệu để xóa.")
+            chapter_row = conn.execute(
+                """
+                SELECT chapter_id, raw_key
+                FROM chapters
+                WHERE book_id = ?
+                  AND chapter_id = ?
+                  AND trim(COALESCE(deleted_at, '')) = ''
+                LIMIT 1
+                """,
+                (bid, target_chapter_id),
+            ).fetchone()
+            if not chapter_row:
+                raise ValueError("Không còn chương gốc để xóa đợt bổ sung ảnh.")
+            raw_key = str(chapter_row["raw_key"] or "").strip()
+            current_images = _comic_images_from_raw(storage.read_cache(raw_key) or "")
+            next_images = _remove_comic_appended_images(current_images, appended_images, previous_images)
+            storage.write_cache(raw_key, str(book.get("lang_source") or "").strip() or "zh", encode_comic_payload(next_images), conn=conn)
+            conn.execute(
+                "UPDATE chapters SET word_count = ?, updated_at = ? WHERE chapter_id = ?",
+                (len(next_images), now, target_chapter_id),
+            )
+            conn.execute(
+                """
+                UPDATE book_supplement_batches
+                SET deleted_at = ?, delete_expire_at = ?, updated_at = ?
+                WHERE batch_id = ?
+                """,
+                (now, expire_at, now, batch_key),
+            )
+            conn.execute(
+                "UPDATE books SET updated_at = ? WHERE book_id = ?",
+                (now, bid),
+            )
+            append_book_change_event(
+                storage,
+                book_id=bid,
+                event_type="supplement_deleted",
+                event_scope="chapter",
+                ref_id=target_chapter_id,
+                payload={
+                    "batch_id": batch_key,
+                    "volume_id": str(batch_row["volume_id"] or "").strip(),
+                    "volume_title": str(payload.get("target_chapter_title") or payload.get("volume_title") or "").strip(),
+                    "target_chapter_id": target_chapter_id,
+                    "target_chapter_title": str(payload.get("target_chapter_title") or "").strip(),
+                    "source_kind": source_kind,
+                    "operation": "append_images",
+                    "note": str(batch_row["note"] or "").strip(),
+                    "chapter_count": 0,
+                    "image_count": len(appended_images),
+                    "stack_order": current_stack,
+                    "file_name": str(payload.get("file_name") or "").strip() or "comic",
+                    "file_mode": _normalize_supplement_file_mode(batch_row["file_mode"]),
+                    "parse_mode": "comic",
+                    "source_file_count": len(_normalize_supplement_source_manifest(payload)),
+                    "source_mode": str(payload.get("source_mode") or ("link" if is_remote_library_source(book) else "file")).strip() or "file",
+                    "delete_expire_at": expire_at,
+                },
+                conn=conn,
+                hash_text=hash_text,
+                utc_now_iso=utc_now_iso,
+            )
+            return {
+                "ok": True,
+                "batch_id": batch_key,
+                "volume_id": str(batch_row["volume_id"] or "").strip(),
+                "deleted_chapters": 0,
+                "deleted_images": len(appended_images),
+                "delete_expire_at": expire_at,
+                "volume_deleted": False,
+            }
 
         chapter_rows = conn.execute(
             """
@@ -1444,7 +1990,6 @@ def delete_book_supplement_batch(
             (visible_count, now, bid),
         )
 
-        payload = _parse_supplement_batch_payload(batch_row["payload_json"])
         append_book_change_event(
             storage,
             book_id=bid,
@@ -1506,7 +2051,7 @@ def restore_book_supplement_batch(
     with storage._connect() as conn:
         batch_row = conn.execute(
             """
-            SELECT batch_id, book_id, volume_id, file_mode, note, payload_json, stack_order, chapter_count,
+            SELECT batch_id, book_id, volume_id, source_kind, file_mode, note, payload_json, stack_order, chapter_count,
                    created_at, updated_at, deleted_at, delete_expire_at
             FROM book_supplement_batches
             WHERE book_id = ? AND batch_id = ?
@@ -1556,6 +2101,85 @@ def restore_book_supplement_batch(
         ).fetchone()
         if not volume_row:
             raise ValueError("Không còn quyển gốc của đợt bổ sung này.")
+
+        payload = _parse_supplement_batch_payload(batch_row["payload_json"])
+        source_kind = str(batch_row["source_kind"] or "").strip().lower()
+        if source_kind == "comic_append_images":
+            target_chapter_id = str(payload.get("target_chapter_id") or "").strip()
+            appended_images = [str(url or "").strip() for url in (payload.get("appended_images") or []) if str(url or "").strip()]
+            previous_images = [str(url or "").strip() for url in (payload.get("previous_images") or []) if str(url or "").strip()]
+            if not target_chapter_id or not appended_images:
+                raise ValueError("Đợt bổ sung ảnh này thiếu dữ liệu để khôi phục.")
+            chapter_row = conn.execute(
+                """
+                SELECT chapter_id, raw_key
+                FROM chapters
+                WHERE book_id = ?
+                  AND chapter_id = ?
+                  AND trim(COALESCE(deleted_at, '')) = ''
+                LIMIT 1
+                """,
+                (bid, target_chapter_id),
+            ).fetchone()
+            if not chapter_row:
+                raise ValueError("Không còn chương gốc để khôi phục đợt bổ sung ảnh.")
+            raw_key = str(chapter_row["raw_key"] or "").strip()
+            current_images = _comic_images_from_raw(storage.read_cache(raw_key) or "")
+            next_images = _append_comic_images_if_missing(current_images, appended_images, previous_images)
+            storage.write_cache(raw_key, str(book.get("lang_source") or "").strip() or "zh", encode_comic_payload(next_images), conn=conn)
+            conn.execute(
+                "UPDATE chapters SET word_count = ?, updated_at = ? WHERE chapter_id = ?",
+                (len(next_images), now, target_chapter_id),
+            )
+            conn.execute(
+                """
+                UPDATE book_supplement_batches
+                SET deleted_at = '', delete_expire_at = '', updated_at = ?
+                WHERE batch_id = ?
+                """,
+                (now, batch_key),
+            )
+            conn.execute(
+                "UPDATE books SET updated_at = ? WHERE book_id = ?",
+                (now, bid),
+            )
+            append_book_change_event(
+                storage,
+                book_id=bid,
+                event_type="supplement_restored",
+                event_scope="chapter",
+                ref_id=target_chapter_id,
+                payload={
+                    "batch_id": batch_key,
+                    "volume_id": str(batch_row["volume_id"] or "").strip(),
+                    "volume_title": str(payload.get("target_chapter_title") or payload.get("volume_title") or "").strip(),
+                    "target_chapter_id": target_chapter_id,
+                    "target_chapter_title": str(payload.get("target_chapter_title") or "").strip(),
+                    "source_kind": source_kind,
+                    "operation": "append_images",
+                    "note": str(batch_row["note"] or "").strip(),
+                    "chapter_count": 0,
+                    "image_count": len(appended_images),
+                    "stack_order": current_stack,
+                    "file_name": str(payload.get("file_name") or "").strip() or "comic",
+                    "file_mode": _normalize_supplement_file_mode(batch_row["file_mode"]),
+                    "parse_mode": "comic",
+                    "source_file_count": len(_normalize_supplement_source_manifest(payload)),
+                    "source_mode": str(payload.get("source_mode") or ("link" if is_remote_library_source(book) else "file")).strip() or "file",
+                    "deleted_retention_days": max(1, int(deleted_retention_days or 30)),
+                },
+                conn=conn,
+                hash_text=hash_text,
+                utc_now_iso=utc_now_iso,
+            )
+            return {
+                "ok": True,
+                "batch_id": batch_key,
+                "volume_id": str(batch_row["volume_id"] or "").strip(),
+                "restored_chapters": 0,
+                "restored_images": len(appended_images),
+                "volume_restored": False,
+            }
 
         deleted_chapters = conn.execute(
             """
@@ -1641,7 +2265,6 @@ def restore_book_supplement_batch(
             (visible_count, now, bid),
         )
 
-        payload = _parse_supplement_batch_payload(batch_row["payload_json"])
         append_book_change_event(
             storage,
             book_id=bid,

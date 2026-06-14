@@ -3947,6 +3947,41 @@ class ReaderStorage:
             deleted_retention_days=BOOK_SUPPLEMENT_RETENTION_DAYS,
         )
 
+    def append_book_comic_supplement(
+        self,
+        book_id: str,
+        chapters: list[dict[str, Any]],
+        *,
+        file_name: str = "",
+        file_mode: str = "single",
+        target_mode: str = "existing",
+        chapter_id: str = "",
+        new_chapter_title: str = "",
+        note: str = "",
+        source_files: list[tuple[str, bytes]] | None = None,
+        source_store_dir: Path | None = None,
+        comic_asset_root: str = "",
+        attach_asset_root_to_book: bool = False,
+    ) -> dict[str, Any]:
+        return storage_book_mutation_support.append_book_comic_supplement(
+            self,
+            book_id,
+            chapters,
+            file_name=file_name,
+            file_mode=file_mode,
+            target_mode=target_mode,
+            chapter_id=chapter_id,
+            new_chapter_title=new_chapter_title,
+            note=note,
+            source_files=source_files,
+            source_store_dir=source_store_dir,
+            comic_asset_root=comic_asset_root,
+            attach_asset_root_to_book=attach_asset_root_to_book,
+            utc_now_iso=utc_now_iso,
+            hash_text=hash_text,
+            deleted_retention_days=BOOK_SUPPLEMENT_RETENTION_DAYS,
+        )
+
     def rename_book_volume(self, book_id: str, volume_id: str, title: str) -> dict[str, Any]:
         return storage_book_mutation_support.rename_book_volume(
             self,
@@ -4792,6 +4827,8 @@ class ReaderService:
             parse_txt_book=parse_txt_book,
             decode_text_with_fallback=decode_text_with_fallback,
             normalize_vbook_display_text=normalize_vbook_display_text,
+            comic_import_dir=COMIC_IMPORT_DIR,
+            encode_comic_payload=encode_comic_payload,
         )
 
     def commit_book_supplement_token(

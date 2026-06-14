@@ -364,23 +364,30 @@ function supportsTranslation(book) {
   if (!book) return false;
   if (typeof book.translation_supported === "boolean") return book.translation_supported;
   const sourceType = String(book.source_type || "").toLowerCase();
-  if (sourceType === "vbook_comic" || sourceType === "comic") return false;
+  if (sourceType === "vbook_comic" || sourceType === "vbook_session_comic" || sourceType === "comic") return false;
   const lang = String(book.lang_source || "").toLowerCase();
   return lang === "zh" || lang.startsWith("zh-");
+}
+
+function isComicBook(book) {
+  if (!book) return false;
+  if (Boolean(book.is_comic)) return true;
+  const sourceType = String(book.source_type || "").toLowerCase();
+  return sourceType === "comic" || sourceType === "vbook_comic" || sourceType === "vbook_session_comic";
 }
 
 function supportsRawTextReplace(book) {
   if (!book) return false;
   if (supportsTranslation(book)) return false;
-  if (Boolean(book.is_comic)) return false;
+  if (isComicBook(book)) return false;
   const sourceType = String(book.source_type || "").toLowerCase();
-  return sourceType !== "vbook_comic" && sourceType !== "comic";
+  return sourceType !== "vbook_comic" && sourceType !== "vbook_session_comic" && sourceType !== "comic";
 }
 
 function canUseBookSupplement(book) {
   if (!book) return false;
-  if (Boolean(book.is_comic)) return false;
   const sourceType = String(book.source_type || "").toLowerCase();
+  if (isComicBook(book)) return true;
   return sourceType !== "vbook_comic" && sourceType !== "comic";
 }
 
@@ -404,7 +411,27 @@ function currentSupplementMultiParseMode() {
     : "server";
 }
 
+function buildBookSupplementChapterLabel(item) {
+  const order = Math.max(0, Number((item && item.chapter_order) || 0));
+  const title = normalizeDisplayTitle(String((item && (item.title_display || item.title_raw)) || "").trim() || "Chương");
+  return order > 0 ? `${order}. ${title}` : title;
+}
+
 function getBookSupplementAppendableVolumes() {
+  if (isComicBook(state.book)) {
+    return (Array.isArray(state.tocItems) ? state.tocItems : [])
+      .filter((item) => String((item && item.chapter_id) || "").trim())
+      .map((item) => ({
+        volume_id: String(item.chapter_id || "").trim(),
+        volume_kind: "chapter",
+        title_raw: String(item.title_raw || item.title_display || "").trim(),
+        title_display: buildBookSupplementChapterLabel(item),
+        chapter_id: String(item.chapter_id || "").trim(),
+        chapter_order: Number(item.chapter_order || 0),
+        policy: { can_append: true, can_delete: true },
+        latest_supplement: null,
+      }));
+  }
   return (Array.isArray(state.tocVolumes) ? state.tocVolumes : [])
     .filter((item) => {
       const policy = (item && typeof item.policy === "object") ? item.policy : {};
@@ -1941,12 +1968,27 @@ function renderBookSupplementForm() {
 
   const volumes = getBookSupplementAppendableVolumes();
   const renamableVolumes = getBookRenamableVolumes();
+  const isComic = isComicBook(book);
   const hasExistingOption = volumes.length > 0;
   const files = getSelectedBookSupplementFiles();
   const uploadMode = currentSupplementUploadMode();
-  const isMulti = uploadMode === "multi";
+  const isMulti = !isComic && uploadMode === "multi";
+  if (refs.bookSupplementTitle) refs.bookSupplementTitle.textContent = isComic ? "Bổ sung ảnh comic" : "Bổ sung chương TXT";
+  if (refs.bookSupplementTargetModeLabel) refs.bookSupplementTargetModeLabel.textContent = isComic ? "Đích ảnh" : "Đích bổ sung";
+  if (refs.bookSupplementFileInput) {
+    refs.bookSupplementFileInput.accept = isComic
+      ? ".cbz,.zip,.epub,image/*,.jpg,.jpeg,.png,.webp,.gif,.avif"
+      : ".txt,text/plain";
+  }
+  if (refs.btnBookSupplementPick) refs.btnBookSupplementPick.textContent = isComic ? "Chọn ảnh/Comic" : "Chọn file TXT";
+  if (refs.bookSupplementVolumeLabel) refs.bookSupplementVolumeLabel.textContent = isComic ? "Chọn chương" : "Chọn quyển";
+  if (refs.bookSupplementNewVolumeLabel) refs.bookSupplementNewVolumeLabel.textContent = isComic ? "Tên chương mới" : "Tên quyển mới";
+  if (refs.bookSupplementPreviewCountLabel) refs.bookSupplementPreviewCountLabel.textContent = isComic ? "Số ảnh:" : "Số chương:";
   if (refs.bookSupplementTargetMode) {
     const existingOption = refs.bookSupplementTargetMode.querySelector('option[value="existing"]');
+    const newOption = refs.bookSupplementTargetMode.querySelector('option[value="new"]');
+    if (existingOption) existingOption.textContent = isComic ? "Chương đã có" : "Quyển đã có";
+    if (newOption) newOption.textContent = isComic ? "Chương mới" : "Quyển mới";
     if (existingOption) existingOption.disabled = !hasExistingOption;
     if (!hasExistingOption && currentSupplementTargetMode() !== "new") {
       refs.bookSupplementTargetMode.value = "new";
@@ -1959,7 +2001,7 @@ function renderBookSupplementForm() {
     for (const item of volumes) {
       const option = document.createElement("option");
       option.value = String(item.volume_id || "").trim();
-      option.textContent = buildTocVolumeLabel(item);
+      option.textContent = isComic ? buildBookSupplementChapterLabel(item) : buildTocVolumeLabel(item);
       refs.bookSupplementVolumeSelect.appendChild(option);
     }
     if (volumes.length) {
@@ -1995,20 +2037,26 @@ function renderBookSupplementForm() {
   if (refs.bookSupplementNewVolumeWrap) refs.bookSupplementNewVolumeWrap.classList.toggle("hidden", targetMode !== "new");
 
   const bookPolicy = (book && typeof book.supplement_policy === "object") ? book.supplement_policy : {};
-  const sourceModeText = bookPolicy.source_mode === "link"
+  const sourceModeText = isComic
+    ? "Comic: có thể nối ảnh vào chương đang có hoặc tạo chương ảnh mới."
+    : bookPolicy.source_mode === "link"
     ? "Truyện thêm bằng link: quyển mặc định chỉ cho đổi tên, không cho bổ sung trực tiếp."
     : "Truyện import bằng file: quyển mặc định vẫn cho bổ sung vào cuối quyển.";
   const volume = getBookSupplementSelectedVolume();
   const volumePolicy = (volume && typeof volume.policy === "object") ? volume.policy : {};
   const latestBatch = getLatestSupplementBatchForVolume(volume);
-  const fileModeText = isMulti
+  const fileModeText = isComic
+    ? "Hỗ trợ ảnh rời, CBZ/ZIP và EPUB comic; nhiều ảnh rời sẽ giữ đúng thứ tự chọn."
+    : isMulti
     ? (currentSupplementMultiParseMode() === "position"
       ? "Nhiều file: giữ nguyên thứ tự file đã chọn và lấy dòng đầu mỗi file làm tên chương."
       : "Nhiều file: ưu tiên parse từ tên file, fallback sang dòng đầu; file parse được số chương sẽ tự xếp theo số.")
     : "Một file: sẽ tách chương như import TXT hiện tại.";
   const targetHint = targetMode === "new"
-    ? "Quyển mới sẽ được thêm ở cuối bộ truyện."
-    : (volumePolicy.sync_with_source_toc
+    ? (isComic ? "Chương comic mới sẽ được thêm ở cuối mục lục." : "Quyển mới sẽ được thêm ở cuối bộ truyện.")
+    : (isComic
+      ? "Ảnh mới sẽ được nối vào cuối chương đã chọn."
+      : volumePolicy.sync_with_source_toc
       ? "Quyển này đang đồng bộ với mục lục nguồn. Muốn bổ sung thêm, hãy tạo quyển mới."
       : "Các chương TXT mới sẽ được nối vào cuối quyển đã chọn.");
   if (refs.bookSupplementHint) refs.bookSupplementHint.textContent = `${sourceModeText} ${fileModeText} ${targetHint}`;
@@ -2022,9 +2070,13 @@ function renderBookSupplementForm() {
     refs.bookSupplementManageRow.classList.toggle("hidden", !canShowManage);
     if (canShowManage) {
       const parts = [];
-      parts.push(`Đợt gần nhất: ${Math.max(0, Number(latestBatch.chapter_count || 0))} chương`);
+      const isComicBatch = String(latestBatch.source_kind || "").trim().toLowerCase().startsWith("comic")
+        || Math.max(0, Number(latestBatch.image_count || 0)) > 0;
+      parts.push(isComicBatch
+        ? `Đợt gần nhất: ${Math.max(0, Number(latestBatch.image_count || 0))} ảnh`
+        : `Đợt gần nhất: ${Math.max(0, Number(latestBatch.chapter_count || 0))} chương`);
       if (String(latestBatch.file_mode || "").trim() === "multi") {
-        parts.push(`nguồn ${Math.max(1, Number(latestBatch.source_file_count || 0))} file TXT`);
+        parts.push(`nguồn ${Math.max(1, Number(latestBatch.source_file_count || 0))} ${isComicBatch ? "file comic/ảnh" : "file TXT"}`);
       }
       if (String(latestBatch.note || "").trim()) parts.push(`ghi chú: ${String(latestBatch.note || "").trim()}`);
       refs.bookSupplementManageInfo.textContent = parts.join(" • ");
@@ -2078,18 +2130,19 @@ function collectBookSupplementPayload() {
 
 function renderSelectedBookSupplementFilesLabel() {
   if (!refs.bookSupplementFileName) return;
+  const isComic = isComicBook(state.book);
   const files = getSelectedBookSupplementFiles();
   if (!files.length) {
-    refs.bookSupplementFileName.textContent = "Chưa chọn file TXT nào.";
+    refs.bookSupplementFileName.textContent = isComic ? "Chưa chọn ảnh hoặc file comic nào." : "Chưa chọn file TXT nào.";
     return;
   }
   if (files.length === 1) {
-    refs.bookSupplementFileName.textContent = String(files[0].name || "").trim() || "supplement.txt";
+    refs.bookSupplementFileName.textContent = String(files[0].name || "").trim() || (isComic ? "comic" : "supplement.txt");
     return;
   }
   const previewNames = files.slice(0, 3).map((file) => String(file.name || "").trim()).filter(Boolean);
   const suffix = files.length > 3 ? `, +${files.length - 3} file nữa` : "";
-  refs.bookSupplementFileName.textContent = `${files.length} file TXT: ${previewNames.join(", ")}${suffix}`;
+  refs.bookSupplementFileName.textContent = `${files.length} ${isComic ? "file comic/ảnh" : "file TXT"}: ${previewNames.join(", ")}${suffix}`;
 }
 
 function supplementParseSourceLabel(value) {
@@ -2105,28 +2158,37 @@ function renderBookSupplementPreview(preview) {
   const data = state.supplementPreviewData || {};
   const metadata = (data && typeof data.metadata === "object") ? data.metadata : {};
   const target = (data && typeof data.target === "object") ? data.target : {};
+  const isComic = String(data.source_type || "").trim() === "supplement_comic";
   const fileCount = Math.max(1, Number(metadata.file_count || 1));
   const uploadMode = String(metadata.upload_mode || "single").trim();
   const parseMode = String(metadata.parse_mode || "single").trim();
   if (refs.bookSupplementPreviewFileName) {
     refs.bookSupplementPreviewFileName.textContent = fileCount > 1
-      ? `${fileCount} file TXT`
-      : (String(data.file_name || "").trim() || "supplement.txt");
+      ? `${fileCount} ${isComic ? "file comic/ảnh" : "file TXT"}`
+      : (String(data.file_name || "").trim() || (isComic ? "comic" : "supplement.txt"));
   }
   if (refs.bookSupplementPreviewFileType) {
-    refs.bookSupplementPreviewFileType.textContent = uploadMode === "multi"
+    refs.bookSupplementPreviewFileType.textContent = isComic
+      ? "Comic/ảnh"
+      : uploadMode === "multi"
       ? (parseMode === "position" ? "TXT nhiều file • Theo vị trí" : "TXT nhiều file • Theo parse server")
       : String(data.file_ext || "txt").toUpperCase();
   }
-  if (refs.bookSupplementPreviewChapterCount) refs.bookSupplementPreviewChapterCount.textContent = String(Math.max(0, Number(metadata.chapter_count || 0)));
+  if (refs.bookSupplementPreviewChapterCount) {
+    refs.bookSupplementPreviewChapterCount.textContent = isComic
+      ? `${Math.max(0, Number(metadata.image_count || 0))} ảnh / ${Math.max(0, Number(metadata.chapter_count || 0))} chương`
+      : String(Math.max(0, Number(metadata.chapter_count || 0)));
+  }
   if (refs.bookSupplementPreviewTargetValue) {
     refs.bookSupplementPreviewTargetValue.textContent = target.mode === "new"
-      ? `Quyển mới: ${String(target.new_volume_title || "").trim() || "Chưa đặt tên"}`
-      : String(target.volume_title || "").trim() || "Không rõ quyển";
+      ? `${isComic ? "Chương mới" : "Quyển mới"}: ${String(target.new_volume_title || "").trim() || "Chưa đặt tên"}`
+      : String(target.volume_title || "").trim() || (isComic ? "Không rõ chương" : "Không rõ quyển");
   }
   if (refs.bookSupplementPreviewNoteValue) refs.bookSupplementPreviewNoteValue.textContent = String(target.note || "").trim() || "Không có";
   if (refs.bookSupplementPreviewHint) {
-    refs.bookSupplementPreviewHint.textContent = uploadMode === "multi"
+    refs.bookSupplementPreviewHint.textContent = isComic
+      ? `Sẽ bổ sung ${Math.max(0, Number(metadata.image_count || 0))} ảnh comic vào truyện hiện tại.`
+      : uploadMode === "multi"
       ? `Sẽ ghép ${fileCount} file TXT thành ${Math.max(0, Number(metadata.chapter_count || 0))} chương để bổ sung vào truyện hiện tại.`
       : `Sẽ bổ sung ${Math.max(0, Number(metadata.chapter_count || 0))} chương TXT vào truyện hiện tại.`;
   }
@@ -2134,7 +2196,10 @@ function renderBookSupplementPreview(preview) {
     const diagnostics = (data && typeof data.diagnostics === "object") ? data.diagnostics : {};
     const parts = [];
     if (String(metadata.detected_lang || "").trim()) parts.push(`Ngôn ngữ nhận diện: ${String(metadata.detected_lang || "").trim()}`);
-    if (uploadMode === "multi") {
+    if (isComic) {
+      parts.push(`Ảnh: ${Math.max(0, Number(metadata.image_count || 0))}`);
+      if (Array.isArray(diagnostics.parsers) && diagnostics.parsers.length) parts.push(`Parser: ${diagnostics.parsers.join(", ")}`);
+    } else if (uploadMode === "multi") {
       parts.push(parseMode === "position" ? "Mode: Theo vị trí file" : "Mode: Theo parse server");
       if (Number(diagnostics.numbered_hits || 0) > 0) parts.push(`File có số chương: ${Number(diagnostics.numbered_hits || 0)}`);
       if (Number(diagnostics.filename_hits || 0) > 0) parts.push(`Parse từ tên file: ${Number(diagnostics.filename_hits || 0)}`);
@@ -2162,9 +2227,9 @@ function renderBookSupplementPreview(preview) {
       head.textContent = `${Number(item.index || 0)}. ${normalizeDisplayTitle(String(item.title || "").trim())}`;
       const meta = document.createElement("div");
       meta.className = "import-preview-chapter-meta";
-      const metaParts = [`${Math.max(0, Number(item.word_count || 0))} ký tự`];
+      const metaParts = [isComic ? `${Math.max(0, Number(item.image_count || item.word_count || 0))} ảnh` : `${Math.max(0, Number(item.word_count || 0))} ký tự`];
       if (String(item.file_name || "").trim()) metaParts.push(String(item.file_name || "").trim());
-      if (String(item.parse_source || "").trim()) metaParts.push(`Tên: ${supplementParseSourceLabel(item.parse_source)}`);
+      if (!isComic && String(item.parse_source || "").trim()) metaParts.push(`Tên: ${supplementParseSourceLabel(item.parse_source)}`);
       meta.textContent = metaParts.join(" • ");
       const text = document.createElement("div");
       text.className = "import-preview-chapter-text";
@@ -2260,44 +2325,74 @@ function describeBookChangeEvent(entry) {
   }
   if (eventType === "supplement_added") {
     const chapterCount = normalizeHistoryCount(payload.chapter_count);
+    const imageCount = normalizeHistoryCount(payload.image_count);
+    const sourceKind = String(payload.source_kind || "").trim().toLowerCase();
+    const isComicBatch = sourceKind.startsWith("comic") || imageCount > 0;
     const volumeTitle = normalizeDisplayTitle(String(payload.volume_title || "").trim() || "quyển đã chọn");
     const note = normalizeParagraphDisplayText(String(payload.note || "").trim(), { singleLine: false });
     const fileName = String(payload.file_name || "").trim();
     const lines = [];
-    lines.push(chapterCount > 0
+    if (isComicBatch && String(payload.operation || "").trim() === "append_images") {
+      const chapterTitle = normalizeDisplayTitle(String(payload.target_chapter_title || "").trim() || volumeTitle || "chương đã chọn");
+      lines.push(`Đã nối ${imageCount} ảnh vào ${chapterTitle}.`);
+    } else if (isComicBatch) {
+      lines.push(chapterCount > 0
+        ? `Đã thêm ${chapterCount} chương comic với ${imageCount} ảnh vào ${volumeTitle}.`
+        : `Đã bổ sung ${imageCount} ảnh comic vào ${volumeTitle}.`);
+    } else {
+      lines.push(chapterCount > 0
       ? `Đã thêm ${chapterCount} chương vào ${volumeTitle}.`
       : `Đã bổ sung chương vào ${volumeTitle}.`);
+    }
     if (fileName) lines.push(`File nguồn: ${fileName}.`);
     if (note) lines.push(`Ghi chú đợt bổ sung: ${note}`);
     return {
-      title: "Đã bổ sung chương",
+      title: isComicBatch ? "Đã bổ sung ảnh comic" : "Đã bổ sung chương",
       body: lines.join("\n"),
       meta: Boolean(payload.created_volume) ? "Đợt này có tạo quyển mới trước khi chèn chương." : "",
     };
   }
   if (eventType === "supplement_deleted") {
     const chapterCount = normalizeHistoryCount(payload.chapter_count);
+    const imageCount = normalizeHistoryCount(payload.image_count);
+    const sourceKind = String(payload.source_kind || "").trim().toLowerCase();
+    const isComicBatch = sourceKind.startsWith("comic") || imageCount > 0;
     const volumeTitle = normalizeDisplayTitle(String(payload.volume_title || "").trim() || "quyển đã chọn");
     const fileName = String(payload.file_name || "").trim();
     const expireAt = formatBookHistoryTime(payload.delete_expire_at);
     const lines = [
-      chapterCount > 0
+      isComicBatch && String(payload.operation || "").trim() === "append_images"
+        ? `Đã xóa mềm ${imageCount} ảnh bổ sung khỏi ${volumeTitle}.`
+        : isComicBatch
+        ? (chapterCount > 0
+          ? `Đã xóa mềm ${chapterCount} chương comic bổ sung khỏi ${volumeTitle}.`
+          : `Đã xóa mềm một đợt ảnh comic khỏi ${volumeTitle}.`)
+        : chapterCount > 0
         ? `Đã xóa mềm ${chapterCount} chương bổ sung mới nhất khỏi ${volumeTitle}.`
         : `Đã xóa mềm một đợt bổ sung khỏi ${volumeTitle}.`,
     ];
     if (fileName) lines.push(`File nguồn giữ lại: ${fileName}.`);
     return {
-      title: "Đã xóa mềm đợt bổ sung",
+      title: isComicBatch ? "Đã xóa mềm ảnh comic bổ sung" : "Đã xóa mềm đợt bổ sung",
       body: lines.join("\n"),
       meta: expireAt ? `Có thể khôi phục hoặc tải lại file nguồn trước ${expireAt}.` : "",
     };
   }
   if (eventType === "supplement_restored") {
     const chapterCount = normalizeHistoryCount(payload.chapter_count);
+    const imageCount = normalizeHistoryCount(payload.image_count);
+    const sourceKind = String(payload.source_kind || "").trim().toLowerCase();
+    const isComicBatch = sourceKind.startsWith("comic") || imageCount > 0;
     const volumeTitle = normalizeDisplayTitle(String(payload.volume_title || "").trim() || "quyển đã chọn");
     return {
-      title: "Đã khôi phục đợt bổ sung",
-      body: chapterCount > 0
+      title: isComicBatch ? "Đã khôi phục ảnh comic bổ sung" : "Đã khôi phục đợt bổ sung",
+      body: isComicBatch && String(payload.operation || "").trim() === "append_images"
+        ? `Đã đưa lại ${imageCount} ảnh bổ sung vào ${volumeTitle}.`
+        : isComicBatch
+        ? (chapterCount > 0
+          ? `Đã đưa lại ${chapterCount} chương comic bổ sung vào ${volumeTitle}.`
+          : `Đã khôi phục một đợt ảnh comic vào ${volumeTitle}.`)
+        : chapterCount > 0
         ? `Đã đưa lại ${chapterCount} chương bổ sung vào ${volumeTitle}.`
         : `Đã khôi phục một đợt bổ sung vào ${volumeTitle}.`,
       meta: Boolean(payload.volume_restored) ? "Quyển phụ đã được mở lại cùng đợt bổ sung này." : "",
@@ -2355,7 +2450,7 @@ function renderBookHistory() {
         btnDelete.className = "btn btn-small";
         btnDelete.textContent = "Xóa đợt này";
         btnDelete.addEventListener("click", () => {
-          deleteLatestBookSupplement(batchState.batch_id).catch(() => {});
+          deleteLatestBookSupplement(batchState).catch(() => {});
         });
         actions.appendChild(btnDelete);
       }
@@ -2857,22 +2952,23 @@ async function applyCoverUrl() {
 
 async function prepareBookSupplement() {
   if (!state.bookId || !canUseBookSupplement(state.book)) return;
+  const isComic = isComicBook(state.book);
   const files = getSelectedBookSupplementFiles();
   if (!files.length) {
-    state.shell.showToast("Chưa chọn file TXT để bổ sung.");
+    state.shell.showToast(isComic ? "Chưa chọn ảnh hoặc file comic để bổ sung." : "Chưa chọn file TXT để bổ sung.");
     return;
   }
   const payload = collectBookSupplementPayload();
   if (payload.target_mode === "new" && !payload.new_volume_title) {
-    state.shell.showToast("Thiếu tên quyển mới.");
+    state.shell.showToast(isComic ? "Thiếu tên chương mới." : "Thiếu tên quyển mới.");
     if (refs.bookSupplementNewVolumeInput) refs.bookSupplementNewVolumeInput.focus();
     return;
   }
-  state.shell.showStatus("Đang duyệt file TXT bổ sung...");
+  state.shell.showStatus(isComic ? "Đang duyệt ảnh comic bổ sung..." : "Đang duyệt file TXT bổ sung...");
   try {
     const form = new FormData();
     for (const file of files) {
-      form.append("files", file, String(file.name || "supplement.txt"));
+      form.append("files", file, String(file.name || (isComic ? "comic" : "supplement.txt")));
     }
     form.set("upload_mode", payload.upload_mode);
     form.set("multi_parse_mode", payload.multi_parse_mode);
@@ -2898,8 +2994,9 @@ async function commitBookSupplement() {
   if (!state.bookId || !state.supplementPreviewToken) return;
   const token = String(state.supplementPreviewToken || "").trim();
   const payload = collectBookSupplementPayload();
+  const isComic = isComicBook(state.book);
   state.supplementPreviewCommitBusy = true;
-  state.shell.showStatus("Đang bổ sung chương vào truyện...");
+  state.shell.showStatus(isComic ? "Đang bổ sung ảnh comic vào truyện..." : "Đang bổ sung chương vào truyện...");
   try {
     const data = await state.shell.api(`/api/library/book/${encodeURIComponent(state.bookId)}/supplement/commit`, {
       method: "POST",
@@ -2925,7 +3022,13 @@ async function commitBookSupplement() {
     }
     await loadToc(1, { silent: true, suppressToast: true, showSkeleton: false });
     resetBookSupplementForm();
-    state.shell.showToast(`Đã bổ sung ${Math.max(0, Number(data && data.added_chapters || 0))} chương.`);
+    if (isComic) {
+      const imageCount = Math.max(0, Number(data && data.added_images || 0));
+      const chapterCount = Math.max(0, Number(data && data.added_chapters || 0));
+      state.shell.showToast(chapterCount > 0 ? `Đã tạo ${chapterCount} chương comic với ${imageCount} ảnh.` : `Đã bổ sung ${imageCount} ảnh vào chương.`);
+    } else {
+      state.shell.showToast(`Đã bổ sung ${Math.max(0, Number(data && data.added_chapters || 0))} chương.`);
+    }
   } catch (error) {
     clearBookSupplementPreviewState();
     await cancelBookSupplementPreviewToken(token, { silent: true });
@@ -2940,16 +3043,21 @@ async function commitBookSupplement() {
 
 async function deleteLatestBookSupplement(batchId = "") {
   if (!state.bookId) return;
-  const explicitBatchId = String(batchId || "").trim();
+  const explicitBatch = (batchId && typeof batchId === "object") ? batchId : null;
+  const explicitBatchId = String((explicitBatch && explicitBatch.batch_id) || batchId || "").trim();
   const volume = getBookSupplementSelectedVolume();
-  const latestBatch = explicitBatchId ? { batch_id: explicitBatchId } : getLatestSupplementBatchForVolume(volume);
+  const latestBatch = explicitBatchId ? { ...(explicitBatch || {}), batch_id: explicitBatchId } : getLatestSupplementBatchForVolume(volume);
   if (!latestBatch || !latestBatch.batch_id) {
     state.shell.showToast("Quyển này chưa có đợt bổ sung nào để xóa.");
     return;
   }
+  const isComicBatch = String(latestBatch.source_kind || "").trim().toLowerCase().startsWith("comic")
+    || Math.max(0, Number(latestBatch.image_count || 0)) > 0;
   if (!await state.shell.confirmDialog({
-    title: "Xóa mềm đợt bổ sung",
-    message: "Xóa mềm đợt bổ sung TXT mới nhất của quyển này? Bạn vẫn có thể khôi phục trong vòng 30 ngày.",
+    title: isComicBatch ? "Xóa mềm ảnh comic bổ sung" : "Xóa mềm đợt bổ sung",
+    message: isComicBatch
+      ? "Xóa mềm đợt ảnh comic bổ sung này? Bạn vẫn có thể khôi phục trong vòng 30 ngày."
+      : "Xóa mềm đợt bổ sung TXT mới nhất của quyển này? Bạn vẫn có thể khôi phục trong vòng 30 ngày.",
     confirmText: "Xóa mềm",
   })) return;
   state.shell.showStatus("Đang xóa đợt bổ sung...");
@@ -2969,7 +3077,10 @@ async function deleteLatestBookSupplement(batchId = "") {
     if (refs.bookHistoryDialog && refs.bookHistoryDialog.open) {
       await openBookHistoryDialog();
     }
-    state.shell.showToast(`Đã xóa mềm ${Math.max(0, Number(data && data.deleted_chapters || 0))} chương bổ sung.`);
+    const deletedImages = Math.max(0, Number(data && data.deleted_images || 0));
+    state.shell.showToast(deletedImages > 0
+      ? `Đã xóa mềm ${deletedImages} ảnh bổ sung.`
+      : `Đã xóa mềm ${Math.max(0, Number(data && data.deleted_chapters || 0))} chương bổ sung.`);
   } catch (error) {
     state.shell.showToast(error.message || state.shell.t("toastError"));
   } finally {
@@ -2980,9 +3091,14 @@ async function deleteLatestBookSupplement(batchId = "") {
 async function restoreBookSupplementBatch(batchId) {
   const targetBatchId = String(batchId || "").trim();
   if (!state.bookId || !targetBatchId) return;
+  const batchState = (Array.isArray(state.bookHistoryItems) ? state.bookHistoryItems : [])
+    .map((entry) => (entry && typeof entry.batch_state === "object" ? entry.batch_state : null))
+    .find((item) => String((item && item.batch_id) || "").trim() === targetBatchId) || null;
+  const isComicBatch = String((batchState && batchState.source_kind) || "").trim().toLowerCase().startsWith("comic")
+    || Math.max(0, Number((batchState && batchState.image_count) || 0)) > 0;
   if (!await state.shell.confirmDialog({
-    title: "Khôi phục đợt bổ sung",
-    message: "Khôi phục lại đợt bổ sung TXT này?",
+    title: isComicBatch ? "Khôi phục ảnh comic bổ sung" : "Khôi phục đợt bổ sung",
+    message: isComicBatch ? "Khôi phục lại đợt ảnh comic bổ sung này?" : "Khôi phục lại đợt bổ sung TXT này?",
     confirmText: "Khôi phục",
   })) return;
   state.shell.showStatus("Đang khôi phục đợt bổ sung...");
@@ -3003,7 +3119,10 @@ async function restoreBookSupplementBatch(batchId) {
     if (refs.bookHistoryDialog && refs.bookHistoryDialog.open) {
       await openBookHistoryDialog();
     }
-    state.shell.showToast(`Đã khôi phục ${Math.max(0, Number(data && data.restored_chapters || 0))} chương.`);
+    const restoredImages = Math.max(0, Number(data && data.restored_images || 0));
+    state.shell.showToast(restoredImages > 0
+      ? `Đã khôi phục ${restoredImages} ảnh bổ sung.`
+      : `Đã khôi phục ${Math.max(0, Number(data && data.restored_chapters || 0))} chương.`);
   } catch (error) {
     state.shell.showToast(error.message || state.shell.t("toastError"));
   } finally {
