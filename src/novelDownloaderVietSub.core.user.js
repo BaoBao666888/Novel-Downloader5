@@ -2,7 +2,7 @@
 // ==UserScript==
 // @name        novelDownloaderVietSub
 // @description Menu Download Novel hoặc nhấp đúp vào cạnh trái của trang để hiển thị bảng điều khiển
-// @version     3.5.448.9
+// @version     3.5.448.10
 // @author      dodying | BaoBao
 // @namespace   https://github.com/BaoBao666888/Novel-Downloader5
 // @supportURL  https://github.com/BaoBao666888/Novel-Downloader5/issues
@@ -209,7 +209,7 @@ function decryptDES(encrypted, key, iv) {
     // ============================================================================
 
     function getNovelDownloaderScriptVersion() {
-        return GM_info && GM_info.script && GM_info.script.version ? GM_info.script.version : '3.5.448.9';
+        return GM_info && GM_info.script && GM_info.script.version ? GM_info.script.version : '3.5.448.10';
     }
 
     function docList(items) {
@@ -2785,7 +2785,7 @@ function decryptDES(encrypted, key, iv) {
         // ui
         const html = [
             '<div name="info">',
-            `  Quy tắc hiện tại: <span name="rule"></span><span name="mode"></span><sup><a href="https://github.com/BaoBao666888/Novel-Downloader5/issues/new?body=${encodeURIComponent(issueBody.join('\u000a'))}" target="_blank">Phản hồi</a></sup><sup><button type="button" name="open-guide" class="nd-doc-link" data-nd-action="open-guide">Hướng dẫn</button></sup><sup><button type="button" name="open-supported-sites" class="nd-doc-link" data-nd-action="open-supported-sites">Danh sách hỗ trợ</button></sup>`,
+            `  Quy tắc hiện tại: <span name="rule"></span><span name="mode"></span><sup><a href="https://github.com/BaoBao666888/Novel-Downloader5/issues/new?body=${encodeURIComponent(issueBody.join('\u000a'))}" target="_blank">Phản hồi</a></sup><sup><button type="button" name="open-guide" class="nd-doc-link" data-nd-action="open-guide">HD</button></sup><sup><button type="button" name="open-supported-sites" class="nd-doc-link" data-nd-action="open-supported-sites">DS hỗ trợ</button></sup>`,
             '  <br>',
             '  Tên sách: <input type="text" name="title" value="加载中，请稍候">',
             '  <br>',
