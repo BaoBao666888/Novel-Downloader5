@@ -3297,6 +3297,39 @@ body.panel-style-clear .reader-content-body {
   pointer-events: none;
 }
 
+.reader-comic-manual-confirm {
+  position: absolute;
+  z-index: 2;
+  display: flex;
+  max-width: min(360px, calc(100% - 16px));
+  align-items: center;
+  gap: 6px;
+  padding: 6px;
+  border-radius: 7px;
+  border: 1px solid color-mix(in srgb, var(--line) 80%, transparent);
+  background: color-mix(in srgb, var(--surface) 96%, #000 4%);
+  color: var(--text);
+  box-shadow: 0 10px 26px color-mix(in srgb, #000 26%, transparent);
+  font-size: 13px;
+  transform: translate(-50%, 0);
+  touch-action: manipulation;
+}
+
+.reader-comic-manual-confirm[hidden] {
+  display: none;
+}
+
+.reader-comic-manual-confirm span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.reader-comic-manual-confirm .btn {
+  flex: 0 0 auto;
+}
+
 .reader-comic-ocr-block {
   position: absolute;
   box-sizing: border-box;

@@ -4014,49 +4014,44 @@ function startComicManualBoxDraw({ slot, img, pageIndex }) {
       <button type="button" class="btn btn-small">${state.shell.t("cancel")}</button>
     </div>
     <div class="reader-comic-manual-draw-box"></div>
+    <div class="reader-comic-manual-confirm" hidden>
+      <span>${state.shell.t("comicManualConfirmHint")}</span>
+      <button type="button" class="btn btn-primary btn-small" data-action="confirm">${state.shell.t("comicManualConfirm")}</button>
+      <button type="button" class="btn btn-small" data-action="redraw">${state.shell.t("comicManualRedraw")}</button>
+      <button type="button" class="btn btn-small" data-action="cancel">${state.shell.t("cancel")}</button>
+    </div>
   `;
   const boxNode = layer.querySelector(".reader-comic-manual-draw-box");
   const cancelButton = layer.querySelector("button");
+  const confirmBar = layer.querySelector(".reader-comic-manual-confirm");
   slot.appendChild(layer);
-  comicManualDrawState = { slot, img, pageIndex, layer, boxNode, start: null, active: false };
+  comicManualDrawState = { slot, img, pageIndex, layer, boxNode, confirmBar, start: null, active: false, pendingBox: null };
   const cleanup = () => {
     if (comicManualDrawState && comicManualDrawState.layer === layer) comicManualDrawState = null;
     layer.remove();
   };
-  cancelButton.addEventListener("click", (event) => {
-    event.preventDefault();
-    event.stopPropagation();
+  const resetDraft = () => {
+    if (!comicManualDrawState || comicManualDrawState.layer !== layer) return;
+    comicManualDrawState.start = null;
+    comicManualDrawState.active = false;
+    comicManualDrawState.pendingBox = null;
+    boxNode.style.left = "0";
+    boxNode.style.top = "0";
+    boxNode.style.width = "0";
+    boxNode.style.height = "0";
+    if (confirmBar) confirmBar.hidden = true;
+  };
+  const placeConfirmBar = (box) => {
+    if (!confirmBar || !Array.isArray(box) || box.length < 4) return;
+    const left = Math.min(0.98, Math.max(0.02, Number(box[0] || 0) + (Number(box[2] || 0) / 2)));
+    const top = Math.max(0.02, Math.min(0.98, Number(box[1] || 0) + Number(box[3] || 0) + 0.012));
+    confirmBar.style.left = `${left * 100}%`;
+    confirmBar.style.top = `${top * 100}%`;
+    confirmBar.hidden = false;
+  };
+  const runConfirmedBox = (box) => {
+    if (!Array.isArray(box) || box.length < 4) return;
     cleanup();
-  });
-  layer.addEventListener("pointerdown", (event) => {
-    const target = event.target instanceof Element ? event.target : null;
-    if (target && target.closest(".reader-comic-manual-draw-hint")) return;
-    event.preventDefault();
-    event.stopPropagation();
-    const rect = img.getBoundingClientRect();
-    const start = {
-      x: clamp01((event.clientX - rect.left) / Math.max(1, rect.width)),
-      y: clamp01((event.clientY - rect.top) / Math.max(1, rect.height)),
-    };
-    comicManualDrawState = { slot, img, pageIndex, layer, boxNode, start, active: true };
-    layer.setPointerCapture(event.pointerId);
-    boxNode.hidden = false;
-    updateComicManualDrawBox(event.clientX, event.clientY);
-  });
-  layer.addEventListener("pointermove", (event) => {
-    if (!comicManualDrawState || !comicManualDrawState.active || comicManualDrawState.layer !== layer) return;
-    event.preventDefault();
-    updateComicManualDrawBox(event.clientX, event.clientY);
-  });
-  layer.addEventListener("pointerup", (event) => {
-    if (!comicManualDrawState || !comicManualDrawState.active || comicManualDrawState.layer !== layer) return;
-    event.preventDefault();
-    const box = updateComicManualDrawBox(event.clientX, event.clientY);
-    cleanup();
-    if (!box || box[2] < 0.012 || box[3] < 0.012) {
-      state.shell.showToast(state.shell.t("comicManualDrawTooSmall"));
-      return;
-    }
     const blockId = `manual_p${pageIndex}_${Date.now().toString(36)}`;
     addComicManualPlaceholder(pageIndex, blockId, box, state.shell.t("comicManualOcrWorking"));
     recognizeComicManualOverlay({ pageIndex, blockId, box })
@@ -4071,9 +4066,71 @@ function startComicManualBoxDraw({ slot, img, pageIndex }) {
         addComicManualPlaceholder(pageIndex, blockId, box, error.displayMessage || error.message || state.shell.t("comicManualOcrFailed"));
         state.shell.showToast(error.displayMessage || error.message || state.shell.t("comicManualOcrFailed"));
       });
+  };
+  cancelButton.addEventListener("click", (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    cleanup();
+  });
+  if (confirmBar) {
+    confirmBar.addEventListener("pointerdown", (event) => event.stopPropagation());
+    confirmBar.addEventListener("click", (event) => {
+      const button = event.target instanceof Element ? event.target.closest("button[data-action]") : null;
+      if (!button) return;
+      event.preventDefault();
+      event.stopPropagation();
+      const action = String(button.getAttribute("data-action") || "").trim();
+      if (action === "confirm") {
+        const box = comicManualDrawState && comicManualDrawState.layer === layer ? comicManualDrawState.pendingBox : null;
+        runConfirmedBox(box);
+      } else if (action === "redraw") {
+        resetDraft();
+      } else if (action === "cancel") {
+        cleanup();
+      }
+    });
+  }
+  layer.addEventListener("pointerdown", (event) => {
+    const target = event.target instanceof Element ? event.target : null;
+    if (target && target.closest(".reader-comic-manual-draw-hint, .reader-comic-manual-confirm")) return;
+    if (comicManualDrawState && comicManualDrawState.pendingBox) resetDraft();
+    event.preventDefault();
+    event.stopPropagation();
+    const rect = img.getBoundingClientRect();
+    const start = {
+      x: clamp01((event.clientX - rect.left) / Math.max(1, rect.width)),
+      y: clamp01((event.clientY - rect.top) / Math.max(1, rect.height)),
+    };
+    comicManualDrawState = { slot, img, pageIndex, layer, boxNode, confirmBar, start, active: true, pendingBox: null };
+    layer.setPointerCapture(event.pointerId);
+    boxNode.hidden = false;
+    updateComicManualDrawBox(event.clientX, event.clientY);
+  });
+  layer.addEventListener("pointermove", (event) => {
+    if (!comicManualDrawState || !comicManualDrawState.active || comicManualDrawState.layer !== layer) return;
+    event.preventDefault();
+    updateComicManualDrawBox(event.clientX, event.clientY);
+  });
+  layer.addEventListener("pointerup", (event) => {
+    if (!comicManualDrawState || !comicManualDrawState.active || comicManualDrawState.layer !== layer) return;
+    event.preventDefault();
+    const box = updateComicManualDrawBox(event.clientX, event.clientY);
+    try {
+      layer.releasePointerCapture(event.pointerId);
+    } catch {
+      // ignore
+    }
+    comicManualDrawState.active = false;
+    if (!box || box[2] < 0.012 || box[3] < 0.012) {
+      state.shell.showToast(state.shell.t("comicManualDrawTooSmall"));
+      resetDraft();
+      return;
+    }
+    comicManualDrawState.pendingBox = box;
+    placeConfirmBar(box);
   });
   layer.addEventListener("pointercancel", () => {
-    cleanup();
+    if (comicManualDrawState && comicManualDrawState.active) cleanup();
   });
 }
 
