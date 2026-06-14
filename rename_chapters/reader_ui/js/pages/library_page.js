@@ -358,6 +358,8 @@ const state = {
   libraryTitlePollInFlight: false,
 };
 
+const IMPORT_FILE_ACCEPT = ".txt,.epub,.cbz,.zip,image/*,.jpg,.jpeg,.png,.webp,.gif,.avif";
+
 const LIBRARY_LOADING_SKELETON_COUNT = 12;
 const LIBRARY_INITIAL_HYDRATE_COUNT = 12;
 const LIBRARY_HYDRATE_BATCH_SIZE = 8;
@@ -2233,7 +2235,7 @@ function syncImportModeUi() {
   if (refs.importBatchNote) refs.importBatchNote.hidden = !batch;
   if (refs.importFileInput) {
     refs.importFileInput.multiple = batch;
-    refs.importFileInput.setAttribute("accept", ".txt,.epub");
+    refs.importFileInput.setAttribute("accept", IMPORT_FILE_ACCEPT);
   }
   if (refs.importBookTitleInput) refs.importBookTitleInput.disabled = batch;
   const submitButton = document.getElementById("btn-import-submit");
@@ -2318,7 +2320,10 @@ function renderImportPreview(preview, { context = "single", batchItemId = "" } =
     };
   refs.importPreviewFileName.textContent = String(preview.file_name || "");
   refs.importPreviewFileType.textContent = String(preview.file_ext || "").toUpperCase();
-  refs.importPreviewChapterCount.textContent = String(metadata.chapter_count || 0);
+  const previewImageCount = Math.max(0, Number(metadata.image_count || 0));
+  refs.importPreviewChapterCount.textContent = previewImageCount > 0
+    ? `${Math.max(0, Number(metadata.chapter_count || 0))} / ${previewImageCount} ${state.shell.t("imagesUnit")}`
+    : String(metadata.chapter_count || 0);
   refs.importPreviewDetectedLang.textContent = String(metadata.detected_lang || metadata.lang_source || "-").trim() || "-";
   refs.importPreviewBookTitleInput.value = payload.title;
   refs.importPreviewAuthorInput.value = payload.author;
@@ -2366,7 +2371,10 @@ function renderImportPreview(preview, { context = "single", batchItemId = "" } =
     head.textContent = `${Number(row.index || 0)}. ${normalizeDisplayTitle(row.title || "")}`;
     const meta = document.createElement("div");
     meta.className = "import-preview-chapter-meta";
-    meta.textContent = state.shell.t("importPreviewChapterMeta", { words: Number(row.word_count || 0) });
+    const imageCount = Math.max(0, Number(row.image_count || 0));
+    meta.textContent = imageCount > 0
+      ? state.shell.t("importPreviewChapterImages", { count: imageCount })
+      : state.shell.t("importPreviewChapterMeta", { words: Number(row.word_count || 0) });
     const body = document.createElement("div");
     body.className = "import-preview-chapter-text";
     body.textContent = String(row.preview || "").trim();
