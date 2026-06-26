@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Wikidich Autofill (Library)
 // @namespace    http://tampermonkey.net/
-// @version      0.3.9.4
+// @version      0.3.9.5
 // @description  Lấy thông tin từ web Trung (Fanqie/JJWXC/PO18/Ihuaben/Qidian/Qimao/Gongzicp/Hai Tang Longma), dịch và tự tick/điền form nhúng truyện trên wikicv.net.
 // @author       QuocBao
 // ==/UserScript==
@@ -11,9 +11,10 @@
     let instance = null;
 
     const APP_PREFIX = 'WDA_';
-    const AUTOFILL_WIKIDICH_VERSION = '0.3.9.4'
+    const AUTOFILL_WIKIDICH_VERSION = '0.3.9.5'
     const SERVER_URL = 'https://dichngay.com/translate/text';
     const MAX_CHARS = 4500;
+    const TRANSLATE_TIMEOUT_MS = 45000;
     const MAX_COVER_FILE_SIZE = 500 * 1024;
     const REQUEST_DELAY_MS = 350;
     const DEFAULT_SCORE_THRESHOLD = 0.90;
@@ -30,6 +31,8 @@
     const GEMINI_LOW_THINKING_BUDGET = 1024;
     const DEEP_DUPLICATE_COVER_MATCH_THRESHOLD = 0.92;
     const COVER_HASH_SIZE = 8;
+    const PROHIBITED_URL = 'https://wikicv.net/prohibited';
+    const PROHIBITED_CACHE_TTL_MS = 10 * 60 * 1000;
     const ROOT_NEG_WORDS = ['vo', 'khong', 'phi', 'chong', 'phan', 'non', 'no'];
     const ROOT_MODIFIERS = new Set([
         'song', 'nhieu', 'main', 'ca', 'nha', 'nu', 'nam', 'trang', 'phan', 'sat',
@@ -84,6 +87,12 @@
             safetyScore: null,
             safetyTone: 'idle',
             safetyReason: '',
+            prohibitedPending: false,
+            prohibitedBlocked: false,
+            prohibitedChecked: false,
+            prohibitedFailed: false,
+            prohibitedMatch: null,
+            prohibitedKey: '',
         },
         descEditorMode: 'vi',
         descDraft: {
@@ -626,9 +635,21 @@
 
     function htmlToText(html) {
         let out = (html || '').toString();
-        out = out.replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&');
-        out = out.replace(/<br\s*\/?>/gi, '\n');
+        if (typeof document !== 'undefined') {
+            for (let i = 0; i < 2 && /&(?:[a-z]+|#\d+|#x[\da-f]+);/i.test(out); i++) {
+                const textarea = document.createElement('textarea');
+                textarea.innerHTML = out;
+                const decoded = textarea.value;
+                if (!decoded || decoded === out) break;
+                out = decoded;
+            }
+        } else {
+            out = out.replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&');
+        }
+        out = out.replace(/<br\s*\\?\/?>/gi, '\n');
+        out = out.replace(/<\/(?:p|div|li|tr|h[1-6])>/gi, '\n');
         out = out.replace(/<[^>]+>/g, '');
+        out = out.replace(/\u00a0/g, ' ');
         out = out.replace(/\n{3,}/g, '\n\n');
         return out.trim();
     }
@@ -1458,6 +1479,92 @@
         });
     }
 
+    function isUsableJjwxcData(data) {
+        return !!(data && T.safeText(data.novelName) && T.safeText(data.authorName));
+    }
+
+    function parseJjwxcHtmlData(html, url) {
+        const doc = new DOMParser().parseFromString(html || '', 'text/html');
+        const metaKeywords = D.queryAttr(doc, ['meta[name="Keywords"]'], 'content');
+        const metaDesc = D.queryAttr(doc, ['meta[name="Description"]'], 'content');
+        const metaAuthor = D.queryAttr(doc, ['meta[name="Author"]'], 'content');
+        const title = D.queryText(doc, [
+            'h1[itemprop="name"] [itemprop="articleSection"]',
+            '[itemprop="articleSection"]',
+            'h1[itemprop="name"]',
+        ]) || (() => {
+            const m = T.safeText(doc.querySelector('title')?.textContent || '').match(/《([^》]+)》/);
+            return m ? m[1] : '';
+        })();
+        const author = D.queryText(doc, ['[itemprop="author"]']) || metaAuthor;
+        const introHtml = D.queryHtml(doc, ['#novelintro', '[itemprop="description"]']);
+        const intro = introHtml || metaDesc;
+        const coverUrl = D.toAbsoluteUrl(
+            D.queryAttr(doc, ['img[itemprop="image"]', '.noveldefaultimage'], 'src')
+            || D.queryAttr(doc, ['meta[property="og:image"]'], 'content'),
+            url
+        );
+        const classText = D.queryText(doc, ['[itemprop="genre"]']);
+        const statusHint = D.queryText(doc, ['[itemprop="updataStatus"]']);
+        const smallReadText = D.queryText(doc, ['.smallreadbody']);
+        const tagsMatch = smallReadText.match(/内容标签[:：]\s*([\s\S]*?)(?:搜索关键字|一句话简介|立意|$)/);
+        const tagsText = tagsMatch ? tagsMatch[1].replace(/\s+/g, ',') : '';
+        const protagonistMatch = metaKeywords.match(/主角[:：]([^┃|]+)/);
+        const costarMatch = metaKeywords.match(/配角[:：]([^┃|]+)/);
+        const otherMatch = metaKeywords.match(/其它[:：]([^|]+)/);
+        return {
+            novelName: title,
+            authorName: author,
+            novelIntro: intro,
+            novelTags: tagsText,
+            novelClass: classText,
+            novelCover: coverUrl,
+            originalCover: coverUrl,
+            novelStep: statusHint,
+            novelStatus: statusHint,
+            protagonist: protagonistMatch ? `主角：${protagonistMatch[1].trim()}` : '',
+            costar: costarMatch ? `配角：${costarMatch[1].trim()}` : '',
+            other: otherMatch ? `其它：${otherMatch[1].trim()}` : '',
+        };
+    }
+
+    function fetchJjwxcHtmlData(bookId) {
+        const url = `https://www.jjwxc.net/onebook.php?novelid=${bookId}`;
+        return new Promise((resolve, reject) => {
+            GM_xmlhttpRequest({
+                method: 'GET',
+                url,
+                responseType: 'text',
+                overrideMimeType: 'text/html; charset=gb18030',
+                timeout: 12000,
+                headers: {
+                    'accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+                    'cache-control': 'no-cache',
+                    'pragma': 'no-cache',
+                    'user-agent': JJWXC_APP_USER_AGENT,
+                },
+                onload(res) {
+                    if (res.status < 200 || res.status >= 300) {
+                        reject(new Error(`JJWXC HTML lỗi HTTP: ${res.status}`));
+                        return;
+                    }
+                    const parsed = parseJjwxcHtmlData(res.responseText || res.response || '', res.finalUrl || url);
+                    if (!isUsableJjwxcData(parsed)) {
+                        reject(new Error('JJWXC HTML không có đủ tên truyện/tác giả.'));
+                        return;
+                    }
+                    resolve(parsed);
+                },
+                onerror(err) {
+                    reject(err);
+                },
+                ontimeout() {
+                    reject(new Error('JJWXC HTML timeout'));
+                },
+            });
+        });
+    }
+
     function fetchJjwxcData(bookId, apiMode = JJWXC_API_MODE_NEW) {
         const mode = normalizeJjwxcApiMode(apiMode) || JJWXC_API_MODE_NEW;
         const isOldMode = mode === JJWXC_API_MODE_OLD;
@@ -1469,6 +1576,7 @@
                 method: 'GET',
                 url: apiUrl,
                 responseType: 'json',
+                timeout: 12000,
                 headers: isOldMode ? undefined : {
                     'referer': `http://android.jjwxc.net/?v=${JJWXC_APP_VERSION_CODE}`,
                     'origin': 'http://android.jjwxc.net',
@@ -1488,10 +1596,19 @@
                         reject(new Error(`JJWXC API ${isOldMode ? 'cũ' : 'mới'} không có dữ liệu.`));
                         return;
                     }
-                    resolve(parsed);
+                    if (isUsableJjwxcData(parsed)) {
+                        resolve(parsed);
+                        return;
+                    }
+                    fetchJjwxcHtmlData(bookId).then(resolve).catch(() => {
+                        reject(new Error(`JJWXC API ${isOldMode ? 'cũ' : 'mới'} thiếu tên truyện/tác giả.`));
+                    });
                 },
                 onerror(err) {
-                    reject(err);
+                    fetchJjwxcHtmlData(bookId).then(resolve).catch(() => reject(err));
+                },
+                ontimeout() {
+                    fetchJjwxcHtmlData(bookId).then(resolve).catch(() => reject(new Error(`JJWXC API ${isOldMode ? 'cũ' : 'mới'} timeout`)));
                 },
             });
         });
@@ -2402,12 +2519,181 @@
         return batches;
     }
 
+    function buildTranslationError(message, code, cause = null) {
+        const err = new Error(message);
+        if (code) err.code = code;
+        if (cause) err.cause = cause;
+        return err;
+    }
+
+    function repairMalformedDichngayContentString(content) {
+        if (typeof content !== 'string' || !content) return content || '';
+        return content
+            .replace(/```(?:json)?/gi, '')
+            .replace(/```/g, '')
+            .replace(/\\+\s*"(?=\s*[^,\]])/g, '\\"');
+    }
+
+    function parseDichngayStringArrayLenient(rawContent, expectedCount = 0) {
+        const text = String(rawContent || '').trim();
+        if (!text.startsWith('[')) {
+            throw new Error('Response content was not array-like.');
+        }
+
+        let index = 0;
+        const len = text.length;
+        const values = [];
+        const isSpace = ch => /\s/.test(ch || '');
+        const skipSpaces = () => {
+            while (index < len && isSpace(text[index])) index++;
+        };
+
+        function decodeEscape() {
+            if (text[index] !== '\\') return '';
+            const next = text[index + 1];
+            if (next === 'u' && /^[0-9a-fA-F]{4}$/.test(text.slice(index + 2, index + 6))) {
+                const decoded = String.fromCharCode(parseInt(text.slice(index + 2, index + 6), 16));
+                index += 6;
+                return decoded;
+            }
+            const escapeMap = { '"': '"', '\\': '\\', '/': '/', b: '\b', f: '\f', n: '\n', r: '\r', t: '\t' };
+            if (Object.prototype.hasOwnProperty.call(escapeMap, next)) {
+                index += 2;
+                return escapeMap[next];
+            }
+
+            let quoteIndex = index + 1;
+            while (quoteIndex < len && isSpace(text[quoteIndex])) quoteIndex++;
+            if (text[quoteIndex] === '"') {
+                index = quoteIndex + 1;
+                return '"';
+            }
+
+            index += 1;
+            return '\\';
+        }
+
+        skipSpaces();
+        if (text[index] !== '[') {
+            throw new Error(`Missing '[' at position ${index}.`);
+        }
+        index++;
+
+        while (index < len) {
+            skipSpaces();
+            if (text[index] === ']') {
+                index++;
+                break;
+            }
+            if (text[index] !== '"') {
+                throw new Error(`Expected string opening quote at position ${index}.`);
+            }
+            index++;
+
+            let value = '';
+            while (index < len) {
+                const ch = text[index];
+                if (ch === '\\') {
+                    value += decodeEscape();
+                    continue;
+                }
+                if (ch === '"') {
+                    let nextIndex = index + 1;
+                    while (nextIndex < len && isSpace(text[nextIndex])) nextIndex++;
+                    const nextChar = text[nextIndex];
+                    const isEndOfArray = nextIndex >= len || nextChar === ']';
+                    let isItemSeparator = false;
+                    if (nextChar === ',') {
+                        let afterComma = nextIndex + 1;
+                        while (afterComma < len && isSpace(text[afterComma])) afterComma++;
+                        isItemSeparator = afterComma >= len || text[afterComma] === '"' || text[afterComma] === ']';
+                    }
+                    if (isEndOfArray || isItemSeparator) {
+                        index = nextIndex;
+                        break;
+                    }
+                    value += '"';
+                    index++;
+                    continue;
+                }
+                value += ch;
+                index++;
+            }
+
+            values.push(value);
+            skipSpaces();
+            if (text[index] === ',') {
+                index++;
+                continue;
+            }
+            if (text[index] === ']') {
+                index++;
+                break;
+            }
+        }
+
+        if (expectedCount > 0 && values.length !== expectedCount) {
+            throw new Error(`Lenient parser count mismatch: expected ${expectedCount}, got ${values.length}.`);
+        }
+
+        return values;
+    }
+
+    function parseDichngayTranslationResponse(responseText, requestMeta = {}) {
+        let jsonResponse;
+        try {
+            jsonResponse = JSON.parse(responseText || '{}');
+        } catch (err) {
+            throw buildTranslationError('Translation response is not valid JSON.', 'TRANSLATION_BAD_RESPONSE', err);
+        }
+
+        const translatedContentString = jsonResponse?.data?.content ?? jsonResponse?.translatedText;
+        if (typeof translatedContentString !== 'string') {
+            throw buildTranslationError("Server response 'content' was not a string.", 'TRANSLATION_BAD_RESPONSE');
+        }
+
+        const sanitizedString = translatedContentString
+            .replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/g, '')
+            .replace(/\\(?!["\\\/bfnrtu])/g, '\\\\');
+        const trimmedSanitized = sanitizedString.trim();
+
+        if (requestMeta.allowPlainString && trimmedSanitized && !/^[\[{"]/.test(trimmedSanitized)) {
+            return sanitizedString;
+        }
+
+        const repairedString = repairMalformedDichngayContentString(sanitizedString);
+        try {
+            return JSON.parse(sanitizedString);
+        } catch (initialErr) {
+            if (repairedString !== sanitizedString) {
+                try {
+                    return JSON.parse(repairedString);
+                } catch (repairedErr) {
+                    initialErr = repairedErr;
+                }
+            }
+            const lenientSource = (repairedString || sanitizedString).trim();
+            if (lenientSource.startsWith('[')) {
+                try {
+                    return parseDichngayStringArrayLenient(repairedString || sanitizedString, requestMeta.batchSize || 0);
+                } catch (lenientErr) {
+                    initialErr = lenientErr;
+                }
+            }
+            if (requestMeta.allowPlainString) {
+                return repairedString || sanitizedString;
+            }
+            throw buildTranslationError('Failed to parse response from translation server.', 'TRANSLATION_PARSE_ERROR', initialErr);
+        }
+    }
+
     function postTranslate(serverUrl, contentArray, targetLang) {
         return new Promise((resolve, reject) => {
             const payload = { content: JSON.stringify(contentArray), tl: targetLang };
             GM_xmlhttpRequest({
                 method: 'POST',
                 url: serverUrl,
+                timeout: TRANSLATE_TIMEOUT_MS,
                 headers: { 'Content-Type': 'application/json', 'referer': 'https://dichngay.com/' },
                 data: JSON.stringify(payload),
                 onload(res) {
@@ -2416,21 +2702,22 @@
                         return;
                     }
                     try {
-                        const jsonResponse = JSON.parse(res.responseText);
-                        const translatedContentString = jsonResponse?.data?.content ?? jsonResponse?.translatedText;
-                        if (typeof translatedContentString !== 'string') {
-                            throw new Error('Bad translation response.');
+                        const parsed = parseDichngayTranslationResponse(res.responseText, {
+                            batchSize: Array.isArray(contentArray) ? contentArray.length : 0,
+                        });
+                        if (!Array.isArray(parsed)) {
+                            throw buildTranslationError('Translation response is not an array.', 'TRANSLATION_BAD_RESPONSE');
                         }
-                        const sanitizedString = translatedContentString
-                            .replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/g, '')
-                            .replace(/\\(?!["\\\/bfnrtu])/g, '\\\\');
-                        resolve(JSON.parse(sanitizedString));
+                        resolve(parsed.map(item => T.safeText(item)));
                     } catch (e) {
                         reject(e);
                     }
                 },
                 onerror(err) {
                     reject(err);
+                },
+                ontimeout() {
+                    reject(new Error('Translate batch timeout'));
                 },
             });
         });
@@ -2442,6 +2729,7 @@
             GM_xmlhttpRequest({
                 method: 'POST',
                 url: serverUrl,
+                timeout: TRANSLATE_TIMEOUT_MS,
                 headers: { 'Content-Type': 'application/json', 'referer': 'https://dichngay.com/' },
                 data: JSON.stringify(payload),
                 onload(res) {
@@ -2450,31 +2738,15 @@
                         return;
                     }
                     try {
-                        const jsonResponse = JSON.parse(res.responseText || '{}');
-                        let value = jsonResponse?.data?.content ?? jsonResponse?.translatedText ?? '';
-                        if (typeof value !== 'string') {
-                            throw new Error('Bad translation response.');
+                        const parsed = parseDichngayTranslationResponse(res.responseText, {
+                            batchSize: 1,
+                            allowPlainString: true,
+                        });
+                        if (Array.isArray(parsed)) {
+                            resolve(T.safeText(parsed[0] || ''));
+                            return;
                         }
-                        value = value
-                            .replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/g, '')
-                            .replace(/\\(?!["\\\/bfnrtu])/g, '\\\\');
-                        // Some modes may still return JSON string form.
-                        if (value.startsWith('["') || value.startsWith('[')) {
-                            try {
-                                const parsed = JSON.parse(value);
-                                if (Array.isArray(parsed)) {
-                                    resolve((parsed[0] || '').toString());
-                                    return;
-                                }
-                                if (typeof parsed === 'string') {
-                                    resolve(parsed);
-                                    return;
-                                }
-                            } catch {
-                                // keep raw value
-                            }
-                        }
-                        resolve(value);
+                        resolve(T.safeText(parsed));
                     } catch (e) {
                         reject(e);
                     }
@@ -2482,34 +2754,58 @@
                 onerror(err) {
                     reject(err);
                 },
+                ontimeout() {
+                    reject(new Error('Translate single timeout'));
+                },
             });
         });
     }
 
     HELPERS.http = { postTranslate, postTranslateSingle };
 
+    async function translateBatchWithSplit(batch, targetLang, depth = 0) {
+        if (!Array.isArray(batch) || !batch.length) return [];
+        if (batch.length === 1) {
+            try {
+                const translatedSingle = await postTranslateSingle(SERVER_URL, batch[0], targetLang);
+                return [translatedSingle || batch[0]];
+            } catch (singleErr) {
+                logUi(`Dịch một mục lỗi, giữ nguyên text: ${singleErr.message || singleErr}`, 'warn');
+                return [batch[0]];
+            }
+        }
+
+        try {
+            const translated = await postTranslate(SERVER_URL, batch, targetLang);
+            if (!Array.isArray(translated) || translated.length !== batch.length) {
+                throw buildTranslationError(`Bad translation batch size: ${translated?.length || 0}/${batch.length}`, 'TRANSLATION_BAD_RESPONSE');
+            }
+            return translated;
+        } catch (err) {
+            const canSplit = ['TRANSLATION_PARSE_ERROR', 'TRANSLATION_BAD_RESPONSE'].includes(err?.code || '');
+            if (!canSplit) {
+                logUi(`Dịch batch ${batch.length} mục lỗi, giữ nguyên text: ${err.message || err}`, 'warn');
+                return batch;
+            }
+            const mid = Math.ceil(batch.length / 2);
+            const leftBatch = batch.slice(0, mid);
+            const rightBatch = batch.slice(mid);
+            const depthLabel = depth ? ` depth ${depth}` : '';
+            logUi(`Dịch batch ${batch.length} mục lỗi${depthLabel}, tách đôi ${leftBatch.length}/${rightBatch.length}: ${err.message || err}`, 'warn');
+            const left = await translateBatchWithSplit(leftBatch, targetLang, depth + 1);
+            await sleep(REQUEST_DELAY_MS);
+            const right = await translateBatchWithSplit(rightBatch, targetLang, depth + 1);
+            return left.concat(right);
+        }
+    }
+
     async function translateList(list) {
         const items = Array.isArray(list) ? list : [];
         const batches = splitIntoBatches(items, MAX_CHARS);
         const result = [];
         for (const batch of batches) {
-            try {
-                const translated = await postTranslate(SERVER_URL, batch, 'vi');
-                result.push(...translated);
-            } catch (err) {
-                logUi(`Dịch batch lỗi, thử lại từng đoạn: ${err.message || err}`, 'warn');
-                for (const item of batch) {
-                    try {
-                        const translatedSingle = await postTranslateSingle(SERVER_URL, item, 'vi');
-                        result.push(translatedSingle || item);
-                    } catch (singleErr) {
-                        logUi(`Dịch từng đoạn vẫn lỗi, giữ nguyên text: ${singleErr.message || singleErr}`, 'warn');
-                        result.push(item);
-                    }
-                    await sleep(REQUEST_DELAY_MS);
-                }
-                continue;
-            }
+            const translated = await translateBatchWithSplit(batch, 'vi');
+            result.push(...translated);
             await sleep(REQUEST_DELAY_MS);
         }
         return result;
@@ -2709,24 +3005,11 @@
         const result = new Map();
         const batches = splitIntoBatches(items, MAX_CHARS);
         for (const batch of batches) {
-            try {
-                const translated = await postTranslate(SERVER_URL, batch, 'hv');
-                if (!Array.isArray(translated)) throw new Error('Bad Hán Việt response.');
-                batch.forEach((item, idx) => {
-                    result.set(item, T.safeText(translated[idx] || item));
-                });
-            } catch (err) {
-                logUi(`Dịch Hán Việt batch lỗi, thử từng name: ${err.message || err}`, 'warn');
-                for (const item of batch) {
-                    try {
-                        const translatedSingle = await postTranslateSingle(SERVER_URL, item, 'hv');
-                        result.set(item, T.safeText(translatedSingle || item));
-                    } catch (singleErr) {
-                        logUi(`Dịch Hán Việt name lỗi, giữ bản AI: ${item} (${singleErr.message || singleErr})`, 'warn');
-                    }
-                    await sleep(REQUEST_DELAY_MS);
-                }
-            }
+            const translated = await translateBatchWithSplit(batch, 'hv');
+            batch.forEach((item, idx) => {
+                const hv = T.safeText(translated[idx] || '');
+                if (hv && hv !== item) result.set(item, hv);
+            });
             await sleep(REQUEST_DELAY_MS);
         }
         return result;
@@ -2768,11 +3051,7 @@
         const placeholderMap = {};
         const processed = nameReplacer(raw, placeholderMap);
         let translated = '';
-        if (preserveLineBreaks) {
-            const lines = processed.replace(/\r\n/g, '\n').split('\n');
-            const translatedLines = await translateList(lines);
-            translated = translatedLines.join('\n');
-        } else if (processed.length <= MAX_CHARS) {
+        if (processed.length <= MAX_CHARS) {
             const [result] = await translateList([processed]);
             translated = result || processed;
         } else {
@@ -3576,28 +3855,20 @@
     // ================================================
 
 const CHANGELOG_CONTENT = `
-<h2><span style="color:#673ab7; font-size: 1.2em;">✨ Phiên bản 0.3.9.4</span></h2>
+<h2><span style="color:#673ab7; font-size: 1.2em;">✨ Phiên bản 0.3.9.5</span></h2>
 <ul style="list-style-type: none; padding-left: 0;">
-    <li>🔤 <b>Viết hoa name thông minh hơn:</b> AI có thể trả cờ <code>case/caps</code>; name Hán vẫn lấy âm từ DichNgay nhưng giữ pattern viết hoa như <code>Lăng gia</code>. </li>
-    <li>🈶 <b>Name Hán Việt ổn hơn:</b> AI chỉ đánh dấu name Hán/ngoại lai, còn name thuần Hán được kiểm lại bằng Hán Việt DichNgay trước khi ghi NameSet.</li>
-    <li>🪄 <b>JJWXC mượt hơn:</b> Dùng api cũ hay mới tùy hoàn cảnh; nút <code>Old/New</code> vẫn giữ để đổi nhanh sau đó.</li>
-    <li>⏱️ <b>Gemini rõ ràng hơn:</b> Mặc định ưu tiên <code>gemini-3-flash-preview</code>, có toast/log đếm thời gian và báo rõ khi AI đang chạy thinking mode.</li>
-    <li>🏷️ <b>Tối ưu chọn nhãn:</b> Tinh chỉnh cả AI lẫn keyword cho <code>架空历史</code> → <b>Giả tưởng lịch sử</b>, và <code>年代文</code> ưu tiên <b>Hiện đại</b> thay vì <b>Cận đại</b></li>
-    <li>🛡️ <b>Check trùng sâu hơn:</b> Thêm chỉ số độ an toàn, nút <code>Mở</code> tác giả, quét trang đầu tác giả và so ảnh bìa + tên để cảnh báo mềm khi nghi trùng.(v0.3.9.2)</li>
-    <li>🖼️ <b>Fix ảnh bìa:</b> Do object của Fanqie không phải JSON sạch nên đổi khi bị fallback về DOM tĩnh, đã fix.(v0.3.9.3) </li>
+    <li>🧯 <b>Fix dịch JJWXC/DichNgay:</b> Mô tả ngắn giữ nguyên 1 request thay vì tách từng dòng; batch lỗi chỉ chia đôi có kiểm soát, thêm parser bền hơn và timeout để tránh treo lâu.</li>
+    <li>🪄 <b>JJWXC chắc hơn:</b> Làm sạch HTML entity/<code>&lt;br\/&gt;</code> tốt hơn và thêm fallback đọc HTML <code>onebook.php</code> GB18030 khi API thiếu dữ liệu.</li>
+    <li>🛡️ <b>Check trùng đúng mức an toàn:</b> 100% chỉ khi trang tác giả chưa có truyện; nếu tác giả có truyện mà trang 1 không thấy trùng thì giữ 98% để user tự check bằng mắt khi cần.</li>
+    <li>🚦 <b>Nhúng truyện trùng mềm hơn:</b> Trùng thường vẫn cho bấm <b>Nhúng</b>, chỉ hiện cảnh báo quy định nhúng bản mới trước và báo cáo xóa bản cũ.</li>
+    <li>⛔ <b>Cấm nhúng:</b> Quét <code>/prohibited</code> theo cặp tên gốc + tác giả; nếu trúng danh sách cấm thì cảnh báo và khóa nút <b>Nhúng</b>.</li>
 </ul>
 
 <h3 style="color:#ff9800; margin-top: 16px;">📦 Các bản trước (tóm tắt)</h3>
 <ul style="list-style-type: none; padding-left: 0; font-size: 13px;">
-    <li><b>v0.3.8:</b> Mô tả VI/ZH hai chiều, gán nhãn theo nguồn, popup chọn nhanh nhãn, popup không tự đóng, cover WxH theo nguồn, recompute thông minh hơn, bảng dịch nhanh mới.</li>
-    <li><b>v0.3.7:</b> Fanqie chuyển parse web, sửa nhận diện trạng thái, chuẩn hóa cover origin.</li>
-    <li><b>v0.3.6:</b> Loại trừ nâng cấp, check trùng mềm hơn, cập nhật domain Wikidich.</li>
-    <li><b>v0.3.5:</b> Thêm nguồn Hải Đường Longma, parse trạng thái tập trung, AI không chọn trạng thái, ghi đè link bổ sung, nút fullscreen + phóng 1.5x.</li>
-    <li><b>v0.3.4:</b> Cải thiện PO18, check trùng truyện + khóa thao tác an toàn hơn, nâng toast/cover upload.</li>
-    <li><b>v0.3.3:</b> Hotfix popup so sánh + tách riêng logic loại trừ giữa <code>/chinh-sua</code> và <code>/nhung-file</code>.</li>
-    <li><b>v0.3.2:</b> Thêm AI thủ công, mở rộng hỗ trợ trang chỉnh sửa, cải thiện Qidian/Ihuaben.</li>
-    <li><b>v0.3.1:</b> Auto tách names, gộp luồng AI, nâng chất lượng nhận diện status/tag.</li>
-    <li><b>v0.3.0:</b> Nền tảng AI Gemini + bảng cấu hình nguồn + tối ưu đa nguồn dữ liệu.</li>
+    <li><b>v0.3.9.4-v0.3.9.2:</b> Viết hoa name thông minh, kiểm name Hán Việt bằng DichNgay, chọn nhanh JJWXC Old/New, Gemini rõ trạng thái thinking, tối ưu nhãn và thêm độ an toàn check trùng sâu.</li>
+    <li><b>v0.3.8-v0.3.6:</b> Mô tả VI/ZH hai chiều, gán nhãn theo nguồn, popup chọn nhanh nhãn, cover theo WxH, recompute thông minh, Fanqie parse web và loại trừ nâng cấp.</li>
+    <li><b>v0.3.5-v0.3.0:</b> Thêm nhiều nguồn, parse trạng thái tập trung, AI Gemini, bảng cấu hình nguồn, fullscreen/phóng panel, cải thiện Qidian/Ihuaben/PO18 và các hotfix form.</li>
 </ul>`;
 
     const buildSiteDisplayList = () => SITE_RULES.map(rule => rule.label || rule.name || rule.id).filter(Boolean).join(', ');
@@ -3666,7 +3937,7 @@ const CHANGELOG_CONTENT = `
         <li>🎯 <b>Loại trừ theo trang:</b> Cấu hình loại trừ tách riêng giữa <code>/chinh-sua</code> và <code>/nhung-file</code>.</li>
         <li>🧱 <b>Popup so sánh mới:</b> Diff trước khi áp, văn án so theo từ + giữ xuống dòng để dễ soát lỗi.</li>
         <li>🔒 <b>Hành vi popup:</b> Bấm ra ngoài không tự đóng; chỉ đóng bằng nút hành động trong popup.</li>
-        <li>🔍 <b>Check trùng truyện:</b> Ở <code>/nhung-file</code>, script check cơ bản để ra mức an toàn 80% / 0%, rồi có thể quét sâu trang tác giả + so ảnh bìa để nâng lên 90/95/100% hoặc cảnh báo mềm 50%.</li>
+        <li>🔍 <b>Check trùng truyện:</b> Ở <code>/nhung-file</code>, script check cơ bản để ra mức an toàn 80% / 0%, rồi có thể quét sâu trang tác giả + so ảnh bìa. Chỉ 100% khi trang tác giả chưa có truyện; nếu trang đầu tác giả có truyện nhưng không thấy trùng thì giữ 98% để bạn tự check bằng mắt khi cần.</li>
     </ul>
 </div>
 
@@ -5612,6 +5883,12 @@ const CHANGELOG_CONTENT = `
                 safetyScore: null,
                 safetyTone: 'idle',
                 safetyReason: '',
+                prohibitedPending: false,
+                prohibitedBlocked: false,
+                prohibitedChecked: false,
+                prohibitedFailed: false,
+                prohibitedMatch: null,
+                prohibitedKey: '',
             };
             setDuplicateSafety(null, 'idle', '');
             try { closeDeepDuplicateModal(); } catch { }
@@ -7675,11 +7952,16 @@ For arrays, return list of strings. If none fit, return empty array.
             if (isEmbedPage()) {
                 const checkState = state.duplicateCheck || {};
                 if (checkState.pending) {
-                    log('Đang kiểm tra trùng truyện, bạn vẫn có thể Áp vào form (nút Nhúng có thể bị khóa sau khi check xong).', 'warn');
+                    log('Đang kiểm tra trùng truyện, bạn vẫn có thể Áp vào form. Nút Nhúng chỉ bị khóa nếu cặp tên + tác giả nằm trong danh sách cấm nhúng.', 'warn');
+                }
+                if (checkState.prohibitedPending) {
+                    log('Đang kiểm tra danh sách cấm nhúng. Nếu trùng đúng cặp tên + tác giả bị cấm, nút Nhúng sẽ bị khóa.', 'warn');
+                }
+                if (checkState.prohibitedBlocked) {
+                    log('Truyện nằm trong danh sách cấm nhúng: nút Nhúng sẽ bị khóa nếu form đang trùng đúng cặp tên + tác giả.', 'error');
                 }
                 if (checkState.blocked) {
-                    showDuplicateWarning();
-                    log('Phát hiện truyện trùng: vẫn cho Áp vào form, nhưng sẽ khóa nút Nhúng của Web nếu form đang trùng đúng cặp tên + tác giả.', 'warn');
+                    log('Phát hiện truyện trùng: vẫn cho Áp vào form. Khi bấm Nhúng, script sẽ nhắc quy định nhúng bản mới trước và báo cáo xóa bản cũ.', 'warn');
                 }
             }
             try {
@@ -7738,6 +8020,10 @@ For arrays, return list of strings. If none fit, return empty array.
             const authorCn = T.safeText(document.getElementById('txtAuthorCn')?.value || '');
             return `${titleCn}|||${authorCn}`;
         };
+        const getWebFormDuplicateValues = () => ({
+            titleCn: T.safeText(document.getElementById('txtTitleCn')?.value || ''),
+            authorCn: T.safeText(document.getElementById('txtAuthorCn')?.value || ''),
+        });
         const getEmbedSubmitButton = () => {
             // Prefer the submit button in the same form as txtTitleCn to avoid false matches.
             const titleEl = document.getElementById('txtTitleCn');
@@ -7753,12 +8039,18 @@ For arrays, return list of strings. If none fit, return empty array.
             };
             return nodes.find(isNhung) || null;
         };
+        const getEmbedForm = () => document.getElementById('txtTitleCn')?.closest('form') || document.querySelector('form');
         let lastEmbedDisabled = null;
+        let lastEmbedButton = null;
         const setEmbedSubmitDisabled = (disabled, reason) => {
             const btn = getEmbedSubmitButton();
             if (!btn) return;
             const want = !!disabled;
-            if (lastEmbedDisabled === want) return;
+            if (lastEmbedButton === btn && lastEmbedDisabled === want) {
+                if (want && reason) btn.title = reason;
+                return;
+            }
+            lastEmbedButton = btn;
             lastEmbedDisabled = want;
 
             if ('disabled' in btn) btn.disabled = want;
@@ -7768,7 +8060,7 @@ For arrays, return list of strings. If none fit, return empty array.
                 btn.style.pointerEvents = 'none';
                 btn.style.opacity = '0.55';
                 btn.title = reason || 'Không thể Nhúng.';
-                log('Đã khóa nút Nhúng trên web do trùng truyện (đúng cặp tên + tác giả trên web).', 'warn');
+                log('Đã khóa nút Nhúng trên web do truyện nằm trong danh sách cấm nhúng.', 'warn');
             } else {
                 btn.classList.remove('disabled');
                 btn.style.pointerEvents = '';
@@ -7779,20 +8071,65 @@ For arrays, return list of strings. If none fit, return empty array.
         };
         const updateEmbedSubmitByDuplicateState = (reason = 'sync') => {
             if (!isEmbedPage()) return;
+            try { bindEmbedSubmitWarningGuard(); } catch { }
             const check = state.duplicateCheck || {};
 
-            // Only lock Nhúng when we positively detected duplicate.
-            if (!check.blocked || !check.lastKey) {
+            // Trùng thường chỉ cảnh báo khi bấm Nhúng. Chỉ khóa khi trùng danh sách cấm nhúng.
+            if (!check.prohibitedBlocked || !check.prohibitedKey) {
                 setEmbedSubmitDisabled(false);
                 return;
             }
 
             const currentKey = getWebFormDuplicateKey();
-            const shouldDisable = currentKey === check.lastKey;
+            const shouldDisable = currentKey === check.prohibitedKey;
             if (shouldDisable) {
-                setEmbedSubmitDisabled(true, 'Truyện bị trùng trên server. Hãy đổi Tên gốc/Tác giả trên web (hoặc dùng truyện khác) rồi thử lại.');
+                setEmbedSubmitDisabled(true, 'Truyện nằm trong danh sách cấm nhúng của WikiCV. Không thể Nhúng cặp tên gốc + tác giả này.');
             } else {
                 setEmbedSubmitDisabled(false);
+            }
+        };
+        let embedSubmitGuardButton = null;
+        let embedSubmitGuardForm = null;
+        let lastDuplicateSubmitApprovedAt = 0;
+        const shouldWarnDuplicateSubmit = () => {
+            if (!isEmbedPage()) return false;
+            const check = state.duplicateCheck || {};
+            if (!check.blocked || !check.lastKey || check.prohibitedBlocked) return false;
+            return getWebFormDuplicateKey() === check.lastKey;
+        };
+        const confirmDuplicateSubmit = () => {
+            if (!shouldWarnDuplicateSubmit()) return true;
+            const now = Date.now();
+            if (now - lastDuplicateSubmitApprovedAt < 900) return true;
+            const { titleCn, authorCn } = getWebFormDuplicateValues();
+            const ok = window.confirm(
+                `Wiki báo truyện này đã trùng.\n\nTên gốc: ${titleCn}\nTác giả: ${authorCn}\n\nNếu vẫn Nhúng, chỉ nên làm khi bạn cần tuân thủ quy định: Nhúng bản mới trước, sau đó báo cáo để xóa bản cũ của wiki.\n\nTiếp tục Nhúng?`
+            );
+            if (ok) lastDuplicateSubmitApprovedAt = Date.now();
+            log(ok
+                ? 'Bạn đã xác nhận tiếp tục Nhúng truyện trùng theo quy định nhúng bản mới trước và báo cáo xóa bản cũ.'
+                : 'Đã hủy Nhúng truyện trùng để bạn kiểm tra lại.', ok ? 'warn' : 'info');
+            return ok;
+        };
+        const bindEmbedSubmitWarningGuard = () => {
+            if (!isEmbedPage()) return;
+            const btn = getEmbedSubmitButton();
+            if (btn && btn !== embedSubmitGuardButton) {
+                btn.addEventListener('click', (ev) => {
+                    if (confirmDuplicateSubmit()) return;
+                    ev.preventDefault();
+                    ev.stopImmediatePropagation();
+                }, true);
+                embedSubmitGuardButton = btn;
+            }
+            const form = getEmbedForm();
+            if (form && form !== embedSubmitGuardForm) {
+                form.addEventListener('submit', (ev) => {
+                    if (confirmDuplicateSubmit()) return;
+                    ev.preventDefault();
+                    ev.stopImmediatePropagation();
+                }, true);
+                embedSubmitGuardForm = form;
             }
         };
         const shouldCheckDuplicate = ({ titleCn, authorCn }) => {
@@ -7817,16 +8154,21 @@ For arrays, return list of strings. If none fit, return empty array.
             const check = state.duplicateCheck || {};
             if (check.pending) {
                 applyBtn.title = 'Đang kiểm tra truyện trùng trên server...';
+            } else if (check.prohibitedPending) {
+                applyBtn.title = 'Đang kiểm tra danh sách cấm nhúng...';
             } else if (check.deepPending) {
                 applyBtn.title = 'Đang quét sâu trang tác giả để đối chiếu ảnh bìa...';
             } else if (check.deepPossibleDuplicate) {
                 applyBtn.title = 'Đang chờ bạn xác minh truyện nghi trùng trong popup.';
             }
             if (check.blocked) {
-                applyBtn.title = 'Truyện có thể bị trùng. Vẫn cho Áp vào form, nhưng nút Nhúng sẽ bị khóa nếu form trùng đúng cặp.';
+                applyBtn.title = 'Truyện bị báo trùng. Vẫn cho Áp vào form; khi bấm Nhúng sẽ có cảnh báo xác nhận.';
+            }
+            if (check.prohibitedBlocked) {
+                applyBtn.title = 'Truyện nằm trong danh sách cấm nhúng. Nút Nhúng sẽ bị khóa nếu form trùng đúng cặp.';
             }
             applyBtn.disabled = false;
-            if (!check.pending && !check.blocked) applyBtn.title = '';
+            if (!check.pending && !check.blocked && !check.prohibitedPending && !check.prohibitedBlocked) applyBtn.title = '';
             updateEmbedSubmitByDuplicateState('apply-state');
         };
         let pendingDeepDuplicateCandidate = null;
@@ -7848,7 +8190,7 @@ For arrays, return list of strings. If none fit, return empty array.
                 <div style="margin-bottom:8px;"><b>Truyện nghi trùng:</b> ${escapeHtml(candidate.title || '(không rõ tên)')}</div>
                 ${titleSimilarity ? `<div style="margin-bottom:8px;"><b>Độ giống tên dịch:</b> ${titleSimilarity}%</div>` : ''}
                 ${coverSimilarity ? `<div style="margin-bottom:8px;"><b>Độ giống ảnh bìa:</b> ${coverSimilarity}%</div>` : ''}
-                <div style="margin-bottom:8px; color:#92400e;"><b>Ghi chú:</b> ${hasMorePages ? 'Tác giả còn phân trang, nên nếu bạn xác nhận Không trùng thì độ an toàn tối đa giữ ở 90%.' : 'Không thấy phân trang thêm ở trang tác giả này.'}</div>
+                <div style="margin-bottom:8px; color:#92400e;"><b>Ghi chú:</b> ${hasMorePages ? 'Tác giả còn phân trang; script chỉ quét trang 1 nên nếu bạn xác nhận Không trùng thì độ an toàn giữ ở 98%.' : 'Tác giả có truyện trên trang đầu; nếu bạn xác nhận Không trùng thì độ an toàn giữ ở 98%.'}</div>
                 <div style="margin-bottom:8px; color:#475569;">Bạn có thể bấm <b>Mở</b> để so lại bằng mắt trước, rồi chọn <b>Trùng</b> hoặc <b>Không trùng</b>.</div>
                 <div style="display:grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap:12px; margin-top:10px;">
                     <div style="border:1px solid rgba(148,163,184,.25); border-radius:12px; padding:10px; background:rgba(255,255,255,.72);">
@@ -7881,10 +8223,10 @@ For arrays, return list of strings. If none fit, return empty array.
                 setDuplicateSafety(0, 'danger', `Bạn đã xác nhận truyện nghi trùng${candidate?.title ? `: ${candidate.title}` : ''}.`);
                 log(`Bạn đã xác nhận truyện nghi trùng${candidate?.title ? ` với "${candidate.title}"` : ''}.`, 'warn');
             } else {
-                const nextScore = hasMorePages ? 90 : 95;
+                const nextScore = 98;
                 const reason = hasMorePages
-                    ? 'Bạn đã xác nhận Không trùng, nhưng tác giả còn phân trang nên giữ mức an toàn 90%.'
-                    : 'Bạn đã xác nhận Không trùng. Nâng độ an toàn lên 95%.';
+                    ? 'Bạn đã xác nhận Không trùng, nhưng script chỉ quét trang 1 của tác giả nên giữ mức an toàn 98%.'
+                    : 'Bạn đã xác nhận Không trùng. Tác giả có truyện trên trang đầu nên giữ mức an toàn 98%.';
                 setDuplicateSafety(nextScore, 'ok', reason);
                 log(`Bạn đã xác nhận không trùng${candidate?.title ? ` với "${candidate.title}"` : ''}. Độ an toàn ${nextScore}%.`, 'ok');
             }
@@ -8020,7 +8362,7 @@ For arrays, return list of strings. If none fit, return empty array.
                     log('Check sâu xong: trang đầu tác giả không có truyện để đối chiếu, độ an toàn 100%.', 'ok');
                     return;
                 }
-                const baseScore = page.hasMorePages ? 90 : 100;
+                const baseScore = 98;
                 const bestTitle = findBestAuthorTitleMatch(titleVi, page.items);
                 const titleRisk = getTitleMatchRisk(bestTitle, baseScore);
                 const bestCover = coverUrl ? await findBestAuthorCoverMatch(coverUrl, page.items) : null;
@@ -8067,8 +8409,8 @@ For arrays, return list of strings. If none fit, return empty array.
                 }
                 if (!reasonParts.length) {
                     reasonParts.push(page.hasMorePages
-                        ? 'Quét sâu không thấy trùng ở trang 1 của tác giả; do còn phân trang nên giữ 90%.'
-                        : 'Quét sâu không thấy truyện trùng ở trang đầu tác giả.');
+                        ? 'Quét sâu không thấy trùng ở trang 1 của tác giả; tác giả còn phân trang nên bạn có thể mở trang tác giả để tự check lại nếu cần.'
+                        : 'Quét sâu không thấy truyện trùng ở trang đầu tác giả; vì tác giả đã có truyện nên bạn vẫn có thể tự check lại bằng mắt nếu cần.');
                 }
                 const reason = reasonParts.join(' ');
                 setDuplicateSafety(nextScore, 'ok', reason);
@@ -8091,7 +8433,7 @@ For arrays, return list of strings. If none fit, return empty array.
                     <div style="margin-bottom:8px;">Phát hiện truyện trùng trên server.</div>
                     <div><b>Tên gốc:</b> ${escapeHtml(titleCn)}</div>
                     <div><b>Tác giả:</b> ${escapeHtml(authorCn)}</div>
-                    <div style="margin-top:8px; color:#b71c1c;">Nút <b>Nhúng</b> trên web sẽ bị khóa nếu form đang trùng đúng cặp tên + tác giả này.</div>
+                    <div style="margin-top:8px; color:#b71c1c;">Vẫn có thể bấm <b>Nhúng</b>. Khi bấm, script sẽ nhắc bạn chỉ nên nhúng trùng nếu cần tuân thủ quy định: nhúng bản mới trước và báo cáo để xóa bản cũ của wiki.</div>
                 `;
             }
             if (duplicateModal) duplicateModal.style.display = 'flex';
@@ -8120,6 +8462,177 @@ For arrays, return list of strings. If none fit, return empty array.
             const payload = await res.json();
             return parseDuplicateResponse(payload);
         };
+        let prohibitedCache = {
+            entries: null,
+            fetchedAt: 0,
+            promise: null,
+        };
+        const normalizeProhibitedKeyPart = (value) => T.safeText(value)
+            .normalize('NFKC')
+            .toLowerCase()
+            .replace(/[^\p{L}\p{N}]/gu, '');
+        const normalizeProhibitedEntryLine = (line) => T.safeText(line)
+            .replace(/^\s*(?:\d+|[一二三四五六七八九十百]+)\s*[\/.、)）]\s*/, '')
+            .replace(/\s+/g, ' ')
+            .trim();
+        const parseProhibitedEntries = (html) => {
+            const doc = new DOMParser().parseFromString(html || '', 'text/html');
+            const blocks = Array.from(doc.querySelectorAll('.block-content'));
+            const sourceHtml = (blocks.length ? blocks : [doc.body || doc.documentElement])
+                .map((el) => el?.innerHTML || el?.textContent || '')
+                .join('\n');
+            const text = T.htmlToText(sourceHtml);
+            const entries = [];
+            text.split(/\n+/).forEach((rawLine) => {
+                const line = normalizeProhibitedEntryLine(rawLine);
+                if (!line || !line.includes('+')) return;
+                const m = line.match(/^(.{1,160}?)\s*[+＋]\s*(.{1,100})$/);
+                if (!m) return;
+                const titleCn = T.safeText(m[1]);
+                const authorCn = T.safeText(m[2]);
+                if (!/[\u3400-\u9fff]/.test(titleCn)) return;
+                const titleKey = normalizeProhibitedKeyPart(titleCn);
+                const authorKey = normalizeProhibitedKeyPart(authorCn);
+                if (!titleKey || !authorKey) return;
+                entries.push({
+                    titleCn,
+                    authorCn,
+                    titleKey,
+                    authorKey,
+                    line,
+                });
+            });
+            return entries;
+        };
+        const requestProhibitedHtml = async () => {
+            if (typeof GM_xmlhttpRequest === 'function') {
+                return new Promise((resolve, reject) => {
+                    GM_xmlhttpRequest({
+                        method: 'GET',
+                        url: PROHIBITED_URL,
+                        responseType: 'text',
+                        timeout: 12000,
+                        anonymous: false,
+                        withCredentials: true,
+                        headers: {
+                            'accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+                            'cache-control': 'no-cache',
+                            'pragma': 'no-cache',
+                        },
+                        onload(res) {
+                            if (res.status < 200 || res.status >= 300) {
+                                reject(new Error(`HTTP ${res.status}`));
+                                return;
+                            }
+                            resolve(res.responseText || res.response || '');
+                        },
+                        onerror(err) {
+                            reject(err);
+                        },
+                        ontimeout() {
+                            reject(new Error('timeout'));
+                        },
+                    });
+                });
+            }
+            const res = await fetch(PROHIBITED_URL, {
+                method: 'GET',
+                credentials: 'include',
+                cache: 'no-store',
+                headers: {
+                    'accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+                    'cache-control': 'no-cache',
+                    'pragma': 'no-cache',
+                },
+            });
+            if (!res.ok) throw new Error(`HTTP ${res.status}`);
+            return res.text();
+        };
+        const fetchProhibitedEntries = async () => {
+            const now = Date.now();
+            if (prohibitedCache.entries && now - prohibitedCache.fetchedAt < PROHIBITED_CACHE_TTL_MS) {
+                return prohibitedCache.entries;
+            }
+            if (!prohibitedCache.promise) {
+                prohibitedCache.promise = requestProhibitedHtml()
+                    .then((html) => {
+                        const entries = parseProhibitedEntries(html);
+                        prohibitedCache.entries = entries;
+                        prohibitedCache.fetchedAt = Date.now();
+                        return entries;
+                    })
+                    .finally(() => {
+                        prohibitedCache.promise = null;
+                    });
+            }
+            return prohibitedCache.promise;
+        };
+        const findProhibitedMatch = async (titleCn, authorCn) => {
+            const titleKey = normalizeProhibitedKeyPart(titleCn);
+            const authorKey = normalizeProhibitedKeyPart(authorCn);
+            if (!titleKey || !authorKey) return null;
+            const entries = await fetchProhibitedEntries();
+            return entries.find((item) => item.titleKey === titleKey && item.authorKey === authorKey) || null;
+        };
+        const showProhibitedWarning = (match) => {
+            const { titleCn, authorCn } = getDuplicateInputs();
+            if (duplicateBody) {
+                duplicateBody.innerHTML = `
+                    <div style="margin-bottom:8px; color:#b91c1c;"><b>Truyện nằm trong danh sách cấm nhúng của WikiCV.</b></div>
+                    <div><b>Tên gốc:</b> ${escapeHtml(match?.titleCn || titleCn)}</div>
+                    <div><b>Tác giả:</b> ${escapeHtml(match?.authorCn || authorCn)}</div>
+                    <div style="margin-top:8px; color:#b71c1c;">Nút <b>Nhúng</b> trên web đã bị khóa cho đúng cặp tên gốc + tác giả này.</div>
+                    <div style="margin-top:8px;"><a href="${PROHIBITED_URL}" target="_blank" rel="noopener noreferrer">Mở danh sách cấm nhúng</a></div>
+                `;
+            }
+            if (duplicateModal) duplicateModal.style.display = 'flex';
+        };
+        const runProhibitedCheck = async ({ titleCn, authorCn, runId }) => {
+            const check = state.duplicateCheck || {};
+            if (!isEmbedPage()) return null;
+            check.prohibitedPending = true;
+            check.prohibitedChecked = false;
+            check.prohibitedFailed = false;
+            check.prohibitedBlocked = false;
+            check.prohibitedMatch = null;
+            check.prohibitedKey = '';
+            setApplyByDuplicateState();
+            log('Đang quét danh sách cấm nhúng WikiCV...', 'info');
+            try {
+                const match = await findProhibitedMatch(titleCn, authorCn);
+                if (state.duplicateCheck.runId !== runId) return null;
+                check.prohibitedPending = false;
+                check.prohibitedChecked = true;
+                check.prohibitedFailed = false;
+                check.prohibitedBlocked = !!match;
+                check.prohibitedMatch = match || null;
+                check.prohibitedKey = match ? `${titleCn}|||${authorCn}` : '';
+                if (match) {
+                    setDuplicateSafety(0, 'danger', `Truyện nằm trong danh sách cấm nhúng: ${match.titleCn} + ${match.authorCn}.`);
+                    setApplyByDuplicateState();
+                    updateEmbedSubmitByDuplicateState('prohibited');
+                    showProhibitedWarning(match);
+                    log(`Cấm nhúng: ${match.titleCn} + ${match.authorCn}. Đã khóa nút Nhúng.`, 'error');
+                    return match;
+                }
+                setApplyByDuplicateState();
+                updateEmbedSubmitByDuplicateState('prohibited-ok');
+                log('Quét cấm nhúng xong: không thấy cặp tên + tác giả trong danh sách prohibited.', 'ok');
+                return null;
+            } catch (err) {
+                if (state.duplicateCheck.runId !== runId) return null;
+                check.prohibitedPending = false;
+                check.prohibitedChecked = false;
+                check.prohibitedFailed = true;
+                check.prohibitedBlocked = false;
+                check.prohibitedMatch = null;
+                check.prohibitedKey = '';
+                setApplyByDuplicateState();
+                updateEmbedSubmitByDuplicateState('prohibited-error');
+                log(`Quét cấm nhúng lỗi: ${err.message}`, 'warn');
+                return null;
+            }
+        };
         const triggerDuplicateCheck = async (reason = 'input', force = false) => {
             if (!isEmbedPage()) return;
             const check = state.duplicateCheck;
@@ -8133,7 +8646,8 @@ For arrays, return list of strings. If none fit, return empty array.
             const currentKey = `${titleCn}|||${authorCn}`;
             const shouldRunDeep = reason === 'fetch' && state.settings?.deepDuplicateCheck !== false;
             const deepReady = !shouldRunDeep || check.blocked || check.deepChecked || check.deepPending;
-            if (!force && !check.pending && check.checked && !check.failed && check.lastKey === currentKey && deepReady) {
+            const prohibitedReady = check.prohibitedChecked || check.prohibitedPending || check.prohibitedBlocked;
+            if (!force && !check.pending && check.checked && !check.failed && check.lastKey === currentKey && deepReady && prohibitedReady) {
                 setApplyByDuplicateState();
                 return;
             }
@@ -8147,6 +8661,12 @@ For arrays, return list of strings. If none fit, return empty array.
             check.deepCandidate = null;
             check.hasMoreAuthorPages = false;
             check.authorPageUrl = '';
+            check.prohibitedPending = false;
+            check.prohibitedBlocked = false;
+            check.prohibitedChecked = false;
+            check.prohibitedFailed = false;
+            check.prohibitedMatch = null;
+            check.prohibitedKey = '';
             check.lastKey = currentKey;
             const runId = (check.runId || 0) + 1;
             check.runId = runId;
@@ -8168,8 +8688,8 @@ For arrays, return list of strings. If none fit, return empty array.
                     if (exists) {
                         setDuplicateSafety(0, 'danger', 'Check cơ bản trên server báo truyện đã trùng.');
                         setApplyByDuplicateState();
-                        log('Phát hiện truyện trùng trên server. Sẽ khóa nút Nhúng nếu form trùng đúng cặp tên + tác giả.', 'error');
-                        showDuplicateWarning();
+                        log('Phát hiện truyện trùng trên server. Vẫn cho Nhúng, nhưng khi bấm Nhúng sẽ hiện cảnh báo quy định nhúng bản mới trước và báo cáo xóa bản cũ.', 'error');
+                        await runProhibitedCheck({ titleCn, authorCn, runId });
                         return;
                     }
                     setDuplicateSafety(80, shouldRunDeep ? 'pending' : 'ok', shouldRunDeep
@@ -8182,6 +8702,8 @@ For arrays, return list of strings. If none fit, return empty array.
                         const titleVi = T.safeText(titleViInput?.value || state.translated?.titleVi || '');
                         await runDeepDuplicateCheck({ authorCn, coverUrl, titleVi, runId });
                     }
+                    if (check.runId !== runId) return;
+                    await runProhibitedCheck({ titleCn, authorCn, runId });
                     return;
                 } catch (err) {
                     if (check.runId !== runId) return;
@@ -8201,6 +8723,7 @@ For arrays, return list of strings. If none fit, return empty array.
             setDuplicateSafety(null, 'warn', 'Check trùng thất bại.');
             setApplyByDuplicateState();
             log('Check trùng thất bại sau 3 lần, cho phép Áp vào form.', 'warn');
+            await runProhibitedCheck({ titleCn, authorCn, runId });
         };
         const scheduleDuplicateCheck = (reason = 'input') => {
             if (!isEmbedPage()) return;
@@ -8534,6 +9057,7 @@ For arrays, return list of strings. If none fit, return empty array.
             webAuthorCn.addEventListener('input', () => updateEmbedSubmitByDuplicateState('web-input'));
             webAuthorCn.addEventListener('change', () => updateEmbedSubmitByDuplicateState('web-change'));
         }
+        bindEmbedSubmitWarningGuard();
         setDescDrafts('', '');
         updateCoverSizeSummary();
         updateCoverSizeTag();
