@@ -2,7 +2,7 @@
 // @name         TM Translate
 // @author       QuocBao
 // @namespace    http://tampermonkey.net/
-// @version      3.5.5.7_beta
+// @version      3.5.5.8_beta
 // @description  Dịch trang, quản lý name-sets, sửa tên, Thư viện đọc offline, OCR và TTS.
 // @icon         data:image/png;base64,AAABAAEAQEAAAAEAIAAoQgAAFgAAACgAAABAAAAAgAAAAAEAIAAAAAAAAEAAAAAAAAAAAAAAAAAAAAAAAAA+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/0CLNf9BjDb/QYw2/0GMNv9BjDb/QYw2/0GMNv9BjDb/QYw2/0GMNv9BjDb/QYw2/0GMNv9BjDb/QIs1/z+LNP8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z+KNP81hCn/L4Ek/zCCJf8wgiX/MIIl/zCCJf8wgiX/MIIl/zCCJf8wgiX/MIIk/zCCJP8xgiX/MoMm/zWFKv86hy7/Pooz/0GMNv9BjDb/P4s0/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/0CLNf83hiz/gbJ6/7HQrf+py6T/qsum/6rLpv+qy6b/qsum/6rLpv+qy6b/qsum/6jKo/+fxZr/kLuJ/36xd/9oo1//UJVH/zyJMf8xgiX/MoIm/zqIL/9BjDb/QIs1/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/9AizX/M4Mo/8DZvP///////P38//////////////////////////////////////////////////////////////////X59f/b6dr/tNGw/4CyeP9Ok0T/M4Mn/zSEKP8/izT/QYw2/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/QIs1/zOEKP+71rj///////n8+f/8/fz//P38//z9/P/8/fz//P38//z9/P/8/fz//P38//z9/P/8/fz//f79//7//v//////////////////////8/jz/7zWuf9wqGj/OIYt/zOEKP9AizX/P4s0/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/0CLNv8zgyj/vde6///////8/fz//////////////////v79//3+/f/9/v3//f79//7+/v/+/v7//v/+/////////////v/+//3+/f/8/fz//f79/////////////////9Pk0f9yqWr/M4Mo/zmHLv9BjDb/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/9Aizb/M4Mo/73Xuv///////P38///////////////////////////////////////////////////////9/v3//P38//z9/P/9/v3////////////+//7//P38//3+/f///////////8DYvP9Nk0P/MoMn/0GMNv8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/QIs2/zODKP+917r///////z9/P/////////////////h7N//1+fV/9vp2f/e69z/5/Dl//P48v/9/v3///////////////////////7//v/8/fz//v7+/////////////f79//3+/P//////7/Xu/3Wrbv8wgiT/QIs1/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/0CLNv8zgyj/vde6///////8/fz/////////////////Yp9Z/zODJ/89iTP/PYoy/0ONOP9Mk0L/WptR/3Gpaf+Qu4n/ttKy/+Ds3v/9/v3////////////9/vz//v7+/////////////P38//7+/v//////lL6O/zGCJv9AizX/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/9Aizb/M4Mo/73Xuv///////P38/////////////////2ShXP82hSv/QIs1/z6KM/88iTH/Oogv/zeGLP80hCj/MYIl/zKDJv8+ijP/Yp9Z/6THn//s8+v///////7+/f/9/v3////////////+/v3//P38//////+awpX/MYIl/0GMNv8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/QIs2/zODKP+917r///////z9/P////////////////9koVz/NoUr/0CLNf8+ijP/P4o0/z+LNP8/izX/QIs1/0GMNv9BjDb/Pooz/zaFK/8wgST/Ro88/5nBk//1+fT///////z9/P////////////7//v/8/fz//////4a2gP8xgiX/QYw2/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/0CLNv8zgyj/vde6///////8/fz/////////////////ZKFb/zaFKv9AizX/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/9AizX/QYw3/zyJMf8vgSP/VZhL/9Hjzv///////P38/////////////v7+///////6/Pr/YJ9Y/zaFKv9AizX/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/9Aizb/M4Mo/73Xuv///////P38/////////////////2ShW/82hSr/QIs1/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8/ijT/Qow3/zeGLP85hy7/udW2///////8/fz////////////9/v3//////9Pk0P87iDD/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/QIs2/zODKP+917r///////z9/P////////////////9koVv/NoUq/0CLNf8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/9BjDb/PYky/zWEKf+/2Lv///////39/P////////////z9/P//////hrV//zGCJf9BjDb/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/0CLNv8zgyj/vde6///////8/fz/////////////////ZKFb/zaFKv9AizX/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/0CLNf87iTD/QIs1/93q2////////f79///////+/v3//////93q2/8/ijT/PYoy/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/9Aizb/M4Mo/73Xuv///////P38/////////////////2ShW/82hSr/QIs1/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/QYw2/zOEKP9ppGH///////7//v////////////3+/f//////dqxv/zODJ/9AjDb/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/QIs2/zODKP+917r///////z9/P////////////////9koVv/NoUq/0CLNf8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/9BjDb/MYIm/7jUtP///////f38///////8/fz//////7nUtf8ygyf/QYw2/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/0CLNv8zgyj/vde6///////8/fz/////////////////ZKFb/zaFKv9AizX/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/QIs1/zaFKv9koVz//////////////////v7+///////p8uj/RY47/zyJMf8/ijT/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/9Aizb/M4Mo/73Xuv///////P38/////////////////2ShW/82hSr/QIs1/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8/ijT/O4gw/9ro1////////f79///////+//7//////2aiXv81hSr/QIs1/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/QIs2/zODKP+917r///////z9/P////////////////9koVv/NoUq/0CLNf8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/QYw2/zCCJP+oyqP///////z9/P///////P38//////+JuIP/MYIl/0GMNv8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/0CLNv8zgyj/vde6///////8/fz/////////////////ZKFb/zaFKv9AizX/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/0GMNv8ygyb/gbJ6///////9/vz///////z9/P//////qMqj/zGCJf9BjDb/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/9Aizb/M4Mo/73Xuv///////P38/////////////////2ShW/82hSr/QIs1/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/9AizX/NYUq/2ejX////////v/+///////8/fz//////7zWuf8zgyf/QIw2/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/QIs2/zODKP+917r///////z9/P////////////////9koVv/NoUq/0CLNf8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/P4s1/ziGLP9am1D/+/37///////+//7//f79///////K38f/NoUq/0CLNf8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/0CLNv8zgyj/vde6///////8/fz/////////////////ZKFb/zaFKv9AizX/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z+LNP85hy7/U5dJ//j7+P///////v/+//3+/f//////0+TR/zmHLf8/izT/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/9Aizb/M4Mo/73Xuv///////P38/////////////////2ShW/82hSr/QIs1/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8/izT/OYcu/1OWSf/3+vf///////7//v/9/v3//////9bm1P86hy7/P4o0/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/QIs2/zODKP+917r///////z9/P////////////////9koVv/NoUq/0CLNf8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/P4s0/ziGLf9XmU7/+vz6///////+//7//f79///////R487/OIYs/z+LNP8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/0CLNv8zgyj/vde6///////8/fz/////////////////ZKFb/zaFKv9AizX/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/0CLNf82hSv/YqBa//////////////////3+/f//////xtzD/zWEKf9AizX/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/9Aizb/M4Mo/73Xuv///////P38/////////////////2ShW/82hSr/QIs1/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/9BjDb/M4Mn/3itcf///////f79///////8/fz//////7bSsv8ygyb/QYw2/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/QIs2/zODKP+917r///////z9/P////////////////9koVv/NoUq/0CLNf8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/QYw2/zCCJP+bwpX///////z9/P///////P38//////+dw5f/MIIk/0GMNv8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/0CLNv8zgyj/vde6///////8/fz/////////////////ZKFb/zaFKv9AizX/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/0CLNf81hSr/yd7F///////9/v3///////3+/f//////fK90/zKDJ/9BjDb/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/9Aizb/M4Mo/73Xuv///////P38/////////////////2ShW/82hSr/QIs1/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z+LNP85hy7/UZZI//b69v///////v/+//7//v//////+vz6/1eZTf84hi3/P4s0/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/QIs2/zODKP+917r///////z9/P////////////////9koVv/NoUq/0CLNf8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/9CjDf/MIIk/5W/j////////P38///////9/v3//////9Xl0/86hy//P4o0/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/0CLNv8zgyj/vde6///////8/fz/////////////////ZKFb/zaFKv9AizX/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8/izT/O4gw/0ePPP/r8ur///////7+/v///////P38//////+XwJH/MIIl/0GMNv8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/9Aizb/M4Mo/73Xuv///////P38/////////////////2ShW/82hSr/QIs1/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Qow3/y+BI/+tzaj///////39/P///////v/+///////2+fX/VZdL/zmHLf8/izT/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/QIs2/zODKP+917r///////z9/P////////////////9koVv/NoUq/0CLNf8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8/ijT/Qo04/y2AIf+Cs3v///////3+/f////////////z9/P//////sM+r/zKCJv9BjDb/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/0CLNv8zgyj/vde6///////8/fz/////////////////ZKFb/zaFKv9AizX/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/9BjDb/Pooz/y2AIf99sHb//P38///////+//7///////7+/v//////8/fy/1KWSf85hy7/P4s0/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/9Aizb/M4Mo/73Xuv///////P38/////////////////2ShW/82hSr/QIs1/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/P4o0/0GMNv9AizX/M4Mn/zuIMP+gxZr//v/+//7+/v/+//7////////////8/fv//////4y5hf8xgiX/QYw2/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/QIs2/zODKP+917r///////z9/P////////////////9koVv/NoUq/0CLNf8+ijP/Pooz/z6KM/8+ijP/P4o0/0CLNf9BjDb/QYw2/zyJMf8ygyb/N4Yr/3Oqa//b6dn///////3+/P/+//7////////////7/fv//////7nUtf80hCn/QIs1/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/0CLNv8zgyj/vde6///////8/fz/////////////////Z6Je/zmHLv9DjTj/QYw2/0GMNv9AizX/Pooz/zuIMP82hSv/MYIl/zKDJ/9Gjzz/frF3/9Hjzv////////////3+/f/+//7////////////7/fv//////8zgyf89iTL/PIkx/z+LNP8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/9Aizb/M4Mo/73Xuv///////P38/////////////////1maUP8nfBv/MoMn/zGCJf8ygyb/NYQp/zuIMP9JkT//YZ9Z/4e2gf+51LX/7PPr/////////////f79//3+/f////////////7+/f/8/fz//////8fdxP8/ijT/O4gv/0CLNf8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/QIs2/zODKP+917r///////z9/P////////////////+71bf/psmh/6vMpv+uzqn/t9Oz/8jdxf/a6dj/8PXv//7//v/////////////////9/v3//f79/////////////v/+//z9/P/+//7//////6rLpf84hi3/O4gw/0CLNf8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/0CLNv8zgyj/vde6///////8/fz///////////////////////////////////////////////////////////////7//P38//z9/P/+/v7////////////+/v7//P38//7+/v//////6/Pq/3mucv8xgiX/Pooz/0CLNf8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/9Aizb/M4Mo/73Xuv///////P38//////////////////3+/P/8/fz//P38//z9/P/8/fz//f79//3+/f/+/v7//////////////////v7+//z9/P/9/v3////////////4+/f/qMqj/0ePPf8ygyb/QYw2/z+KNP8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/QIs2/zODKP+81rj///////v8+v/9/v3//f79//3+/f/9/v3//f79//3+/f/9/v3//f79//3+/f/9/vz//P38//z9/P/9/v3////////////+//7//////+vz6v+myaH/VZhL/zCCJP87iDD/QYw2/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/0CLNf8zgyj/wNi8///////8/fz///////////////////////////////////////////////////////////////////////3+/f/l7+P/t9Oz/3uvdP9Gjzv/MIIl/ziHLf9BjDb/P4s0/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/9AizX/NYQp/6HGnP/l7+T/2ejX/9vp2f/b6dn/2+nZ/9vp2f/b6dn/2+nZ/9vp2f/a6Nj/1OXS/8jdxf+10rH/ncSY/36xd/9enVX/Qow3/zKCJv8ygyb/PIkx/0GMNv8/izT/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/87iDD/PIgx/zyIMf88iDH/PIgx/zyIMf88iDH/PIgx/zyIMf88iTH/O4gw/ziGLf81hCn/MYIm/zCCJP8ygyb/N4Yr/z2JMv9BjDb/QYw2/z+KNP8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/P4o0/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8/izT/QIs1/0GMNv9BjDb/QYw2/0CLNf8+ijT/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=
 // @downloadURL  https://raw.githubusercontent.com/BaoBao666888/Novel-Downloader5/main/TM%20Translate.user.js
@@ -38,7 +38,7 @@
 // @connect      *.zmdcdn.me
 // @connect      *
 // @require      https://raw.githubusercontent.com/BaoBao666888/Novel-Downloader5/main/translate/zh_to_vi/translateZhToVi.js
-// @require      https://raw.githubusercontent.com/BaoBao666888/Novel-Downloader5/main/tools/TTS_Reader_Core.user.js?v=20260604
+// @require      https://raw.githubusercontent.com/BaoBao666888/Novel-Downloader5/main/tools/TTS_Reader_Core.user.js?v=20260629
 // @require      https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js
 // @require      https://unpkg.com/@oovz/esearch-ocr/dist/eSearchOCR.umd.js
 // @require      https://unpkg.com/onnxruntime-web@1.22.0/dist/ort.wasm.min.js
@@ -464,7 +464,7 @@
     let translatedBodyClone = null;
 
     /* ================== VERSION ================== */
-    const CURRENT_VERSION = '3.5.5.7_beta';
+    const CURRENT_VERSION = '3.5.5.8_beta';
     const TM_VERSION_KEY = 'tm_translate_version';
     const TTS_STORAGE_KEY = 'twd_tts_reader_settings_v1';
     const TTS_DEFAULT_SETTINGS = {
@@ -859,7 +859,29 @@
             background: linear-gradient(90deg, #f97316, #ec4899); color: #fff; font-size: 9px; line-height: 1.25;
             box-shadow: 0 3px 8px rgba(236,72,153,0.28); pointer-events: none;
         }
-        #tm-lib-list-modal { align-items: stretch; justify-content: stretch; }
+        #tm-lib-list-modal {
+            all: initial;
+            position: fixed; inset: 0; z-index: 2147483661;
+            display: flex; align-items: stretch; justify-content: stretch;
+            width: 100vw; height: 100vh; height: 100dvh;
+            font-family: var(--tm-font); font-size: 14px; line-height: 1.5;
+            color: #172033; pointer-events: auto;
+        }
+        #tm-lib-list-modal,
+        #tm-lib-list-modal * { box-sizing: border-box; }
+        #tm-lib-list-modal button,
+        #tm-lib-list-modal input {
+            font: inherit; color: inherit; letter-spacing: 0; text-transform: none;
+        }
+        #tm-lib-list-modal button {
+            -webkit-appearance: none; appearance: none; margin: 0;
+            border-style: solid; text-align: center; touch-action: manipulation;
+        }
+        #tm-lib-list-modal input {
+            margin: 0; min-width: 0; color: #172033;
+        }
+        #tm-lib-list-modal h2,
+        #tm-lib-list-modal p { margin: 0; }
         #tm-lib-list-modal .tm-modal-backdrop { background: rgba(15,23,42,0.72); }
         .tm-library-shell {
             position: relative; z-index: 1; width: 100vw; height: 100vh; height: 100dvh;
@@ -1003,6 +1025,8 @@
         .tm-help-content { padding: 14px 16px; overflow-y: auto; line-height: 1.55; }
         .tm-help-content h3 { margin: 12px 0 6px; font-size: 15px; color: #6a1b9a; }
         .tm-help-content code { background: #fff0f6; padding: 1px 4px; border-radius: 4px; }
+        .tm-help-content a { color: #0b63ce; text-decoration: underline; font-weight: 600; }
+        .tm-help-content a:hover { color: #084aa0; }
         .tm-help-content ul { padding-left: 20px; margin: 6px 0 12px; }
         .tm-help-close { padding: 4px 10px; font-size: 12px; min-height: unset; width: auto; }
         .tm-welcome-title { text-align: center; font-size: 18px; font-weight: 700; color: #7b1fa2; }
@@ -4909,9 +4933,7 @@
                     Hiển thị nút "Thư viện" trên trang
 	                </label>
 	                <p style="font-size:13px; color:#555">Hiển thị nút nổi để mở thư viện nhanh.</p>
-	                <label class="tm-label" style="margin-top: 12px;">Chu kỳ tự sao lưu sau khi thư viện thay đổi (giờ)</label>
-	                <input id="tm-lib-backup-interval" type="number" min="0.25" max="168" step="0.25" class="tm-input" value="${config.libraryBackupIntervalHours ?? DEFAULT_CONFIG.libraryBackupIntervalHours}">
-	                <p style="font-size:13px; color:#555">Mặc định 6 giờ tính từ lần sao lưu gần nhất. Muốn sao lưu liền thì bấm nút <b>Sao lưu</b> trong Thư viện.</p>
+	                <p style="font-size:13px; color:#555">Sao lưu Thư viện hiện dùng file backup tải xuống, phù hợp cả mobile. Bấm <b>Sao lưu</b> trong Thư viện để tải file, bấm <b>Khôi phục</b> để nhập lại file đó.</p>
 	                <hr style="margin: 16px 0; border: none; border-top: 1px solid #eee;">
 	                <label class="tm-label">Kiểu đọc chương</label>
                 <select id="tm-reader-mode" class="tm-select">
@@ -8568,10 +8590,8 @@
     const LIB_EXPORT_HTML_WARN_CHAPTERS = 260;
     const LIB_EXPORT_HTML_WARN_BYTES = 4 * 1024 * 1024;
     const LIB_LIST_PAGE_SIZE = 24;
-    const LIB_BACKUP_DIR_NAME = 'tm-translate-library-backup';
-    const LIB_BACKUP_HANDLE_DB = 'tm_translate_library_backup_handles_v1';
-    const LIB_BACKUP_HANDLE_STORE = 'handles';
-    const LIB_BACKUP_HANDLE_KEY = 'libraryBackupDirectory';
+    const LIB_BACKUP_FILE_FORMAT = 'tm-translate-library-backup';
+    const LIB_BACKUP_FILE_VERSION = 2;
     const LIB_BACKUP_STATUS_KEY = 'tm_lib_backup_status_v1';
     const LIB_BACKUP_MIN_INTERVAL_HOURS = 0.25;
     const LIB_BACKUP_MAX_INTERVAL_HOURS = 168;
@@ -9008,35 +9028,31 @@
         return Math.max(dirtyAt, lastCompletedAt + libGetBackupIntervalMs());
     }
 
-    function libDescribeBackupStatus(status = libGetBackupStatus(), handleName = '') {
-        const dirText = handleName || status.dirName || '';
+    function libDescribeBackupStatus(status = libGetBackupStatus()) {
+        const fileText = status.fileName || '';
         if (status.state === 'running') return status.message || 'Đang sao lưu...';
-        if (status.state === 'permission') return status.message || 'Cần cấp quyền thư mục để sao lưu.';
         if (status.state === 'error') return status.message || 'Sao lưu lỗi.';
         if (status.state === 'dirty') {
             const base = status.message || 'Thư viện có thay đổi chưa sao lưu.';
-            if (!dirText) return `${base} Chưa chọn thư mục sao lưu.`;
-            const waitMs = libGetNextAutoBackupAt(status) - Date.now();
-            if (waitMs > 1000) return `${base} Tự sao lưu sau ${libFormatDuration(waitMs)}.`;
-            return `${base} Đang chờ tự sao lưu...`;
+            return `${base} Bấm Sao lưu để tải file backup.`;
         }
         if (status.lastCompletedAt) {
-            return `${libFormatRelativeTime(status.lastCompletedAt)}${dirText ? ` · ${dirText}` : ''}`;
-        }
-        return dirText ? `Đã chọn ${dirText}, chưa sao lưu.` : 'Chưa sao lưu';
-    }
-
-    function libDescribeBackupNoHandle(status = libGetBackupStatus()) {
-        if (status.state === 'dirty') {
-            return `${status.message || 'Thư viện có thay đổi chưa sao lưu.'} Chưa chọn hoặc cần chọn lại thư mục sao lưu.`;
-        }
-        if (status.lastCompletedAt) {
-            return `${libFormatRelativeTime(status.lastCompletedAt)}. Chọn lại thư mục để tự sao lưu.`;
+            return `${libFormatRelativeTime(status.lastCompletedAt)}${fileText ? ` · ${fileText}` : ''}`;
         }
         return 'Chưa sao lưu';
     }
 
-    function libDescribeBackupStatusShort(status = libGetBackupStatus(), hasHandle = true) {
+    function libDescribeBackupNoFile(status = libGetBackupStatus()) {
+        if (status.state === 'dirty') {
+            return `${status.message || 'Thư viện có thay đổi chưa sao lưu.'} Bấm Sao lưu để tải file backup.`;
+        }
+        if (status.lastCompletedAt) {
+            return `${libFormatRelativeTime(status.lastCompletedAt)}. Bấm Sao lưu để tải file mới nếu cần.`;
+        }
+        return 'Chưa sao lưu';
+    }
+
+    function libDescribeBackupStatusShort(status = libGetBackupStatus()) {
         if (!status || !status.state) {
             return status?.lastCompletedAt ? libFormatRelativeTime(status.lastCompletedAt) : 'Chưa sao lưu';
         }
@@ -9044,13 +9060,8 @@
             const progress = Number(status.progress);
             return Number.isFinite(progress) ? `Sao lưu ${Math.max(0, Math.min(100, progress))}%` : 'Đang sao lưu';
         }
-        if (status.state === 'permission') return 'Cần quyền';
         if (status.state === 'error') return 'Sao lưu lỗi';
-        if (status.state === 'dirty') {
-            if (!hasHandle) return 'Chưa chọn thư mục';
-            const waitMs = libGetNextAutoBackupAt(status) - Date.now();
-            return waitMs > 1000 ? `Chờ ${libFormatDuration(waitMs)}` : 'Chờ sao lưu';
-        }
+        if (status.state === 'dirty') return 'Chưa sao lưu';
         if (status.lastCompletedAt) return libFormatRelativeTime(status.lastCompletedAt);
         return 'Chưa sao lưu';
     }
@@ -9080,11 +9091,6 @@
             updatedAt: Date.now()
         };
         GM_setValue(LIB_BACKUP_STATUS_KEY, next);
-        if (becameDirty) {
-            libScheduleAutoBackup({ status: next }).catch(err => {
-                console.warn('[tm-translate] Không lên lịch auto backup:', err);
-            });
-        }
         return next;
     }
 
@@ -9185,108 +9191,6 @@
         return false;
     }
 
-    function libOpenBackupHandleDb() {
-        return new Promise((resolve, reject) => {
-            const req = indexedDB.open(LIB_BACKUP_HANDLE_DB, 1);
-            req.onupgradeneeded = () => {
-                const db = req.result;
-                if (!db.objectStoreNames.contains(LIB_BACKUP_HANDLE_STORE)) {
-                    db.createObjectStore(LIB_BACKUP_HANDLE_STORE);
-                }
-            };
-            req.onsuccess = () => resolve(req.result);
-            req.onerror = () => reject(req.error);
-        });
-    }
-
-    async function libSaveBackupDirHandle(handle) {
-        const db = await libOpenBackupHandleDb();
-        await new Promise((resolve, reject) => {
-            const tx = db.transaction(LIB_BACKUP_HANDLE_STORE, 'readwrite');
-            tx.objectStore(LIB_BACKUP_HANDLE_STORE).put(handle, LIB_BACKUP_HANDLE_KEY);
-            tx.oncomplete = resolve;
-            tx.onerror = () => reject(tx.error);
-        });
-        db.close();
-    }
-
-    async function libRestoreBackupDirHandle() {
-        try {
-            const db = await libOpenBackupHandleDb();
-            const handle = await new Promise((resolve, reject) => {
-                const tx = db.transaction(LIB_BACKUP_HANDLE_STORE, 'readonly');
-                const req = tx.objectStore(LIB_BACKUP_HANDLE_STORE).get(LIB_BACKUP_HANDLE_KEY);
-                req.onsuccess = () => resolve(req.result || null);
-                req.onerror = () => reject(req.error);
-            });
-            db.close();
-            return handle || null;
-        } catch (err) {
-            console.warn('[tm-translate] Không khôi phục được backup handle:', err);
-            return null;
-        }
-    }
-
-    async function libEnsureDirectoryPermission(handle, mode = 'readwrite') {
-        if (!handle) return false;
-        const options = { mode };
-        if (typeof handle.queryPermission === 'function') {
-            const current = await handle.queryPermission(options);
-            if (current === 'granted') return true;
-        }
-        if (typeof handle.requestPermission === 'function') {
-            return await handle.requestPermission(options) === 'granted';
-        }
-        return true;
-    }
-
-    async function libChooseBackupDirectory() {
-        if (!window.showDirectoryPicker) {
-            showNotification('Trình duyệt chưa hỗ trợ chọn thư mục sao lưu.');
-            return null;
-        }
-        const handle = await window.showDirectoryPicker({ mode: 'readwrite' });
-        const ok = await libEnsureDirectoryPermission(handle, 'readwrite');
-        if (!ok) {
-            showNotification('Chưa được cấp quyền ghi thư mục.');
-            return null;
-        }
-        await libSaveBackupDirHandle(handle);
-        libSetBackupStatus({ dirName: handle.name || '', message: 'Đã chọn thư mục sao lưu.' });
-        return handle;
-    }
-
-    async function libEnsureBackupRoot(handle, create = true) {
-        if (!handle) return null;
-        if (!create) {
-            try {
-                await handle.getFileHandle('manifest.json');
-                return handle;
-            } catch (err) {
-                return await handle.getDirectoryHandle(LIB_BACKUP_DIR_NAME);
-            }
-        }
-        try {
-            await handle.removeEntry(LIB_BACKUP_DIR_NAME, { recursive: true });
-        } catch (err) {
-            /* ignore */
-        }
-        return await handle.getDirectoryHandle(LIB_BACKUP_DIR_NAME, { create: true });
-    }
-
-    async function libFsWriteJson(dir, name, value) {
-        const fileHandle = await dir.getFileHandle(name, { create: true });
-        const writable = await fileHandle.createWritable();
-        await writable.write(JSON.stringify(value, null, 2));
-        await writable.close();
-    }
-
-    async function libFsReadJson(dir, name) {
-        const fileHandle = await dir.getFileHandle(name);
-        const file = await fileHandle.getFile();
-        return JSON.parse(await file.text());
-    }
-
     async function libCollectBackupData() {
         const index = libLoadIndex();
         const books = libSortBooksForLibrary(index.books || []);
@@ -9303,14 +9207,6 @@
         return { index: { ...index, books }, bookRecords, contentKeys: Array.from(contentKeys) };
     }
 
-    async function libWriteBackupStatusFile(root, status) {
-        try {
-            await libFsWriteJson(root, 'status.json', status);
-        } catch (err) {
-            console.warn('[tm-translate] Không ghi được status backup:', err);
-        }
-    }
-
     function libClearAutoBackupTimer() {
         if (libBackupScheduleTimer) {
             clearTimeout(libBackupScheduleTimer);
@@ -9322,120 +9218,173 @@
         const currentStatus = status || libGetBackupStatus();
         if (statusEl) libBackupScheduleStatusEl = statusEl;
         const targetStatusEl = statusEl || libBackupScheduleStatusEl;
-
-        if (!currentStatus || currentStatus.state !== 'dirty') {
-            libSetBackupStatusDisplay(targetStatusEl, libDescribeBackupStatusShort(currentStatus), libDescribeBackupStatus(currentStatus));
-            return null;
-        }
-
-        const handle = await libRestoreBackupDirHandle();
-        if (!handle) {
-            libClearAutoBackupTimer();
-            libSetBackupStatusDisplay(targetStatusEl, libDescribeBackupStatusShort(currentStatus, false), libDescribeBackupNoHandle(currentStatus));
-            return null;
-        }
-
-        const waitMs = Math.max(0, libGetNextAutoBackupAt(currentStatus) - Date.now());
-        libSetBackupStatusDisplay(
-            targetStatusEl,
-            libDescribeBackupStatusShort(currentStatus, true),
-            libDescribeBackupStatus(currentStatus, handle.name || '')
-        );
         libClearAutoBackupTimer();
-
-        const run = () => {
-            libBackupScheduleTimer = 0;
-            libRunLibraryBackup({ handle, silent: true, statusEl: libBackupScheduleStatusEl }).catch(err => {
-                console.warn('[tm-translate] Tự sao lưu thư viện thất bại:', err);
-                const next = libSetBackupStatus({ state: 'error', message: `Tự sao lưu lỗi: ${err.message || err}` });
-                libSetBackupStatusDisplay(
-                    libBackupScheduleStatusEl,
-                    libDescribeBackupStatusShort(next, true),
-                    libDescribeBackupStatus(next, handle.name || '')
-                );
-            });
-        };
-
-        if (waitMs <= 1000) {
-            run();
-            return { scheduled: false, waitMs: 0 };
-        }
-
-        libBackupScheduleTimer = setTimeout(run, Math.min(waitMs, 2147483647));
-        return { scheduled: true, waitMs };
+        libSetBackupStatusDisplay(targetStatusEl, libDescribeBackupStatusShort(currentStatus), libDescribeBackupStatus(currentStatus));
+        return null;
     }
 
-    async function libRunLibraryBackup({ handle = null, silent = false, statusEl = null } = {}) {
+    function libBackupTimestamp(date = new Date()) {
+        const pad = n => String(n).padStart(2, '0');
+        return `${date.getFullYear()}${pad(date.getMonth() + 1)}${pad(date.getDate())}-${pad(date.getHours())}${pad(date.getMinutes())}`;
+    }
+
+    function libBackupFileName() {
+        return `tm-translate-library-backup-${libBackupTimestamp()}.tmbackup.jsonl`;
+    }
+
+    function libYieldToBrowser() {
+        return new Promise(resolve => setTimeout(resolve, 0));
+    }
+
+    function libChooseBackupFile() {
+        return new Promise((resolve, reject) => {
+            const input = document.createElement('input');
+            input.type = 'file';
+            input.accept = '.tmbackup.jsonl,.jsonl,.ndjson,application/json,text/plain';
+            input.style.cssText = 'position:fixed;left:-9999px;top:-9999px;width:1px;height:1px;opacity:0;';
+            input.addEventListener('change', () => {
+                const file = input.files && input.files[0] ? input.files[0] : null;
+                input.remove();
+                resolve(file);
+            }, { once: true });
+            input.addEventListener('cancel', () => {
+                input.remove();
+                resolve(null);
+            }, { once: true });
+            input.addEventListener('error', () => {
+                input.remove();
+                reject(input.error || new Error('Không chọn được file.'));
+            }, { once: true });
+            tmUIRoot.appendChild(input);
+            input.click();
+        });
+    }
+
+    function libValidateBackupManifest(record) {
+        if (!record || record.type !== 'manifest' || record.format !== LIB_BACKUP_FILE_FORMAT) {
+            throw new Error('File backup không hợp lệ.');
+        }
+        if (Number(record.version || 0) > LIB_BACKUP_FILE_VERSION) {
+            throw new Error('File backup được tạo từ phiên bản mới hơn.');
+        }
+        return record;
+    }
+
+    async function libReadBackupManifestFromFile(file) {
+        const head = await file.slice(0, Math.min(file.size, 1024 * 1024)).text();
+        const line = head.split(/\r?\n/).find(item => item.trim());
+        if (!line) throw new Error('File backup trống.');
+        return libValidateBackupManifest(JSON.parse(line));
+    }
+
+    async function libForEachBackupRecord(file, onRecord, onProgress) {
+        let loaded = 0;
+        let count = 0;
+        const parseLine = async (line) => {
+            const text = String(line || '').trim();
+            if (!text) return;
+            count += 1;
+            await onRecord(JSON.parse(text), count, loaded);
+            if (count % 20 === 0) await libYieldToBrowser();
+        };
+
+        if (file.stream && typeof TextDecoder === 'function') {
+            const reader = file.stream().getReader();
+            const decoder = new TextDecoder('utf-8');
+            let buffer = '';
+            while (true) {
+                const { value, done } = await reader.read();
+                if (done) break;
+                loaded += value.byteLength || 0;
+                buffer += decoder.decode(value, { stream: true });
+                let newlineIndex = buffer.search(/\r?\n/);
+                while (newlineIndex >= 0) {
+                    const line = buffer.slice(0, newlineIndex);
+                    const advance = buffer[newlineIndex] === '\r' && buffer[newlineIndex + 1] === '\n' ? 2 : 1;
+                    buffer = buffer.slice(newlineIndex + advance);
+                    await parseLine(line);
+                }
+                if (onProgress) onProgress(loaded, count);
+            }
+            buffer += decoder.decode();
+            if (buffer.trim()) await parseLine(buffer);
+            if (onProgress) onProgress(file.size || loaded, count);
+            return count;
+        }
+
+        const text = await file.text();
+        loaded = file.size || text.length;
+        const lines = text.split(/\r?\n/);
+        for (const line of lines) {
+            await parseLine(line);
+            if (onProgress) onProgress(loaded, count);
+        }
+        return count;
+    }
+
+    async function libRunLibraryBackup({ silent = false, statusEl = null } = {}) {
         if (libBackupTask) return libBackupTask;
         libBackupTask = (async () => {
-            let dirHandle = handle || await libRestoreBackupDirHandle();
-            if (!dirHandle) {
-                if (silent) return null;
-                dirHandle = await libChooseBackupDirectory();
-            }
-            if (!dirHandle) return null;
-            const permitted = await libEnsureDirectoryPermission(dirHandle, 'readwrite');
-            if (!permitted) {
-                const status = libSetBackupStatus({ state: 'permission', dirName: dirHandle.name || '', message: 'Cần cấp quyền thư mục để sao lưu.' });
-                libSetBackupStatusDisplay(statusEl, libDescribeBackupStatusShort(status, true), status.message);
-                if (!silent) showNotification('Cần cấp quyền thư mục để sao lưu.');
-                return null;
-            }
             libClearAutoBackupTimer();
-            if (!silent) showNotification('Đang sao lưu thư viện. Đừng tắt/ngắt giữa chừng.', 6000);
-            const root = await libEnsureBackupRoot(dirHandle, true);
-            const startedStatus = libSetBackupStatus({ state: 'running', progress: 0, dirName: dirHandle.name || '', message: 'Đang sao lưu 0%...' });
-            libSetBackupStatusDisplay(statusEl, libDescribeBackupStatusShort(startedStatus, true), startedStatus.message);
-            await libWriteBackupStatusFile(root, startedStatus);
-
+            if (silent) return null;
+            showNotification('Đang tạo file sao lưu. Đừng tắt tab giữa chừng.', 6000);
             const data = await libCollectBackupData();
-            const booksDir = await root.getDirectoryHandle('books', { create: true });
-            const contentDir = await root.getDirectoryHandle('content', { create: true });
             const total = Math.max(1, data.bookRecords.length + data.contentKeys.length + 2);
+            const chunks = [];
             let done = 0;
-            const updateProgress = async (messagePrefix = 'Đang sao lưu') => {
+            let contentCount = 0;
+            const startedStatus = libSetBackupStatus({ state: 'running', progress: 0, message: 'Đang tạo file sao lưu 0%...' });
+            libSetBackupStatusDisplay(statusEl, libDescribeBackupStatusShort(startedStatus), startedStatus.message);
+            const appendRecord = async (record) => {
+                chunks.push(JSON.stringify(record), '\n');
                 done += 1;
                 const progress = Math.min(99, Math.floor((done / total) * 100));
-                const status = libSetBackupStatus({ state: 'running', progress, dirName: dirHandle.name || '', message: `${messagePrefix} ${progress}%...` });
-                libSetBackupStatusDisplay(statusEl, libDescribeBackupStatusShort(status, true), status.message);
-                await libWriteBackupStatusFile(root, status);
+                const status = libSetBackupStatus({ state: 'running', progress, message: `Đang tạo file sao lưu ${progress}%...` });
+                libSetBackupStatusDisplay(statusEl, libDescribeBackupStatusShort(status), status.message);
+                if (done % 8 === 0) await libYieldToBrowser();
             };
-
-            const manifest = {
+            await appendRecord({
+                type: 'manifest',
+                format: LIB_BACKUP_FILE_FORMAT,
                 version: 1,
                 app: 'TM Translate',
                 createdAt: Date.now(),
-                index: data.index,
-                books: data.bookRecords.map(item => item.book.bookId),
-                contentKeys: data.contentKeys
-            };
-            await libFsWriteJson(root, 'manifest.json', manifest);
-            await updateProgress();
+                index: { ...data.index, books: [] },
+                bookCount: data.bookRecords.length,
+                contentCount: data.contentKeys.length
+            });
 
             for (const item of data.bookRecords) {
-                await libFsWriteJson(booksDir, `${item.book.bookId}.json`, item);
-                await updateProgress();
+                await appendRecord({ type: 'book', book: item.book, chapters: item.chapters || [] });
             }
             for (const key of data.contentKeys) {
                 const content = libLoadContent(key);
-                if (content) await libFsWriteJson(contentDir, `${key}.json`, content);
-                await updateProgress();
+                if (content) {
+                    contentCount += 1;
+                    await appendRecord({ type: 'content', key, value: content });
+                } else {
+                    await appendRecord({ type: 'missingContent', key });
+                }
             }
+            await appendRecord({ type: 'end', bookCount: data.bookRecords.length, contentCount, completedAt: Date.now() });
 
+            const filename = libBackupFileName();
+            const blob = new Blob(chunks, { type: 'application/x-ndjson;charset=utf-8' });
+            libDownloadBlob(blob, filename);
             const completed = libSetBackupStatus({
                 state: 'done',
                 progress: 100,
-                dirName: dirHandle.name || '',
+                fileName: filename,
                 lastCompletedAt: Date.now(),
                 dirtyAt: null,
-                message: `Sao lưu xong: ${data.bookRecords.length} truyện, ${data.contentKeys.length} nội dung.`
+                message: `Đã tạo file sao lưu: ${data.bookRecords.length} truyện, ${contentCount} nội dung, ${libFormatBytes(blob.size)}.`
             });
             libSetBackupStatusDisplay(
                 statusEl,
-                libDescribeBackupStatusShort(completed, true),
+                libDescribeBackupStatusShort(completed),
                 `${completed.message} ${libFormatRelativeTime(completed.lastCompletedAt)}.`
             );
-            await libWriteBackupStatusFile(root, completed);
+            showNotification('Đã tải file sao lưu thư viện.', 4500);
             return completed;
         })().finally(() => {
             libBackupTask = null;
@@ -9445,16 +9394,9 @@
 
     async function libMaybeRunBackgroundBackup(statusEl = null) {
         const status = libGetBackupStatus();
-        const handle = await libRestoreBackupDirHandle();
         if (statusEl) libBackupScheduleStatusEl = statusEl;
-        if (!handle) {
-            libSetBackupStatusDisplay(statusEl, libDescribeBackupStatusShort(status, false), libDescribeBackupNoHandle(status));
-            return;
-        }
-        libSetBackupStatusDisplay(statusEl, libDescribeBackupStatusShort(status, true), libDescribeBackupStatus(status, handle.name || ''));
-        if (status.state === 'dirty') {
-            await libScheduleAutoBackup({ status, statusEl });
-        }
+        libClearAutoBackupTimer();
+        libSetBackupStatusDisplay(statusEl, libDescribeBackupStatusShort(status), libDescribeBackupNoFile(status));
     }
 
     async function libClearLibraryAll() {
@@ -9468,19 +9410,9 @@
     }
 
     async function libRunLibraryRestore({ statusEl = null } = {}) {
-        if (!window.showDirectoryPicker) {
-            showNotification('Trình duyệt chưa hỗ trợ chọn thư mục khôi phục.');
-            return;
-        }
-        const selected = await window.showDirectoryPicker({ mode: 'read' });
-        const permitted = await libEnsureDirectoryPermission(selected, 'read');
-        if (!permitted) {
-            showNotification('Chưa được cấp quyền đọc thư mục.');
-            return;
-        }
-        const root = await libEnsureBackupRoot(selected, false);
-        const manifest = await libFsReadJson(root, 'manifest.json');
-        if (!manifest || !Array.isArray(manifest.books)) throw new Error('Thư mục backup không hợp lệ.');
+        const file = await libChooseBackupFile();
+        if (!file) return;
+        const manifest = await libReadBackupManifestFromFile(file);
         const existing = libLoadIndex();
         let mode = 'replace';
         if ((existing.books || []).length > 0) {
@@ -9495,33 +9427,31 @@
             await libClearLibraryAll();
         }
 
-        const booksDir = await root.getDirectoryHandle('books');
-        const contentDir = await root.getDirectoryHandle('content');
-        const total = Math.max(1, manifest.books.length + (manifest.contentKeys || []).length);
-        let done = 0;
-        const update = (label) => {
-            done += 1;
-            const progress = Math.min(100, Math.floor((done / total) * 100));
-            libSetBackupStatusDisplay(statusEl, `Khôi phục ${progress}%`, `${label} ${progress}%...`);
-        };
-
         const restoredBooks = [];
-        for (const bookId of manifest.books) {
-            const record = await libFsReadJson(booksDir, `${bookId}.json`);
-            if (!record?.book) continue;
-            restoredBooks.push(record.book);
-            libSaveChaptersForBook(record.book.bookId, Array.isArray(record.chapters) ? record.chapters : []);
-            update('Đang khôi phục');
-        }
-        for (const key of (manifest.contentKeys || [])) {
-            try {
-                const content = await libFsReadJson(contentDir, `${key}.json`);
-                if (content?.key) libSaveContent(content.key, content);
-            } catch (err) {
-                console.warn('[tm-translate] Bỏ qua content backup lỗi:', key, err);
+        let restoredContent = 0;
+        libSetBackupStatusDisplay(statusEl, 'Khôi phục 0%', `Đang đọc ${file.name || 'file backup'}...`);
+        await libForEachBackupRecord(file, async (record) => {
+            if (!record || !record.type) return;
+            if (record.type === 'manifest') {
+                libValidateBackupManifest(record);
+                return;
             }
-            update('Đang khôi phục');
-        }
+            if (record.type === 'book' && record.book?.bookId) {
+                restoredBooks.push(record.book);
+                libSaveChaptersForBook(record.book.bookId, Array.isArray(record.chapters) ? record.chapters : []);
+                return;
+            }
+            if (record.type === 'content') {
+                const content = record.value || record.content;
+                if (content?.key) {
+                    libSaveContent(content.key, content);
+                    restoredContent += 1;
+                }
+            }
+        }, (loaded) => {
+            const progress = file.size ? Math.min(100, Math.floor((loaded / file.size) * 100)) : 0;
+            libSetBackupStatusDisplay(statusEl, `Khôi phục ${progress}%`, `Đang khôi phục ${progress}%...`);
+        });
 
         const nextIndex = mode === 'merge' ? libLoadIndex() : { books: [], nameSetVersion: config.nameSetVersion || 1, configVersion: 1 };
         const map = new Map((nextIndex.books || []).map(book => [book.bookId, book]));
@@ -9531,9 +9461,9 @@
         nextIndex.configVersion = 1;
         libSaveIndex(nextIndex);
 
-        const restoredMessage = `Đã khôi phục ${restoredBooks.length} truyện. Thư viện mới chưa sao lưu lại.`;
+        const restoredMessage = `Đã khôi phục ${restoredBooks.length} truyện, ${restoredContent} nội dung từ ${file.name || 'file backup'}. Thư viện mới chưa sao lưu lại.`;
         const status = libSetBackupStatus({ state: 'dirty', message: restoredMessage, restoredAt: Date.now() });
-        libSetBackupStatusDisplay(statusEl, libDescribeBackupStatusShort(status, true), restoredMessage);
+        libSetBackupStatusDisplay(statusEl, libDescribeBackupStatusShort(status), restoredMessage);
         showNotification(`Đã khôi phục ${restoredBooks.length} truyện.`);
     }
 
@@ -11314,8 +11244,7 @@ body.tmx-fullscreen .tmx-scroll {
         wrapper.querySelector('#tm-lib-backup').addEventListener('click', async () => {
             closeMenu();
             try {
-                const handle = await libChooseBackupDirectory();
-                if (handle) await libRunLibraryBackup({ handle, silent: false, statusEl: backupStatusEl });
+                await libRunLibraryBackup({ silent: false, statusEl: backupStatusEl });
             } catch (err) {
                 if (err?.name !== 'AbortError') {
                     console.error(err);
@@ -11394,7 +11323,7 @@ body.tmx-fullscreen .tmx-scroll {
         const status = libGetBackupStatus();
         libSetBackupStatusDisplay(
             backupStatusEl,
-            libDescribeBackupStatusShort(status, !!status.dirName),
+            libDescribeBackupStatusShort(status),
             status.message
                 ? `${status.message}${status.lastCompletedAt ? ` · ${libFormatRelativeTime(status.lastCompletedAt)}` : ''}`
                 : libFormatRelativeTime(status.lastCompletedAt)
@@ -13187,17 +13116,24 @@ body.tmx-fullscreen .tmx-scroll {
         const htmlParts = [];
         let inList = false;
         const flushList = () => { if (inList) { htmlParts.push('</ul>'); inList = false; } };
+        const escapeAttr = (value) => String(value || '').replace(/"/g, '&quot;').replace(/'/g, '&#039;');
+        const formatInline = (text) => String(text || '')
+            .replace(/\[([^\]]+)\]\((https?:\/\/[^)\s]+)\)/g, (_match, label, url) => {
+                return `<a href="${escapeAttr(url)}" target="_blank" rel="noopener noreferrer">${label}</a>`;
+            })
+            .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+            .replace(/`(.+?)`/g, '<code>$1</code>');
         lines.forEach((raw) => {
             const line = raw.trimEnd();
-            if (line.startsWith('### ')) { flushList(); htmlParts.push(`<h3>${line.slice(4)}</h3>`); return; }
+            if (line.startsWith('### ')) { flushList(); htmlParts.push(`<h3>${formatInline(line.slice(4))}</h3>`); return; }
             if (line.startsWith('- ')) {
                 if (!inList) { htmlParts.push('<ul>'); inList = true; }
-                let content = line.slice(2).replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>').replace(/`(.+?)`/g, '<code>$1</code>');
+                const content = formatInline(line.slice(2));
                 htmlParts.push(`<li>${content}</li>`);
                 return;
             }
             if (line === '') { flushList(); return; }
-            let content = line.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>').replace(/`(.+?)`/g, '<code>$1</code>');
+            const content = formatInline(line);
             htmlParts.push(`<p>${content}</p>`);
         });
         flushList();
@@ -13208,7 +13144,7 @@ body.tmx-fullscreen .tmx-scroll {
 <div class="tm-welcome-title">🌸 Chào mừng đến với TM Translate 🌸</div>
 		<div class="tm-welcome-sub">TM Translate v${CURRENT_VERSION} • Dịch trang web Trung → Việt, quản lý Name-set, Thư viện đọc offline, OCR dịch ảnh và TTS</div>
 		<div class="tm-welcome-banner">
-		  <strong>✨ v${CURRENT_VERSION}:</strong> Thư viện toàn màn hình, bìa truyện, tìm/lazy load và sao lưu/khôi phục bằng thư mục, có tự sao lưu theo chu kỳ.
+		  <strong>✨ v${CURRENT_VERSION}:</strong> Thư viện chống dính CSS web tốt hơn, sao lưu/khôi phục bằng file dùng được trên mobile, và core TTS không còn unsafe-eval.
 	</div>
 <div style="height:8px;"></div>
     `.trim();
@@ -13229,7 +13165,7 @@ body.tmx-fullscreen .tmx-scroll {
 - Thư viện hiển thị dạng toàn màn hình, truyện vừa đọc nằm trước, có tổng số truyện, phân trang/lazy load khi cuộn và bìa mặc định cho từng truyện.
 - Có thể đổi ảnh bìa từng truyện bằng ảnh user chọn; ảnh bìa được lưu cùng metadata và đi theo backup.
 - Ô tìm kiếm hỗ trợ popup chọn phạm vi: tên truyện, tác giả, raw Trung và cache dịch.
-- **Sao lưu/Khôi phục** dùng thư mục user chọn; backup gồm index thư viện, raw, cache dịch và ảnh bìa. Khi data thư viện thay đổi, script tự sao lưu theo chu kỳ trong tab **Thư viện** (mặc định 6 giờ sau lần sao lưu trước); muốn sao lưu ngay thì bấm **Sao lưu**.
+- **Sao lưu/Khôi phục** dùng file \`.tmbackup.jsonl\`: bấm **Sao lưu** để tải file backup, bấm **Khôi phục** để chọn file đó nhập lại. File gồm index thư viện, raw, cache dịch và ảnh bìa.
 - Bôi đen text trong Reader sẽ hiện thanh **Phát / Sửa tên hoặc Thay thế từ / Xóa rác / Sao chép**. Trên mobile, menu copy/share mặc định của máy được ẩn trong Reader.
 - **Phát** mở mini-player TTS và đọc từ vị trí bôi đen tới hết chương; nếu bật **Tự qua đoạn/chương** + **Tự đọc chương kế** thì tự sang chương sau.
 - Mini-player có đĩa quay, Tạm dừng/Phát, Tiếp, Dừng, countdown hẹn giờ ngủ, highlight đoạn đang đọc và tự cuộn khi bật.
@@ -13249,7 +13185,7 @@ body.tmx-fullscreen .tmx-scroll {
 ### ⚙️ Cài Đặt
 - **Tab Chung**: Chế độ dịch (Server/Local), bật/tắt nút, Simplified View, chặn JS.
 - **Tab Bộ Tên**: Tạo/Xóa bộ name, nhập file JSON/TXT, xuất, thêm/sửa nhanh.
-- **Tab Thư viện**: Hiển thị nút, prefetch, chu kỳ tự sao lưu, kiểu đọc, giao diện reader.
+- **Tab Thư viện**: Hiển thị nút, prefetch, kiểu đọc và giao diện reader.
 - **Tab TTS**: Chọn nguồn Browser/TikTok/Google/Gemini/Bing/Zalo, giọng đọc, tốc độ/cao độ/âm lượng, độ dài đoạn, delay, hẹn giờ ngủ, prefetch remote, retry/timeout/request gap và thay thế từ trước khi đọc.
 - Hẹn giờ ngủ chỉ chạy khi bật checkbox; cookie TikTok/API key Zalo được lưu ngay khi bấm **Lưu** trong popup.
 - Khi hẹn giờ ngủ gần dừng, TTS sẽ giảm âm lượng dần trong vài giây rồi mới ngắt.
@@ -13263,40 +13199,17 @@ body.tmx-fullscreen .tmx-scroll {
     `.trim();
 
     const changelogMarkdown = `
-### ✨ v3.5.5.7_beta
-- Đổi giao diện **Thư viện** sang toàn màn hình, cấu trúc lại danh sách truyện dạng grid có bìa.
-- Thêm bìa mặc định cho mỗi truyện và nút đổi ảnh bìa user chọn.
-- Thêm tìm kiếm theo tên truyện/tác giả/raw/cache dịch với popup chọn phạm vi tìm.
-- Thêm phân trang/lazy load khi cuộn, hiển thị tổng số truyện và ưu tiên truyện vừa đọc lên trước.
-- Thêm **Sao lưu/Khôi phục** bằng thư mục qua File System Access API, có progress/status và tự sao lưu ngầm khi mở Thư viện/Reader nếu đã cấp quyền.
-- Tự sao lưu khi data thư viện thay đổi theo chu kỳ có thể chỉnh trong tab **Thư viện**; mặc định 6 giờ sau lần sao lưu trước, nút **Sao lưu** vẫn chạy ngay.
-
-### ✨ v3.5.5.6_beta
-- TTS ngắt text gửi lấy audio tại dấu câu/xuống dòng gần nhất, hạn chế cắt ngang câu.
-- Reader TTS gọi prefetch trước N đoạn kế tiếp theo cài đặt; prefetch dùng ngưỡng an toàn timeout tối đa 16s, retry tối đa 1 và request gap tối thiểu 320ms.
-- Remote TTS phát audio giữ media âm lượng rất thấp khi phải chờ audio thật, và tắt ngay trước khi audio thật bắt đầu để tránh chồng tiếng.
-- Mini-player hiển thị rõ trạng thái đang tải/chờ audio/giữ media để tránh hiểu lầm runtime bị đứng.
-- Tới cuối truyện phát thông báo TTS đã tới cuối truyện; nếu dừng ở cuối chương do chưa bật tự đọc tiếp thì phát thông báo nhắc bật **Tự qua đoạn/chương** + **Tự đọc chương kế**.
-- Hẹn giờ ngủ giảm âm lượng dần vài giây trước khi dừng để tránh ngắt đột ngột.
-
-### ✨ v3.5.5.5_beta
-- Reader mobile ẩn menu chọn text mặc định của máy, chỉ hiện thanh thao tác riêng.
-- Thanh chọn text trong Reader có **Phát / Sửa tên hoặc Thay thế từ / Xóa rác / Sao chép**.
-- **Xóa rác** và **Thay thế từ** sửa raw trước khi dịch lại, có tùy chọn không phân biệt hoa thường và giữ popup xác nhận trước khi ghi.
-- Truyện RAW+DỊCH vẫn dùng **Sửa tên**; truyện chỉ RAW dùng **Thay thế từ** thay cho sửa tên.
-- Fix Name-set không thay thế Việt → Việt quá tay, chỉ khớp cặp Trung → Việt để tránh lỗi kiểu “điềU sơn”.
-- Thêm shared TTS core đã mã hóa; nút **Phát** dùng core mới, tab **TTS** đầy đủ trong Cài đặt và nút mở nhanh TTS trong Reader.
-- Tab TTS hỗ trợ nguồn Browser/TikTok/Google/Gemini/Bing/Zalo, popup cookie TikTok/API key Zalo, thay thế từ khi đọc, prefetch audio remote, retry/timeout/request gap và hẹn giờ ngủ.
-- Fix TikTok TTS trong TM không cần bấm lưu tổng sau khi nhập cookie; test/phát báo lỗi remote cụ thể và hẹn giờ ngủ chỉ chạy khi bật.
-- Nút **Phát** trong Reader mở mini-player phát từ vị trí chọn tới hết chương/truyện, có highlight/cuộn theo đoạn, Tạm dừng/Phát, Tiếp, Dừng và countdown hẹn giờ ngủ.
-- Badge **đề xuất** trên nút xuất tự chuyển giữa **HTML** và **EPUB** theo quy mô truyện; HTML sẽ cảnh báo khi data lớn vì dễ lag khi xem.
+### ✨ v3.5.5.8_beta
+- Thư viện thêm reset CSS cục bộ để giảm bị style của web gốc ảnh hưởng khi mở danh sách truyện.
+- Đổi **Sao lưu/Khôi phục** sang file \`.tmbackup.jsonl\`, dùng được trên mobile và không cần chọn thư mục.
+- Backup ghi từng record theo lượt và nhả event loop định kỳ để hạn chế đơ khi thư viện lớn; restore đọc file theo stream khi trình duyệt hỗ trợ.
+- Bỏ wrapper \`eval\` để tránh CSP \`unsafe-eval\` làm script chết trước khi hiện nút.
 
 ### 📦 Các bản trước (tóm tắt)
-- v3.5.5 - v3.5.5.3: gom các sửa Reader, fullscreen, mục lục, tiến độ đọc, xuất HTML, Edit Name mobile, import đoạn, provider dichngay, regex Name-set, import TXT và cuộn đổi chương.
-- v3.5.3 - v3.5.4: cải thiện import/export Thư viện, làm sạch ký tự ẩn, giảm dính chữ sau dấu câu và hotfix dịch server.
-- v3.5.2: Shadow DOM cho UI, popup welcome/changelog, dọn dẹp giao diện.
-- v3.5.0: Thư viện đọc offline, reader UI, OCR vùng chọn, dịch local nâng cao.
-- v3.4.x: Bảng dịch nhanh, sửa tên riêng inline, đa bộ tên.
+- v3.5.5.7: Thư viện fullscreen, grid có bìa, tìm kiếm theo phạm vi, lazy load danh sách, ưu tiên truyện vừa đọc và xuất EPUB/HTML có gợi ý theo dung lượng.
+- v3.5.5.5 - v3.5.5.6: Reader mobile, thanh thao tác chọn text, sửa tên/thay thế từ/xóa rác, mini-player TTS, remote TTS prefetch, hẹn giờ ngủ và các nguồn Browser/TikTok/Google/Gemini/Bing/Zalo.
+- v3.5.5 - v3.5.5.4: gom các sửa Reader, fullscreen, mục lục, tiến độ đọc, import/export thư viện, import TXT/EPUB, provider dịch và hotfix server.
+- v3.5.0 - v3.5.4: Thư viện đọc offline, OCR vùng chọn, dịch local nâng cao, Shadow DOM UI, welcome/changelog và dọn giao diện.
 - v3.3.x: Simplified view, tùy chỉnh giao diện đọc, blacklist domain.
     `.trim();
 
@@ -13337,7 +13250,7 @@ body.tmx-fullscreen .tmx-scroll {
         const updateBanner = `
 	<div class="tm-update-banner">
 	  <div style="font-size:15px;font-weight:700;">🌈 TM Translate v${CURRENT_VERSION} đã sẵn sàng!</div>
-	  <div style="font-size:12px;color:#6a4f7a;">Bản nâng cấp Thư viện fullscreen, bìa truyện, tìm kiếm và sao lưu/khôi phục.</div>
+	  <div style="font-size:12px;color:#6a4f7a;">Sửa Thư viện chống dính CSS web, backup bằng file trên mobile và lỗi CSP của TTS core.</div>
 	</div>`.trim();
         openHelpModal([updateBanner, renderHelpMarkdown(changelogMarkdown)].join('\n'));
     }
