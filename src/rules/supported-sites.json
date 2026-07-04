@@ -1649,6 +1649,24 @@
       "domains": [
         "www.xfxs1.com"
       ]
+    },
+    {
+      "name": "文阅小说",
+      "ruleName": "文阅小说",
+      "file": "src/rules/special/0183-chinataye-com.rule.js",
+      "kind": "special",
+      "domains": [
+        "m.chinataye.com"
+      ]
+    },
+    {
+      "name": "读吧文学",
+      "ruleName": "读吧文学",
+      "file": "src/rules/special/0184-bangliaojian-com.rule.js",
+      "kind": "special",
+      "domains": [
+        "m.bangliaojian.com"
+      ]
     }
   ]
 }

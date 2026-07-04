@@ -2,7 +2,7 @@
 // ==UserScript==
 // @name        novelDownloaderVietSub
 // @description Menu Download Novel hoặc nhấp đúp vào cạnh trái của trang để hiển thị bảng điều khiển
-// @version     3.5.448.11
+// @version     3.5.448.12
 // @author      dodying | BaoBao
 // @namespace   https://github.com/BaoBao666888/Novel-Downloader5
 // @supportURL  https://github.com/BaoBao666888/Novel-Downloader5/issues
@@ -15,7 +15,7 @@
 // @require     https://raw.githubusercontent.com/BaoBao666888/Novel-Downloader5/main/nd-console-panel.js?v=1.0.3
 // @require     https://raw.githubusercontent.com/BaoBao666888/Novel-Downloader5/main/nd-download-manager.js?v=1.0.8
 // @require     https://raw.githubusercontent.com/BaoBao666888/Novel-Downloader5/main/nd-file-save.js?v=1.0.0
-// @require     https://raw.githubusercontent.com/BaoBao666888/Novel-Downloader5/main/tools/nd-rule-editor/nd-rule-editor.js?v=1.0.1
+// @require     https://raw.githubusercontent.com/BaoBao666888/Novel-Downloader5/main/tools/nd-rule-editor/nd-rule-editor.js?v=1.0.2
 
 // @require     https://raw.githubusercontent.com/BaoBao666888/Novel-Downloader5/main/chs2cht.js
 // @require     https://cdnjs.cloudflare.com/ajax/libs/jszip/3.0.0/jszip.min.js
@@ -143,7 +143,7 @@ function decryptDES(encrypted, key, iv) {
     const ND_LAUNCHER_POSITION_KEY = 'ND_LAUNCHER_POSITION';
     const ND_DEBUG_BRIDGE_CLIENT_URL = 'http://127.0.0.1:17888/nd-debug-bridge.js';
     const ND_RULE_EDITOR_CLIENT_URL = 'http://127.0.0.1:17888/nd-rule-editor.js';
-    const ND_RULE_EDITOR_REMOTE_URL = 'https://raw.githubusercontent.com/BaoBao666888/Novel-Downloader5/main/tools/nd-rule-editor/nd-rule-editor.js?v=1.0.1';
+    const ND_RULE_EDITOR_REMOTE_URL = 'https://raw.githubusercontent.com/BaoBao666888/Novel-Downloader5/main/tools/nd-rule-editor/nd-rule-editor.js?v=1.0.2';
     const ND_SUPPORTED_SITES_REMOTE_URL = 'https://raw.githubusercontent.com/BaoBao666888/Novel-Downloader5/main/src/rules/supported-sites.json?v=1';
     const ND_SUPPORTED_SITES_CACHE_KEY = 'ND_SUPPORTED_SITES_CACHE_V1';
     function getNovelDownloaderUIRoot(create = false) {
@@ -259,7 +259,7 @@ function decryptDES(encrypted, key, iv) {
                 'Bấm <b>Quản lý rule</b> trong phần cài đặt nâng cao hoặc tab Cài đặt của Quản lý tải xuống để mở Rule Editor.',
                 'Mỗi rule có tên riêng, trạng thái bật/tắt, vùng code riêng, autosave draft, nút kiểm tra cấu trúc và nút áp dụng vào <code>Config.customize</code>.',
                 'Rule Editor có template selector/getChapters/deal, chèn nhanh các hàm thường dùng, tìm rule tự tạo và tìm/copy rule gốc để sửa lại.',
-                'Dữ liệu áp dụng vẫn tương thích cơ chế cũ: nhận <code>{...}</code>, <code>[{...}]</code> hoặc lệnh <code>Rule.special.push({...});</code>.',
+                'Dữ liệu áp dụng vẫn tương thích cơ chế cũ: nhận <code>{...}</code>, <code>[{...}]</code>, nguyên file rule có <code>@rule-begin/@rule-end</code> hoặc lệnh <code>Rule.special.push({...});</code>.',
                 'Có thể dùng lại helper như <code>helpers.requestDoc</code>, <code>helpers.requestJson</code>, <code>helpers.mapChapters</code>, <code>helpers.absoluteUrl</code> để viết rule nhanh hơn.',
                 'Nếu rule cần Cloudflare/cookie, ưu tiên dùng helper tải trang có sẵn thay vì tự viết fetch rời rạc.'
             ]),
@@ -10944,6 +10944,238 @@ function decryptDES(encrypted, key, iv) {
                 return {
                     title,
                     content: fragments.join('<br />'),
+                };
+            },
+            thread: 1,
+        },
+        { // https://m.chinataye.com
+            siteName: '文阅小说',
+            url: /:\/\/m\.chinataye\.com\/info_[^/]+\/?(?:dir\.html)?(?:[?#].*)?$/,
+            chapterUrl: /:\/\/m\.chinataye\.com\/read_[^/]+\/[^/]+(?:_\d+)?\.html(?:[?#].*)?$/,
+            charset: 'utf-8',
+            filter: () => {
+                if (window.location.host !== 'm.chinataye.com') return 0;
+                if (document.querySelector('#lists a[href*="/read_"], .frame.fm h1')) return 1;
+                if (document.querySelector('.rdtext')) return 2;
+                return 0;
+            },
+            infoPage: () => {
+                const match = window.location.pathname.match(/\/(?:info|read)_([^/]+)/);
+                if (match) return `${window.location.origin}/info_${match[1]}/`;
+                return window.location.href;
+            },
+            title: (doc) => {
+                const title = $('.frame.fm h1, .mulu h1', doc).first().text().trim();
+                if (title) return title.replace(/^《|》$/g, '').trim();
+                return (($('title', doc).text().match(/^([^_]+)/) || [])[1] || '').replace(/^《|》$/g, '').trim();
+            },
+            writer: (doc) => {
+                const authorLine = $('.frame.fm .rt5 p', doc).toArray()
+                    .map((node) => $(node).text().trim())
+                    .find((text) => /^作者[:：]/.test(text));
+                if (authorLine) return authorLine.replace(/^作者[:：]\s*/, '').trim();
+                return (($('title', doc).text().match(/_([^_]+)作品_/) || [])[1] || '').trim();
+            },
+            intro: (doc) => {
+                const intro = $('#_intro', doc).first().clone();
+                if (intro.length) {
+                    intro.find('script, style').remove();
+                    return intro.html() || '';
+                }
+                return $('meta[name="description"]', doc).attr('content') || '';
+            },
+            cover: (doc) => {
+                const src = $('.frame.fm .lf2 img, div.tu img', doc).first().attr('src') || '';
+                return src ? Rule.helpers.absoluteUrl(src, window.location.origin) : '';
+            },
+            getChapters: async (doc) => {
+                const helpers = Rule.helpers;
+                const bookMatch = window.location.pathname.match(/\/(?:info|read)_([^/]+)/);
+                const bookId = bookMatch && bookMatch[1];
+                let dirDoc = doc;
+                let dirUrl = window.location.href;
+                if (!$('#lists a[href*="/read_"]', dirDoc).length && bookId) {
+                    dirUrl = `${window.location.origin}/info_${bookId}/dir.html`;
+                    dirDoc = await helpers.requestDoc(dirUrl, {
+                        cache: false,
+                        headers: { Referer: window.location.href },
+                    });
+                }
+                const chapters = $('#lists a[href*="/read_"]', dirDoc).toArray().map((link) => {
+                    const title = ($(link).find('.order').text() || $(link).text()).replace(/\s+/g, ' ').trim();
+                    return {
+                        title,
+                        url: helpers.absoluteUrl($(link).attr('href'), dirUrl),
+                    };
+                }).filter((chapter) => chapter.title && chapter.url);
+                return helpers.uniqueBy(chapters, (chapter) => chapter.url);
+            },
+            chapterTitle: (doc) => {
+                const title = $('.rdtit h1, .ttop h1', doc).first().text().trim();
+                return title
+                    .replace(/_\s*$/, '')
+                    .replace(/\s*\(\s*\d+\s*\/\s*\d+\s*\)\s*$/, '')
+                    .trim();
+            },
+            deal: async (chapter) => {
+                const helpers = Rule.helpers;
+                const visited = new Set();
+                const parts = [];
+                let title = chapter.title || '';
+                let pageUrl = chapter.url;
+                const baseMatch = pageUrl.match(/\/([^/_.]+)(?:_\d+)?\.html(?:$|[?#])/);
+                const baseId = baseMatch && baseMatch[1];
+
+                for (let i = 0; pageUrl && !visited.has(pageUrl) && i < 30; i++) {
+                    visited.add(pageUrl);
+                    const doc = await helpers.requestDoc(pageUrl, {
+                        cache: false,
+                        headers: { Referer: pageUrl },
+                    });
+                    const $doc = $(doc);
+                    if (!title) title = $doc.find('.rdtit h1, .ttop h1').first().text().trim();
+                    title = title
+                        .replace(/_\s*$/, '')
+                        .replace(/\s*\(\s*\d+\s*\/\s*\d+\s*\)\s*$/, '')
+                        .trim();
+
+                    const content = $doc.find('.rdtext').first().clone();
+                    content.find('script, style, iframe, ins').remove();
+                    let html = content.html() || '';
+                    html = html
+                        .replace(/内容未完，下一页继续阅读/g, '')
+                        .replace(/文阅小说/g, '')
+                        .replace(/\uFEFF/g, '')
+                        .trim();
+                    if (html) parts.push(html);
+
+                    const next = $doc.find('#zhangjieinfo a.next, .rdbom a.next')
+                        .filter((idx, el) => $(el).text().includes('下一章'))
+                        .first()
+                        .attr('href');
+                    const nextUrl = next ? helpers.absoluteUrl(next, pageUrl) : '';
+                    pageUrl = baseId && new RegExp(`/${baseId}_\\d+\\.html(?:$|[?#])`).test(nextUrl) ? nextUrl : '';
+                }
+
+                return {
+                    title,
+                    content: parts.join('<br />'),
+                };
+            },
+            thread: 1,
+        },
+        { // https://m.bangliaojian.com
+            siteName: '读吧文学',
+            url: /:\/\/m\.bangliaojian\.com\/info_[^/]+\/?(?:[?#].*)?$/,
+            chapterUrl: /:\/\/m\.bangliaojian\.com\/read_[^/]+\/[^/]+(?:_\d+)?\.html(?:[?#].*)?$/,
+            charset: 'utf-8',
+            filter: () => {
+                if (window.location.host !== 'm.bangliaojian.com') return 0;
+                if (document.querySelector('.info_chapters > ul.p2 > li > a, .catalog1 h1')) return 1;
+                if (document.querySelector('#novelcontent')) return 2;
+                return 0;
+            },
+            infoPage: () => {
+                const match = window.location.pathname.match(/\/(?:info|read)_([^/]+)/);
+                if (match) return `${window.location.origin}/info_${match[1]}/`;
+                return window.location.href;
+            },
+            title: (doc) => {
+                const metaTitle = $('meta[property="og:novel:book_name"], meta[property="og:title"]', doc).first().attr('content') || '';
+                return (metaTitle || $('.catalog1 h1, .nav_name h1', doc).first().text()).replace(/^《|》$/g, '').trim();
+            },
+            writer: (doc) => {
+                const metaAuthor = $('meta[property="og:novel:author"]', doc).attr('content') || '';
+                if (metaAuthor) return metaAuthor.trim();
+                return ($('.catalog1 .tab p.p1, .tab p.p1', doc).first().text() || '')
+                    .replace(/^作者[:：]\s*/, '')
+                    .trim();
+            },
+            intro: (doc) => {
+                const metaIntro = $('meta[property="og:description"]', doc).attr('content') || '';
+                if (metaIntro) return metaIntro.trim();
+                const intro = $('.catalog .jj', doc).first().clone();
+                if (!intro.length) return $('meta[name="description"]', doc).attr('content') || '';
+                intro.find('.infolink, #listtj, script, style').remove();
+                return intro.html() || '';
+            },
+            cover: (doc) => {
+                const src = $('meta[property="og:image"]', doc).attr('content')
+                    || $('.catalog1 .tu img, .tu img', doc).first().attr('src')
+                    || '';
+                return src ? Rule.helpers.absoluteUrl(src, window.location.origin).replace(/^http:\/\//i, 'https://') : '';
+            },
+            getChapters: async (doc) => {
+                const helpers = Rule.helpers;
+                const bookMatch = window.location.pathname.match(/\/(?:info|read)_([^/]+)/);
+                const bookId = bookMatch && bookMatch[1];
+                let infoDoc = doc;
+                let infoUrl = window.location.href;
+                if (!$('.info_chapters > ul.p2 > li > a[href*="/read_"]', infoDoc).length && bookId) {
+                    infoUrl = `${window.location.origin}/info_${bookId}/`;
+                    infoDoc = await helpers.requestDoc(infoUrl, {
+                        cache: false,
+                        headers: { Referer: window.location.href },
+                    });
+                }
+
+                const links = $('.info_chapters > ul.p2:last-of-type > li > a[href*="/read_"]', infoDoc);
+                const chapters = links.toArray().map((link) => ({
+                    title: $(link).text().replace(/\s+/g, ' ').trim(),
+                    url: helpers.absoluteUrl($(link).attr('href'), infoUrl),
+                })).filter((chapter) => chapter.title && chapter.url);
+                return helpers.uniqueBy(chapters, (chapter) => chapter.url);
+            },
+            chapterTitle: (doc) => {
+                const title = $('#novelbody .nr_function > h1, .nr_function h1, h1', doc).first().text().trim();
+                return title
+                    .replace(/_\s*$/, '')
+                    .replace(/\s*\(\s*\d+\s*\/\s*\d+\s*\)\s*$/, '')
+                    .trim();
+            },
+            deal: async (chapter) => {
+                const helpers = Rule.helpers;
+                const visited = new Set();
+                const parts = [];
+                let title = chapter.title || '';
+                let pageUrl = chapter.url;
+                const baseMatch = pageUrl.match(/\/([^/_.]+)(?:_\d+)?\.html(?:$|[?#])/);
+                const baseId = baseMatch && baseMatch[1];
+
+                for (let i = 0; pageUrl && !visited.has(pageUrl) && i < 30; i++) {
+                    visited.add(pageUrl);
+                    const doc = await helpers.requestDoc(pageUrl, {
+                        cache: false,
+                        headers: { Referer: pageUrl },
+                    });
+                    const $doc = $(doc);
+                    if (!title) title = $doc.find('#novelbody .nr_function > h1, .nr_function h1, h1').first().text().trim();
+                    title = title
+                        .replace(/_\s*$/, '')
+                        .replace(/\s*\(\s*\d+\s*\/\s*\d+\s*\)\s*$/, '')
+                        .trim();
+
+                    const content = $doc.find('#novelcontent').first().clone();
+                    content.find('script, style, iframe, ins, p:contains("关闭小说畅读模式体验更好")').remove();
+                    let html = content.html() || '';
+                    html = html
+                        .replace(/内容未完，下一页继续阅读/g, '')
+                        .replace(/读吧文学/g, '')
+                        .replace(/\uFEFF/g, '')
+                        .trim();
+                    if (html) parts.push(html);
+
+                    const next = $doc.find('.page_chapter a.p4')
+                        .filter((idx, el) => $(el).text().includes('下一'))
+                        .first()
+                        .attr('href');
+                    const nextUrl = next ? helpers.absoluteUrl(next, pageUrl) : '';
+                    pageUrl = baseId && new RegExp(`/${baseId}_\\d+\\.html(?:$|[?#])`).test(nextUrl) ? nextUrl : '';
+                }
+
+                return {
+                    title,
+                    content: parts.join('<br />'),
                 };
             },
             thread: 1,

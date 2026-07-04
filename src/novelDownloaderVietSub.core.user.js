@@ -2,7 +2,7 @@
 // ==UserScript==
 // @name        novelDownloaderVietSub
 // @description Menu Download Novel hoặc nhấp đúp vào cạnh trái của trang để hiển thị bảng điều khiển
-// @version     3.5.448.11
+// @version     3.5.448.12
 // @author      dodying | BaoBao
 // @namespace   https://github.com/BaoBao666888/Novel-Downloader5
 // @supportURL  https://github.com/BaoBao666888/Novel-Downloader5/issues
@@ -15,7 +15,7 @@
 // @require     https://raw.githubusercontent.com/BaoBao666888/Novel-Downloader5/main/nd-console-panel.js?v=1.0.3
 // @require     https://raw.githubusercontent.com/BaoBao666888/Novel-Downloader5/main/nd-download-manager.js?v=1.0.8
 // @require     https://raw.githubusercontent.com/BaoBao666888/Novel-Downloader5/main/nd-file-save.js?v=1.0.0
-// @require     https://raw.githubusercontent.com/BaoBao666888/Novel-Downloader5/main/tools/nd-rule-editor/nd-rule-editor.js?v=1.0.1
+// @require     https://raw.githubusercontent.com/BaoBao666888/Novel-Downloader5/main/tools/nd-rule-editor/nd-rule-editor.js?v=1.0.2
 
 // @require     https://raw.githubusercontent.com/BaoBao666888/Novel-Downloader5/main/chs2cht.js
 // @require     https://cdnjs.cloudflare.com/ajax/libs/jszip/3.0.0/jszip.min.js
@@ -143,7 +143,7 @@ function decryptDES(encrypted, key, iv) {
     const ND_LAUNCHER_POSITION_KEY = 'ND_LAUNCHER_POSITION';
     const ND_DEBUG_BRIDGE_CLIENT_URL = 'http://127.0.0.1:17888/nd-debug-bridge.js';
     const ND_RULE_EDITOR_CLIENT_URL = 'http://127.0.0.1:17888/nd-rule-editor.js';
-    const ND_RULE_EDITOR_REMOTE_URL = 'https://raw.githubusercontent.com/BaoBao666888/Novel-Downloader5/main/tools/nd-rule-editor/nd-rule-editor.js?v=1.0.1';
+    const ND_RULE_EDITOR_REMOTE_URL = 'https://raw.githubusercontent.com/BaoBao666888/Novel-Downloader5/main/tools/nd-rule-editor/nd-rule-editor.js?v=1.0.2';
     const ND_SUPPORTED_SITES_REMOTE_URL = 'https://raw.githubusercontent.com/BaoBao666888/Novel-Downloader5/main/src/rules/supported-sites.json?v=1';
     const ND_SUPPORTED_SITES_CACHE_KEY = 'ND_SUPPORTED_SITES_CACHE_V1';
     function getNovelDownloaderUIRoot(create = false) {
@@ -259,7 +259,7 @@ function decryptDES(encrypted, key, iv) {
                 'Bấm <b>Quản lý rule</b> trong phần cài đặt nâng cao hoặc tab Cài đặt của Quản lý tải xuống để mở Rule Editor.',
                 'Mỗi rule có tên riêng, trạng thái bật/tắt, vùng code riêng, autosave draft, nút kiểm tra cấu trúc và nút áp dụng vào <code>Config.customize</code>.',
                 'Rule Editor có template selector/getChapters/deal, chèn nhanh các hàm thường dùng, tìm rule tự tạo và tìm/copy rule gốc để sửa lại.',
-                'Dữ liệu áp dụng vẫn tương thích cơ chế cũ: nhận <code>{...}</code>, <code>[{...}]</code> hoặc lệnh <code>Rule.special.push({...});</code>.',
+                'Dữ liệu áp dụng vẫn tương thích cơ chế cũ: nhận <code>{...}</code>, <code>[{...}]</code>, nguyên file rule có <code>@rule-begin/@rule-end</code> hoặc lệnh <code>Rule.special.push({...});</code>.',
                 'Có thể dùng lại helper như <code>helpers.requestDoc</code>, <code>helpers.requestJson</code>, <code>helpers.mapChapters</code>, <code>helpers.absoluteUrl</code> để viết rule nhanh hơn.',
                 'Nếu rule cần Cloudflare/cookie, ưu tiên dùng helper tải trang có sẵn thay vì tự viết fetch rời rạc.'
             ]),
