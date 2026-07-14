@@ -23,7 +23,7 @@
     *   [Violentmonkey](https://violentmonkey.github.io/) (Mã nguồn mở, hỗ trợ nhiều trình duyệt)
     *   Greasemonkey (Chủ yếu cho Firefox phiên bản cũ hơn)
 2.  **Cài đặt script:** Nhấn vào link sau và làm theo hướng dẫn của trình quản lý userscript:
-    *   **[Cài đặt novelDownloaderVietSub (v3.5.448.8)](https://raw.githubusercontent.com/BaoBao666888/Novel-Downloader5/main/novelDownloaderVietSub.user.js)**
+    *   **[Cài đặt novelDownloaderVietSub (v3.5.448.13)](https://raw.githubusercontent.com/BaoBao666888/Novel-Downloader5/main/novelDownloaderVietSub.user.js)**
 
 ## Hướng dẫn sử dụng
 
@@ -33,11 +33,12 @@
     *   **Cách 2:** Nhấp đúp chuột vào cạnh **trái** của trang web.
     *   **Cách 3:** Nhấp vào biểu tượng của trình quản lý userscript (ví dụ: Tampermonkey) trên thanh công cụ trình duyệt, tìm đến `novelDownloaderVietSub` và chọn "Download Novel".
     *   *(Lưu ý: Xem phần "Vấn đề đã biết" nếu gặp khó khăn khi mở bảng điều khiển).*
-3.  **Kiểm tra thông tin:** Script sẽ cố gắng tự động lấy thông tin truyện (tên, tác giả, bìa, tóm tắt) nếu rule cho trang đó hỗ trợ. Bạn có thể chỉnh sửa lại nếu cần.
+3.  **Kiểm tra thông tin:** Script sẽ cố gắng tự động lấy thông tin truyện (tên, tác giả, bìa, tóm tắt) nếu rule cho trang đó hỗ trợ. Ô `Tóm tắt` là vùng nhiều dòng để bạn xem và chỉnh đúng bố cục xuống dòng. Dùng `Lấy lại info` hoặc `Lấy lại DS chương` khi cần gọi lại rule mà không đóng UI.
 4.  **Cấu hình (Tùy chọn):** Điều chỉnh các tùy chọn tải xuống như định dạng file, số luồng, thời gian chờ, có tải chương VIP hay không, v.v.
-5.  **Bắt đầu tải:** Nhấn vào nút "Tải xuống dưới dạng TEXT", "Tải xuống dưới dạng EPUB", hoặc "Tải xuống dưới dạng ZIP".
-6.  **Theo dõi:** Theo dõi thanh tiến trình trên bảng điều khiển hoặc mở `Quản lý tải xuống` để xem queue/lịch sử. Bảng này có nút copy summary/lỗi, xóa lịch sử, xóa task treo và tiếp tục task đã lưu khi tab bị đóng giữa chừng.
-7.  **Lưu file:** Có thể dùng nút `Chọn thư mục lưu` để ghi trực tiếp bằng File System Access API. Nếu trình duyệt không hỗ trợ hoặc không cấp quyền, script tự fallback về hộp lưu mặc định của trình duyệt.
+5.  **Chọn chương:** Bấm `Chọn chương tải` để mở danh sách chương trong popup. Nhập phạm vi như `1-25, 35, 50`; dòng trạng thái sẽ báo số chương hợp lệ, còn thẻ chương thường/VIP được phân màu riêng. Bấm một thẻ rồi chọn `Lấy thử chap`, hoặc nhấp đúp thẻ để xem ngay title và nội dung. Nút `Copy chương` sao chép theo dạng `title\ncontent`.
+6.  **Bắt đầu tải:** Nhấn `Tải xuống - TXT`, `Tải xuống - ZIP` hoặc `Tải xuống - EPUB`.
+7.  **Theo dõi:** Theo dõi thanh tiến trình trên bảng điều khiển hoặc mở `Quản lý tải xuống` để xem queue/lịch sử. Bảng này có nút copy summary/lỗi, xóa lịch sử, xóa task treo và nạp lại task đã lưu khi tab bị đóng giữa chừng. Sau khi nạp, chọn lại phạm vi rồi bấm định dạng tải; script không tự chạy phạm vi cũ.
+8.  **Lưu file:** Có thể dùng nút `Chọn thư mục lưu` để ghi trực tiếp bằng File System Access API. Nếu trình duyệt không hỗ trợ hoặc không cấp quyền, script tự fallback về hộp lưu mặc định của trình duyệt.
 
 ## Cấu hình nâng cao (Tùy chọn)
 

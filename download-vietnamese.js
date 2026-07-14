@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name        download
-// @version     1.3.2
+// @version     1.3.3
 // @include     *
 // ==/UserScript==
 // TODO: 支持fetch,xhr
@@ -422,7 +422,8 @@
     ensureDialogMounted();
   };
   main.hideDialog = () => {
-    storage.element.dialog.style.display = 'none';
+    const dialog = getMountedDialog();
+    if (dialog) dialog.style.display = 'none';
   };
   main.emptyDialog = () => {
     storage.element.dialog.querySelectorAll('.task').innerHTML = '';

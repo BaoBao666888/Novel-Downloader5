@@ -2,7 +2,7 @@
 // ==UserScript==
 // @name        novelDownloaderVietSub
 // @description Menu Download Novel hoặc nhấp đúp vào cạnh trái của trang để hiển thị bảng điều khiển
-// @version     3.5.448.12
+// @version     3.5.448.13
 // @author      dodying | BaoBao
 // @namespace   https://github.com/BaoBao666888/Novel-Downloader5
 // @supportURL  https://github.com/BaoBao666888/Novel-Downloader5/issues
@@ -11,8 +11,8 @@
 // @updateURL   https://raw.githubusercontent.com/BaoBao666888/Novel-Downloader5/main/novelDownloaderVietSub.user.js
 // @require     https://cdnjs.cloudflare.com/ajax/libs/jquery/3.1.0/jquery.js
 
-// @require     https://raw.githubusercontent.com/BaoBao666888/Novel-Downloader5/main/download-vietnamese.js?v=1.3.2
-// @require     https://raw.githubusercontent.com/BaoBao666888/Novel-Downloader5/main/nd-console-panel.js?v=1.0.3
+// @require     https://raw.githubusercontent.com/BaoBao666888/Novel-Downloader5/main/download-vietnamese.js?v=1.3.3
+// @require     https://raw.githubusercontent.com/BaoBao666888/Novel-Downloader5/main/nd-console-panel.js?v=1.0.4
 // @require     https://raw.githubusercontent.com/BaoBao666888/Novel-Downloader5/main/nd-download-manager.js?v=1.0.8
 // @require     https://raw.githubusercontent.com/BaoBao666888/Novel-Downloader5/main/nd-file-save.js?v=1.0.0
 // @require     https://raw.githubusercontent.com/BaoBao666888/Novel-Downloader5/main/tools/nd-rule-editor/nd-rule-editor.js?v=1.0.2
@@ -209,7 +209,7 @@ function decryptDES(encrypted, key, iv) {
     // ============================================================================
 
     function getNovelDownloaderScriptVersion() {
-        return GM_info && GM_info.script && GM_info.script.version ? GM_info.script.version : '3.5.448.10';
+        return GM_info && GM_info.script && GM_info.script.version ? GM_info.script.version : '3.5.448.13';
     }
 
     function docList(items) {
@@ -221,8 +221,11 @@ function decryptDES(encrypted, key, iv) {
             '<h3>Luồng thao tác cơ bản</h3>',
             docList([
                 'Mở UI bằng nút nổi <b>Novel Downloader</b>, menu Tampermonkey <b>Download Novel</b>, hoặc nhấp đúp cạnh trái trang.',
-                'Bấm <b>Kiểm tra</b> để xem rule nhận chương đúng chưa, sau đó chọn <b>TEXT</b>, <b>EPUB</b> hoặc <b>ZIP</b> để tải.',
-                '<b>Phạm vi tải xuống</b> nhận dạng như <code>1-25, 35, 50</code>. <b>Tải xuống hàng loạt</b> dùng khi muốn dán danh sách URL riêng.',
+                'Chọn <b>Tải xuống - TXT</b>, <b>Tải xuống - ZIP</b> hoặc <b>Tải xuống - EPUB</b> để bắt đầu tải.',
+                'Dùng <b>Lấy lại info</b> hoặc <b>Lấy lại DS chương</b> để gọi lại rule và cập nhật dữ liệu ngay trong UI.',
+                'Bấm <b>Chọn chương tải</b> để mở danh sách chương. Nhập phạm vi như <code>1-25, 35, 50</code>; trạng thái bên dưới sẽ báo số chương hợp lệ được chọn.',
+                'Trong danh sách, chương thường và VIP có màu riêng. Bấm một thẻ rồi chọn <b>Lấy thử chap</b>, hoặc nhấp đúp thẻ để xem ngay title/nội dung và copy nguyên chương.',
+                '<b>Tải xuống hàng loạt</b> vẫn dùng khi muốn dán danh sách URL riêng và được ưu tiên hơn phạm vi đã chọn.',
                 'Bấm <b>Danh sách hỗ trợ</b> để tải danh sách rule từ repo và tìm nhanh theo domain hoặc tên rule.',
                 'Có thể chọn thư mục lưu bằng File System Access API; nếu bật <b>Ghi nhớ</b>, script sẽ thử dùng lại thư mục đó cho cùng link truyện.'
             ]),
@@ -236,7 +239,7 @@ function decryptDES(encrypted, key, iv) {
             '<h3>Quản lý tải xuống</h3>',
             docList([
                 'Tab <b>Hàng đợi</b> hiển thị truyện đang tải hoặc đang giữ dữ liệu tiếp tục.',
-                'Nếu tab bị đóng giữa chừng và script đã lưu được dữ liệu, nút <b>Tiếp tục</b> sẽ mở lại trang truyện và tự tải phần còn lại.',
+                'Nếu tab bị đóng giữa chừng và script đã lưu được dữ liệu, nút <b>Tiếp tục</b> sẽ mở lại trang truyện và nạp nội dung đã có. Chọn lại phạm vi rồi bấm định dạng tải để tiếp tục.',
                 'Tab <b>Lịch sử</b> giữ các lượt tải đã kết thúc, kể cả thành công có lỗi chương. Các thẻ cũ hơn 30 ngày được dọn tự động.',
                 'Mỗi thẻ có nút copy summary và copy lỗi để gửi log nhanh khi cần debug.'
             ]),
@@ -276,22 +279,18 @@ function decryptDES(encrypted, key, iv) {
         return [
             `<h3>v${getNovelDownloaderScriptVersion()}</h3>`,
             docList([
-                'Thêm <b>Rule Editor</b> để quản lý nhiều rule tùy chỉnh theo từng mục riêng, có tìm kiếm, bật/tắt, template, chèn hàm nhanh, kiểm tra cấu trúc, export/import và autosave draft.',
-                'Rule Editor có thể mở từ UI tải chính hoặc tab Cài đặt của Quản lý tải xuống; khi áp dụng vẫn sinh về <code>Config.customize</code> nên tương thích cơ chế nạp rule cũ.',
-                'Sửa Rule Editor: tìm kiếm không mất focus khi đang gõ, chỉnh font/tiêu đề section để hiển thị tiếng Việt rõ hơn.',
-                'Thêm rule gốc cho <b>爱丽丝书屋</b>, tự dừng và mở popup khi web yêu cầu nhập mã hoặc chặn cooldown do đọc/tải quá nhanh.',
-                'Khi mở UI tải trên một truyện đang có dữ liệu tải dở, script hỏi có muốn nạp lại các chương đã tải không; nếu chọn dùng thì chỉ nạp dữ liệu, không tự bấm tải.',
-                'Thêm <b>Danh sách hỗ trợ</b> tải từ repo, có tìm kiếm theo domain hoặc tên rule.',
-                'Hoàn thiện <b>Debug Bridge</b> local: test selector/rule, chạy <code>getChapters</code>, <code>deal</code>, eval JS và xem đúng môi trường Tampermonkey thật.',
-                'CLI Debug Bridge hỗ trợ inject rule từ file và test rule mới trên URL mới bằng tab trình duyệt thật.',
-                'Debug server có thêm endpoint phục vụ Rule Editor để test local bằng bản trong repo hiện tại.',
-                'Cải thiện bảng Console và Quản lý tải xuống: giữ log object/error/%c, lưu tiếp tục ổn hơn, đồng bộ tiến độ thật, xóa task treo và giữ task đang tải khi dùng <b>Buộc lưu</b>.'
+                'Thay ô phạm vi cũ bằng popup <b>Chọn chương tải</b> trong Shadow DOM, có danh sách số thứ tự/title và phân màu chương thường, chương VIP.',
+                'Kiểm tra phạm vi ngay khi nhập, báo số chương được chọn và đánh dấu trực tiếp các thẻ tương ứng.',
+                'Cho phép chọn một thẻ rồi <b>Lấy thử chap</b>, hoặc nhấp đúp thẻ để xem và copy title/nội dung chương trước khi tải.',
+                'Không tự khởi chạy phạm vi cũ khi nạp dữ liệu tải dở; phạm vi vừa chọn luôn được ưu tiên.',
+                'Đổi ô <b>Tóm tắt</b> sang dạng nhiều dòng để nhìn và chỉnh đúng vị trí xuống dòng.',
+                'Thêm nút lấy lại thông tin sách và danh sách chương ngay trong UI tải chính.'
             ]),
             '<h3>Các bản trước (tóm tắt)</h3>',
             docList([
-                'v3.5.448.x: bỏ phụ thuộc AntiClear, thêm nút nổi Novel Downloader, Hướng dẫn/Changelog trong script, tab Cài đặt, thanh tiến độ sticky <b>x / y</b> và xử lý UI ngắn.',
+                'v3.5.448.12: thêm Rule Editor, Danh sách hỗ trợ, Debug Bridge, khôi phục task tải dở và cải thiện Console/Quản lý tải xuống.',
+                'v3.5.448.x: bỏ phụ thuộc AntiClear, thêm nút nổi Novel Downloader, Hướng dẫn/Changelog trong script, tab Cài đặt và thanh tiến độ sticky <b>x / y</b>.',
                 'v3.5.447.x: đưa UI vào Shadow Root, thêm bảng Console trong UI, cải thiện Quản lý tải xuống, queue/history/resume, dọn thẻ cũ sau 30 ngày.',
-                'v3.5.447.x: sửa rule 69shuba, TruyenWikiDich, xử lý encoding trang reader/txt và ưu tiên rule user paste trước rule gốc.',
                 'Các bản cũ hơn: bổ sung rule web, cải thiện tải thủ công, tải ảnh/EPUB/TEXT/ZIP và helper viết rule tùy chỉnh.'
             ])
         ].join('');
@@ -699,7 +698,7 @@ function decryptDES(encrypted, key, iv) {
             const total = candidate.total || (data.chapters && data.chapters.length) || (task.progress && task.progress.total) || 0;
             const loaded = candidate.loadedCount || 0;
             const sourceUrl = task.sourceUrl || data.sourceUrl || window.location.href;
-            modal.querySelector('[data-role="message"]').textContent = 'Truyện này có dữ liệu tải dở trước đó. Chọn "Dùng dữ liệu" để nạp các chương đã tải vào UI hiện tại, rồi tự chỉnh thiết lập và tự bấm tải tiếp.';
+            modal.querySelector('[data-role="message"]').textContent = 'Truyện này có dữ liệu tải dở trước đó. Chọn "Dùng dữ liệu" để nạp các chương đã tải vào UI hiện tại; sau đó chọn phạm vi và bấm định dạng tải để tiếp tục.';
             modal.querySelector('[data-role="book"]').textContent = bookTitle;
             modal.querySelector('[data-role="progress"]').textContent = `${loaded}/${total} chương`;
             modal.querySelector('[data-role="source"]').textContent = sourceUrl;
@@ -2761,6 +2760,9 @@ function decryptDES(encrypted, key, iv) {
             if (window.NDConsole && typeof window.NDConsole.setUiActive === 'function') {
                 window.NDConsole.setUiActive(existingPanel.is(':visible'));
             }
+            if (!existingPanel.is(':visible') && xhr && typeof xhr.hideDialog === 'function') {
+                xhr.hideDialog();
+            }
             updateNovelDownloaderLauncherVisibility();
             return;
         }
@@ -2768,10 +2770,11 @@ function decryptDES(encrypted, key, iv) {
         let chapters,
             chaptersArr;
         let vipChapters = [];
+        let reloadBookInfo = async () => {};
+        let reloadChapterList = async () => {};
         const chaptersDownloaded = [];
         let pendingResumeTaskId = options.resumeRequest && options.resumeRequest.task && options.resumeRequest.task.id;
         let pendingResumeData = options.resumeRequest && options.resumeRequest.data;
-        let pendingResumeAutoStart = Boolean(pendingResumeTaskId && pendingResumeData);
 
         const issueBody = [
             `- Script: \`novelDownloader5 v${GM_info.script.version}\``,
@@ -2791,9 +2794,11 @@ function decryptDES(encrypted, key, iv) {
             '  <br>',
             '  Tác giả: <input type="text" name="writer">',
             '  <br>',
-            '  Tóm tắt: <input type="text" name="intro">',
+            '  <label class="nd-intro-field">Tóm tắt: <textarea name="intro" rows="2"></textarea></label>',
             '  <br>',
             '  Bìa sách: <input type="text" name="cover">',
+            '  <br>',
+            '  <span class="nd-info-actions"><button type="button" name="refresh-info" data-nd-action="refresh-info" disabled>Lấy lại info</button><button type="button" name="refresh-chapters" data-nd-action="refresh-chapters" disabled>Lấy lại DS chương</button></span>',
             '</div>',
 
             '<div name="config">',
@@ -2851,7 +2856,9 @@ function decryptDES(encrypted, key, iv) {
             '</div>',
 
             '<div name="limit" title="Ưu tiên: Tải xuống hàng loạt>Phạm vi tải xuống>Tất cả các chương">',
-            '  Phạm vi tải xuống: <input name="range" placeholder="Bắt đầu bằng 1, ví dụ 1-25, 35, 50" type="text">',
+            '  <button type="button" name="open-chapter-picker">Chọn chương tải</button>',
+            '  <span name="range-summary" class="nd-range-summary">Tất cả chương</span>',
+            '  <input name="range" type="hidden">',
             '  <br>',
             '  Tải xuống hàng loạt: <textarea name="batch" placeholder="Tất cả các địa chỉ URL sẽ được tải xuống" style="line-height:1;resize:both;"></textarea>',
             '</div>',
@@ -2863,11 +2870,11 @@ function decryptDES(encrypted, key, iv) {
             '</div>',
 
             '<div name="buttons">',
-            '  <input type="button" name="download" format="debug" value="Kiểm tra">',
-            '  <input type="button" name="download" format="text" value="Tải xuống dưới dạng TEXT">',
-            '  <br>',
-            '  <input type="button" name="download" format="epub" value="Tải xuống dưới dạng EPUB">',
-            '  <input type="button" name="download" format="zip" value="Tải xuống dưới dạng ZIP">',
+            '  <span class="nd-download-actions">',
+            '    <input type="button" name="download" format="text" value="Tải xuống - TXT">',
+            '    <input type="button" name="download" format="zip" value="Tải xuống - ZIP">',
+            '    <input type="button" name="download" format="epub" value="Tải xuống - EPUB">',
+            '  </span>',
             '  <br>',
             '  <input type="button" name="toggle-opacity" value="Trong suốt">',
             '  <input type="button" name="toggle-console" value="Tắt console">',
@@ -2891,7 +2898,7 @@ function decryptDES(encrypted, key, iv) {
                 .attr('aria-expanded', isExpanded ? 'true' : 'false');
         };
         toggleAdvancedConfig(false);
-        container[0].addEventListener('click', (event) => {
+        container[0].addEventListener('click', async (event) => {
             const actionButton = event.target && event.target.closest ? event.target.closest('[data-nd-action]') : null;
             if (actionButton && container[0].contains(actionButton)) {
                 event.preventDefault();
@@ -2899,6 +2906,8 @@ function decryptDES(encrypted, key, iv) {
                 if (actionButton.dataset.ndAction === 'open-guide') openNovelDownloaderGuide();
                 if (actionButton.dataset.ndAction === 'open-supported-sites') openNovelDownloaderSupportedSites();
                 if (actionButton.dataset.ndAction === 'open-rule-editor') openNovelDownloaderRuleEditor({ container });
+                if (actionButton.dataset.ndAction === 'refresh-info') await reloadBookInfo(actionButton);
+                if (actionButton.dataset.ndAction === 'refresh-chapters') await reloadChapterList(actionButton);
                 return;
             }
             const button = event.target && event.target.closest ? event.target.closest('button[name="toggle"]') : null;
@@ -2925,6 +2934,298 @@ function decryptDES(encrypted, key, iv) {
             const safeTotal = Math.max(0, Number(total) || 0);
             container.find('[name="progress"]>progress').val(Math.min(safeCompleted, safeTotal || safeCompleted)).attr('max', safeTotal || 1);
             container.find('[name="progress"]>[name="progress-text"]').text(`${safeCompleted} / ${safeTotal}`);
+        };
+        const parseChapterRange = (value, total) => {
+            const source = String(value || '').trim();
+            const chapterTotal = Math.max(0, Number(total) || 0);
+            if (!source) {
+                return {
+                    indexes: Array.from({ length: chapterTotal }, (_, index) => index),
+                    invalid: [],
+                    isAll: true
+                };
+            }
+
+            const indexes = [];
+            const seen = new Set();
+            const invalid = [];
+            const addNumber = (chapterNumber, segment) => {
+                const index = Number(chapterNumber) - 1;
+                if (!Number.isInteger(index) || index < 0 || index >= chapterTotal) {
+                    if (!invalid.includes(segment)) invalid.push(segment);
+                    return;
+                }
+                if (!seen.has(index)) {
+                    seen.add(index);
+                    indexes.push(index);
+                }
+            };
+
+            source.split(',').map((item) => item.trim()).filter(Boolean).forEach((segment) => {
+                const rangeMatch = segment.match(/^(\d+)?-(\d+)?$/);
+                if (rangeMatch) {
+                    const rawStart = rangeMatch[1] ? Number(rangeMatch[1]) : 1;
+                    const rawEnd = rangeMatch[2] ? Number(rangeMatch[2]) : chapterTotal;
+                    if (!rawStart || !rawEnd || !chapterTotal) {
+                        invalid.push(segment);
+                        return;
+                    }
+                    if (rawStart < 1 || rawStart > chapterTotal || rawEnd < 1 || rawEnd > chapterTotal) {
+                        invalid.push(segment);
+                    }
+                    const start = Math.min(chapterTotal, Math.max(1, rawStart));
+                    const end = Math.min(chapterTotal, Math.max(1, rawEnd));
+                    const step = start <= end ? 1 : -1;
+                    for (let chapterNumber = start; step > 0 ? chapterNumber <= end : chapterNumber >= end; chapterNumber += step) {
+                        addNumber(chapterNumber, segment);
+                    }
+                    return;
+                }
+                if (/^\d+$/.test(segment)) {
+                    addNumber(Number(segment), segment);
+                    return;
+                }
+                invalid.push(segment);
+            });
+
+            return { indexes, invalid, isAll: false };
+        };
+        const chapterIsVip = (chapter) => Boolean(chapter && (chapter.vip || vipChapters.includes(chapter.url)));
+        const loadChapterPreview = async (chapter) => {
+            const previewChapter = Object.assign({}, chapter || {});
+            const baseRule = Storage.rule;
+            const activeRule = chapterIsVip(previewChapter)
+                ? Object.assign({}, baseRule, baseRule.vip || {})
+                : baseRule;
+
+            if (typeof activeRule.deal === 'function') {
+                const result = await activeRule.deal(previewChapter);
+                if (typeof result === 'string' && result.trim()) {
+                    return { title: previewChapter.title || '', content: result };
+                }
+                if (result && result.content) {
+                    return { title: result.title || previewChapter.title || '', content: result.content };
+                }
+                throw new Error(result && result.error || 'Hàm deal không trả về nội dung');
+            }
+
+            const responseText = await Rule.helpers.requestText(previewChapter.url, { cache: false });
+            const doc = Rule.helpers.parseHtml(responseText);
+            const res = { response: doc, responseText, status: 200 };
+            const request = { raw: previewChapter };
+            let title = await getFromRule(activeRule.chapterTitle, { attr: 'text', document: doc }, [res, request], '');
+            title = title || previewChapter.title || $('title', doc).eq(0).text();
+            let content = previewChapter.content || await getFromRule(activeRule.content, (selector) => {
+                let elems = $(selector, doc);
+                if (!elems.length) elems = $('body', doc);
+                if (elems.length > 1) {
+                    elems = elems.filter((i, elem) => !elems.not(elem).toArray().find((other) => $(elem).find(other).length));
+                }
+                return elems.toArray().map((elem) => $(elem).html()).join('\n');
+            }, [res, request], '');
+            if (Array.isArray(content)) content = content.join('\n');
+            if (!String(content || '').trim()) throw new Error('Không tìm thấy nội dung chương');
+            return { title, content };
+        };
+        const initializeChapterPicker = () => {
+            const root = getNovelDownloaderUIRoot(true) || document.body;
+            root.querySelectorAll('.nd-chapter-picker-modal,.nd-chapter-preview-modal').forEach((node) => node.remove());
+
+            const picker = document.createElement('div');
+            picker.className = 'nd-chapter-picker-modal';
+            picker.innerHTML = [
+                '<section class="nd-chapter-picker-window" role="dialog" aria-modal="true" aria-label="Chọn chương tải">',
+                '  <header><strong>Chọn chương tải</strong><button type="button" data-action="close-picker" aria-label="Đóng">×</button></header>',
+                '  <div class="nd-chapter-picker-controls">',
+                '    <label for="ndChapterRangeInput">Phạm vi tải xuống</label>',
+                '    <input id="ndChapterRangeInput" type="text" placeholder="Ví dụ: 1-25, 35, 50">',
+                '    <div class="nd-chapter-range-status" data-tone="info"></div>',
+                '  </div>',
+                '  <div class="nd-chapter-legend"><span class="is-normal">Chương thường</span><span class="is-vip">Chương VIP</span></div>',
+                '  <div class="nd-chapter-card-list"></div>',
+                '  <footer><button type="button" data-action="preview-chapter" hidden>Lấy thử chap</button><button type="button" data-action="apply-picker">Xong</button></footer>',
+                '</section>'
+            ].join('');
+
+            const preview = document.createElement('div');
+            preview.className = 'nd-chapter-preview-modal';
+            preview.innerHTML = [
+                '<section class="nd-chapter-preview-window" role="dialog" aria-modal="true" aria-label="Nội dung chương xem thử">',
+                '  <header><strong data-role="preview-title">Lấy thử chap</strong><button type="button" data-action="close-preview" aria-label="Đóng">×</button></header>',
+                '  <div class="nd-chapter-preview-state" data-role="preview-state">Đang tải...</div>',
+                '  <pre data-role="preview-content"></pre>',
+                '  <footer><button type="button" data-action="copy-chapter" disabled>Copy chương</button></footer>',
+                '</section>'
+            ].join('');
+            root.appendChild(picker);
+            root.appendChild(preview);
+
+            const rangeInput = picker.querySelector('#ndChapterRangeInput');
+            const status = picker.querySelector('.nd-chapter-range-status');
+            const list = picker.querySelector('.nd-chapter-card-list');
+            const previewButton = picker.querySelector('[data-action="preview-chapter"]');
+            const copyChapterButton = preview.querySelector('[data-action="copy-chapter"]');
+            const hiddenRange = container.find('[name="limit"]>[name="range"]');
+            let previewIndex = -1;
+            let previewCopyValue = '';
+
+            const fragment = document.createDocumentFragment();
+            chapters.forEach((chapter, index) => {
+                const card = document.createElement('button');
+                card.type = 'button';
+                card.className = `nd-chapter-card ${chapterIsVip(chapter) ? 'is-vip' : 'is-normal'}`;
+                card.dataset.index = String(index);
+                const number = document.createElement('span');
+                number.className = 'nd-chapter-number';
+                number.textContent = String(index + 1);
+                const title = document.createElement('span');
+                title.className = 'nd-chapter-title';
+                title.textContent = String(chapter && chapter.title || chapter && chapter.url || `Chương ${index + 1}`);
+                card.append(number, title);
+                fragment.appendChild(card);
+            });
+            list.appendChild(fragment);
+
+            const updateSelection = () => {
+                const value = rangeInput.value;
+                hiddenRange.val(value);
+                const parsed = parseChapterRange(value, chapters.length);
+                const selected = new Set(parsed.indexes);
+                const selectedVipCount = parsed.indexes.filter((index) => chapterIsVip(chapters[index])).length;
+                const vipNotice = selectedVipCount && !container.find('[name="config"] [name="vip"]').prop('checked')
+                    ? ` Có ${selectedVipCount} chương VIP sẽ được bỏ qua vì chưa bật “Tải xuống chương VIP”.`
+                    : '';
+                list.querySelectorAll('.nd-chapter-card').forEach((card) => {
+                    card.classList.toggle('is-in-range', selected.has(Number(card.dataset.index)));
+                });
+
+                if (parsed.isAll) {
+                    status.dataset.tone = vipNotice ? 'warning' : 'info';
+                    status.textContent = `Đang chọn tất cả ${chapters.length} chương.${vipNotice}`;
+                    container.find('[name="range-summary"]').text(`Tất cả ${chapters.length} chương`);
+                } else if (!parsed.indexes.length) {
+                    status.dataset.tone = 'error';
+                    status.textContent = parsed.invalid.length
+                        ? `Không có chương hợp lệ. Kiểm tra: ${parsed.invalid.join(', ')}.`
+                        : 'Không có chương nào được chọn.';
+                    container.find('[name="range-summary"]').text('Phạm vi không hợp lệ');
+                } else if (parsed.invalid.length) {
+                    status.dataset.tone = 'warning';
+                    status.textContent = `Đã chọn ${parsed.indexes.length}/${chapters.length} chương; bỏ qua hoặc giới hạn lại: ${parsed.invalid.join(', ')}.${vipNotice}`;
+                    container.find('[name="range-summary"]').text(`${parsed.indexes.length}/${chapters.length} chương (có cảnh báo)`);
+                } else if (vipNotice) {
+                    status.dataset.tone = 'warning';
+                    status.textContent = `Đã chọn ${parsed.indexes.length}/${chapters.length} chương.${vipNotice}`;
+                    container.find('[name="range-summary"]').text(`${parsed.indexes.length}/${chapters.length} chương`);
+                } else {
+                    status.dataset.tone = 'success';
+                    status.textContent = `Đã chọn đúng ${parsed.indexes.length}/${chapters.length} chương.`;
+                    container.find('[name="range-summary"]').text(`${parsed.indexes.length}/${chapters.length} chương`);
+                }
+            };
+
+            const closePicker = () => picker.classList.remove('is-visible');
+            const closePreview = () => preview.classList.remove('is-visible');
+            const copyTextToClipboard = async (value) => {
+                if (navigator.clipboard && typeof navigator.clipboard.writeText === 'function') {
+                    try {
+                        await navigator.clipboard.writeText(value);
+                        return;
+                    } catch (error) {
+                        console.warn('[ND] Clipboard API không khả dụng, chuyển sang cách copy dự phòng:', error);
+                    }
+                }
+                const textarea = document.createElement('textarea');
+                textarea.value = value;
+                textarea.style.position = 'fixed';
+                textarea.style.left = '-9999px';
+                textarea.style.top = '0';
+                document.body.appendChild(textarea);
+                textarea.focus();
+                textarea.select();
+                const copied = document.execCommand('copy');
+                textarea.remove();
+                if (!copied) throw new Error('Trình duyệt từ chối quyền copy');
+            };
+            const openChapterPreview = async (index) => {
+                const chapter = chapters[index];
+                if (!chapter) return;
+                const previewTitle = preview.querySelector('[data-role="preview-title"]');
+                const previewState = preview.querySelector('[data-role="preview-state"]');
+                const previewContent = preview.querySelector('[data-role="preview-content"]');
+                preview.classList.add('is-visible');
+                previewTitle.textContent = `${index + 1}. ${chapter.title || 'Chương xem thử'}`;
+                previewState.dataset.tone = 'loading';
+                previewState.textContent = 'Đang lấy nội dung chương...';
+                previewContent.textContent = '';
+                previewCopyValue = '';
+                copyChapterButton.disabled = true;
+                copyChapterButton.textContent = 'Copy chương';
+                try {
+                    const result = await loadChapterPreview(chapter);
+                    const chapterTitle = String(result.title || chapter.title || 'Chương xem thử').trim();
+                    const chapterContent = html2Text(String(result.content || ''), Storage.rule.contentReplace).trim();
+                    previewTitle.textContent = `${index + 1}. ${chapterTitle}`;
+                    previewState.dataset.tone = 'success';
+                    previewState.textContent = 'Đã lấy nội dung thành công.';
+                    previewContent.textContent = chapterContent;
+                    previewCopyValue = `${chapterTitle}\n${chapterContent}`;
+                    copyChapterButton.disabled = false;
+                } catch (error) {
+                    previewState.dataset.tone = 'error';
+                    previewState.textContent = `Không lấy được chương: ${error && error.message ? error.message : error}`;
+                }
+            };
+            picker.addEventListener('click', async (event) => {
+                if (event.target === picker || event.target.closest('[data-action="close-picker"]')) {
+                    closePicker();
+                    return;
+                }
+                const card = event.target.closest('.nd-chapter-card');
+                if (card) {
+                    previewIndex = Number(card.dataset.index);
+                    list.querySelectorAll('.nd-chapter-card.is-preview-selected').forEach((node) => node.classList.remove('is-preview-selected'));
+                    card.classList.add('is-preview-selected');
+                    previewButton.hidden = false;
+                    previewButton.textContent = `Lấy thử chap ${previewIndex + 1}`;
+                    if (event.detail >= 2) await openChapterPreview(previewIndex);
+                    return;
+                }
+                if (event.target.closest('[data-action="apply-picker"]')) {
+                    closePicker();
+                    return;
+                }
+                if (event.target.closest('[data-action="preview-chapter"]') && previewIndex >= 0) {
+                    await openChapterPreview(previewIndex);
+                }
+            });
+            preview.addEventListener('click', async (event) => {
+                if (event.target === preview || event.target.closest('[data-action="close-preview"]')) {
+                    closePreview();
+                    return;
+                }
+                if (event.target.closest('[data-action="copy-chapter"]') && previewCopyValue) {
+                    try {
+                        await copyTextToClipboard(previewCopyValue);
+                        copyChapterButton.textContent = 'Đã copy';
+                        window.setTimeout(() => {
+                            copyChapterButton.textContent = 'Copy chương';
+                        }, 1200);
+                    } catch (error) {
+                        preview.querySelector('[data-role="preview-state"]').dataset.tone = 'error';
+                        preview.querySelector('[data-role="preview-state"]').textContent = `Không copy được: ${error && error.message ? error.message : error}`;
+                    }
+                }
+            });
+            rangeInput.addEventListener('input', updateSelection);
+            container.find('[name="config"] [name="vip"]').off('change.ndChapterPicker').on('change.ndChapterPicker', updateSelection);
+            container.find('[name="open-chapter-picker"]').off('click.ndChapterPicker').on('click.ndChapterPicker', () => {
+                rangeInput.value = String(hiddenRange.val() || '');
+                updateSelection();
+                picker.classList.add('is-visible');
+                window.setTimeout(() => rangeInput.focus(), 0);
+            });
+            updateSelection();
         };
         const removeConsoleStateListener = window.NDConsole && typeof window.NDConsole.onStateChange === 'function'
             ? window.NDConsole.onStateChange(syncConsoleButtons)
@@ -3044,6 +3345,20 @@ function decryptDES(encrypted, key, iv) {
         updateDownloadDirUI();
 
         container.find('[name="buttons"]').find('[name="download"]').on('click', async (e) => {
+            const rangeValue = String(container.find('[name="limit"]>[name="range"]').val() || '').trim();
+            const batchValue = String(container.find('[name="limit"]>[name="batch"]').val() || '').trim();
+            if (!batchValue && rangeValue) {
+                const parsedRange = parseChapterRange(rangeValue, chapters.length);
+                const downloadableCount = parsedRange.indexes
+                    .map((index) => chapters[index])
+                    .filter((chapter) => chapter && (Config.vip || !chapterIsVip(chapter)))
+                    .length;
+                if (!downloadableCount) {
+                    ndShowToast('Phạm vi chưa có chương có thể tải. Kiểm tra phạm vi hoặc bật tải chương VIP.', 'error', 4500);
+                    container.find('[name="open-chapter-picker"]').trigger('click');
+                    return;
+                }
+            }
             container.find('[name="progress"]').show();
             //xhr.showDialog();
             container.find('[name="buttons"]').find('[name="download"]').attr('disabled', 'disabled');
@@ -3058,35 +3373,17 @@ function decryptDES(encrypted, key, iv) {
             });
             Storage.title = document.title;
 
-            Storage.book.chapters = Config.vip ? chapters : chapters.filter((i) => !(vipChapters.includes(i.url)));
+            let selectedForDownload = chapters.slice();
             Storage.rule.vip = { ...Storage.rule, ...Storage.rule.vip || {} };
 
             // 限制下载范围
             if (container.find('[name="limit"]>[name="range"]').val()) {
-                const selectedChapters = [];
-                const selectedIndexes = new Set();
-                const addChapterByNumber = (chapterNumber) => {
-                    const index = Number(chapterNumber) - 1;
-                    if (!Number.isInteger(index) || index < 0 || !(index in Storage.book.chapters) || selectedIndexes.has(index)) return;
-                    selectedIndexes.add(index);
-                    selectedChapters.push(Storage.book.chapters[index]);
-                };
-                const arr = container.find('[name="limit"]>[name="range"]').val().split(',').map(item => item.trim()).filter(Boolean);
-                for (let i = 0; i < arr.length; i++) {
-                    const rangeMatch = arr[i].match(/^(\d+)?-(\d+)?$/);
-                    if (rangeMatch) {
-                        const start = rangeMatch[1] ? Number(rangeMatch[1]) : 1;
-                        const end = rangeMatch[2] ? Number(rangeMatch[2]) : Storage.book.chapters.length;
-                        const step = start <= end ? 1 : -1;
-                        for (let chapterNumber = start; step > 0 ? chapterNumber <= end : chapterNumber >= end; chapterNumber += step) {
-                            addChapterByNumber(chapterNumber);
-                        }
-                    } else if (/^\d+$/.test(arr[i])) {
-                        addChapterByNumber(Number(arr[i]));
-                    }
-                }
-                Storage.book.chapters = selectedChapters;
+                const parsedRange = parseChapterRange(container.find('[name="limit"]>[name="range"]').val(), chapters.length);
+                selectedForDownload = parsedRange.indexes.map((index) => chapters[index]).filter(Boolean);
             }
+            Storage.book.chapters = Config.vip
+                ? selectedForDownload
+                : selectedForDownload.filter((chapter) => !chapterIsVip(chapter));
             if (container.find('[name="limit"]>[name="batch"]').val()) {
                 Storage.book.chapters = container.find('[name="limit"]>[name="batch"]').val().split('\n').filter((i) => i)
                     .map((i) => {
@@ -3137,7 +3434,7 @@ function decryptDES(encrypted, key, iv) {
                 return result;
             };
             const buildDownloadResumeData = () => ({
-                version: 1,
+                version: 2,
                 sourceUrl: window.location.href,
                 format,
                 book: {
@@ -3148,6 +3445,11 @@ function decryptDES(encrypted, key, iv) {
                 },
                 chapters: (Storage.book.chapters || []).map(serializeChapterForResume),
                 vipChapters: vipChapters.slice(),
+                selection: {
+                    range: rangeValue,
+                    batch: batchValue,
+                    chapterUrls: (Storage.book.chapters || []).map((chapter) => chapter && chapter.url || '').filter(Boolean)
+                },
                 progress: getDownloadManagerProgress()
             });
             const persistDownloadResumeData = async () => {
@@ -3908,19 +4210,30 @@ function decryptDES(encrypted, key, iv) {
             console.log("Tất cả các lần tải và thử lại đã hoàn tất. Chuẩn bị lưu file...");
             await onComplete(); // Luôn gọi onComplete, nó sẽ tự xử lý các chương lỗi bên trong.
         });
+        const syncAuxiliaryOpacity = (transparent) => {
+            const root = getNovelDownloaderUIRoot(false);
+            if (!root) return;
+            ['#ndConsolePanel', '#gmDownloadDialog'].forEach((selector) => {
+                const element = root.querySelector(selector);
+                if (element) element.classList.toggle('nd-follow-main-opacity', Boolean(transparent));
+            });
+        };
         container.find('[name="buttons"]').find('[type="button"]:not([name="download"])').on('click', async (e) => {
             const name = $(e.target).attr('name');
             if (name === 'exit') {
                 if (window.NDConsole && typeof window.NDConsole.setUiActive === 'function') {
                     window.NDConsole.setUiActive(false);
                 }
+                if (xhr && typeof xhr.hideDialog === 'function') xhr.hideDialog();
+                syncAuxiliaryOpacity(false);
                 if (typeof removeConsoleStateListener === 'function') removeConsoleStateListener();
-                ndUI$('.novel-downloader-style,.novel-downloader-v3').remove();
+                ndUI$('.novel-downloader-style,.novel-downloader-v3,.nd-chapter-picker-modal,.nd-chapter-preview-modal').remove();
                 $('.novel-downloader-style,.novel-downloader-style-chapter').remove();
                 $('[novel-downloader-chapter]').attr('order', null).attr('novel-downloader-chapter', null);
                 updateNovelDownloaderLauncherVisibility();
             } else if (name === 'toggle-opacity') {
                 container.toggleClass('opacity01');
+                syncAuxiliaryOpacity(container.hasClass('opacity01'));
             } else if (name === 'toggle-console') {
                 if (window.NDConsole) {
                     const isEnabled = window.NDConsole.toggle();
@@ -3935,7 +4248,7 @@ function decryptDES(encrypted, key, iv) {
                 if (window.NDConsole) window.NDConsole.show();
             }
         });
-        container.find('[name="info"]>input[type="text"]').on('change', (e) => (Storage.book[$(e.target).attr('name')] = e.target.value));
+        container.find('[name="info"]>input[type="text"],[name="info"]>label>textarea').on('change input', (e) => (Storage.book[$(e.target).attr('name')] = e.target.value));
 
         // style
         const style = [
@@ -3952,11 +4265,22 @@ function decryptDES(encrypted, key, iv) {
             '.novel-downloader-v3 input[disabled="disabled"],.novel-downloader-v3 button[disabled="disabled"]{color:#fff;cursor:default!important;background-color:#545454;text-decoration:line-through double;}',
             '.novel-downloader-v3 span[title]::after{content:"(?)";text-decoration:underline;font-size:x-small;vertical-align:super;cursor:pointer;}',
             '.novel-downloader-v3 .nd-doc-link{border:0!important;background:transparent!important;color:#0645ad!important;text-decoration:underline;padding:0!important;margin:0 0 0 4px!important;font:inherit!important;cursor:pointer;}',
+            '.novel-downloader-v3 .nd-intro-field{display:inline-flex;align-items:center;gap:4px;vertical-align:middle;}',
+            '.novel-downloader-v3 .nd-intro-field textarea{width:min(330px,65vw);min-height:46px;resize:vertical;line-height:1.4;padding:3px 5px;white-space:pre-wrap;}',
+            '.novel-downloader-v3 .nd-info-actions{display:inline-flex;gap:5px;margin-top:2px;}',
+            '.novel-downloader-v3 .nd-info-actions button{border:1px solid #64748b!important;border-radius:5px;background:#f8fafc!important;color:#1f2937!important;padding:3px 7px;}',
+            '.novel-downloader-v3 .nd-info-actions button:disabled{background:#e5e7eb!important;color:#6b7280!important;cursor:wait;}',
+            '.novel-downloader-v3 .nd-download-actions{display:inline-flex;align-items:center;gap:4px;white-space:nowrap;}',
+            '.novel-downloader-v3 .nd-download-actions input{min-width:104px;padding:4px 7px;}',
+            '.novel-downloader-v3 button[name="open-chapter-picker"]{border:1px solid #166534!important;background:#f0fdf4!important;color:#14532d!important;border-radius:5px;padding:4px 9px;font-weight:700;}',
+            '.novel-downloader-v3 .nd-range-summary{display:inline-block;margin-left:6px;color:#374151;font-size:12px;}',
 
             '.novel-downloader-v3{position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);z-index:99999;background:white;border:1px solid black;max-height:99vh;overflow:auto;text-align:center;}',
             '.novel-downloader-v3{pointer-events:auto;color:#000;}',
             '.novel-downloader-v3.opacity01{opacity:0.1;}',
             '.novel-downloader-v3.opacity01:hover{opacity:0.6;}',
+            '#ndConsolePanel.nd-follow-main-opacity,#gmDownloadDialog.nd-follow-main-opacity{opacity:0.1!important;}',
+            '#ndConsolePanel.nd-follow-main-opacity:hover,#gmDownloadDialog.nd-follow-main-opacity:hover{opacity:0.6!important;}',
             '.novel-downloader-v3>div{margin:2px 0px;}',
             '.novel-downloader-v3>div:nth-child(2n){background-color:#DADADA;}',
             '.novel-downloader-v3>div:nth-child(2n+1){background-color:#FAFAFA;}',
@@ -3971,6 +4295,48 @@ function decryptDES(encrypted, key, iv) {
             '.novel-downloader-v3>[name="progress"]{display:block;position:sticky;top:0;z-index:3;padding:3px 4px;border:1px solid #93c5fd;background:#eff6ff!important;}',
             '.novel-downloader-v3>[name="progress"]>[name="progress-text"]{display:inline-block;min-width:48px;text-align:right;font-weight:bold;}',
             '.novel-downloader-v3>[name="progress"]>progress{width:240px;height:14px;vertical-align:middle;}',
+
+            '.nd-chapter-picker-modal,.nd-chapter-preview-modal{position:fixed;inset:0;z-index:1000010;display:none;align-items:center;justify-content:center;padding:16px;background:rgba(17,24,39,.58);pointer-events:auto;color:#111827;font-family:Arial,sans-serif;}',
+            '.nd-chapter-picker-modal.is-visible,.nd-chapter-preview-modal.is-visible{display:flex;}',
+            '.nd-chapter-picker-window,.nd-chapter-preview-window{width:min(980px,calc(100vw - 24px));max-height:calc(100vh - 24px);display:flex;flex-direction:column;overflow:hidden;border:1px solid #9ca3af;border-radius:8px;background:#f9fafb;box-shadow:0 24px 64px rgba(0,0,0,.35);}',
+            '.nd-chapter-picker-window>header,.nd-chapter-preview-window>header{display:flex;align-items:center;gap:10px;min-height:44px;padding:9px 12px;background:#1f2937;color:#fff;}',
+            '.nd-chapter-picker-window>header strong,.nd-chapter-preview-window>header strong{min-width:0;flex:1;overflow-wrap:anywhere;font-size:15px;line-height:1.35;}',
+            '.nd-chapter-picker-window>header button,.nd-chapter-preview-window>header button{width:30px;height:30px;flex:0 0 30px;border:1px solid #6b7280;border-radius:5px;background:#374151;color:#fff;cursor:pointer;font-size:20px;line-height:1;}',
+            '.nd-chapter-picker-controls{padding:12px 14px 8px;background:#fff;border-bottom:1px solid #d1d5db;}',
+            '.nd-chapter-picker-controls label{display:block;margin-bottom:5px;font-size:12px;font-weight:700;color:#374151;}',
+            '.nd-chapter-picker-controls input{width:100%;height:36px;border:1px solid #6b7280;border-radius:5px;background:#fff;color:#111827;padding:6px 9px;font-size:14px;}',
+            '.nd-chapter-range-status{min-height:22px;margin-top:7px;padding:5px 7px;border-left:4px solid #2563eb;background:#eff6ff;color:#1e3a8a;font-size:12px;line-height:1.4;}',
+            '.nd-chapter-range-status[data-tone="success"]{border-color:#15803d;background:#f0fdf4;color:#14532d;}',
+            '.nd-chapter-range-status[data-tone="warning"]{border-color:#d97706;background:#fffbeb;color:#78350f;}',
+            '.nd-chapter-range-status[data-tone="error"]{border-color:#dc2626;background:#fef2f2;color:#7f1d1d;}',
+            '.nd-chapter-legend{display:flex;gap:16px;padding:7px 14px;background:#f3f4f6;border-bottom:1px solid #d1d5db;color:#4b5563;font-size:12px;}',
+            '.nd-chapter-legend span:before{content:"";display:inline-block;width:10px;height:10px;margin-right:5px;border-radius:2px;vertical-align:-1px;}',
+            '.nd-chapter-legend .is-normal:before{background:#16a34a;}',
+            '.nd-chapter-legend .is-vip:before{background:#dc2626;}',
+            '.nd-chapter-card-list{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(320px,100%),1fr));gap:6px;min-height:120px;overflow:auto;padding:10px 12px;align-content:start;}',
+            '.nd-chapter-card{display:grid;grid-template-columns:44px minmax(0,1fr);align-items:stretch;min-height:48px;padding:0;border:1px solid #d1d5db;border-left:5px solid #16a34a;border-radius:6px;background:#fff;color:#1f2937;text-align:left;cursor:pointer;overflow:hidden;}',
+            '.nd-chapter-card.is-vip{border-left-color:#dc2626;background:#fff7f7;}',
+            '.nd-chapter-card:hover{border-color:#2563eb;}',
+            '.nd-chapter-card.is-in-range{box-shadow:inset 0 0 0 2px #16a34a;}',
+            '.nd-chapter-card.is-vip.is-in-range{box-shadow:inset 0 0 0 2px #dc2626;}',
+            '.nd-chapter-card.is-preview-selected{outline:3px solid #2563eb;outline-offset:-3px;}',
+            '.nd-chapter-number{display:flex;align-items:center;justify-content:center;background:#e5e7eb;color:#111827;font-weight:700;font-size:12px;}',
+            '.nd-chapter-card.is-vip .nd-chapter-number{background:#fee2e2;color:#991b1b;}',
+            '.nd-chapter-title{display:flex;align-items:center;min-width:0;padding:7px 9px;overflow-wrap:anywhere;font-size:12px;line-height:1.35;}',
+            '.nd-chapter-picker-window>footer{display:flex;justify-content:flex-end;gap:8px;padding:9px 12px;border-top:1px solid #d1d5db;background:#fff;}',
+            '.nd-chapter-picker-window>footer button{min-height:34px;border:1px solid #4b5563;border-radius:5px;background:#fff;color:#111827;padding:6px 12px;cursor:pointer;font-weight:700;}',
+            '.nd-chapter-picker-window>footer [data-action="preview-chapter"]{border-color:#1d4ed8;background:#eff6ff;color:#1e3a8a;}',
+            '.nd-chapter-picker-window>footer [data-action="apply-picker"]{border-color:#166534;background:#166534;color:#fff;}',
+            '.nd-chapter-preview-modal{z-index:1000012;}',
+            '.nd-chapter-preview-window{width:min(860px,calc(100vw - 24px));}',
+            '.nd-chapter-preview-state{padding:7px 12px;border-bottom:1px solid #d1d5db;background:#eff6ff;color:#1e3a8a;font-size:12px;}',
+            '.nd-chapter-preview-state[data-tone="success"]{background:#f0fdf4;color:#14532d;}',
+            '.nd-chapter-preview-state[data-tone="error"]{background:#fef2f2;color:#7f1d1d;}',
+            '.nd-chapter-preview-window pre{min-height:180px;margin:0;overflow:auto;padding:16px;background:#fff;color:#111827;white-space:pre-wrap;overflow-wrap:anywhere;font:14px/1.7 Arial,sans-serif;}',
+            '.nd-chapter-preview-window>footer{display:flex;justify-content:flex-end;padding:9px 12px;border-top:1px solid #d1d5db;background:#f9fafb;}',
+            '.nd-chapter-preview-window>footer button{min-width:112px;min-height:34px;border:1px solid #1d4ed8;border-radius:5px;background:#1d4ed8;color:#fff;padding:6px 12px;cursor:pointer;font-weight:700;}',
+            '.nd-chapter-preview-window>footer button:hover:not(:disabled){background:#1e40af;}',
+            '.nd-chapter-preview-window>footer button:disabled{border-color:#9ca3af;background:#e5e7eb;color:#6b7280;cursor:not-allowed;}',
         ].join('');
         ensureNovelDownloaderUIStyle('novel-downloader-style', style).className = 'novel-downloader-style';
 
@@ -3986,116 +4352,104 @@ function decryptDES(encrypted, key, iv) {
         // rule
         container.find('[name="info"]>[name="rule"]').html(`<a href="${window.location.origin}" target="_blank">${Storage.rule.siteName}</a>`);
 
-        let infoPage = await getFromRule(Storage.rule.infoPage, { attr: 'href' }, [], null);
-
-        if (infoPage === window.location.href) {
-            infoPage = null;
-        } else if (infoPage) {
-            infoPage = new URL(infoPage, window.location.href).href;
-            try {
-                // fetchPageContent cần selector dạng chuỗi
-                const selector = typeof Storage.rule.title === 'string' ? Storage.rule.title : 'body';
-                const infoPageHtml = await fetchPageContent(infoPage, selector);
-                infoPage = new DOMParser().parseFromString(infoPageHtml, 'text/html');
-            } catch (error) {
-                console.error("Không thể lấy trang thông tin sách:", error);
-                alert(`Lỗi: ${error}. Không thể lấy thông tin sách.`);
+        const loadBookInfo = async () => {
+            let infoPage = await getFromRule(Storage.rule.infoPage, { attr: 'href' }, [], null);
+            if (infoPage === window.location.href) {
                 infoPage = null;
-            }
-        }
-
-
-        //console.log(infoPage);
-        // rule-title
-
-        let title = await getFromRule(Storage.rule.title, { document: infoPage || document }, [], '');
-        if (!title && Storage.rule.titleRegExp instanceof RegExp) title = document.title.match(Storage.rule.titleRegExp) ? document.title.match(Storage.rule.titleRegExp)[1] : document.title;
-        if (Storage.rule.titleReplace) title = replaceWithDict(title, Storage.rule.titleReplace);
-        title = title.replace(/\s+/g, ' ').replace(/^《(.*)》$/, '$1').trim();
-        Storage.book.title = title;
-
-        // rule-writer
-
-        let writer = await getFromRule(Storage.rule.writer, { document: infoPage || document }, [], '');
-        writer = writer.replace(/\s+/g, ' ').replace(/.*作\s*者(:|：)|\s+著$/g, '').trim();
-        Storage.book.writer = writer;
-
-        // rule-intro,cover
-
-        let intro = await getFromRule(Storage.rule.intro, { attr: 'html', document: infoPage || document }, [], '');
-        intro = html2Text(intro, Storage.rule.contentReplace);
-        intro = $('<div>').html(intro);
-        if (Storage.rule.elementRemove || Config.useCommon) {
-            if (Storage.rule.elementRemove) {
-                $(`${Storage.rule.elementRemove},script,style,iframe`, intro).remove();
-            } else if (Config.useCommon) {
-                $(`${Rule.elementRemove},script,style,iframe`, intro).remove();
-            }
-        }
-        intro = intro.text();
-        Storage.book.intro = intro;
-        Storage.book.cover = await getFromRule(Storage.rule.cover, { attr: 'src', document: infoPage || document }, [], '');
-        for (const i of ['title', 'writer', 'intro', 'cover']) {
-            container.find(`[name="info"]>[name="${i}"]`).val(Storage.book[i] || '');
-        }
-
-        if (Storage.mode === 1) {
-            container.find('[name="info"]>[name="mode"]').text('Chế độ mục lục');
-            const styleChapter = [
-                '[novel-downloader-chapter]:before{display:none;}',
-            ].join('');
-            $('<style class="novel-downloader-style-chapter">').text(styleChapter).attr('media', 'max-width: 1px').appendTo('head');
-
-            // rule-chapter
-
-            chapters = await getFromRule(Storage.rule.chapter, async (selector) => {
-                let elems = $(Storage.rule.chapter);
-                if (Storage.rule !== Rule && Storage.rule.chapterUrl.length) elems = elems.filter((i, elem) => Storage.rule.chapterUrl.some((j) => elem.href.match(j)));
-                let volumes;
-                if (typeof Storage.rule.volume === 'string') {
-                    volumes = $(Storage.rule.volume);
-                } else if (typeof Storage.rule.volume === 'function' && Storage.rule.volume.length <= 1) {
-                    volumes = await Storage.rule.volume(document);
+            } else if (infoPage) {
+                infoPage = new URL(infoPage, window.location.href).href;
+                try {
+                    const selector = typeof Storage.rule.title === 'string' ? Storage.rule.title : 'body';
+                    const infoPageHtml = await fetchPageContent(infoPage, selector);
+                    infoPage = new DOMParser().parseFromString(infoPageHtml, 'text/html');
+                } catch (error) {
+                    console.error('Không thể lấy trang thông tin sách:', error);
+                    infoPage = null;
                 }
-                volumes = $(volumes).toArray();
-                const all = $(elems).add(volumes);
-                let order = 1;
-                return elems.attr('novel-downloader-chapter', '').toArray().map((i) => {
-                    $(i).attr('order', order++);
-                    const chapter = {
-                        title: i.textContent,
-                        url: i.href,
-                    };
-                    if (volumes && volumes.length) {
-                        const volume = all.slice(0, all.index(i)).toArray().reverse().find((i) => volumes.includes(i));
-                        if (volume) chapter.volume = html2Text(volume.textContent);
+            }
+
+            let title = await getFromRule(Storage.rule.title, { document: infoPage || document }, [], '');
+            if (!title && Storage.rule.titleRegExp instanceof RegExp) title = document.title.match(Storage.rule.titleRegExp) ? document.title.match(Storage.rule.titleRegExp)[1] : document.title;
+            if (Storage.rule.titleReplace) title = replaceWithDict(title, Storage.rule.titleReplace);
+            Storage.book.title = String(title || '').replace(/\s+/g, ' ').replace(/^《(.*)》$/, '$1').trim();
+
+            let writer = await getFromRule(Storage.rule.writer, { document: infoPage || document }, [], '');
+            Storage.book.writer = String(writer || '').replace(/\s+/g, ' ').replace(/.*作\s*者(:|：)|\s+著$/g, '').trim();
+
+            const introRaw = await getFromRule(Storage.rule.intro, { attr: 'html', document: infoPage || document }, [], '');
+            const introContainer = $('<div>').html(String(introRaw || ''));
+            if (Storage.rule.elementRemove || Config.useCommon) {
+                const removeSelector = Storage.rule.elementRemove || Rule.elementRemove;
+                if (removeSelector) $(`${removeSelector},script,style,iframe`, introContainer).remove();
+            }
+            Storage.book.intro = html2Text(introContainer.html() || introContainer.text(), Storage.rule.contentReplace).trim();
+            Storage.book.cover = await getFromRule(Storage.rule.cover, { attr: 'src', document: infoPage || document }, [], '');
+            for (const name of ['title', 'writer', 'intro', 'cover']) {
+                container.find(`[name="info"] [name="${name}"]`).first().val(Storage.book[name] || '');
+            }
+            return Storage.book;
+        };
+
+        const loadChapterList = async () => {
+            let loadedChapters = [];
+            let loadedVipChapters = [];
+            if (Storage.mode === 1) {
+                container.find('[name="info"]>[name="mode"]').text('Chế độ mục lục');
+                $('.novel-downloader-style-chapter').remove();
+                const styleChapter = '[novel-downloader-chapter]:before{display:none;}';
+                $('<style class="novel-downloader-style-chapter">').text(styleChapter).attr('media', 'max-width: 1px').appendTo('head');
+                loadedChapters = await getFromRule(Storage.rule.chapter, async () => {
+                    let elems = $(Storage.rule.chapter);
+                    if (Storage.rule !== Rule && Storage.rule.chapterUrl.length) elems = elems.filter((i, elem) => Storage.rule.chapterUrl.some((pattern) => elem.href.match(pattern)));
+                    let volumes;
+                    if (typeof Storage.rule.volume === 'string') {
+                        volumes = $(Storage.rule.volume);
+                    } else if (typeof Storage.rule.volume === 'function' && Storage.rule.volume.length <= 1) {
+                        volumes = await Storage.rule.volume(document);
                     }
-                    return chapter;
+                    volumes = $(volumes).toArray();
+                    const all = $(elems).add(volumes);
+                    let order = 1;
+                    return elems.attr('novel-downloader-chapter', '').toArray().map((elem) => {
+                        $(elem).attr('order', order++);
+                        const chapter = { title: elem.textContent, url: elem.href };
+                        if (volumes.length) {
+                            const volume = all.slice(0, all.index(elem)).toArray().reverse().find((item) => volumes.includes(item));
+                            if (volume) chapter.volume = html2Text(volume.textContent);
+                        }
+                        return chapter;
+                    });
+                }, [], []);
+                loadedVipChapters = await getFromRule(Storage.rule.vipChapter, () => $(Storage.rule.vipChapter).attr('novel-downloader-chapter', 'vip').toArray().map((elem) => elem.href), [], []);
+                loadedVipChapters = [].concat(loadedVipChapters || []);
+                if (typeof Storage.rule.volume === 'function' && Storage.rule.volume.length > 1) loadedChapters = await Storage.rule.volume(document, loadedChapters);
+            } else if (Storage.mode === 2) {
+                container.find('[name="info"]>[name="mode"]').text('Chế độ chương');
+                loadedChapters = [window.location.href];
+            }
+            if (typeof Storage.rule.getChapters === 'function') loadedChapters = await Storage.rule.getChapters(document);
+            loadedChapters = [].concat(loadedChapters || []).map((item) => (typeof item === 'string' ? { url: item } : item));
+            loadedVipChapters = loadedVipChapters.concat(loadedChapters.filter((item) => item && item.vip).map((item) => item.url));
+            if (!Storage.rule.chapter && Storage.rule.chapterUrl.length) {
+                let order = 1;
+                const chapterUrls = loadedChapters.map((item) => item.url);
+                const elems = Array.from(document.links).filter((elem) => ((loadedChapters.length || loadedVipChapters.length)
+                    ? (chapterUrls.includes(elem.href) || loadedVipChapters.includes(elem.href))
+                    : Storage.rule.chapterUrl.some((pattern) => elem.href.match(pattern))));
+                const fallbackChapters = $(elems).toArray().map((elem) => {
+                    $(elem).attr('novel-downloader-chapter', loadedVipChapters.includes(elem.href) ? 'vip' : '').attr('order', order++);
+                    return { title: elem.textContent, url: elem.href };
                 });
-            }, [], []);
-            vipChapters = await getFromRule(Storage.rule.vipChapter, (selector) => $(Storage.rule.vipChapter).attr('novel-downloader-chapter', 'vip').toArray().map((i) => i.href), [], []);
-            if (typeof Storage.rule.volume === 'function' && Storage.rule.volume.length > 1) chapters = await Storage.rule.volume(document, chapters);
-        } else if (Storage.mode === 2) {
-            container.find('[name="info"]>[name="mode"]').text('Chế độ chương');
-            chapters = [window.location.href];
-        }
-        if (typeof Storage.rule.getChapters === 'function') chapters = await Storage.rule.getChapters(document);
-        chapters = chapters.map((i) => (typeof i === 'string' ? { url: i } : i));
-        vipChapters = vipChapters.concat(chapters.filter((i) => i.vip).map((i) => i.url));
-        if (!Storage.rule.chapter && Storage.rule.chapterUrl.length) {
-            let order = 1;
-            const elems = Array.from(document.links).filter((i) => ((chapters.length || vipChapters.length)
-                ? (chapters.map((i) => i.url).includes(i.href) || vipChapters.includes(i.href))
-                : Storage.rule.chapterUrl.some((j) => i.href.match(j))));
-            const temp = $(elems).toArray().map((i) => {
-                $(i).attr('novel-downloader-chapter', vipChapters.includes(i.href) ? 'vip' : '').attr('order', order++);
-                return {
-                    title: i.textContent,
-                    url: i.href,
-                };
-            });
-            if (!chapters.length) chapters = temp;
-        }
+                if (!loadedChapters.length) loadedChapters = fallbackChapters;
+            }
+            return {
+                chapters: loadedChapters.filter(Boolean),
+                vipChapters: [...new Set(loadedVipChapters.filter(Boolean))]
+            };
+        };
+
+        await loadBookInfo();
+        ({ chapters, vipChapters } = await loadChapterList());
 
         const normalizeChapterUrlKey = (url) => {
             const value = String(url || '').trim();
@@ -4108,28 +4462,69 @@ function decryptDES(encrypted, key, iv) {
         };
         const mergeResumeChapters = (resumeChapters, currentChapters) => {
             const savedByKey = new Map();
-            const savedKeyOrder = [];
             (resumeChapters || []).forEach((savedChapter) => {
                 const key = normalizeChapterUrlKey(savedChapter && savedChapter.url);
                 if (!key) return;
-                if (!savedByKey.has(key)) savedKeyOrder.push(key);
                 savedByKey.set(key, savedChapter);
             });
-            const usedKeys = new Set();
-            const merged = (currentChapters || []).map((currentChapter) => {
+            if (!(currentChapters || []).length) return (resumeChapters || []).slice();
+            return (currentChapters || []).map((currentChapter) => {
                 const key = normalizeChapterUrlKey(currentChapter && currentChapter.url);
                 if (key && savedByKey.has(key)) {
-                    usedKeys.add(key);
-                    return Object.assign({}, currentChapter || {}, savedByKey.get(key) || {});
+                    const savedChapter = savedByKey.get(key) || {};
+                    const mergedChapter = Object.assign({}, savedChapter, currentChapter || {});
+                    if (savedChapter.contentRaw) mergedChapter.contentRaw = savedChapter.contentRaw;
+                    if (savedChapter.content) mergedChapter.content = savedChapter.content;
+                    return mergedChapter;
                 }
                 return currentChapter;
             });
-            savedKeyOrder.forEach((key) => {
-                if (usedKeys.has(key)) return;
-                merged.push(savedByKey.get(key));
-            });
-            return merged;
         };
+
+        const runRefreshAction = async (button, loadingText, action, successText) => {
+            if (!button || button.disabled) return;
+            const originalText = button.textContent;
+            button.disabled = true;
+            button.textContent = loadingText;
+            try {
+                await action();
+                ndShowToast(successText, 'success', 2500);
+            } catch (error) {
+                console.error(`[ND] ${originalText} thất bại:`, error);
+                ndShowToast(`${originalText} thất bại: ${error && error.message ? error.message : error}`, 'error', 4500);
+            } finally {
+                button.textContent = originalText;
+                button.disabled = false;
+            }
+        };
+        reloadBookInfo = async (button) => runRefreshAction(
+            button,
+            'Đang lấy info...',
+            async () => {
+                if (typeof Storage.rule.refreshInfo === 'function') await Storage.rule.refreshInfo();
+                await loadBookInfo();
+            },
+            'Đã lấy lại thông tin sách.'
+        );
+        reloadChapterList = async (button) => runRefreshAction(
+            button,
+            'Đang lấy DS...',
+            async () => {
+                if (typeof Storage.rule.refreshChapters === 'function') await Storage.rule.refreshChapters();
+                const previousChapters = chapters.slice();
+                const previousByUrl = new Map(previousChapters.map((chapter) => [normalizeChapterUrlKey(chapter && chapter.url), chapter]));
+                const refreshed = await loadChapterList();
+                chapters = refreshed.chapters.map((chapter) => {
+                    const previous = previousByUrl.get(normalizeChapterUrlKey(chapter && chapter.url));
+                    return previous ? Object.assign({}, previous, chapter) : chapter;
+                });
+                vipChapters = refreshed.vipChapters;
+                chaptersDownloaded.splice(0, chaptersDownloaded.length, ...chapters.filter((chapter) => chapter && (chapter.contentRaw || chapter.content)));
+                updateMainProgress(chaptersDownloaded.length, chapters.length);
+                initializeChapterPicker();
+            },
+            `Đã lấy lại danh sách chương.`
+        );
 
         if (!pendingResumeData && !pendingResumeTaskId && !options.resumeRequest) {
             const resumeCandidate = await findDownloadResumeCandidateForCurrentPage();
@@ -4138,7 +4533,6 @@ function decryptDES(encrypted, key, iv) {
                 if (shouldUseResume) {
                     pendingResumeTaskId = resumeCandidate.task.id;
                     pendingResumeData = resumeCandidate.data;
-                    pendingResumeAutoStart = false;
                     console.log(`[ND] User chọn nạp dữ liệu tải dở task ${pendingResumeTaskId}: ${resumeCandidate.loadedCount}/${resumeCandidate.total} chương đã có nội dung.`);
                 } else {
                     console.log(`[ND] User chọn tải mới, bỏ qua dữ liệu tải dở task ${resumeCandidate.task.id}.`);
@@ -4154,7 +4548,6 @@ function decryptDES(encrypted, key, iv) {
                 ndShowToast('Bỏ qua dữ liệu tải dở vì không cùng URL truyện.', 'warning', 3500);
                 pendingResumeData = null;
                 pendingResumeTaskId = null;
-                pendingResumeAutoStart = false;
             }
         }
 
@@ -4166,27 +4559,20 @@ function decryptDES(encrypted, key, iv) {
             container.find('[name="limit"]>[name="range"]').val('');
             container.find('[name="limit"]>[name="batch"]').val('');
             for (const name of ['title', 'writer', 'intro', 'cover']) {
-                container.find(`[name="info"]>[name="${name}"]`).val(Storage.book[name] || '');
+                container.find(`[name="info"] [name="${name}"]`).first().val(Storage.book[name] || '');
             }
             console.log(`[ND] Đã nạp dữ liệu tiếp tục task ${pendingResumeTaskId}: ${chaptersDownloaded.length}/${chapters.length} chương đã có nội dung.`);
             ndShowToast(`Tiếp tục tải: đã có ${chaptersDownloaded.length}/${chapters.length} chương.`, 'info', 3000);
         }
         updateMainProgress(chaptersDownloaded.length, chapters.length);
+        initializeChapterPicker();
 
         container.find('input,select,textarea').attr('disabled', null);
         container.find('input,select,textarea').filter('[raw-disabled="disabled"]').attr('raw-disabled', null).attr('disabled', 'disabled');
+        container.find('[name="refresh-info"],[name="refresh-chapters"]').prop('disabled', false);
         syncConsoleButtons();
 
         container.find('[name="rememberDownloadDir"]').prop('checked', !!Config.rememberDownloadDir);
-
-        if (pendingResumeAutoStart && pendingResumeTaskId && pendingResumeData) {
-            window.setTimeout(() => {
-                const format = pendingResumeData.format || 'text';
-                const button = container.find(`[name="download"][format="${format}"]`).get(0)
-                    || container.find('[name="download"][format="text"]').get(0);
-                if (button && !button.disabled) button.click();
-            }, 300);
-        }
 
         if (Storage.debug.book) console.log(Storage.book);
     }

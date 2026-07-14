@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name        nd-console-panel
-// @version     1.0.3
+// @version     1.0.4
 // @include     *
 // ==/UserScript==
 /* eslint-env browser */
@@ -78,7 +78,7 @@
         style.textContent = [
             ':host{all:initial;display:block;position:fixed;inset:0;z-index:2147483647;pointer-events:none;font-family:Arial,sans-serif;}',
             '*,*:before,*:after{box-sizing:border-box;}',
-            `#${PANEL_ID}{position:fixed;left:8px;bottom:8px;width:430px;max-width:calc(100vw - 16px);max-height:46vh;display:none;flex-direction:column;z-index:1000003;pointer-events:auto;background:#111827;color:#e5e7eb;border:1px solid #374151;box-shadow:0 12px 28px rgba(0,0,0,.35);font-family:Arial,sans-serif;font-size:12px;line-height:1.35;}`,
+            `#${PANEL_ID}{position:fixed;left:8px;bottom:8px;width:320px;max-width:calc(100vw - 16px);max-height:42vh;display:none;flex-direction:column;z-index:1000003;pointer-events:auto;background:#111827;color:#e5e7eb;border:1px solid #374151;box-shadow:0 12px 28px rgba(0,0,0,.35);font-family:Arial,sans-serif;font-size:12px;line-height:1.35;}`,
             `#${PANEL_ID}.is-visible{display:flex;}`,
             `#${PANEL_ID} button{appearance:none;border:1px solid #4b5563;background:#1f2937;color:#f9fafb;cursor:pointer;font:12px/1.2 Arial,sans-serif;margin:0;padding:4px 8px;border-radius:3px;}`,
             `#${PANEL_ID} button:hover{background:#374151;}`,
@@ -87,7 +87,7 @@
             `#${PANEL_ID} .nd-console-title{font-weight:700;color:#f9fafb;white-space:nowrap;}`,
             `#${PANEL_ID} .nd-console-state{color:#9ca3af;font-size:11px;white-space:nowrap;}`,
             `#${PANEL_ID} .nd-console-spacer{flex:1 1 auto;}`,
-            `#${PANEL_ID} .nd-console-list{overflow:auto;min-height:56px;max-height:calc(46vh - 39px);font:12px/1.45 Consolas,Menlo,Monaco,"Courier New",monospace;background:#111827;}`,
+            `#${PANEL_ID} .nd-console-list{overflow:auto;min-height:56px;max-height:calc(42vh - 39px);font:12px/1.45 Consolas,Menlo,Monaco,"Courier New",monospace;background:#111827;}`,
             `#${PANEL_ID} .nd-console-empty{padding:10px;color:#9ca3af;font-family:Arial,sans-serif;}`,
             `#${PANEL_ID} .nd-console-entry{padding:6px 8px;border-bottom:1px solid rgba(75,85,99,.65);white-space:pre-wrap;overflow-wrap:anywhere;}`,
             `#${PANEL_ID} .nd-console-entry[data-type="error"]{background:#2b161a;color:#fecaca;}`,
