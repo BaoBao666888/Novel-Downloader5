@@ -1,7 +1,7 @@
 # Hướng Dẫn Cài Đặt Và Sử Dụng TTS Reader
 
 Script `TTS Reader` dùng để đọc tiêu đề + nội dung chương bằng TTS, tô màu tiến độ, và tự chuyển phần/chương tiếp theo trên:
-- `wikicv.net`
+- `wikicv.org`
 
 ## 1) Mục đích
 - Đọc truyện trực tiếp trên web bằng nhiều nguồn giọng:
@@ -28,7 +28,7 @@ Script `TTS Reader` dùng để đọc tiêu đề + nội dung chương bằng 
 
 ## 3) Cách dùng nhanh
 1. Mở trang chương truyện (VD):
-   - `https://wikicv.net/truyen/.../...`
+   - `https://wikicv.org/truyen/.../...`
 2. Panel `TTS Reader` sẽ xuất hiện ở góc phải dưới (nếu bị thu gọn thì bấm nút tai nghe tròn để mở).
 3. Chọn:
    - `Nguồn giọng` (Browser/TikTok/Google/Bing)
@@ -114,7 +114,7 @@ Cách cài (Chrome/Edge desktop):
 ## 8) Lỗi thường gặp
 - Không thấy panel TTS Reader
   - Kiểm tra script đã bật trong Tampermonkey chưa.
-  - Đúng domain chưa: chỉ chạy trên trang chương truyện của `wikicv.net`.
+  - Đúng domain chưa: chỉ chạy trên trang chương truyện của `wikicv.org`.
   - Reload trang.
 - TikTok TTS báo thiếu cookie / cookie invalid
   - Đăng nhập TikTok lại, export cookie lại (đảm bảo có `sessionid`/`sid_tt`/`sid_guard`).
