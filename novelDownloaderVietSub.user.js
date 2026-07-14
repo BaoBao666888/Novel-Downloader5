@@ -2,7 +2,7 @@
 // ==UserScript==
 // @name        novelDownloaderVietSub
 // @description Menu Download Novel hoặc nhấp đúp vào cạnh trái của trang để hiển thị bảng điều khiển
-// @version     3.5.448.13
+// @version     3.5.448.14
 // @author      dodying | BaoBao
 // @namespace   https://github.com/BaoBao666888/Novel-Downloader5
 // @supportURL  https://github.com/BaoBao666888/Novel-Downloader5/issues
@@ -5308,7 +5308,7 @@ function decryptDES(encrypted, key, iv) {
         {
             siteName: 'TruyenWikiDich',
             filter: () => {
-                if (!window.location.host.includes('wikicv.net')) return 0;
+                if (!window.location.host.includes('wikicv.org')) return 0;
                 if (window.location.pathname.match(/^\/truyen\/[^\/]+\/chuong-/)) return 2;
                 if (window.location.pathname.match(/^\/truyen\/[^\/]+$/)) return 1;
                 return 0;
@@ -5317,7 +5317,7 @@ function decryptDES(encrypted, key, iv) {
             title: '.cover-info h2',
             writer: 'p:contains("Tác giả:") > a',
             intro: '.book-desc-detail',
-            cover: () => { return 'https://wikicv.net' + $('.cover-wrapper img').attr('src') },
+            cover: () => { return 'https://wikicv.org' + $('.cover-wrapper img').attr('src') },
 
             getChapters: async (doc) => {
                 // 1. Kiểm tra đăng nhập và quyền hạn

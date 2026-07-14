@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         Wikidich Autofill (Library)
 // @namespace    http://tampermonkey.net/
-// @version      0.3.9.5
-// @description  Lấy thông tin từ web Trung (Fanqie/JJWXC/PO18/Ihuaben/Qidian/Qimao/Gongzicp/Hai Tang Longma), dịch và tự tick/điền form nhúng truyện trên wikicv.net.
+// @version      0.3.9.6
+// @description  Lấy thông tin từ web Trung (Fanqie/JJWXC/PO18/Ihuaben/Qidian/Qimao/Gongzicp/Hai Tang Longma), dịch và tự tick/điền form nhúng truyện trên wikicv.org.
 // @author       QuocBao
 // ==/UserScript==
 
@@ -11,7 +11,7 @@
     let instance = null;
 
     const APP_PREFIX = 'WDA_';
-    const AUTOFILL_WIKIDICH_VERSION = '0.3.9.5'
+    const AUTOFILL_WIKIDICH_VERSION = '0.3.9.6';
     const SERVER_URL = 'https://dichngay.com/translate/text';
     const MAX_CHARS = 4500;
     const TRANSLATE_TIMEOUT_MS = 45000;
@@ -31,7 +31,7 @@
     const GEMINI_LOW_THINKING_BUDGET = 1024;
     const DEEP_DUPLICATE_COVER_MATCH_THRESHOLD = 0.92;
     const COVER_HASH_SIZE = 8;
-    const PROHIBITED_URL = 'https://wikicv.net/prohibited';
+    const PROHIBITED_URL = 'https://wikicv.org/prohibited';
     const PROHIBITED_CACHE_TTL_MS = 10 * 60 * 1000;
     const ROOT_NEG_WORDS = ['vo', 'khong', 'phi', 'chong', 'phan', 'non', 'no'];
     const ROOT_MODIFIERS = new Set([
@@ -3855,6 +3855,11 @@
     // ================================================
 
 const CHANGELOG_CONTENT = `
+<h2><span style="color:#673ab7; font-size: 1.2em;">✨ Phiên bản 0.3.9.6</span></h2>
+<ul style="list-style-type: none; padding-left: 0;">
+    <li>➡️ <b>Đổi tên miền:</b> Từ wikicv.net sang wikicv.org</li>
+</ul>
+
 <h2><span style="color:#673ab7; font-size: 1.2em;">✨ Phiên bản 0.3.9.5</span></h2>
 <ul style="list-style-type: none; padding-left: 0;">
     <li>🧯 <b>Fix dịch JJWXC/DichNgay:</b> Mô tả ngắn giữ nguyên 1 request thay vì tách từng dòng; batch lỗi chỉ chia đôi có kiểm soát, thêm parser bền hơn và timeout để tránh treo lâu.</li>
@@ -7635,10 +7640,10 @@ For arrays, return list of strings. If none fit, return empty array.
 
                 // --- BLOCKING LOGIC ---
                 const domainSetting = getDomainSetting(sourceInfo.type);
-                // Wikidich has moved to wikicv.net; keep backward compatibility for older domains/subdomains.
+                // Wikidich has moved to wikicv.org; keep backward compatibility for older domains/subdomains.
                 const host = (location.hostname || '').toLowerCase();
-                const isWikidich = host === 'wikicv.net'
-                    || host.endsWith('.wikicv.net')
+                const isWikidich = host === 'wikicv.org'
+                    || host.endsWith('.wikicv.org')
                     || host.includes('wikidich');
                 const target = domainSetting.target || 'wiki';
 
