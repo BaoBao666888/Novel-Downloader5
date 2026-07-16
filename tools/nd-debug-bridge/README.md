@@ -31,7 +31,15 @@ ND_DEBUG_PORT=17889 node tools/nd-debug-bridge/server.js
 5. Dùng cùng token ở popup userscript và dashboard.
 6. Bấm `Kết nối` trong popup userscript nếu chưa tự kết nối.
 
-Khi đã bật Debug Bridge một lần, setting `enabled/token/url` được lưu trong Tampermonkey. Các tab truyện mới do CLI mở sẽ tự nạp Debug Bridge và tự reconnect vào server local, miễn là server vẫn chạy và token không đổi.
+Setting `token/url/autoConnect/trustRemoteCode` được lưu trong Tampermonkey. Mặc định bridge không tự kết nối; user phải bấm `Kết nối`. Chỉ khi bật `Luôn tự kết nối server debug`, các tab mới hoặc tab reload mới tự nạp bridge và reconnect.
+
+## An toàn khi chạy code
+
+- Khi `Tin tưởng tất cả code JS chạy qua bridge` đang tắt, mỗi lệnh `eval.js` hoặc `rule.inject` mở popup ngay trên tab đích.
+- Popup cho phép chọn `Cho phép lần này`, `Tin tưởng trang này trong session`, hoặc `Từ chối`.
+- Tin tưởng theo session chỉ lưu trong bộ nhớ của tab và mất khi reload/đóng tab.
+- Bật tin tưởng toàn cục sẽ bỏ mọi bước xác nhận code trên tất cả website và luôn hiện cảnh báo trước khi bật.
+- Mỗi lệnh `eval.js` đều hiện toast cảnh báo, kèm hostname của website đang chạy.
 
 ## Dùng bằng terminal
 

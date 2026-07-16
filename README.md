@@ -22,8 +22,9 @@
     *   [Tampermonkey](https://www.tampermonkey.net/) (Khuyên dùng cho Chrome, Edge, Firefox, Opera, Safari)
     *   [Violentmonkey](https://violentmonkey.github.io/) (Mã nguồn mở, hỗ trợ nhiều trình duyệt)
     *   Greasemonkey (Chủ yếu cho Firefox phiên bản cũ hơn)
+    *   [ScriptCat](https://scriptcat.org/) (Đã dùng thử, khá mượt nhưng chưa hỗ trợ :>)
 2.  **Cài đặt script:** Nhấn vào link sau và làm theo hướng dẫn của trình quản lý userscript:
-    *   **[Cài đặt novelDownloaderVietSub (v3.5.448.13)](https://raw.githubusercontent.com/BaoBao666888/Novel-Downloader5/main/novelDownloaderVietSub.user.js)**
+    *   **[Cài đặt novelDownloaderVietSub (v3.5.448.15)](https://raw.githubusercontent.com/BaoBao666888/Novel-Downloader5/main/novelDownloaderVietSub.user.js)**
 
 ## Hướng dẫn sử dụng
 
@@ -35,8 +36,8 @@
     *   *(Lưu ý: Xem phần "Vấn đề đã biết" nếu gặp khó khăn khi mở bảng điều khiển).*
 3.  **Kiểm tra thông tin:** Script sẽ cố gắng tự động lấy thông tin truyện (tên, tác giả, bìa, tóm tắt) nếu rule cho trang đó hỗ trợ. Ô `Tóm tắt` là vùng nhiều dòng để bạn xem và chỉnh đúng bố cục xuống dòng. Dùng `Lấy lại info` hoặc `Lấy lại DS chương` khi cần gọi lại rule mà không đóng UI.
 4.  **Cấu hình (Tùy chọn):** Điều chỉnh các tùy chọn tải xuống như định dạng file, số luồng, thời gian chờ, có tải chương VIP hay không, v.v.
-5.  **Chọn chương:** Bấm `Chọn chương tải` để mở danh sách chương trong popup. Nhập phạm vi như `1-25, 35, 50`; dòng trạng thái sẽ báo số chương hợp lệ, còn thẻ chương thường/VIP được phân màu riêng. Bấm một thẻ rồi chọn `Lấy thử chap`, hoặc nhấp đúp thẻ để xem ngay title và nội dung. Nút `Copy chương` sao chép theo dạng `title\ncontent`.
-6.  **Bắt đầu tải:** Nhấn `Tải xuống - TXT`, `Tải xuống - ZIP` hoặc `Tải xuống - EPUB`.
+5.  **Chọn chương:** Bấm `Chọn chương tải` để mở danh sách chương trong popup. Nhập phạm vi như `1-25, 35, 50`; dòng trạng thái sẽ báo số chương hợp lệ, còn thẻ chương thường/VIP được phân màu riêng. Bấm một thẻ rồi chọn `Lấy thử chap`, hoặc nhấp đúp thẻ để xem ngay title và nội dung. Nội dung xem thử được làm sạch giống file xuất; nút `Copy chương` sao chép theo dạng `title\ncontent`.
+6.  **Bắt đầu tải:** Nhấn `Tải xuống - TXT`, `Tải xuống - ZIP` hoặc `Tải xuống - EPUB`. Cả ba định dạng dùng tên file theo dạng `tên truyện__tác giả`.
 7.  **Theo dõi:** Theo dõi thanh tiến trình trên bảng điều khiển hoặc mở `Quản lý tải xuống` để xem queue/lịch sử. Bảng này có nút copy summary/lỗi, xóa lịch sử, xóa task treo và nạp lại task đã lưu khi tab bị đóng giữa chừng. Sau khi nạp, chọn lại phạm vi rồi bấm định dạng tải; script không tự chạy phạm vi cũ.
 8.  **Lưu file:** Có thể dùng nút `Chọn thư mục lưu` để ghi trực tiếp bằng File System Access API. Nếu trình duyệt không hỗ trợ hoặc không cấp quyền, script tự fallback về hộp lưu mặc định của trình duyệt.
 
@@ -50,6 +51,8 @@
 
 - Xem hướng dẫn: [Novel Downloader Debug Bridge](tools/nd-debug-bridge/README.md).
 - Debug Bridge dùng server local để test selector, chạy rule, xem `Storage`/`Config`, chạy `getChapters`, `deal` và eval JS ngay trong tab Tampermonkey thật; có CLI terminal ở `tools/nd-debug-bridge/cli.js` để điều khiển tab debug, mở URL mới, inject rule test bằng `inject-rule`, hoặc mở tab mới và test rule bằng `test-rule <file> <url>`.
+- Bridge mặc định chỉ kết nối thủ công. Bật `Luôn tự kết nối server debug` nếu muốn tự nạp/reconnect khi mở trang.
+- Khi chưa bật `Tin tưởng tất cả code JS chạy qua bridge`, mỗi lệnh eval/inject sẽ mở popup trên tab đích để chọn cho phép một lần, tin tưởng origin đó trong session, hoặc từ chối. Eval JS luôn hiện toast cảnh báo trên website đang chạy.
 - Khi muốn test Rule Editor bằng bản trong repo hiện tại, chạy `node tools/nd-debug-bridge/server.js`; server này cũng phục vụ `/nd-rule-editor.js`.
 
 ### Cung cấp Token JJWXC và API Fanqie
@@ -119,6 +122,7 @@ Script hỗ trợ một danh sách lớn các trang web. Trong UI tải chính h
 *   JJWXC (晋江文学城)
 *   Qidian (起点中文网)
 *   69shuba (69书吧)
+*   POPO原創市集 (popo.tw)
 *   PO18 (po18.tw)
 *   Haitang (海棠文化)
 *   Afdian (afdian.com)

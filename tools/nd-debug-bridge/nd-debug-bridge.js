@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name        nd-debug-bridge
-// @version     1.2.1
+// @version     1.3.0
 // @include     *
 // ==/UserScript==
 /* eslint-env browser */
@@ -10,9 +10,10 @@
 
     if (window.NDDebugBridge && window.NDDebugBridge.__installed) return;
 
-    const VERSION = '1.2.1';
+    const VERSION = '1.3.0';
     const UI_HOST_ID = 'novel-downloader-shadow-host';
     const PANEL_ID = 'ndDebugBridgePanel';
+    const APPROVAL_MODAL_ID = 'ndDebugBridgeCodeApproval';
     const STYLE_ID = 'ndDebugBridgeStyle';
     const SETTINGS_KEY = 'nd_debug_bridge_settings';
     const DEFAULT_WS_URL = 'ws://127.0.0.1:17888/ws';
@@ -26,7 +27,9 @@
     let socket = null;
     let reconnectTimer = null;
     let consoleDetach = null;
+    let approvalQueue = Promise.resolve();
     let settings = loadSettings();
+    const sessionTrustedOrigins = new Set();
     let status = {
         state: 'disconnected',
         message: 'Chưa kết nối',
@@ -97,9 +100,10 @@
     function loadSettings() {
         const saved = safeGetValue(SETTINGS_KEY, {}) || {};
         return {
-            enabled: Boolean(saved.enabled),
             url: saved.url || DEFAULT_WS_URL,
-            token: saved.token || createToken()
+            token: saved.token || createToken(),
+            autoConnect: Boolean(saved.autoConnect),
+            trustRemoteCode: Boolean(saved.trustRemoteCode)
         };
     }
 
@@ -259,7 +263,7 @@
     }
 
     function connect(nextSettings = {}) {
-        saveSettings(Object.assign({}, nextSettings, { enabled: true }));
+        saveSettings(nextSettings);
         if (socket && (socket.readyState === WebSocket.OPEN || socket.readyState === WebSocket.CONNECTING)) {
             return;
         }
@@ -292,7 +296,7 @@
         });
         socket.addEventListener('close', () => {
             socket = null;
-            if (settings.enabled) {
+            if (settings.autoConnect) {
                 setStatus('disconnected', 'Mất kết nối, sẽ thử lại...');
                 reconnectTimer = window.setTimeout(() => connect(), 2500);
             } else {
@@ -305,7 +309,7 @@
     }
 
     function disconnect() {
-        saveSettings({ enabled: false });
+        saveSettings({ autoConnect: false });
         window.clearTimeout(reconnectTimer);
         reconnectTimer = null;
         if (socket) {
@@ -418,6 +422,105 @@
         return result;
     }
 
+    function showEvalToast(context) {
+        const toast = window.ndShowToast
+            || context && context.toast
+            || context && context.helpers && context.helpers.toast;
+        if (typeof toast !== 'function') return;
+        try {
+            toast(`Debug Bridge đang chạy eval JS trên ${window.location.host}`, 'warning', 5000);
+        } catch (error) {
+            console.warn('[ND Debug Bridge] Không hiển thị được thông báo eval:', error);
+        }
+    }
+
+    function showCodeApprovalDialog(options = {}) {
+        const show = () => new Promise((resolve) => {
+            const root = getUiRoot(true) || document.body;
+            ensureStyle(root);
+            let modal = root.querySelector(`#${APPROVAL_MODAL_ID}`);
+            if (!modal) {
+                modal = document.createElement('div');
+                modal.id = APPROVAL_MODAL_ID;
+                modal.innerHTML = [
+                    '<section class="nd-debug-approval-window" role="dialog" aria-modal="true">',
+                    '  <header data-role="approval-title">Yêu cầu chạy code Debug Bridge</header>',
+                    '  <div class="nd-debug-approval-body">',
+                    '    <div class="nd-debug-approval-warning" data-role="approval-warning"></div>',
+                    '    <div class="nd-debug-approval-meta"><b>Trang:</b> <span data-role="approval-host"></span><br><b>Lệnh:</b> <span data-role="approval-command"></span></div>',
+                    '    <pre data-role="approval-code"></pre>',
+                    '  </div>',
+                    '  <footer>',
+                    '    <button type="button" data-action="deny">Từ chối</button>',
+                    '    <button type="button" class="session" data-action="trust-session">Tin tưởng trang này trong session</button>',
+                    '    <button type="button" class="primary" data-action="allow-once">Cho phép lần này</button>',
+                    '  </footer>',
+                    '</section>'
+                ].join('');
+                root.appendChild(modal);
+            }
+
+            modal.querySelector('[data-role="approval-title"]').textContent = options.title || 'Yêu cầu chạy code Debug Bridge';
+            modal.querySelector('[data-role="approval-warning"]').textContent = options.warning
+                || 'Code có thể đọc hoặc thay đổi dữ liệu của trang và userscript. Chỉ tiếp tục nếu bạn nhận ra lệnh này.';
+            modal.querySelector('[data-role="approval-host"]').textContent = window.location.origin;
+            modal.querySelector('[data-role="approval-command"]').textContent = options.commandName || 'JavaScript';
+            modal.querySelector('[data-role="approval-code"]').textContent = options.code || '(không có nội dung code)';
+            const sessionButton = modal.querySelector('[data-action="trust-session"]');
+            const allowButton = modal.querySelector('[data-action="allow-once"]');
+            sessionButton.hidden = options.allowSession === false;
+            allowButton.textContent = options.allowLabel || 'Cho phép lần này';
+
+            const cleanup = (action) => {
+                modal.removeEventListener('click', onClick);
+                modal.classList.remove('is-visible');
+                resolve(action);
+            };
+            const onClick = (event) => {
+                const button = event.target.closest('button[data-action]');
+                if (button && modal.contains(button)) {
+                    cleanup(button.dataset.action);
+                } else if (event.target === modal) {
+                    cleanup('deny');
+                }
+            };
+            modal.addEventListener('click', onClick);
+            modal.classList.add('is-visible');
+        });
+
+        const queued = approvalQueue.then(show, show);
+        approvalQueue = queued.catch(() => {});
+        return queued;
+    }
+
+    async function requireRemoteCodeApproval(commandName, code) {
+        const origin = window.location.origin;
+        if (settings.trustRemoteCode || sessionTrustedOrigins.has(origin)) return true;
+        const preview = limitText(String(code || '').trim(), 2000);
+        const action = await showCodeApprovalDialog({
+            commandName,
+            code: preview || '(trống)',
+        });
+        if (action === 'trust-session') {
+            sessionTrustedOrigins.add(origin);
+            return true;
+        }
+        if (action !== 'allow-once') throw new Error(`User từ chối chạy ${commandName} qua Debug Bridge.`);
+        return true;
+    }
+
+    async function requestGlobalTrustApproval() {
+        const action = await showCodeApprovalDialog({
+            title: 'Bật tin tưởng code từ Debug Bridge',
+            commandName: 'Cài đặt tin tưởng toàn cục',
+            warning: 'Sau khi bật, mọi eval JS và code inject rule từ bridge sẽ chạy mà không hỏi lại trên tất cả website. Chỉ bật khi server local và token debug hoàn toàn do bạn kiểm soát.',
+            code: 'Bỏ xác nhận cho mọi code JavaScript nhận qua Debug Bridge.',
+            allowSession: false,
+            allowLabel: 'Bật tin tưởng',
+        });
+        return action === 'allow-once';
+    }
+
     async function runCommand(command, payload = {}) {
         const context = getRuntimeContext();
         if (command === 'ping') {
@@ -493,6 +596,7 @@
         }
         if (command === 'rule.inject') {
             const code = String(payload.code || '');
+            await requireRemoteCodeApproval('inject rule', code);
             const mode = payload.mode || 'prepend';
             const result = evaluateRuleCode(code, context);
             const rules = [].concat(result || []).filter(Boolean).map(normalizeInjectedRule);
@@ -601,6 +705,8 @@
         if (command === 'eval.js') {
             const code = String(payload.code || '');
             if (!code.trim()) throw new Error('Thiếu code');
+            await requireRemoteCodeApproval('eval.js', code);
+            showEvalToast(context);
             const names = Object.keys(context).filter(name => /^[A-Za-z_$][\w$]*$/.test(name));
             const values = names.map(name => context[name]);
             const fn = new Function(...names, `"use strict";\nreturn (async function(){\n${code}\n})();`);
@@ -675,6 +781,12 @@
             `#${PANEL_ID} .nd-debug-body{display:grid;gap:11px;padding:14px;}`,
             `#${PANEL_ID} label{display:grid;gap:4px;font-size:12px;color:#475569;font-weight:700;}`,
             `#${PANEL_ID} input{width:100%;border:1px solid #cbd5e1;border-radius:6px;padding:7px 8px;font:13px Consolas,Menlo,monospace;color:#0f172a;background:#fff;}`,
+            `#${PANEL_ID} .nd-debug-toggle{grid-template-columns:18px minmax(0,1fr);align-items:start;column-gap:8px;padding:9px 10px;border:1px solid #cbd5e1;border-radius:8px;background:#fff;cursor:pointer;}`,
+            `#${PANEL_ID} .nd-debug-toggle input{width:16px;height:16px;margin:1px 0 0;padding:0;accent-color:#2563eb;}`,
+            `#${PANEL_ID} .nd-debug-toggle span{color:#0f172a;font-size:12px;line-height:1.35;}`,
+            `#${PANEL_ID} .nd-debug-toggle small{grid-column:2;color:#64748b;font-size:11px;font-weight:400;line-height:1.4;}`,
+            `#${PANEL_ID} .nd-debug-toggle.is-danger{border-color:#fecaca;background:#fff7f7;}`,
+            `#${PANEL_ID} .nd-debug-toggle.is-danger span{color:#991b1b;}`,
             `#${PANEL_ID} .nd-debug-status{padding:10px 11px;border:1px solid #cbd5e1;border-radius:8px;background:#fff;font-size:13px;}`,
             `#${PANEL_ID} .nd-debug-status strong{display:inline-block;min-width:82px;}`,
             `#${PANEL_ID} .nd-debug-status[data-state="connected"]{border-color:#86efac;background:#f0fdf4;color:#14532d;}`,
@@ -685,7 +797,20 @@
             `#${PANEL_ID} button:hover{background:#eff6ff;border-color:#93c5fd;}`,
             `#${PANEL_ID} button[data-action="connect"]{background:#ecfdf5;border-color:#86efac;color:#166534;}`,
             `#${PANEL_ID} button[data-action="disconnect"]{background:#fff1f2;border-color:#fecaca;color:#991b1b;}`,
-            `#${PANEL_ID} .nd-debug-note{font-size:12px;line-height:1.45;color:#64748b;}`
+            `#${PANEL_ID} .nd-debug-note{font-size:12px;line-height:1.45;color:#64748b;}`,
+            `#${APPROVAL_MODAL_ID}{position:fixed;inset:0;z-index:1000015;display:none;align-items:center;justify-content:center;padding:16px;background:rgba(15,23,42,.64);pointer-events:auto;color:#111827;font-family:Arial,sans-serif;}`,
+            `#${APPROVAL_MODAL_ID}.is-visible{display:flex;}`,
+            `#${APPROVAL_MODAL_ID} .nd-debug-approval-window{width:min(680px,calc(100vw - 24px));max-height:calc(100vh - 24px);display:flex;flex-direction:column;overflow:hidden;border:1px solid #fca5a5;border-radius:8px;background:#f8fafc;box-shadow:0 24px 70px rgba(15,23,42,.45);}`,
+            `#${APPROVAL_MODAL_ID} header{padding:12px 14px;background:#991b1b;color:#fff;font-size:15px;font-weight:800;line-height:1.35;}`,
+            `#${APPROVAL_MODAL_ID} .nd-debug-approval-body{display:grid;gap:10px;overflow:auto;padding:14px;}`,
+            `#${APPROVAL_MODAL_ID} .nd-debug-approval-warning{padding:9px 10px;border-left:4px solid #dc2626;background:#fef2f2;color:#7f1d1d;font-size:12px;line-height:1.5;}`,
+            `#${APPROVAL_MODAL_ID} .nd-debug-approval-meta{color:#334155;font-size:12px;line-height:1.55;word-break:break-word;}`,
+            `#${APPROVAL_MODAL_ID} pre{max-height:260px;margin:0;overflow:auto;border:1px solid #cbd5e1;border-radius:6px;background:#0f172a;color:#e2e8f0;padding:10px;white-space:pre-wrap;overflow-wrap:anywhere;font:12px/1.5 Consolas,Menlo,monospace;}`,
+            `#${APPROVAL_MODAL_ID} footer{display:flex;flex-wrap:wrap;justify-content:flex-end;gap:8px;padding:10px 12px;border-top:1px solid #cbd5e1;background:#fff;}`,
+            `#${APPROVAL_MODAL_ID} button{min-height:34px;border:1px solid #cbd5e1;border-radius:6px;background:#fff;color:#0f172a;padding:7px 11px;cursor:pointer;font-size:12px;font-weight:800;}`,
+            `#${APPROVAL_MODAL_ID} button:hover{background:#f1f5f9;}`,
+            `#${APPROVAL_MODAL_ID} button.session{border-color:#d97706;background:#fffbeb;color:#92400e;}`,
+            `#${APPROVAL_MODAL_ID} button.primary{border-color:#166534;background:#166534;color:#fff;}`
         ].join('\n');
     }
 
@@ -700,8 +825,12 @@
         }
         const urlInput = panel.querySelector('[name="ws-url"]');
         const tokenInput = panel.querySelector('[name="token"]');
+        const autoConnectInput = panel.querySelector('[name="auto-connect"]');
+        const trustRemoteCodeInput = panel.querySelector('[name="trust-remote-code"]');
         if (urlInput && document.activeElement !== urlInput) urlInput.value = settings.url;
         if (tokenInput && document.activeElement !== tokenInput) tokenInput.value = settings.token;
+        if (autoConnectInput) autoConnectInput.checked = settings.autoConnect;
+        if (trustRemoteCodeInput) trustRemoteCodeInput.checked = settings.trustRemoteCode;
     }
 
     function openDashboard() {
@@ -744,6 +873,8 @@
                 '    <div class="nd-debug-status" data-role="status"></div>',
                 '    <label>WebSocket URL<input name="ws-url" autocomplete="off"></label>',
                 '    <label>Token<input name="token" autocomplete="off"></label>',
+                '    <label class="nd-debug-toggle"><input type="checkbox" name="auto-connect"><span>Luôn tự kết nối server debug</span><small>Tự nạp bridge và thử kết nối lại khi mở hoặc reload trang. Tắt tùy chọn này để chỉ kết nối thủ công.</small></label>',
+                '    <label class="nd-debug-toggle is-danger"><input type="checkbox" name="trust-remote-code"><span>Tin tưởng tất cả code JS chạy qua bridge</span><small>Bỏ bước xác nhận cho eval JS và inject rule. Chỉ bật khi server local và token hoàn toàn do bạn kiểm soát.</small></label>',
                 '    <div class="nd-debug-actions">',
                 '      <button type="button" data-action="connect">Kết nối</button>',
                 '      <button type="button" data-action="disconnect">Ngắt</button>',
@@ -755,6 +886,34 @@
                 '  </div>',
                 '</div>'
             ].join('');
+            panel.addEventListener('change', async (event) => {
+                const input = event.target;
+                if (!input || input.tagName !== 'INPUT') return;
+                if (input.name === 'auto-connect') {
+                    const nextUrl = panel.querySelector('[name="ws-url"]').value.trim() || DEFAULT_WS_URL;
+                    const nextToken = panel.querySelector('[name="token"]').value.trim() || createToken();
+                    saveSettings({
+                        url: nextUrl,
+                        token: nextToken,
+                        autoConnect: input.checked
+                    });
+                    if (input.checked && (!socket || socket.readyState > WebSocket.OPEN)) {
+                        connect();
+                    } else if (!input.checked) {
+                        window.clearTimeout(reconnectTimer);
+                        reconnectTimer = null;
+                    }
+                } else if (input.name === 'trust-remote-code') {
+                    if (input.checked) {
+                        const approved = await requestGlobalTrustApproval();
+                        if (!approved) {
+                            input.checked = false;
+                            return;
+                        }
+                    }
+                    saveSettings({ trustRemoteCode: input.checked });
+                }
+            });
             panel.addEventListener('click', async (event) => {
                 const button = event.target.closest('button[data-action]');
                 if (!button) {
@@ -824,6 +983,6 @@
 
     window.setTimeout(() => {
         attachConsoleStream();
-        if (settings.enabled) connect();
+        if (settings.autoConnect) connect();
     }, 600);
 }(window, document));

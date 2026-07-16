@@ -2,7 +2,7 @@
 // ==UserScript==
 // @name        novelDownloaderVietSub
 // @description Menu Download Novel hoặc nhấp đúp vào cạnh trái của trang để hiển thị bảng điều khiển
-// @version     3.5.448.14
+// @version     3.5.448.15
 // @author      dodying | BaoBao
 // @namespace   https://github.com/BaoBao666888/Novel-Downloader5
 // @supportURL  https://github.com/BaoBao666888/Novel-Downloader5/issues
@@ -141,7 +141,7 @@ function decryptDES(encrypted, key, iv) {
     const ND_VERSION_NOTICE_KEY = 'ND_MAIN_LAST_VERSION';
     const ND_LAUNCHER_ENABLED_KEY = 'ND_LAUNCHER_ENABLED';
     const ND_LAUNCHER_POSITION_KEY = 'ND_LAUNCHER_POSITION';
-    const ND_DEBUG_BRIDGE_CLIENT_URL = 'http://127.0.0.1:17888/nd-debug-bridge.js';
+    const ND_DEBUG_BRIDGE_CLIENT_URL = 'http://127.0.0.1:17888/nd-debug-bridge.js?v=1.3.0';
     const ND_RULE_EDITOR_CLIENT_URL = 'http://127.0.0.1:17888/nd-rule-editor.js';
     const ND_RULE_EDITOR_REMOTE_URL = 'https://raw.githubusercontent.com/BaoBao666888/Novel-Downloader5/main/tools/nd-rule-editor/nd-rule-editor.js?v=1.0.2';
     const ND_SUPPORTED_SITES_REMOTE_URL = 'https://raw.githubusercontent.com/BaoBao666888/Novel-Downloader5/main/src/rules/supported-sites.json?v=1';
@@ -209,7 +209,7 @@ function decryptDES(encrypted, key, iv) {
     // ============================================================================
 
     function getNovelDownloaderScriptVersion() {
-        return GM_info && GM_info.script && GM_info.script.version ? GM_info.script.version : '3.5.448.13';
+        return GM_info && GM_info.script && GM_info.script.version ? GM_info.script.version : '3.5.448.15';
     }
 
     function docList(items) {
@@ -251,7 +251,8 @@ function decryptDES(encrypted, key, iv) {
             ]),
             '<h3>Debug Bridge</h3>',
             docList([
-                'Chạy server local bằng <code>node tools/nd-debug-bridge/server.js</code>, sau đó mở <b>Debug Bridge</b> trong tab Cài đặt của Quản lý tải xuống. Client bridge sẽ được tải từ server local khi bấm mở.',
+                'Chạy server local bằng <code>node tools/nd-debug-bridge/server.js</code>, sau đó mở <b>Debug Bridge</b> trong tab Cài đặt của Quản lý tải xuống. Mặc định bridge chỉ kết nối thủ công; bật <b>Luôn tự kết nối server debug</b> khi thực sự cần.',
+                'Eval JS và inject rule phải xác nhận trên tab đích nếu chưa bật <b>Tin tưởng tất cả code JS chạy qua bridge</b>. Chỉ bật tin tưởng khi server local và token hoàn toàn do bạn kiểm soát.',
                 'Dashboard local cho phép test selector, xem môi trường, xem rule/book/config, chạy <code>getChapters</code>, <code>deal</code> và eval JS ngay trong tab userscript thật.',
                 'CLI debug có thể dùng <code>inject-rule &lt;file&gt;</code> để thử rule trên tab hiện tại, hoặc <code>test-rule &lt;file&gt; &lt;url&gt;</code> để mở tab mới, inject rule test rồi chạy snapshot/getChapters.',
                 'Server local cũng phục vụ Rule Editor để test nhanh khi cần chạy bản trong repo hiện tại.',
@@ -284,7 +285,11 @@ function decryptDES(encrypted, key, iv) {
                 'Cho phép chọn một thẻ rồi <b>Lấy thử chap</b>, hoặc nhấp đúp thẻ để xem và copy title/nội dung chương trước khi tải.',
                 'Không tự khởi chạy phạm vi cũ khi nạp dữ liệu tải dở; phạm vi vừa chọn luôn được ưu tiên.',
                 'Đổi ô <b>Tóm tắt</b> sang dạng nhiều dòng để nhìn và chỉnh đúng vị trí xuống dòng.',
-                'Thêm nút lấy lại thông tin sách và danh sách chương ngay trong UI tải chính.'
+                'Thêm nút lấy lại thông tin sách và danh sách chương ngay trong UI tải chính.',
+                'Nâng cấp rule <b>POPO原創市集</b>: nhận trang sách/trang mục lục, tự tải toàn bộ các trang chương và hỗ trợ chương đã mua.',
+                'Đồng bộ tên file TXT/ZIP/EPUB theo dạng <b>tên truyện__tác giả</b> và cập nhật credit trong ZIP/EPUB.',
+                'Thêm tùy chọn tự kết nối, tin tưởng code từ xa và thông báo trên tab khi Debug Bridge chạy eval JS.',
+                'Popup xem thử chương dùng chung pipeline làm sạch với file xuất để loại ký tự/HTML thừa trước khi hiển thị và copy.'
             ]),
             '<h3>Các bản trước (tóm tắt)</h3>',
             docList([
@@ -843,7 +848,7 @@ function decryptDES(encrypted, key, iv) {
         } catch (error) {
             debugSettings = null;
         }
-        if (!debugSettings || !debugSettings.enabled) return;
+        if (!debugSettings || !debugSettings.autoConnect) return;
         loadNovelDownloaderDebugBridgeClient()
             .then((bridge) => {
                 if (bridge && typeof bridge.connect === 'function' && !bridge.isConnected()) {
@@ -2510,7 +2515,8 @@ function decryptDES(encrypted, key, iv) {
             unsafeWindow,
             download: typeof download !== 'undefined' ? download : undefined,
             saveAs: typeof saveAs !== 'undefined' ? saveAs : undefined,
-            CryptoJS: typeof CryptoJS !== 'undefined' ? CryptoJS : undefined
+            CryptoJS: typeof CryptoJS !== 'undefined' ? CryptoJS : undefined,
+            toast: window.ndShowToast
         };
     }
 
@@ -3001,10 +3007,14 @@ function decryptDES(encrypted, key, iv) {
             if (typeof activeRule.deal === 'function') {
                 const result = await activeRule.deal(previewChapter);
                 if (typeof result === 'string' && result.trim()) {
-                    return { title: previewChapter.title || '', content: result };
+                    return { title: previewChapter.title || '', content: result, rule: activeRule };
                 }
                 if (result && result.content) {
-                    return { title: result.title || previewChapter.title || '', content: result.content };
+                    return {
+                        title: result.title || previewChapter.title || '',
+                        content: result.content,
+                        rule: activeRule,
+                    };
                 }
                 throw new Error(result && result.error || 'Hàm deal không trả về nội dung');
             }
@@ -3025,7 +3035,7 @@ function decryptDES(encrypted, key, iv) {
             }, [res, request], '');
             if (Array.isArray(content)) content = content.join('\n');
             if (!String(content || '').trim()) throw new Error('Không tìm thấy nội dung chương');
-            return { title, content };
+            return { title, content, rule: activeRule };
         };
         const initializeChapterPicker = () => {
             const root = getNovelDownloaderUIRoot(true) || document.body;
@@ -3163,11 +3173,15 @@ function decryptDES(encrypted, key, iv) {
                 copyChapterButton.textContent = 'Copy chương';
                 try {
                     const result = await loadChapterPreview(chapter);
-                    const chapterTitle = String(result.title || chapter.title || 'Chương xem thử').trim();
-                    const chapterContent = html2Text(String(result.content || ''), Storage.rule.contentReplace).trim();
+                    const chapterTitle = String(result.title || chapter.title || 'Chương xem thử').replace(/\s+/g, ' ').trim();
+                    const chapterContent = await processChapterContentForOutput(
+                        result.content,
+                        result.rule || Storage.rule,
+                        'text'
+                    );
                     previewTitle.textContent = `${index + 1}. ${chapterTitle}`;
                     previewState.dataset.tone = 'success';
-                    previewState.textContent = 'Đã lấy nội dung thành công.';
+                    previewState.textContent = 'Đã lấy và xử lý nội dung như file xuất.';
                     previewContent.textContent = chapterContent;
                     previewCopyValue = `${chapterTitle}\n${chapterContent}`;
                     copyChapterButton.disabled = false;
@@ -3661,42 +3675,7 @@ function decryptDES(encrypted, key, iv) {
                     const rule = vipChapters.includes(chapter.url) ? Storage.rule.vip : Storage.rule;
                     let content = chapter.contentRaw || chapter.content;
                     if (!content) continue;
-                    if (rule.elementRemove || Config.useCommon) {
-                        if (Storage.debug.content) debugger;
-                        content = await getFromRule(content, (content) => {
-                            const elem = $('<div>').html(content);
-                            if (rule.elementRemove) {
-                                $(`${rule.elementRemove},script,style,iframe`, elem).remove();
-                            } else if (Config.useCommon) {
-                                $(`${Rule.elementRemove},script,style,iframe`, elem).remove();
-                            }
-                            return elem.html();
-                        }, [], '');
-                    }
-
-                    if (Config.format) {
-                        content = html2Text(content, rule.contentReplace);
-                        if (['text', 'zip'].includes(format)) content = $('<div>').html(content).text();
-                        content = content.replace(/^\s+/mg, '').trim(); // 移除开头空白字符
-                        if (Config.removeEmptyLine === 'auto') {
-                            const arr = content.split(/\n{2,}/);
-                            let keep = false;
-                            for (const i of arr) {
-                                if (i.match(/\n/)) {
-                                    keep = true;
-                                    break;
-                                }
-                            }
-                            content = keep ? content.replace(/\n{3,}/g, '\n\n') : content.replace(/\n+/g, '\n');
-                        } else if (Config.removeEmptyLine === 'remove') {
-                            content = content.replace(/\n+/g, '\n');
-                        } else if (Config.removeEmptyLine === 'keep') {
-                            content = content.replace(/\n{3,}/g, '\n\n');
-                        }
-                        // https://stackoverflow.com/a/25956935
-                        content = content.replace(/^/gm, '\u3000\u3000'); // 每行增加空白字符作缩进
-                    }
-                    if (Config.language) content = tranStr(content, Config.language === 'tc');
+                    content = await processChapterContentForOutput(content, rule, format);
                     chapter.content = content;
 
                     if (!chapter.title) continue;
@@ -4623,6 +4602,20 @@ function decryptDES(encrypted, key, iv) {
     // Output Builders
     // ============================================================================
 
+    const ND_DOWNLOAD_PROJECT_NAME = 'Novel Downloader 5';
+    const ND_DOWNLOAD_PROJECT_URL = 'https://github.com/BaoBao666888/Novel-Downloader5';
+    const getDownloadCredit = () => ({
+        projectName: ND_DOWNLOAD_PROJECT_NAME,
+        projectUrl: ND_DOWNLOAD_PROJECT_URL,
+        scriptVersion: getNovelDownloaderScriptVersion(),
+        maintainer: 'QB / BaoBao',
+        sourceUrl: window.location.href,
+    });
+    const escapeDownloadXml = (value) => $('<div>').text(String(value || '')).html();
+    const getDownloadCreditLines = (credit) => [
+        `Tạo bởi ${credit.projectName} v${credit.scriptVersion} (${credit.maintainer}) | ${credit.projectUrl} | Nguồn: ${credit.sourceUrl}`,
+    ];
+
     const downloadTo = {
         debug: async (chapters) => { // TODO
             console.log(chapters);
@@ -4663,9 +4656,18 @@ function decryptDES(encrypted, key, iv) {
             const { length } = String(chapters.length);
             const title = Storage.book.title || Storage.book.chapters[0].title;
             const writer = Storage.book.writer || 'novelDownloader';
+            const credit = getDownloadCredit();
             const uuid = `ndv3-${window.location.href.match(/[a-z0-9-]+/ig).join('-')}${ndUI$('.novel-downloader-v3').find('[name="limit"]>[name="range"]').val()}`;
             const href = $('<div>').text(window.location.href).html();
             const date = new Date().toISOString();
+            const creditSummary = getDownloadCreditLines(credit).join(' | ');
+            const epubDescription = [
+                Storage.book.intro || '',
+                Config.reference ? creditSummary : '',
+            ].filter(Boolean).join(' | ');
+            const creditHtml = getDownloadCreditLines(credit)
+                .map((line) => `<div>${escapeDownloadXml(line)}</div>`)
+                .join('');
 
             let cover = Storage.book.coverBlob;
             if (!Storage.book.coverBlob && Storage.book.cover) {
@@ -4691,9 +4693,11 @@ function decryptDES(encrypted, key, iv) {
                 'OEBPS/cover.jpg': cover,
                 'OEBPS/content.opf': [
                     `<?xml version="1.0" encoding="UTF-8"?><package version="2.0" unique-identifier="${uuid}" xmlns="http://www.idpf.org/2007/opf"><metadata xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:opf="http://www.idpf.org/2007/opf">`,
-                    `<dc:title>${title}</dc:title>`,
-                    `<dc:creator>${writer}</dc:creator>`,
-                    '<dc:publisher>novelDownloader</dc:publisher>',
+                    `<dc:title>${escapeDownloadXml(title)}</dc:title>`,
+                    `<dc:creator>${escapeDownloadXml(writer)}</dc:creator>`,
+                    `<dc:publisher>${escapeDownloadXml(credit.projectName)}</dc:publisher>`,
+                    `<dc:description>${escapeDownloadXml(epubDescription)}</dc:description>`,
+                    Config.reference ? `<dc:rights>${escapeDownloadXml(creditSummary)}</dc:rights>` : '',
                     `<dc:date>${date}</dc:date>`,
                     `<dc:source>${href}</dc:source>`,
                     `<dc:identifier id="${uuid}">urn:uuid:${uuid}</dc:identifier>`,
@@ -4702,11 +4706,10 @@ function decryptDES(encrypted, key, iv) {
                 ].join(''),
                 'OEBPS/toc.ncx': `<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE ncx PUBLIC "-//NISO//DTD ncx 2005-1//EN" "http://www.daisy.org/z3986/2005/ncx-2005-1.dtd"><ncx xmlns="http://www.daisy.org/z3986/2005/ncx/" version="2005-1"><head><meta name="dtb:uid" content="urn:uuid:${uuid}"/><meta name="dtb:depth" content="1"/><meta name="dtb:totalPageCount" content="0"/><meta name="dtb:maxPageNumber" content="0"/></head><docTitle><text>${title}</text></docTitle><navMap><navPoint id="navpoint-1" playOrder="1"><navLabel><text>首页</text></navLabel><content src="cover.html"/></navPoint>`,
                 'OEBPS/cover.html': `<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.1//EN" "http://www.w3.org/TR/xhtml11/DTD/xhtml11.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><title>${title}</title><link type="text/css" rel="stylesheet" href="stylesheet.css" /><meta http-equiv="Content-Type" content="text/html; charset=utf-8" /></head><body>${[
-                    `<h1>${title}</h1>`,
-                    Storage.book.writer ? `<h2>${Storage.book.writer}</h2>` : '',
-                    Storage.book.intro ? `<h2>Giới thiệu: ${Storage.book.intro}</h2>` : '',
-                    Config.reference ? '<h3>Lưu ý trước khi đọc: Cuốn sách này được sản xuất bởi user script NovelDownloader</h3>' : '',
-                    Config.reference ? `<h3>Địa chỉ nguồn: <a href="${href}" target="_blank">${href}</a></h3>` : '',
+                    `<h1>${escapeDownloadXml(title)}</h1>`,
+                    Storage.book.writer ? `<h2>Tác giả: ${escapeDownloadXml(Storage.book.writer)}</h2>` : '',
+                    Storage.book.intro ? `<div><strong>Giới thiệu:</strong> ${escapeDownloadXml(Storage.book.intro)}</div>` : '',
+                    Config.reference ? `<hr /><div class="nd-credit"><strong>Thông tin tệp</strong>${creditHtml}</div>` : '',
                 ].filter((i) => i).join('')}</body></html>`,
             };
 
@@ -4819,19 +4822,20 @@ function decryptDES(encrypted, key, iv) {
                     level: 9,
                 },
             });
-            download(file, `${title}.epub`);
+            download(file, `${title}__${writer}.epub`);
         },
         zip: async (chapters) => {
             const { length } = String(chapters.length);
             const title = Storage.book.title || Storage.book.chapters[0].title;
+            const writer = Storage.book.writer || 'novelDownloader';
+            const credit = getDownloadCredit();
 
             const files = {};
-            files[`${String(0).padStart(length, '0')}-说明文件.txt`] = [
-                `本书名称: ${title}`,
-                Storage.book.writer ? `本书作者: ${Storage.book.writer}` : '',
-                Storage.book.intro ? `本书简介: ${Storage.book.intro}` : '',
-                Config.reference ? '阅读前说明：本书籍由用户脚本novelDownloader制作' : '',
-                Config.reference ? `来源地址: ${window.location.href}` : '',
+            files[`${String(0).padStart(length, '0')}-Thong-tin-truyen.txt`] = [
+                `Tên sách: ${title}`,
+                Storage.book.writer ? `Tác giả: ${Storage.book.writer}` : '',
+                Storage.book.intro ? `Giới thiệu: ${Storage.book.intro}` : '',
+                ...(Config.reference ? getDownloadCreditLines(credit) : []),
             ].filter((i) => i).join('\n');
 
             for (let i = 0; i < chapters.length; i++) {
@@ -4851,7 +4855,7 @@ function decryptDES(encrypted, key, iv) {
                     level: 9,
                 },
             });
-            download(file, `${title}.zip`);
+            download(file, `${title}__${writer}.zip`);
         },
     };
 
@@ -4901,6 +4905,43 @@ function decryptDES(encrypted, key, iv) {
         }
         returnValue = returnValue !== null && returnValue !== undefined ? returnValue : defaultValue;
         return returnValue;
+    }
+
+    async function processChapterContentForOutput(rawContent, rule = Storage.rule, format = 'text') {
+        const activeRule = rule || Storage.rule || Rule;
+        let content = String(rawContent || '');
+        if (!content) return '';
+
+        if (activeRule.elementRemove || Config.useCommon) {
+            if (Storage.debug.content) debugger;
+            const elem = $('<div>').html(content);
+            if (activeRule.elementRemove) {
+                $(`${activeRule.elementRemove},script,style,iframe`, elem).remove();
+            } else if (Config.useCommon) {
+                $(`${Rule.elementRemove},script,style,iframe`, elem).remove();
+            }
+            content = elem.html() || '';
+        }
+
+        if (Config.format) {
+            content = html2Text(content, activeRule.contentReplace);
+            if (['text', 'zip'].includes(format)) content = $('<div>').html(content).text();
+            content = content.replace(/^\s+/mg, '').trim();
+            if (Config.removeEmptyLine === 'auto') {
+                const parts = content.split(/\n{2,}/);
+                const keepParagraphBreaks = parts.some((part) => part.includes('\n'));
+                content = keepParagraphBreaks
+                    ? content.replace(/\n{3,}/g, '\n\n')
+                    : content.replace(/\n+/g, '\n');
+            } else if (Config.removeEmptyLine === 'remove') {
+                content = content.replace(/\n+/g, '\n');
+            } else if (Config.removeEmptyLine === 'keep') {
+                content = content.replace(/\n{3,}/g, '\n\n');
+            }
+            content = content.replace(/^/gm, '\u3000\u3000');
+        }
+        if (Config.language) content = tranStr(content, Config.language === 'tc');
+        return content;
     }
 
     // ============================================================================
