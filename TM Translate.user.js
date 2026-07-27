@@ -2,7 +2,7 @@
 // @name         TM Translate
 // @author       QuocBao
 // @namespace    http://tampermonkey.net/
-// @version      3.5.5.10_beta
+// @version      3.5.5.11_beta
 // @description  Dịch trang, quản lý name-sets, sửa tên, Thư viện đọc offline, OCR và TTS.
 // @icon         data:image/png;base64,AAABAAEAQEAAAAEAIAAoQgAAFgAAACgAAABAAAAAgAAAAAEAIAAAAAAAAEAAAAAAAAAAAAAAAAAAAAAAAAA+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/0CLNf9BjDb/QYw2/0GMNv9BjDb/QYw2/0GMNv9BjDb/QYw2/0GMNv9BjDb/QYw2/0GMNv9BjDb/QIs1/z+LNP8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z+KNP81hCn/L4Ek/zCCJf8wgiX/MIIl/zCCJf8wgiX/MIIl/zCCJf8wgiX/MIIk/zCCJP8xgiX/MoMm/zWFKv86hy7/Pooz/0GMNv9BjDb/P4s0/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/0CLNf83hiz/gbJ6/7HQrf+py6T/qsum/6rLpv+qy6b/qsum/6rLpv+qy6b/qsum/6jKo/+fxZr/kLuJ/36xd/9oo1//UJVH/zyJMf8xgiX/MoIm/zqIL/9BjDb/QIs1/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/9AizX/M4Mo/8DZvP///////P38//////////////////////////////////////////////////////////////////X59f/b6dr/tNGw/4CyeP9Ok0T/M4Mn/zSEKP8/izT/QYw2/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/QIs1/zOEKP+71rj///////n8+f/8/fz//P38//z9/P/8/fz//P38//z9/P/8/fz//P38//z9/P/8/fz//f79//7//v//////////////////////8/jz/7zWuf9wqGj/OIYt/zOEKP9AizX/P4s0/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/0CLNv8zgyj/vde6///////8/fz//////////////////v79//3+/f/9/v3//f79//7+/v/+/v7//v/+/////////////v/+//3+/f/8/fz//f79/////////////////9Pk0f9yqWr/M4Mo/zmHLv9BjDb/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/9Aizb/M4Mo/73Xuv///////P38///////////////////////////////////////////////////////9/v3//P38//z9/P/9/v3////////////+//7//P38//3+/f///////////8DYvP9Nk0P/MoMn/0GMNv8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/QIs2/zODKP+917r///////z9/P/////////////////h7N//1+fV/9vp2f/e69z/5/Dl//P48v/9/v3///////////////////////7//v/8/fz//v7+/////////////f79//3+/P//////7/Xu/3Wrbv8wgiT/QIs1/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/0CLNv8zgyj/vde6///////8/fz/////////////////Yp9Z/zODJ/89iTP/PYoy/0ONOP9Mk0L/WptR/3Gpaf+Qu4n/ttKy/+Ds3v/9/v3////////////9/vz//v7+/////////////P38//7+/v//////lL6O/zGCJv9AizX/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/9Aizb/M4Mo/73Xuv///////P38/////////////////2ShXP82hSv/QIs1/z6KM/88iTH/Oogv/zeGLP80hCj/MYIl/zKDJv8+ijP/Yp9Z/6THn//s8+v///////7+/f/9/v3////////////+/v3//P38//////+awpX/MYIl/0GMNv8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/QIs2/zODKP+917r///////z9/P////////////////9koVz/NoUr/0CLNf8+ijP/P4o0/z+LNP8/izX/QIs1/0GMNv9BjDb/Pooz/zaFK/8wgST/Ro88/5nBk//1+fT///////z9/P////////////7//v/8/fz//////4a2gP8xgiX/QYw2/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/0CLNv8zgyj/vde6///////8/fz/////////////////ZKFb/zaFKv9AizX/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/9AizX/QYw3/zyJMf8vgSP/VZhL/9Hjzv///////P38/////////////v7+///////6/Pr/YJ9Y/zaFKv9AizX/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/9Aizb/M4Mo/73Xuv///////P38/////////////////2ShW/82hSr/QIs1/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8/ijT/Qow3/zeGLP85hy7/udW2///////8/fz////////////9/v3//////9Pk0P87iDD/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/QIs2/zODKP+917r///////z9/P////////////////9koVv/NoUq/0CLNf8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/9BjDb/PYky/zWEKf+/2Lv///////39/P////////////z9/P//////hrV//zGCJf9BjDb/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/0CLNv8zgyj/vde6///////8/fz/////////////////ZKFb/zaFKv9AizX/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/0CLNf87iTD/QIs1/93q2////////f79///////+/v3//////93q2/8/ijT/PYoy/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/9Aizb/M4Mo/73Xuv///////P38/////////////////2ShW/82hSr/QIs1/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/QYw2/zOEKP9ppGH///////7//v////////////3+/f//////dqxv/zODJ/9AjDb/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/QIs2/zODKP+917r///////z9/P////////////////9koVv/NoUq/0CLNf8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/9BjDb/MYIm/7jUtP///////f38///////8/fz//////7nUtf8ygyf/QYw2/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/0CLNv8zgyj/vde6///////8/fz/////////////////ZKFb/zaFKv9AizX/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/QIs1/zaFKv9koVz//////////////////v7+///////p8uj/RY47/zyJMf8/ijT/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/9Aizb/M4Mo/73Xuv///////P38/////////////////2ShW/82hSr/QIs1/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8/ijT/O4gw/9ro1////////f79///////+//7//////2aiXv81hSr/QIs1/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/QIs2/zODKP+917r///////z9/P////////////////9koVv/NoUq/0CLNf8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/QYw2/zCCJP+oyqP///////z9/P///////P38//////+JuIP/MYIl/0GMNv8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/0CLNv8zgyj/vde6///////8/fz/////////////////ZKFb/zaFKv9AizX/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/0GMNv8ygyb/gbJ6///////9/vz///////z9/P//////qMqj/zGCJf9BjDb/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/9Aizb/M4Mo/73Xuv///////P38/////////////////2ShW/82hSr/QIs1/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/9AizX/NYUq/2ejX////////v/+///////8/fz//////7zWuf8zgyf/QIw2/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/QIs2/zODKP+917r///////z9/P////////////////9koVv/NoUq/0CLNf8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/P4s1/ziGLP9am1D/+/37///////+//7//f79///////K38f/NoUq/0CLNf8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/0CLNv8zgyj/vde6///////8/fz/////////////////ZKFb/zaFKv9AizX/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z+LNP85hy7/U5dJ//j7+P///////v/+//3+/f//////0+TR/zmHLf8/izT/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/9Aizb/M4Mo/73Xuv///////P38/////////////////2ShW/82hSr/QIs1/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8/izT/OYcu/1OWSf/3+vf///////7//v/9/v3//////9bm1P86hy7/P4o0/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/QIs2/zODKP+917r///////z9/P////////////////9koVv/NoUq/0CLNf8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/P4s0/ziGLf9XmU7/+vz6///////+//7//f79///////R487/OIYs/z+LNP8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/0CLNv8zgyj/vde6///////8/fz/////////////////ZKFb/zaFKv9AizX/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/0CLNf82hSv/YqBa//////////////////3+/f//////xtzD/zWEKf9AizX/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/9Aizb/M4Mo/73Xuv///////P38/////////////////2ShW/82hSr/QIs1/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/9BjDb/M4Mn/3itcf///////f79///////8/fz//////7bSsv8ygyb/QYw2/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/QIs2/zODKP+917r///////z9/P////////////////9koVv/NoUq/0CLNf8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/QYw2/zCCJP+bwpX///////z9/P///////P38//////+dw5f/MIIk/0GMNv8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/0CLNv8zgyj/vde6///////8/fz/////////////////ZKFb/zaFKv9AizX/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/0CLNf81hSr/yd7F///////9/v3///////3+/f//////fK90/zKDJ/9BjDb/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/9Aizb/M4Mo/73Xuv///////P38/////////////////2ShW/82hSr/QIs1/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z+LNP85hy7/UZZI//b69v///////v/+//7//v//////+vz6/1eZTf84hi3/P4s0/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/QIs2/zODKP+917r///////z9/P////////////////9koVv/NoUq/0CLNf8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/9CjDf/MIIk/5W/j////////P38///////9/v3//////9Xl0/86hy//P4o0/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/0CLNv8zgyj/vde6///////8/fz/////////////////ZKFb/zaFKv9AizX/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8/izT/O4gw/0ePPP/r8ur///////7+/v///////P38//////+XwJH/MIIl/0GMNv8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/9Aizb/M4Mo/73Xuv///////P38/////////////////2ShW/82hSr/QIs1/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Qow3/y+BI/+tzaj///////39/P///////v/+///////2+fX/VZdL/zmHLf8/izT/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/QIs2/zODKP+917r///////z9/P////////////////9koVv/NoUq/0CLNf8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8/ijT/Qo04/y2AIf+Cs3v///////3+/f////////////z9/P//////sM+r/zKCJv9BjDb/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/0CLNv8zgyj/vde6///////8/fz/////////////////ZKFb/zaFKv9AizX/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/9BjDb/Pooz/y2AIf99sHb//P38///////+//7///////7+/v//////8/fy/1KWSf85hy7/P4s0/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/9Aizb/M4Mo/73Xuv///////P38/////////////////2ShW/82hSr/QIs1/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/P4o0/0GMNv9AizX/M4Mn/zuIMP+gxZr//v/+//7+/v/+//7////////////8/fv//////4y5hf8xgiX/QYw2/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/QIs2/zODKP+917r///////z9/P////////////////9koVv/NoUq/0CLNf8+ijP/Pooz/z6KM/8+ijP/P4o0/0CLNf9BjDb/QYw2/zyJMf8ygyb/N4Yr/3Oqa//b6dn///////3+/P/+//7////////////7/fv//////7nUtf80hCn/QIs1/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/0CLNv8zgyj/vde6///////8/fz/////////////////Z6Je/zmHLv9DjTj/QYw2/0GMNv9AizX/Pooz/zuIMP82hSv/MYIl/zKDJ/9Gjzz/frF3/9Hjzv////////////3+/f/+//7////////////7/fv//////8zgyf89iTL/PIkx/z+LNP8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/9Aizb/M4Mo/73Xuv///////P38/////////////////1maUP8nfBv/MoMn/zGCJf8ygyb/NYQp/zuIMP9JkT//YZ9Z/4e2gf+51LX/7PPr/////////////f79//3+/f////////////7+/f/8/fz//////8fdxP8/ijT/O4gv/0CLNf8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/QIs2/zODKP+917r///////z9/P////////////////+71bf/psmh/6vMpv+uzqn/t9Oz/8jdxf/a6dj/8PXv//7//v/////////////////9/v3//f79/////////////v/+//z9/P/+//7//////6rLpf84hi3/O4gw/0CLNf8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/0CLNv8zgyj/vde6///////8/fz///////////////////////////////////////////////////////////////7//P38//z9/P/+/v7////////////+/v7//P38//7+/v//////6/Pq/3mucv8xgiX/Pooz/0CLNf8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/9Aizb/M4Mo/73Xuv///////P38//////////////////3+/P/8/fz//P38//z9/P/8/fz//f79//3+/f/+/v7//////////////////v7+//z9/P/9/v3////////////4+/f/qMqj/0ePPf8ygyb/QYw2/z+KNP8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/QIs2/zODKP+81rj///////v8+v/9/v3//f79//3+/f/9/v3//f79//3+/f/9/v3//f79//3+/f/9/vz//P38//z9/P/9/v3////////////+//7//////+vz6v+myaH/VZhL/zCCJP87iDD/QYw2/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/0CLNf8zgyj/wNi8///////8/fz///////////////////////////////////////////////////////////////////////3+/f/l7+P/t9Oz/3uvdP9Gjzv/MIIl/ziHLf9BjDb/P4s0/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/9AizX/NYQp/6HGnP/l7+T/2ejX/9vp2f/b6dn/2+nZ/9vp2f/b6dn/2+nZ/9vp2f/a6Nj/1OXS/8jdxf+10rH/ncSY/36xd/9enVX/Qow3/zKCJv8ygyb/PIkx/0GMNv8/izT/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/87iDD/PIgx/zyIMf88iDH/PIgx/zyIMf88iDH/PIgx/zyIMf88iTH/O4gw/ziGLf81hCn/MYIm/zCCJP8ygyb/N4Yr/z2JMv9BjDb/QYw2/z+KNP8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/P4o0/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8/izT/QIs1/0GMNv9BjDb/QYw2/0CLNf8+ijT/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=
 // @downloadURL  https://raw.githubusercontent.com/BaoBao666888/Novel-Downloader5/main/TM%20Translate.user.js
@@ -129,6 +129,7 @@
         showRestoreButton: true,
         autoTranslateOnScroll: true,
         nameEditingEnabled: true,
+        editNamePredictionEnabled: true,
         allowCopyWhenEditing: true,
         showLibraryButton: true,
         showHelpButton: true,
@@ -466,7 +467,7 @@
     let translatedBodyClone = null;
 
     /* ================== VERSION ================== */
-    const CURRENT_VERSION = '3.5.5.10_beta';
+    const CURRENT_VERSION = '3.5.5.11_beta';
     const TM_VERSION_KEY = 'tm_translate_version';
     const TTS_STORAGE_KEY = 'twd_tts_reader_settings_v1';
     const TTS_DEFAULT_SETTINGS = {
@@ -952,15 +953,20 @@
             position: relative; width: 100%; height: 1.35em; overflow: hidden; white-space: nowrap;
             font-weight: 800; font-size: 15px; line-height: 1.25; color: #111827;
         }
-        .tm-library-title-text { display: inline-block; min-width: 100%; padding-right: 18px; }
-        .tm-library-title.is-marquee .tm-library-title-text {
-            min-width: max-content;
-            animation: tm-library-title-marquee var(--tm-marquee-duration, 10s) ease-in-out infinite alternate;
+        .tm-library-title-track { display: inline-flex; min-width: 100%; width: max-content; align-items: baseline; }
+        .tm-library-title-text { display: block; flex: 0 0 auto; }
+        .tm-library-title-copy { display: none; }
+        .tm-library-title.is-marquee .tm-library-title-track {
+            min-width: 0;
+            gap: var(--tm-marquee-gap, 32px);
+            animation: tm-library-title-marquee var(--tm-marquee-duration, 10s) linear infinite;
+            will-change: transform;
         }
-        .tm-library-card:hover .tm-library-title.is-marquee .tm-library-title-text { animation-play-state: paused; }
+        .tm-library-title.is-marquee .tm-library-title-copy { display: block; }
+        .tm-library-card:hover .tm-library-title.is-marquee .tm-library-title-track { animation-play-state: paused; }
         @keyframes tm-library-title-marquee {
             0%, 14% { transform: translateX(0); }
-            86%, 100% { transform: translateX(var(--tm-marquee-distance, -40%)); }
+            100% { transform: translateX(calc(-1 * var(--tm-marquee-shift, 0px))); }
         }
         .tm-library-author, .tm-library-meta, .tm-library-progress { font-size: 12px; line-height: 1.35; color: #64748b; }
         .tm-library-progress { color: #334155; }
@@ -2221,10 +2227,25 @@
         tmUIRoot.appendChild(wrapper);
         applySelectionActionModalReaderTheme(wrapper, context);
 
-        const close = () => wrapper.remove();
-        wrapper.querySelector('.tm-modal-backdrop')?.addEventListener('click', close);
-        wrapper.querySelector('#tm-selection-action-close')?.addEventListener('click', close);
-        wrapper.querySelector('#tm-selection-action-cancel')?.addEventListener('click', close);
+        const initialSignature = stableStringify({
+            source: initialSource,
+            target: '',
+            ignoreCase: false
+        });
+        const close = (force = false) => {
+            const currentSignature = stableStringify({
+                source: wrapper.querySelector('#tm-selection-source-input')?.value || '',
+                target: wrapper.querySelector('#tm-selection-target-input')?.value || '',
+                ignoreCase: !!wrapper.querySelector('#tm-selection-ignore-case')?.checked
+            });
+            if (!force && currentSignature !== initialSignature && !confirm('Bạn đang sửa raw dở. Bỏ thay đổi và đóng popup?')) {
+                return false;
+            }
+            wrapper.remove();
+            return true;
+        };
+        wrapper.querySelector('#tm-selection-action-close')?.addEventListener('click', () => close());
+        wrapper.querySelector('#tm-selection-action-cancel')?.addEventListener('click', () => close());
         wrapper.querySelector('form')?.addEventListener('submit', async (event) => {
             event.preventDefault();
             const sourceInput = wrapper.querySelector('#tm-selection-source-input');
@@ -2242,7 +2263,7 @@
                 targetInput?.focus();
                 return;
             }
-            close();
+            close(true);
             await applySelectionRawEdit(kind, context, { source, target, ignoreCase });
         });
 
@@ -2283,7 +2304,7 @@
             if (context?.isRawOnlyBook) {
                 openSelectionRawEditModalForSelection('replace', range, selectedText);
             } else {
-                openEditModalForSelection();
+                await openEditModalForSelection();
             }
             hideSelectionEditButton();
             return;
@@ -3435,10 +3456,9 @@
                     itemInClone.element.setAttribute(itemInClone.attribute, originalItem.translated);
                 }
                 else if (itemInClone.node && itemInClone.node.parentNode) {
-                    const nameSet = config.nameSets[config.activeNameSet] || {};
-                    const highlightedHtml = highlightNamesInText(originalItem.translated, nameSet, originalItem.decodedOriginal);
-
                     if (config.nameEditingEnabled) {
+                        const nameSet = config.nameSets[config.activeNameSet] || {};
+                        const highlightedHtml = highlightNamesInText(originalItem.translated, nameSet, originalItem.decodedOriginal);
                         const chunkSpan = document.createElement('span');
                         chunkSpan.className = 'tm-chunk';
                         chunkSpan.dataset.orig = originalItem.decodedOriginal;
@@ -3452,18 +3472,9 @@
                         }
                     } else {
                         if (itemInClone.type === 'link') {
-                            if (itemInClone.node && itemInClone.node.nodeType === 1) {
-                                itemInClone.node.setAttribute('title', `Dịch từ: ${originalItem.decodedOriginal.trim()}`);
-                            }
-                            itemInClone.node.innerHTML = highlightedHtml;
+                            itemInClone.node.textContent = originalItem.translated;
                         } else {
-                            const parent = itemInClone.node.parentNode;
-                            if (!parent) continue;
-                            const translatedSpan = document.createElement('span');
-                            translatedSpan.className = 'tm-translated-text';
-                            translatedSpan.title = `Dịch từ: ${originalItem.decodedOriginal.trim()}`;
-                            translatedSpan.innerHTML = highlightedHtml;
-                            parent.replaceChild(translatedSpan, itemInClone.node);
+                            itemInClone.node.nodeValue = originalItem.translated;
                         }
                     }
                 }
@@ -3789,12 +3800,11 @@
                 }
             }
             else if (it.node?.isConnected && it.node.parentNode) {
-                const highlightedHtml = highlightNamesInText(it.translated, nameSet, it.decodedOriginal);
-
                 // Nếu type === 'link', it.node chính là thẻ <a> (không phải text node)
                 const isLinkElement = it.type === 'link';
 
                 if (config.nameEditingEnabled) {
+                    const highlightedHtml = highlightNamesInText(it.translated, nameSet, it.decodedOriginal);
                     const chunkSpan = document.createElement('span');
                     chunkSpan.className = 'tm-chunk';
                     chunkSpan.dataset.orig = it.decodedOriginal;
@@ -3811,18 +3821,9 @@
                     }
                 } else {
                     if (isLinkElement) {
-                        // Nếu it.node là thẻ <a>, thay thế nội dung HTML của nó
-                        it.node.setAttribute('title', `Dịch từ: ${it.decodedOriginal.trim()}`);
-                        it.node.innerHTML = highlightedHtml;
+                        it.node.textContent = it.translated;
                     } else {
-                        // Mỗi text-node có wrapper/title riêng để không ghi đè tooltip của text-node kế bên.
-                        const parent = it.node.parentNode;
-                        if (!parent) continue;
-                        const translatedSpan = document.createElement('span');
-                        translatedSpan.className = 'tm-translated-text';
-                        translatedSpan.title = `Dịch từ: ${it.decodedOriginal.trim()}`;
-                        translatedSpan.innerHTML = highlightedHtml;
-                        parent.replaceChild(translatedSpan, it.node);
+                        it.node.nodeValue = it.translated;
                     }
                 }
             }
@@ -3985,8 +3986,392 @@
         return null;
     }
 
+    const EDIT_NAME_PUNCTUATION_MAP = Object.freeze({
+        '，': ',', ',': ',',
+        '。': '.', '.': '.',
+        '！': '!', '!': '!',
+        '？': '?', '?': '?',
+        '；': ';', ';': ';',
+        '：': ':', ':': ':',
+        '、': ',',
+        '…': '…',
+        '\n': '\n',
+        '\r': '\n'
+    });
+
+    function editNameNormalizeAnchorWord(value) {
+        return String(value || '').normalize('NFC').toLocaleLowerCase('vi-VN').trim();
+    }
+
+    function editNameSplitPunctuationClauses(value) {
+        const text = String(value || '');
+        const clauses = [];
+        let start = 0;
+        const pushClause = (rawStart, rawEnd, separatorEnd, separator) => {
+            let contentStart = rawStart;
+            let contentEnd = rawEnd;
+            while (contentStart < contentEnd && /\s/u.test(text[contentStart])) contentStart++;
+            while (contentEnd > contentStart && /\s/u.test(text[contentEnd - 1])) contentEnd--;
+            if (contentEnd <= contentStart) return;
+            clauses.push({
+                start: contentStart,
+                end: contentEnd,
+                separatorEnd,
+                separator
+            });
+        };
+        let i = 0;
+        while (i < text.length) {
+            if (!Object.prototype.hasOwnProperty.call(EDIT_NAME_PUNCTUATION_MAP, text[i])) {
+                i++;
+                continue;
+            }
+            const separatorStart = i;
+            const canonical = [];
+            while (i < text.length && Object.prototype.hasOwnProperty.call(EDIT_NAME_PUNCTUATION_MAP, text[i])) {
+                const mark = EDIT_NAME_PUNCTUATION_MAP[text[i]];
+                if (!canonical.includes(mark)) canonical.push(mark);
+                i++;
+            }
+            pushClause(start, separatorStart, i, canonical.join(''));
+            start = i;
+        }
+        pushClause(start, text.length, text.length, '');
+        return clauses;
+    }
+
+    function editNameTokenizeWords(value) {
+        const text = String(value || '');
+        const tokens = [];
+        const regex = /[\p{L}\p{N}\p{M}]+/gu;
+        let match;
+        while ((match = regex.exec(text))) {
+            tokens.push({
+                value: editNameNormalizeAnchorWord(match[0]),
+                start: match.index,
+                end: match.index + match[0].length
+            });
+        }
+        return tokens.filter(token => token.value);
+    }
+
+    function editNameBuildHanVietTokens(rawClause, hanVietData) {
+        const raw = String(rawClause || '');
+        const tokens = [];
+        let latinStart = -1;
+        let latinBuffer = '';
+        const flushLatin = (end) => {
+            if (latinStart < 0 || !latinBuffer) return;
+            editNameTokenizeWords(latinBuffer).forEach(token => {
+                tokens.push({
+                    value: token.value,
+                    start: latinStart + token.start,
+                    end: latinStart + token.end
+                });
+            });
+            latinStart = -1;
+            latinBuffer = '';
+        };
+        let offset = 0;
+        for (const ch of Array.from(raw)) {
+            const width = ch.length;
+            if (/[\p{Script=Han}]/u.test(ch)) {
+                flushLatin(offset);
+                const mapped = String(hanVietData?.[ch] || ch).split('/')[0].trim();
+                editNameTokenizeWords(mapped).forEach(token => {
+                    tokens.push({ value: token.value, start: offset, end: offset + width });
+                });
+            } else if (/[\p{L}\p{N}\p{M}]/u.test(ch)) {
+                if (latinStart < 0) latinStart = offset;
+                latinBuffer += ch;
+            } else {
+                flushLatin(offset);
+            }
+            offset += width;
+        }
+        flushLatin(offset);
+        return tokens;
+    }
+
+    function editNameFindAnchorMatches(vietTokens, hanTokens) {
+        const matches = [];
+        const vietFrequency = new Map();
+        const hanFrequency = new Map();
+        vietTokens.forEach(token => vietFrequency.set(token.value, (vietFrequency.get(token.value) || 0) + 1));
+        hanTokens.forEach(token => hanFrequency.set(token.value, (hanFrequency.get(token.value) || 0) + 1));
+        for (let vi = 0; vi < vietTokens.length; vi++) {
+            for (let hv = 0; hv < hanTokens.length; hv++) {
+                if (vietTokens[vi].value !== hanTokens[hv].value) continue;
+                if (vi > 0 && hv > 0 && vietTokens[vi - 1].value === hanTokens[hv - 1].value) continue;
+                let length = 1;
+                while (
+                    vi + length < vietTokens.length
+                    && hv + length < hanTokens.length
+                    && vietTokens[vi + length].value === hanTokens[hv + length].value
+                ) {
+                    length++;
+                }
+                const word = vietTokens[vi].value;
+                const reliableSingle = length === 1
+                    && word.length >= 2
+                    && vietFrequency.get(word) === 1
+                    && hanFrequency.get(word) === 1;
+                if (length < 2 && !reliableSingle) continue;
+                matches.push({
+                    viStart: vietTokens[vi].start,
+                    viEnd: vietTokens[vi + length - 1].end,
+                    rawStart: hanTokens[hv].start,
+                    rawEnd: hanTokens[hv + length - 1].end,
+                    length
+                });
+            }
+        }
+        return matches;
+    }
+
+    function editNameFindExactHanVietSlice(selectedText, hanTokens) {
+        const selectedWords = editNameTokenizeWords(selectedText).map(token => token.value);
+        if (!selectedWords.length) return null;
+        const candidates = [];
+        for (let i = 0; i <= hanTokens.length - selectedWords.length; i++) {
+            let matches = true;
+            for (let j = 0; j < selectedWords.length; j++) {
+                if (hanTokens[i + j].value !== selectedWords[j]) {
+                    matches = false;
+                    break;
+                }
+            }
+            if (matches) {
+                candidates.push({
+                    start: hanTokens[i].start,
+                    end: hanTokens[i + selectedWords.length - 1].end
+                });
+            }
+        }
+        return candidates.length === 1 ? candidates[0] : null;
+    }
+
+    function editNameRefineClauseByHanViet(rawClause, vietClause, selectionStart, selectionEnd, hanVietData) {
+        const raw = String(rawClause || '');
+        const viet = String(vietClause || '');
+        const vietTokens = editNameTokenizeWords(viet);
+        const hanTokens = editNameBuildHanVietTokens(raw, hanVietData);
+        if (!vietTokens.length || !hanTokens.length) return { text: raw, refined: false };
+
+        const firstWord = vietTokens[0];
+        const lastWord = vietTokens[vietTokens.length - 1];
+        if (selectionStart <= firstWord.start && selectionEnd >= lastWord.end) {
+            return { text: raw, refined: false };
+        }
+
+        const exact = editNameFindExactHanVietSlice(viet.slice(selectionStart, selectionEnd), hanTokens);
+        if (exact && exact.end > exact.start) {
+            return { text: raw.slice(exact.start, exact.end), refined: true };
+        }
+
+        const anchors = editNameFindAnchorMatches(vietTokens, hanTokens);
+        const beforeCandidates = anchors
+            .filter(anchor => anchor.viEnd <= selectionStart)
+            .sort((a, b) => b.viEnd - a.viEnd || b.length - a.length);
+        const afterCandidates = anchors
+            .filter(anchor => anchor.viStart >= selectionEnd)
+            .sort((a, b) => a.viStart - b.viStart || b.length - a.length);
+
+        let before = beforeCandidates[0] || null;
+        let after = afterCandidates[0] || null;
+        if (before && after && before.rawEnd > after.rawStart) {
+            let validPair = null;
+            for (const left of beforeCandidates) {
+                for (const right of afterCandidates) {
+                    if (left.rawEnd <= right.rawStart) {
+                        validPair = { left, right };
+                        break;
+                    }
+                }
+                if (validPair) break;
+            }
+            if (validPair) {
+                before = validPair.left;
+                after = validPair.right;
+            } else if (before.length >= after.length) {
+                after = null;
+            } else {
+                before = null;
+            }
+        }
+
+        const rawStart = before ? before.rawEnd : 0;
+        const rawEnd = after ? after.rawStart : raw.length;
+        if ((!before && !after) || rawEnd <= rawStart) {
+            return { text: raw, refined: false };
+        }
+        return { text: raw.slice(rawStart, rawEnd).trim(), refined: true };
+    }
+
+    function editNamePredictChunkSource(rawText, translatedText, selectionStart, selectionEnd, hanVietData) {
+        const raw = String(rawText || '');
+        const translated = String(translatedText || '');
+        const rawClauses = editNameSplitPunctuationClauses(raw);
+        const translatedClauses = editNameSplitPunctuationClauses(translated);
+        const punctuationAligned = rawClauses.length > 0
+            && rawClauses.length === translatedClauses.length
+            && rawClauses.every((clause, idx) => clause.separator === translatedClauses[idx].separator);
+        if (!punctuationAligned) {
+            return { text: raw.trim(), method: 'safe-full-chunk' };
+        }
+
+        let selectedIndices = translatedClauses
+            .map((clause, idx) => (
+                selectionEnd > clause.start && selectionStart < clause.end ? idx : -1
+            ))
+            .filter(idx => idx >= 0);
+        if (!selectedIndices.length) {
+            const nearest = translatedClauses.findIndex(clause => selectionStart <= clause.separatorEnd);
+            selectedIndices = [nearest >= 0 ? nearest : translatedClauses.length - 1];
+        }
+
+        const pieces = [];
+        let refined = false;
+        selectedIndices.forEach((clauseIndex, listIndex) => {
+            const rawClause = rawClauses[clauseIndex];
+            const vietClause = translatedClauses[clauseIndex];
+            const localStart = Math.max(0, selectionStart - vietClause.start);
+            const localEnd = Math.min(vietClause.end - vietClause.start, selectionEnd - vietClause.start);
+            const rawClauseText = raw.slice(rawClause.start, rawClause.end);
+            const vietClauseText = translated.slice(vietClause.start, vietClause.end);
+            const result = editNameRefineClauseByHanViet(
+                rawClauseText,
+                vietClauseText,
+                localStart,
+                Math.max(localStart, localEnd),
+                hanVietData
+            );
+            refined = refined || result.refined;
+            pieces.push(result.text || rawClauseText);
+            const nextClauseIndex = selectedIndices[listIndex + 1];
+            if (Number.isInteger(nextClauseIndex)) {
+                pieces.push(raw.slice(rawClause.end, rawClauses[nextClauseIndex].start));
+            }
+        });
+        return {
+            text: pieces.join('').trim(),
+            method: refined ? 'punctuation-hanviet' : 'punctuation'
+        };
+    }
+
+    function editNamePredictSourceForTexts(rawText, translatedText, selectedText, hanVietData = {}) {
+        const translated = String(translatedText || '');
+        const selected = String(selectedText || '');
+        const start = translated.indexOf(selected);
+        if (start < 0) {
+            return { text: String(rawText || '').trim(), method: 'safe-full-chunk' };
+        }
+        return editNamePredictChunkSource(
+            rawText,
+            translated,
+            start,
+            start + selected.length,
+            hanVietData
+        );
+    }
+
+    function editNameOffsetInsideChunk(chunk, node, offset) {
+        if (!chunk || !node || !chunk.contains(node)) return null;
+        try {
+            const probe = document.createRange();
+            probe.selectNodeContents(chunk);
+            probe.setEnd(node, offset);
+            return probe.toString().length;
+        } catch (err) {
+            return null;
+        }
+    }
+
+    async function editNamePredictSourceFromRange(range) {
+        if (!range) return null;
+        const directName = findChunkFromRange(range);
+        if (directName?.classList?.contains('tm-name') && directName.contains(range.startContainer) && directName.contains(range.endContainer)) {
+            const text = getDatasetOrigText(directName).trim();
+            return text ? { text, fallback: text, method: 'name' } : null;
+        }
+        const rangeContainer = range.commonAncestorContainer?.nodeType === 3
+            ? range.commonAncestorContainer.parentElement
+            : range.commonAncestorContainer;
+        const readerContent = rangeContainer?.closest?.('.tm-reader-content');
+        const root = readerContent || document.body;
+        const chunks = Array.from(root.querySelectorAll('.tm-chunk[data-orig]')).filter(chunk => {
+            try {
+                return range.intersectsNode(chunk);
+            } catch (err) {
+                return chunk.contains(range.startContainer) || chunk.contains(range.endContainer);
+            }
+        });
+        if (!chunks.length) return null;
+        const fallback = chunks.map(chunk => getDatasetOrigText(chunk).trim()).filter(Boolean).join('\n');
+        if (config.editNamePredictionEnabled === false) {
+            return { text: fallback, fallback, method: 'disabled' };
+        }
+        let hanVietData = {};
+        try {
+            hanVietData = await loadHanVietJson();
+        } catch (err) {
+            console.warn('[tm-translate] Không tải được Hán Việt cho dự đoán Edit Name:', err);
+        }
+        const predictedPieces = [];
+        const methods = [];
+        chunks.forEach(chunk => {
+            const translated = chunk.textContent || '';
+            const start = editNameOffsetInsideChunk(chunk, range.startContainer, range.startOffset);
+            const end = editNameOffsetInsideChunk(chunk, range.endContainer, range.endOffset);
+            const selectionStart = start == null ? 0 : start;
+            const selectionEnd = end == null ? translated.length : end;
+            const result = editNamePredictChunkSource(
+                getDatasetOrigText(chunk),
+                translated,
+                Math.min(selectionStart, selectionEnd),
+                Math.max(selectionStart, selectionEnd),
+                hanVietData
+            );
+            if (result.text) predictedPieces.push(result.text);
+            methods.push(result.method);
+        });
+        const text = predictedPieces.join('\n').trim() || fallback;
+        return {
+            text,
+            fallback,
+            method: methods.includes('punctuation-hanviet')
+                ? 'punctuation-hanviet'
+                : (methods.includes('punctuation') ? 'punctuation' : 'safe-full-chunk')
+        };
+    }
+
     function showEditModal(chinese, vietnamese, options = {}) {
         removeElementById('tm-edit-modal');
+        config = loadConfig();
+        const readerBook = options.book
+            || (options.readerTheme && libReaderState?.book ? libReaderState.book : null);
+        const appliedCommonNames = readerBook
+            ? libNormalizeBookNameSetNames(readerBook, config)
+            : [config.activeNameSet].filter(Boolean);
+        const targetOptions = readerBook
+            ? [
+                `<option value="private">Riêng — chỉ truyện này</option>`,
+                ...appliedCommonNames.map(name => `<option value="common:${escapeHtml(name)}">Chung — ${escapeHtml(name)}</option>`)
+            ].join('')
+            : '';
+        const prediction = options.prediction || {
+            text: String(chinese || ''),
+            fallback: String(chinese || ''),
+            method: 'none'
+        };
+        const predictionEnabled = config.editNamePredictionEnabled !== false;
+        const predictionMethodText = {
+            'name': 'Đã khớp Name có sẵn.',
+            'punctuation-hanviet': 'Đã thu hẹp bằng dấu câu + mốc Hán Việt.',
+            'punctuation': 'Đã khớp theo cụm dấu câu.',
+            'safe-full-chunk': 'Thiếu mốc chắc chắn, đang dùng nguyên khối RAW.',
+            'disabled': 'Đang tắt dự đoán beta.'
+        }[prediction.method] || 'Sẽ ưu tiên dấu câu và mốc Hán Việt khi bôi đen.';
         const wrapper = document.createElement('div');
         wrapper.id = 'tm-edit-modal';
         wrapper.className = 'tm-modal-wrapper';
@@ -4004,6 +4389,15 @@
                 <input id="tm-edit-orig-input" class="tm-input" value="${escapeHtml(chinese)}" />
                 <label class="tm-label">Tiếng Việt</label>
                 <input id="tm-edit-viet-input" class="tm-input" value="${escapeHtml(vietnamese)}" />
+                ${readerBook ? `
+                    <label class="tm-label">Lưu vào Bộ Name</label>
+                    <select id="tm-edit-name-target" class="tm-select">${targetOptions}</select>
+                    <p style="margin:-6px 0 12px;color:#64748b;font-size:12px;">Mặc định lưu vào Name Riêng. Nếu chọn Chung, Name sẽ được ghi vào đúng bộ chung đang áp dụng cho truyện.</p>
+                ` : ''}
+                <label class="tm-import-customize" style="margin-top:4px;">
+                    <input id="tm-edit-prediction-enabled" type="checkbox" ${predictionEnabled ? 'checked' : ''}>
+                    <span><strong>Dự đoán cụm RAW beta</strong><br><small id="tm-edit-prediction-status">${escapeHtml(predictionMethodText)}</small></span>
+                </label>
             </div>
             <div id="tm-edit-footer" class="tm-modal-footer" style="justify-content: space-between;">
                 <button id="tm-edit-suggest-btn" class="tm-btn">Gợi ý</button>
@@ -4064,11 +4458,33 @@
         const origInput = wrapper.querySelector('#tm-edit-orig-input');
         const vietInput = wrapper.querySelector('#tm-edit-viet-input');
         const actionsContainer = wrapper.querySelector('#tm-edit-actions');
+        const targetSelect = wrapper.querySelector('#tm-edit-name-target');
+        const predictionCheckbox = wrapper.querySelector('#tm-edit-prediction-enabled');
+        const predictionStatus = wrapper.querySelector('#tm-edit-prediction-status');
+        const getTarget = () => {
+            if (!readerBook || !targetSelect || targetSelect.value === 'private') {
+                return readerBook
+                    ? { type: 'private', name: 'Name Riêng' }
+                    : { type: 'common', name: config.activeNameSet };
+            }
+            return {
+                type: 'common',
+                name: targetSelect.value.replace(/^common:/, '') || config.activeNameSet
+            };
+        };
+        const getTargetNameSet = () => {
+            const target = getTarget();
+            if (target.type === 'private') {
+                const latestBook = libFindBookInIndex(readerBook?.bookId) || readerBook;
+                return latestBook?.privateNameSet || {};
+            }
+            return config.nameSets[target.name] || {};
+        };
 
         function checkNameAndRefreshUI() {
             const currentChinese = origInput.value.trim();
-            const currentNameSet = config.nameSets[config.activeNameSet] || {};
-            const exists = currentNameSet.hasOwnProperty(currentChinese);
+            const currentNameSet = getTargetNameSet();
+            const exists = Object.prototype.hasOwnProperty.call(currentNameSet, currentChinese);
 
             let buttonsHtml = '';
             if (exists) {
@@ -4089,28 +4505,55 @@
             const btnDelete = tmEl('tm-edit-delete');
 
             const actionHandler = async (action) => {
-                const setName = config.activeNameSet;
+                const target = getTarget();
                 const key = origInput.value.trim();
                 const value = vietInput.value.trim();
-
-                const oldNameSetSnapshot = JSON.parse(JSON.stringify(config.nameSets[setName] || {}));
 
                 if (action === 'add' || action === 'save') {
                     if (!key || !value) {
                         alert('Không được để trống.');
                         return;
                     }
-                    config.nameSets[setName][key] = value;
                 } else if (action === 'delete') {
                     if (!confirm(`Bạn chắc chắn muốn xóa name: "${key}"?`)) return;
-                    delete config.nameSets[setName][key];
                 }
 
-                saveConfig(config);
-                close();
+                if (target.type === 'private' && readerBook?.bookId) {
+                    const index = libLoadIndex();
+                    const stored = (index.books || []).find(book => book.bookId === readerBook.bookId);
+                    if (!stored) {
+                        showNotification('Không tìm thấy truyện để lưu Name Riêng.');
+                        return;
+                    }
+                    stored.privateNameSet = { ...(stored.privateNameSet || {}) };
+                    if (action === 'delete') delete stored.privateNameSet[key];
+                    else stored.privateNameSet[key] = value;
+                    stored.privateNameSetVersion = (stored.privateNameSetVersion || 1) + 1;
+                    stored.updatedAt = Date.now();
+                    libSaveIndex(index);
+                    await libInvalidateBookTranslations(readerBook.bookId, 'Name Riêng của truyện có thay đổi chưa sao lưu.');
+                    libSetBackupStatus({ state: 'dirty', message: 'Name Riêng của truyện có thay đổi chưa sao lưu.' });
+                    close(true);
+                    await libRefreshBookAfterNameChange(readerBook.bookId);
+                    showNotification(`${action === 'delete' ? 'Đã xóa' : 'Đã lưu'} Name Riêng.`);
+                    return;
+                }
 
-                const newNameSet = config.nameSets[setName] || {};
-                await applyNameChangeLive(newNameSet, oldNameSetSnapshot);
+                const setName = target.name || config.activeNameSet;
+                config.nameSets[setName] = config.nameSets[setName] || {};
+                const oldNameSetSnapshot = JSON.parse(JSON.stringify(config.nameSets[setName]));
+                if (action === 'delete') delete config.nameSets[setName][key];
+                else config.nameSets[setName][key] = value;
+                saveConfig(config);
+                close(true);
+                if (readerBook?.bookId) {
+                    await libInvalidateBookTranslations(readerBook.bookId, `Bộ Name Chung "${setName}" có thay đổi chưa sao lưu.`);
+                    await libRefreshBookAfterNameChange(readerBook.bookId);
+                    showNotification(`${action === 'delete' ? 'Đã xóa' : 'Đã lưu'} Name trong bộ Chung “${setName}”.`);
+                } else {
+                    const newNameSet = config.nameSets[setName] || {};
+                    await applyNameChangeLive(newNameSet, oldNameSetSnapshot);
+                }
             };
 
             if (btnAdd) btnAdd.onclick = () => actionHandler('add');
@@ -4119,10 +4562,46 @@
         }
 
         origInput.addEventListener('input', checkNameAndRefreshUI);
+        targetSelect?.addEventListener('change', () => {
+            const storedValue = getTargetNameSet()[origInput.value.trim()];
+            if (storedValue) vietInput.value = storedValue;
+            checkNameAndRefreshUI();
+        });
+        predictionCheckbox?.addEventListener('change', () => {
+            config.editNamePredictionEnabled = !!predictionCheckbox.checked;
+            saveConfig(config);
+            const predictedText = String(prediction.text || '');
+            const fallbackText = String(prediction.fallback || predictedText);
+            if (predictionCheckbox.checked) {
+                if (!origInput.value.trim() || origInput.value === fallbackText) origInput.value = predictedText;
+                predictionStatus.textContent = predictionMethodText;
+                showNotification('Đã bật dự đoán cụm RAW beta.');
+            } else {
+                if (origInput.value === predictedText) origInput.value = fallbackText;
+                predictionStatus.textContent = 'Đã tắt. Lần chọn sau sẽ dùng nguyên khối RAW.';
+                showNotification('Đã tắt dự đoán cụm RAW beta.');
+            }
+            checkNameAndRefreshUI();
+        });
 
-        const close = () => wrapper.remove();
-        wrapper.querySelector('.tm-modal-backdrop').addEventListener('click', close);
-        wrapper.querySelector('#tm-edit-close').addEventListener('click', close);
+        const initialEditSignature = stableStringify({
+            chinese: origInput.value,
+            vietnamese: vietInput.value,
+            target: targetSelect?.value || config.activeNameSet
+        });
+        const close = (force = false) => {
+            const currentSignature = stableStringify({
+                chinese: origInput.value,
+                vietnamese: vietInput.value,
+                target: targetSelect?.value || config.activeNameSet
+            });
+            if (!force && currentSignature !== initialEditSignature && !confirm('Name đang được sửa dở. Bỏ thay đổi và đóng popup?')) {
+                return false;
+            }
+            wrapper.remove();
+            return true;
+        };
+        wrapper.querySelector('#tm-edit-close').addEventListener('click', () => close());
 
         wrapper.querySelector('#tm-edit-suggest-btn').addEventListener('click', () => {
             showSuggestionModal(origInput.value, vietInput.value, (newViet) => {
@@ -4159,7 +4638,7 @@
         }
         return null; // Không tìm thấy
     }
-    function openEditModalForSelection() {
+    async function openEditModalForSelection() {
         const sel = window.getSelection();
         if (!sel || sel.isCollapsed) {
             if (lastSelectionRange && !lastSelectionRange.collapsed) {
@@ -4183,12 +4662,26 @@
         const targetSpan = findChunkFromRange(range);
 
         if (targetSpan) {
-            const isNameSpan = targetSpan.classList.contains('tm-name');
-            const originalText = targetSpan.dataset.orig;
-            const translatedText = isNameSpan ? targetSpan.textContent : targetSpan.textContent;
-
-            console.log(`Đã tìm thấy khối dịch. Gốc: ${originalText}`);
-            showEditModal(originalText, translatedText, { readerTheme: isReaderSelection });
+            let prediction = {
+                text: getDatasetOrigText(targetSpan),
+                fallback: getDatasetOrigText(targetSpan),
+                method: targetSpan.classList.contains('tm-name') ? 'name' : 'safe-full-chunk'
+            };
+            if (!targetSpan.classList.contains('tm-name')) {
+                if (config.editNamePredictionEnabled !== false) showLoading('Đang dự đoán cụm RAW...');
+                try {
+                    prediction = await editNamePredictSourceFromRange(range) || prediction;
+                } finally {
+                    removeLoading();
+                }
+            }
+            const originalText = prediction.text || prediction.fallback;
+            console.log(`[tm-translate] Edit Name mapping (${prediction.method}):`, originalText);
+            showEditModal(originalText, selectedText || targetSpan.textContent, {
+                readerTheme: isReaderSelection,
+                book: isReaderSelection ? libReaderState?.book : null,
+                prediction
+            });
             return;
         }
 
@@ -4202,7 +4695,9 @@
             return;
         }
 
-        const currentNameSet = config.nameSets[config.activeNameSet] || {};
+        const currentNameSet = isReaderSelection && libReaderState?.book
+            ? libGetEffectiveNameSet(libReaderState.book, config)
+            : (config.nameSets[config.activeNameSet] || {});
         const hasCjk = /[\u4e00-\u9fff]/.test(selectedText);
         let chinese = '';
         let vietnamese = '';
@@ -4229,7 +4724,15 @@
             if (matchKey) chinese = matchKey;
         }
 
-        showEditModal(chinese, vietnamese, { readerTheme: isReaderSelection });
+        showEditModal(chinese, vietnamese, {
+            readerTheme: isReaderSelection,
+            book: isReaderSelection ? libReaderState?.book : null,
+            prediction: {
+                text: chinese,
+                fallback: chinese,
+                method: config.editNamePredictionEnabled === false ? 'disabled' : 'safe-full-chunk'
+            }
+        });
     }
 
     async function buildHanVietFromMap(chinese, map) {
@@ -6651,6 +7154,9 @@
             config.serverProvider = serverProviderSelect.value;
             const oldNameEditing = config.nameEditingEnabled;
             config.nameEditingEnabled = wrapper.querySelector('#tm-name-editing-enabled').checked;
+            if (!oldNameEditing && config.nameEditingEnabled) {
+                config.editNamePredictionEnabled = true;
+            }
             config.allowCopyWhenEditing = wrapper.querySelector('#tm-allow-copy-checkbox').checked;
 
             const oldAutoTranslate = config.autoTranslateOnScroll;
@@ -8915,6 +9421,21 @@
         if (changed) libSetBackupStatus({ state: 'dirty', message });
     }
 
+    async function libRefreshBookAfterNameChange(bookId) {
+        libTitleCache.clear();
+        const infoWasOpen = !!tmUIRoot.querySelector('#tm-lib-book-info');
+        if (libReaderState?.book?.bookId === bookId) {
+            libReaderState.book = libFindBookInIndex(bookId);
+            libReaderState.titleCache = new Map();
+            libReaderState.bookTitleCache = new Map();
+            await libReaderLoadCurrentChapter({ scrollTo: 'restore' });
+        }
+        if (infoWasOpen) {
+            removeElementById('tm-lib-book-info');
+            await openLibraryBookInfo(bookId, { returnToLibrary: false });
+        }
+    }
+
     /* --- GM-based storage helpers (cross-domain) --- */
 
     function libSaveChaptersForBook(bookId, chapters) {
@@ -9812,6 +10333,8 @@
                 displayTitle = libTitleCache.get(key) || displayTitle;
             }
             if (titleTextEl) titleTextEl.textContent = displayTitle;
+            const titleCopyEl = titleEl?.querySelector('.tm-library-title-copy');
+            if (titleCopyEl) titleCopyEl.textContent = displayTitle;
             if (titleEl) titleEl.title = displayTitle;
 
             const authorEl = card.querySelector('.tm-library-author');
@@ -9829,13 +10352,17 @@
         requestAnimationFrame(() => {
             wrapper.querySelectorAll('.tm-library-title').forEach(el => {
                 const textEl = el.querySelector('.tm-library-title-text') || el;
+                const copyEl = el.querySelector('.tm-library-title-copy');
                 el.classList.remove('is-marquee');
-                el.style.removeProperty('--tm-marquee-distance');
+                el.style.removeProperty('--tm-marquee-shift');
                 el.style.removeProperty('--tm-marquee-duration');
+                if (copyEl) copyEl.textContent = textEl.textContent || '';
                 const overflow = Math.max(0, textEl.scrollWidth - el.clientWidth);
                 if (overflow < 4) return;
-                el.style.setProperty('--tm-marquee-distance', `${-overflow}px`);
-                el.style.setProperty('--tm-marquee-duration', `${Math.max(7, Math.min(18, 6 + overflow / 24))}s`);
+                const gap = 32;
+                el.style.setProperty('--tm-marquee-gap', `${gap}px`);
+                el.style.setProperty('--tm-marquee-shift', `${textEl.scrollWidth + gap}px`);
+                el.style.setProperty('--tm-marquee-duration', `${Math.max(8, Math.min(24, 5 + textEl.scrollWidth / 28))}s`);
                 el.classList.add('is-marquee');
             });
         });
@@ -11767,7 +12294,19 @@ body.tmx-fullscreen .tmx-scroll {
         const titleInput = wrapper.querySelector('#tm-lib-title');
         const langSelect = wrapper.querySelector('#tm-lib-lang');
         const customizeInput = wrapper.querySelector('#tm-lib-customize');
-        const close = () => wrapper.remove();
+        const importFormChanged = () => !!(
+            fileInput.files?.length
+            || titleInput.value.trim()
+            || langSelect.value !== 'zh'
+            || !customizeInput.checked
+        );
+        const close = (force = false) => {
+            if (!force && importFormChanged() && !confirm('Bạn đang chuẩn bị import dở. Bỏ các lựa chọn hiện tại và đóng popup?')) {
+                return false;
+            }
+            wrapper.remove();
+            return true;
+        };
 
         fileInput.addEventListener('change', () => {
             if (!titleInput.value && fileInput.files && fileInput.files[0]) {
@@ -11775,8 +12314,7 @@ body.tmx-fullscreen .tmx-scroll {
             }
         });
 
-        wrapper.querySelector('#tm-lib-import-close').addEventListener('click', close);
-        wrapper.querySelector('.tm-modal-backdrop').addEventListener('click', close);
+        wrapper.querySelector('#tm-lib-import-close').addEventListener('click', () => close());
 
         wrapper.querySelector('#tm-lib-import-start').addEventListener('click', async () => {
             const file = fileInput.files && fileInput.files[0];
@@ -11820,10 +12358,10 @@ body.tmx-fullscreen .tmx-scroll {
             } finally {
                 removeLoading();
                 if (customizeDraft) {
-                    close();
+                    close(true);
                     openLibraryEditModal(null, { importDraft: customizeDraft });
                 } else if (isSuccess) {
-                    close();
+                    close(true);
                     openLibraryListModal();
                 }
             }
@@ -11904,7 +12442,16 @@ body.tmx-fullscreen .tmx-scroll {
         const valueInput = wrapper.querySelector('#tm-bn-value');
         const textInput = wrapper.querySelector('#tm-bn-text');
         const preview = wrapper.querySelector('#tm-bn-preview');
-        const close = () => wrapper.remove();
+        let dirty = false;
+        const close = (force = false) => {
+            if (!force && dirty && !confirm('Bộ Name đang có thay đổi chưa lưu. Bỏ thay đổi và đóng popup?')) {
+                return false;
+            }
+            wrapper.remove();
+            return true;
+        };
+        wrapper.addEventListener('input', () => { dirty = true; });
+        wrapper.addEventListener('change', () => { dirty = true; });
         const render = () => {
             const entries = Object.entries(privateNames).sort((a, b) => a[0].localeCompare(b[0], 'zh'));
             preview.innerHTML = entries.length ? entries.map(([key, value]) => `
@@ -11919,6 +12466,7 @@ body.tmx-fullscreen .tmx-scroll {
         const mergeText = (text) => {
             const parsed = libParseNameSetText(text);
             Object.assign(privateNames, parsed);
+            dirty = true;
             render();
             showNotification(`Đã nhập ${Object.keys(parsed).length} cặp Name Riêng.`);
         };
@@ -11928,6 +12476,7 @@ body.tmx-fullscreen .tmx-scroll {
             const value = valueInput.value.trim();
             if (!key || !value) return showNotification('Tên Trung và Việt không được trống.');
             privateNames[key] = value;
+            dirty = true;
             keyInput.value = '';
             valueInput.value = '';
             render();
@@ -11946,6 +12495,7 @@ body.tmx-fullscreen .tmx-scroll {
                 keyInput.focus();
             } else if (button.classList.contains('tm-bn-delete')) {
                 delete privateNames[key];
+                dirty = true;
                 render();
             }
         });
@@ -11953,6 +12503,7 @@ body.tmx-fullscreen .tmx-scroll {
         wrapper.querySelector('#tm-bn-clear-all').onclick = () => {
             if (!confirm('Xóa toàn bộ Bộ Name Riêng của truyện này?')) return;
             Object.keys(privateNames).forEach(key => delete privateNames[key]);
+            dirty = true;
             render();
         };
         const fileInput = wrapper.querySelector('#tm-bn-file');
@@ -11964,6 +12515,7 @@ body.tmx-fullscreen .tmx-scroll {
                 const raw = await file.text();
                 if (/\.json$/i.test(file.name)) Object.assign(privateNames, JSON.parse(raw));
                 else Object.assign(privateNames, libParseNameSetText(raw));
+                dirty = true;
                 render();
             } catch (err) {
                 alert(`Không nhập được file: ${err.message}`);
@@ -11990,18 +12542,12 @@ body.tmx-fullscreen .tmx-scroll {
             saveConfig(config);
             await libInvalidateBookTranslations(bookId, 'Bộ Name của truyện có thay đổi chưa sao lưu.');
             libSetBackupStatus({ state: 'dirty', message: 'Bộ Name của truyện có thay đổi chưa sao lưu.' });
-            if (libReaderState?.book?.bookId === bookId) {
-                libReaderState.book = libFindBookInIndex(bookId);
-                libReaderState.titleCache = new Map();
-                libReaderState.bookTitleCache = new Map();
-                await libReaderLoadCurrentChapter();
-            }
-            close();
+            close(true);
+            await libRefreshBookAfterNameChange(bookId);
             showNotification('Đã lưu Bộ Name của truyện.');
         };
-        wrapper.querySelector('#tm-bn-close').onclick = close;
-        wrapper.querySelector('#tm-bn-cancel').onclick = close;
-        wrapper.querySelector('.tm-modal-backdrop').onclick = close;
+        wrapper.querySelector('#tm-bn-close').onclick = () => close();
+        wrapper.querySelector('#tm-bn-cancel').onclick = () => close();
         render();
     }
 
@@ -12215,7 +12761,26 @@ body.tmx-fullscreen .tmx-scroll {
             selectedIndex: 0
         };
         let invalidateSplitPreview = () => {};
-        const close = () => {
+        let originalDraftSignature = '';
+        const buildDraftSignature = () => {
+            syncSelectedChapter();
+            return stableStringify({
+                title: wrapper.querySelector('#tm-lib-edit-title')?.value || '',
+                author: wrapper.querySelector('#tm-lib-edit-author')?.value || '',
+                description: wrapper.querySelector('#tm-lib-edit-description')?.value || '',
+                supplementalLinks: wrapper.querySelector('#tm-lib-edit-links')?.value || '',
+                langSource: wrapper.querySelector('#tm-lib-edit-lang')?.value || 'zh',
+                newCoverDataUrl: state.coverDataUrl || '',
+                chapters: state.chapters,
+                regex: wrapper.querySelector('#tm-lib-edit-regex')?.value || '',
+                maxChars: wrapper.querySelector('#tm-lib-edit-max')?.value || ''
+            });
+        };
+        const close = (force = false) => {
+            const changed = !!originalDraftSignature && buildDraftSignature() !== originalDraftSignature;
+            if (!force && changed && !confirm('Bạn có thay đổi chưa lưu. Bỏ thay đổi và thoát khỏi màn hình chỉnh sửa?')) {
+                return false;
+            }
             wrapper.remove();
             if (isImportDraft) {
                 showNotification('Đã bỏ bản import tùy chỉnh.');
@@ -12225,6 +12790,7 @@ body.tmx-fullscreen .tmx-scroll {
             } else {
                 openLibraryListModal();
             }
+            return true;
         };
 
         const chapterList = wrapper.querySelector('#tm-lib-chapter-list');
@@ -12479,9 +13045,9 @@ body.tmx-fullscreen .tmx-scroll {
 
         renderChapterList();
         selectChapter(0, false);
-        wrapper.querySelector('#tm-lib-edit-close').onclick = close;
-        wrapper.querySelector('#tm-lib-edit-cancel').onclick = close;
-        wrapper.querySelector('.tm-modal-backdrop').onclick = close;
+        originalDraftSignature = buildDraftSignature();
+        wrapper.querySelector('#tm-lib-edit-close').onclick = () => close();
+        wrapper.querySelector('#tm-lib-edit-cancel').onclick = () => close();
     }
 
     function openLibraryListModal() {
@@ -12585,7 +13151,7 @@ body.tmx-fullscreen .tmx-scroll {
                     <button class="tm-btn tm-library-cover-btn tm-lib-book-edit" data-book-id="${escapeHtml(book.bookId)}" type="button">Chỉnh sửa</button>
                 </div>
                 <div class="tm-library-card-main">
-                    <div class="tm-library-title tm-lib-book-title" data-raw-title="${escapeHtml(book.title || 'Untitled')}" title="${escapeHtml(book.title || 'Untitled')}"><span class="tm-library-title-text">${escapeHtml(book.title || 'Untitled')}</span></div>
+                    <div class="tm-library-title tm-lib-book-title" data-raw-title="${escapeHtml(book.title || 'Untitled')}" title="${escapeHtml(book.title || 'Untitled')}"><span class="tm-library-title-track"><span class="tm-library-title-text">${escapeHtml(book.title || 'Untitled')}</span><span class="tm-library-title-text tm-library-title-copy" aria-hidden="true">${escapeHtml(book.title || 'Untitled')}</span></span></div>
                     <div class="tm-library-author">${book.author ? `Tác giả: ${escapeHtml(book.author)}` : 'Chưa có tác giả'}</div>
                     <div class="tm-library-meta">${book.chapterCount || 0} chương · Nguồn: ${(book.langSource || 'zh').toUpperCase()} · ${libEstimateExportBytes(book).bytes ? libFormatBytes(libEstimateExportBytes(book).bytes) : 'chưa rõ dung lượng'}</div>
                     <div id="tm-lib-progress-${escapeHtml(book.bookId)}" class="tm-library-progress">Tiến độ: ${formatProgressText(book)}</div>
@@ -13006,7 +13572,11 @@ body.tmx-fullscreen .tmx-scroll {
                 e.stopImmediatePropagation();
                 const orig = nameSpan.dataset.orig || '';
                 const text = nameSpan.textContent || '';
-                showEditModal(orig, text, { readerTheme: true });
+                showEditModal(orig, text, {
+                    readerTheme: true,
+                    book: libReaderState?.book || null,
+                    prediction: { text: orig, fallback: orig, method: 'name' }
+                });
                 if (libReaderState) libReaderState.nameTapGuard = null;
                 return;
             });
@@ -14649,7 +15219,7 @@ body.tmx-fullscreen .tmx-scroll {
 <div class="tm-welcome-title">🌸 Chào mừng đến với TM Translate 🌸</div>
 		<div class="tm-welcome-sub">TM Translate v${CURRENT_VERSION} • Dịch trang web Trung → Việt, quản lý Name-set, Thư viện đọc offline, OCR dịch ảnh và TTS</div>
 		<div class="tm-welcome-banner">
-		  <strong>✨ v${CURRENT_VERSION}:</strong> Thư viện có trang Thông tin, chỉnh metadata/chia lại chương, Bộ Name Riêng, import Word và UI mobile mới.
+		  <strong>✨ v${CURRENT_VERSION}:</strong> Edit Name ưu tiên Name Riêng, dự đoán RAW beta chính xác hơn và popup chỉnh sửa an toàn hơn.
 	</div>
 <div style="height:8px;"></div>
     `.trim();
@@ -14658,7 +15228,8 @@ body.tmx-fullscreen .tmx-scroll {
 ### 🟢 Nút Nổi (Floating Buttons)
 - **Dịch Trang** (xanh lá): Dịch toàn bộ trang. Có tự động dịch khi cuộn nếu bật trong Cài đặt.
 - **Thư viện** (xanh ngọc): Mở Thư viện toàn màn hình để import/đọc/export, tìm kiếm, đổi bìa và sao lưu/khôi phục truyện.
-- **Edit Name** (xanh dương, hình bút chì): Bôi đen đoạn đã dịch trên web → bấm bút chì để sửa tên.
+- **Edit Name** (xanh dương, hình bút chì): Bôi đen đoạn đã dịch trên web → bấm bút chì để sửa tên. Dự đoán RAW beta tự bật cùng Edit Name, ghép dấu câu rồi dùng mốc Hán Việt hai phía để thu hẹp vùng raw; có thể tắt ngay trong popup.
+- Khi tắt **Edit Name**, bản dịch được ghi thẳng vào text-node/link; script không tạo thêm span hay tooltip \`title\`.
 - **Dịch Nhanh** (xám): Dán text và dịch nhanh mà không cần dịch cả trang.
 - **OCR** (teal): Dịch chữ trong ảnh — khoanh vùng hoặc dịch ảnh.
 - **Style** (tối): Tùy chỉnh giao diện Chế độ đọc rút gọn.
@@ -14670,10 +15241,11 @@ body.tmx-fullscreen .tmx-scroll {
 - Reader có: Thông tin, BN, RAW/DỊCH, Fullscreen, Mục lục, cache dịch + prefetch chương, nút mở nhanh Cài đặt/TTS.
 - Thư viện hiển thị dạng toàn màn hình, truyện vừa đọc nằm trước, có tổng số truyện, phân trang/lazy load khi cuộn và bìa mặc định cho từng truyện.
 - Nút **Chỉnh sửa** cho phép sửa text gốc của tên truyện, tác giả, mô tả, bìa, link bổ sung, RAW/Việt; sửa tên/raw từng chương, chèn/xóa/đổi thứ tự chương và chia lại bằng regex có preview + giới hạn ký tự.
+- Popup Import Tùy chỉnh, Chỉnh sửa truyện và Edit Name không đóng khi chạm ra ngoài. Nếu nội dung đang sửa dở, nút Đóng/Bỏ sẽ hỏi xác nhận trước và giữ nguyên popup khi chọn quay lại sửa.
 - Ảnh bìa được lưu cùng metadata, đi theo backup và được đóng gói vào EPUB.
 - Tên tác giả Trung được phiên âm Hán Việt, viết hoa và tách đúng ranh giới chữ Latin/Trung.
 - Ô tìm kiếm mặc định bật toàn bộ phạm vi: tên truyện, tác giả raw, tác giả dịch, raw Trung và cache dịch.
-- **BN** cho phép chọn nhiều Bộ Name Chung và quản lý một Bộ Name Riêng cho từng truyện (nhập file/text, thêm, sửa, xóa, xuất). Name Riêng luôn ưu tiên hơn Name Chung.
+- **BN** cho phép chọn nhiều Bộ Name Chung và quản lý một Bộ Name Riêng cho từng truyện (nhập file/text, thêm, sửa, xóa, xuất). Name Riêng luôn ưu tiên hơn Name Chung; Edit Name trong Reader mặc định lưu vào Riêng nhưng có thể chọn một bộ Chung đang áp dụng. Tên truyện và văn án cũng dùng đúng tổ hợp BN này khi dịch.
 - **Sao lưu/Khôi phục** dùng file \`.tmbackup.jsonl\`: bấm **Sao lưu** để tải file backup, bấm **Khôi phục** để chọn file đó nhập lại. File gồm index thư viện, raw, cache dịch và ảnh bìa.
 - Bôi đen text trong Reader sẽ hiện thanh **Phát / Sửa tên hoặc Thay thế từ / Xóa rác / Sao chép**. Trên mobile, menu copy/share mặc định của máy được ẩn trong Reader.
 - **Phát** mở mini-player TTS và đọc từ vị trí bôi đen tới hết chương; nếu bật **Tự qua đoạn/chương** + **Tự đọc chương kế** thì tự sang chương sau.
@@ -14709,6 +15281,13 @@ body.tmx-fullscreen .tmx-scroll {
     `.trim();
 
     const changelogMarkdown = `
+### ✨ v3.5.5.11_beta
+- Popup Import Tùy chỉnh, Chỉnh sửa truyện và Edit Name không còn tự đóng khi chạm nền; khi có bản nháp chưa lưu, nút Đóng/Bỏ hỏi xác nhận và cho quay lại sửa.
+- Edit Name trong Reader mặc định lưu vào Bộ Name Riêng của truyện; có thể đổi sang một Bộ Name Chung đang áp dụng. Tên truyện và văn án cũng dịch bằng đúng tổ hợp BN hiệu lực.
+- Marquee tên truyện dài chạy vòng một chiều liền mạch, không chạy tới cuối rồi quay ngược.
+- Khi tắt Edit Name, bản dịch được ghi thẳng vào text-node/link, không thêm wrapper span hoặc tooltip \`title\` làm ảnh hưởng DOM trang.
+- Thêm dự đoán cụm RAW beta: ghép cụm theo dấu câu, sau đó dò mốc Hán Việt gần nhất ở hai phía để thu hẹp raw; tự bật cùng Edit Name và có công tắc ngay trong popup.
+
 ### ✨ v3.5.5.10_beta
 - Sửa nút Edit Name mất nền xanh và sửa tooltip text gốc bị gán lệch khi tắt Edit Name.
 - Làm mới Cài đặt responsive cho phone; tab cuộn ngang, form/footer không còn bị cắt.
@@ -14764,7 +15343,7 @@ body.tmx-fullscreen .tmx-scroll {
         const updateBanner = `
 	<div class="tm-update-banner">
 	  <div style="font-size:15px;font-weight:700;">🌈 TM Translate v${CURRENT_VERSION} đã sẵn sàng!</div>
-	  <div style="font-size:12px;color:#6a4f7a;">Nâng cấp lớn cho Thư viện, Bộ Name riêng, import Word và giao diện mobile.</div>
+	  <div style="font-size:12px;color:#6a4f7a;">Edit Name an toàn hơn, ưu tiên Name Riêng và có dự đoán RAW beta theo dấu câu + Hán Việt.</div>
 	</div>`.trim();
         openHelpModal([updateBanner, renderHelpMarkdown(changelogMarkdown)].join('\n'));
     }
@@ -14800,6 +15379,7 @@ body.tmx-fullscreen .tmx-scroll {
         toggleSimplified: () => simplifiedActive ? disableSimplifiedView() : enableSimplifiedView(),
         getState: () => lastTranslationState,
         getConfig: () => config,
+        predictEditNameSource: editNamePredictSourceForTexts,
     };
 
     injectGlobalCSS();
