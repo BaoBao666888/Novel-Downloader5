@@ -1212,8 +1212,8 @@
         .tm-reader-header, .tm-reader-footer {
             flex: 0 0 auto; display: flex; align-items: center; justify-content: space-between; gap: 8px;
             margin: 6px; padding: 7px 10px; border: 1px solid var(--tm-reader-border, rgba(0,0,0,0.12));
-            border-radius: 12px; background: color-mix(in srgb, var(--tm-reader-surface, #fbf9f4) 82%, transparent);
-            backdrop-filter: blur(10px); box-shadow: 0 8px 22px rgba(0,0,0,0.08);
+            border-radius: 12px; background: color-mix(in srgb, var(--tm-reader-surface, #fbf9f4) 96%, var(--tm-reader-bg, #f7f4ee));
+            box-shadow: 0 8px 22px rgba(0,0,0,0.08);
         }
         .tm-reader-header { align-items: flex-start; padding-top: max(7px, calc(var(--tm-reader-safe-top) + 5px)); }
         .tm-reader-title { min-width: 0; display: flex; flex-direction: column; gap: 2px; }
@@ -1237,7 +1237,7 @@
             padding: clamp(12px, 2vw, 20px) var(--tm-reader-padding-x, 18px);
             border: 1px solid color-mix(in srgb, var(--tm-reader-border, #ccc) 70%, transparent);
             border-radius: 12px; background: color-mix(in srgb, var(--tm-reader-surface, #fbf9f4) 18%, transparent);
-            scroll-behavior: smooth;
+            scroll-behavior: auto;
             -webkit-user-select: text; user-select: text;
         }
         .tm-reader-content, .tm-reader-content * { -webkit-touch-callout: none; }
@@ -2354,6 +2354,10 @@
         return false;
     }
     function updateSelectionEditButton() {
+        if (tmEl('tm-edit-modal') || tmEl('tm-selection-action-modal')) {
+            hideSelectionEditButton();
+            return;
+        }
         const sel = window.getSelection();
         if (!sel || sel.rangeCount === 0 || sel.isCollapsed) {
             hideSelectionEditButton();
@@ -3986,18 +3990,58 @@
         return null;
     }
 
-    const EDIT_NAME_PUNCTUATION_MAP = Object.freeze({
-        '，': ',', ',': ',',
-        '。': '.', '.': '.',
-        '！': '!', '!': '!',
-        '？': '?', '?': '?',
-        '；': ';', ';': ';',
-        '：': ':', ':': ':',
-        '、': ',',
-        '…': '…',
-        '\n': '\n',
-        '\r': '\n'
-    });
+    const EDIT_NAME_PUNCTUATION_GROUPS = Object.freeze([
+        [',', '，,、､﹐﹑︐'],
+        ['.', '。｡.．﹒…⋯︙'],
+        ['!', '！!﹗'],
+        ['?', '？?﹖'],
+        [';', '；;﹔'],
+        [':', '：:﹕'],
+        ['<', '《〈<＜‹«︽︿'],
+        ['>', '》〉>＞›»︾﹀'],
+        ['(', '（(﹙︵'],
+        [')', '）)﹚︶'],
+        ['[', '【〔［[〖〘〚﹇︹︻'],
+        [']', '】〕］]〗〙〛﹈︺︼'],
+        ['{', '｛{﹛︷'],
+        ['}', '｝}﹜︸'],
+        ['"', '“”„‟「」『』〝〞﹁﹂﹃﹄"＂'],
+        ["'", "‘’‚‛'＇"],
+        ['-', '—–―－-‐‑‒﹘'],
+        ['·', '·・•‧∙⋅'],
+        ['~', '～~'],
+        ['/', '／/'],
+        ['\\', '＼\\'],
+        ['|', '｜|'],
+        ['=', '＝='],
+        ['+', '＋+'],
+        ['*', '＊*'],
+        ['\n', '\n\r']
+    ]);
+    const EDIT_NAME_PUNCTUATION_MAP = Object.freeze(
+        Object.fromEntries(
+            EDIT_NAME_PUNCTUATION_GROUPS.flatMap(([canonical, characters]) =>
+                Array.from(characters).map(character => [character, canonical])
+            )
+        )
+    );
+
+    function editNameGetCanonicalPunctuation(character) {
+        if (!character) return null;
+        if (Object.prototype.hasOwnProperty.call(EDIT_NAME_PUNCTUATION_MAP, character)) {
+            return EDIT_NAME_PUNCTUATION_MAP[character];
+        }
+        const normalized = character.normalize('NFKC');
+        if (
+            normalized.length === 1
+            && Object.prototype.hasOwnProperty.call(EDIT_NAME_PUNCTUATION_MAP, normalized)
+        ) {
+            return EDIT_NAME_PUNCTUATION_MAP[normalized];
+        }
+        // DichNgay giữ nguyên phần lớn dấu Unicode hiếm. Nhận diện chúng như một
+        // mốc riêng sẽ vẫn an toàn: hai phía chỉ khớp khi API trả lại đúng dấu đó.
+        return /\p{P}/u.test(character) ? character : null;
+    }
 
     function editNameNormalizeAnchorWord(value) {
         return String(value || '').normalize('NFC').toLocaleLowerCase('vi-VN').trim();
@@ -4022,16 +4066,34 @@
         };
         let i = 0;
         while (i < text.length) {
-            if (!Object.prototype.hasOwnProperty.call(EDIT_NAME_PUNCTUATION_MAP, text[i])) {
+            if (editNameGetCanonicalPunctuation(text[i]) == null) {
                 i++;
                 continue;
             }
             const separatorStart = i;
             const canonical = [];
-            while (i < text.length && Object.prototype.hasOwnProperty.call(EDIT_NAME_PUNCTUATION_MAP, text[i])) {
-                const mark = EDIT_NAME_PUNCTUATION_MAP[text[i]];
+            while (i < text.length) {
+                const mark = editNameGetCanonicalPunctuation(text[i]);
+                if (mark == null) break;
                 if (!canonical.includes(mark)) canonical.push(mark);
                 i++;
+                let nextPunctuation = i;
+                while (
+                    nextPunctuation < text.length
+                    && text[nextPunctuation] !== '\n'
+                    && text[nextPunctuation] !== '\r'
+                    && /\s/u.test(text[nextPunctuation])
+                ) {
+                    nextPunctuation++;
+                }
+                if (
+                    nextPunctuation > i
+                    && editNameGetCanonicalPunctuation(text[nextPunctuation]) != null
+                ) {
+                    // DichNgay thường thêm khoảng trắng giữa dấu phẩy và nháy mở:
+                    // RAW `，“` nhưng bản Việt `, “`. Vẫn coi đây là cùng một cụm dấu.
+                    i = nextPunctuation;
+                }
             }
             pushClause(start, separatorStart, i, canonical.join(''));
             start = i;
@@ -4151,22 +4213,68 @@
         return candidates.length === 1 ? candidates[0] : null;
     }
 
+    function editNameSnapSelectionToWordTokens(tokens, selectionStart, selectionEnd) {
+        const touched = (tokens || []).filter(token =>
+            selectionEnd > token.start && selectionStart < token.end
+        );
+        if (!touched.length) {
+            return { start: selectionStart, end: selectionEnd };
+        }
+        return {
+            start: touched[0].start,
+            end: touched[touched.length - 1].end
+        };
+    }
+
     function editNameRefineClauseByHanViet(rawClause, vietClause, selectionStart, selectionEnd, hanVietData) {
         const raw = String(rawClause || '');
         const viet = String(vietClause || '');
         const vietTokens = editNameTokenizeWords(viet);
         const hanTokens = editNameBuildHanVietTokens(raw, hanVietData);
-        if (!vietTokens.length || !hanTokens.length) return { text: raw, refined: false };
+        if (!vietTokens.length || !hanTokens.length) {
+            return {
+                text: raw,
+                vietnamese: viet.trim(),
+                rawStart: 0,
+                rawEnd: raw.length,
+                vietnameseStart: 0,
+                vietnameseEnd: viet.length,
+                refined: false
+            };
+        }
+        const snappedSelection = editNameSnapSelectionToWordTokens(
+            vietTokens,
+            selectionStart,
+            selectionEnd
+        );
+        selectionStart = snappedSelection.start;
+        selectionEnd = snappedSelection.end;
 
         const firstWord = vietTokens[0];
         const lastWord = vietTokens[vietTokens.length - 1];
         if (selectionStart <= firstWord.start && selectionEnd >= lastWord.end) {
-            return { text: raw, refined: false };
+            return {
+                text: raw,
+                vietnamese: viet.trim(),
+                rawStart: 0,
+                rawEnd: raw.length,
+                vietnameseStart: 0,
+                vietnameseEnd: viet.length,
+                refined: false
+            };
         }
 
         const exact = editNameFindExactHanVietSlice(viet.slice(selectionStart, selectionEnd), hanTokens);
         if (exact && exact.end > exact.start) {
-            return { text: raw.slice(exact.start, exact.end), refined: true };
+            return {
+                text: raw.slice(exact.start, exact.end),
+                vietnamese: viet.slice(selectionStart, selectionEnd).trim(),
+                rawStart: exact.start,
+                rawEnd: exact.end,
+                vietnameseStart: selectionStart,
+                vietnameseEnd: selectionEnd,
+                refined: true
+            };
         }
 
         const anchors = editNameFindAnchorMatches(vietTokens, hanTokens);
@@ -4203,12 +4311,210 @@
         const rawStart = before ? before.rawEnd : 0;
         const rawEnd = after ? after.rawStart : raw.length;
         if ((!before && !after) || rawEnd <= rawStart) {
-            return { text: raw, refined: false };
+            return {
+                text: raw,
+                vietnamese: viet.trim(),
+                rawStart: 0,
+                rawEnd: raw.length,
+                vietnameseStart: 0,
+                vietnameseEnd: viet.length,
+                refined: false
+            };
         }
-        return { text: raw.slice(rawStart, rawEnd).trim(), refined: true };
+        const vietnameseStart = before ? before.viEnd : 0;
+        const vietnameseEnd = after ? after.viStart : viet.length;
+        return {
+            text: raw.slice(rawStart, rawEnd).trim(),
+            vietnamese: viet.slice(vietnameseStart, vietnameseEnd).trim(),
+            rawStart,
+            rawEnd,
+            vietnameseStart,
+            vietnameseEnd,
+            refined: true
+        };
     }
 
-    function editNamePredictChunkSource(rawText, translatedText, selectionStart, selectionEnd, hanVietData) {
+    function editNameFindTextOccurrences(text, searchText, requireWordBoundaries = false) {
+        const haystack = String(text || '');
+        const needle = String(searchText || '');
+        if (!haystack || !needle) return [];
+        const normalizedHaystack = haystack.toLocaleLowerCase('vi-VN');
+        const normalizedNeedle = needle.toLocaleLowerCase('vi-VN');
+        const occurrences = [];
+        let offset = 0;
+        while (offset <= normalizedHaystack.length - normalizedNeedle.length) {
+            const index = normalizedHaystack.indexOf(normalizedNeedle, offset);
+            if (index < 0) break;
+            const end = index + needle.length;
+            const startsWithWord = /[\p{L}\p{N}\p{M}]/u.test(needle[0] || '');
+            const endsWithWord = /[\p{L}\p{N}\p{M}]/u.test(Array.from(needle).pop() || '');
+            const beforeIsWord = index > 0 && /[\p{L}\p{N}\p{M}]/u.test(haystack[index - 1]);
+            const afterIsWord = end < haystack.length && /[\p{L}\p{N}\p{M}]/u.test(haystack[end]);
+            if (!requireWordBoundaries || (
+                (!startsWithWord || !beforeIsWord)
+                && (!endsWithWord || !afterIsWord)
+            )) {
+                occurrences.push({ start: index, end });
+            }
+            offset = index + Math.max(1, normalizedNeedle.length);
+        }
+        return occurrences;
+    }
+
+    function editNameBuildNameAnchors(rawClause, vietClause, nameSet) {
+        const raw = String(rawClause || '');
+        const viet = String(vietClause || '');
+        const candidates = [];
+        Object.entries(nameSet || {}).forEach(([sourceValue, translatedValue]) => {
+            const source = String(sourceValue || '').trim();
+            const translated = String(translatedValue || '').trim();
+            if (!source || !translated) return;
+            const rawOccurrences = editNameFindTextOccurrences(raw, source);
+            const vietOccurrences = editNameFindTextOccurrences(viet, translated, true);
+            const pairCount = Math.min(rawOccurrences.length, vietOccurrences.length);
+            for (let index = 0; index < pairCount; index++) {
+                candidates.push({
+                    rawStart: rawOccurrences[index].start,
+                    rawEnd: rawOccurrences[index].end,
+                    vietnameseStart: vietOccurrences[index].start,
+                    vietnameseEnd: vietOccurrences[index].end,
+                    source,
+                    translated
+                });
+            }
+        });
+        candidates.sort((a, b) =>
+            a.rawStart - b.rawStart
+            || (b.rawEnd - b.rawStart) - (a.rawEnd - a.rawStart)
+            || a.vietnameseStart - b.vietnameseStart
+        );
+        const anchors = [];
+        candidates.forEach(candidate => {
+            const previous = anchors[anchors.length - 1];
+            if (previous && (
+                candidate.rawStart < previous.rawEnd
+                || candidate.vietnameseStart < previous.vietnameseEnd
+            )) {
+                return;
+            }
+            anchors.push(candidate);
+        });
+        return anchors;
+    }
+
+    function editNameRefineClauseWithNames(rawClause, vietClause, selectionStart, selectionEnd, hanVietData, nameSet) {
+        const raw = String(rawClause || '');
+        const viet = String(vietClause || '');
+        const nameAnchors = editNameBuildNameAnchors(raw, viet, nameSet);
+        if (!nameAnchors.length) {
+            const result = editNameRefineClauseByHanViet(
+                raw,
+                viet,
+                selectionStart,
+                selectionEnd,
+                hanVietData
+            );
+            return {
+                ...result,
+                nameAnchored: false,
+                hanVietRefined: !!result.refined
+            };
+        }
+
+        const segments = [];
+        let rawCursor = 0;
+        let vietnameseCursor = 0;
+        nameAnchors.forEach(anchor => {
+            if (anchor.rawStart > rawCursor || anchor.vietnameseStart > vietnameseCursor) {
+                segments.push({
+                    type: 'text',
+                    rawStart: rawCursor,
+                    rawEnd: anchor.rawStart,
+                    vietnameseStart: vietnameseCursor,
+                    vietnameseEnd: anchor.vietnameseStart
+                });
+            }
+            segments.push({ type: 'name', ...anchor });
+            rawCursor = anchor.rawEnd;
+            vietnameseCursor = anchor.vietnameseEnd;
+        });
+        if (rawCursor < raw.length || vietnameseCursor < viet.length) {
+            segments.push({
+                type: 'text',
+                rawStart: rawCursor,
+                rawEnd: raw.length,
+                vietnameseStart: vietnameseCursor,
+                vietnameseEnd: viet.length
+            });
+        }
+
+        const selectedIndices = segments
+            .map((segment, index) => (
+                selectionEnd > segment.vietnameseStart && selectionStart < segment.vietnameseEnd
+                    ? index
+                    : -1
+            ))
+            .filter(index => index >= 0);
+        if (!selectedIndices.length) {
+            const result = editNameRefineClauseByHanViet(
+                raw,
+                viet,
+                selectionStart,
+                selectionEnd,
+                hanVietData
+            );
+            return {
+                ...result,
+                nameAnchored: false,
+                hanVietRefined: !!result.refined
+            };
+        }
+
+        const firstSegment = segments[selectedIndices[0]];
+        const lastSegment = segments[selectedIndices[selectedIndices.length - 1]];
+        const refineEdge = segment => {
+            if (segment.type === 'name') {
+                return {
+                    rawStart: 0,
+                    rawEnd: segment.rawEnd - segment.rawStart,
+                    vietnameseStart: 0,
+                    vietnameseEnd: segment.vietnameseEnd - segment.vietnameseStart,
+                    refined: false
+                };
+            }
+            const localStart = Math.max(0, selectionStart - segment.vietnameseStart);
+            const localEnd = Math.min(
+                segment.vietnameseEnd - segment.vietnameseStart,
+                Math.max(localStart, selectionEnd - segment.vietnameseStart)
+            );
+            return editNameRefineClauseByHanViet(
+                raw.slice(segment.rawStart, segment.rawEnd),
+                viet.slice(segment.vietnameseStart, segment.vietnameseEnd),
+                localStart,
+                localEnd,
+                hanVietData
+            );
+        };
+        const firstResult = refineEdge(firstSegment);
+        const lastResult = firstSegment === lastSegment ? firstResult : refineEdge(lastSegment);
+        const rawStart = firstSegment.rawStart + firstResult.rawStart;
+        const rawEnd = lastSegment.rawStart + lastResult.rawEnd;
+        const vietnameseStart = firstSegment.vietnameseStart + firstResult.vietnameseStart;
+        const vietnameseEnd = lastSegment.vietnameseStart + lastResult.vietnameseEnd;
+        return {
+            text: raw.slice(rawStart, rawEnd).trim(),
+            vietnamese: viet.slice(vietnameseStart, vietnameseEnd).trim(),
+            rawStart,
+            rawEnd,
+            vietnameseStart,
+            vietnameseEnd,
+            refined: true,
+            nameAnchored: true,
+            hanVietRefined: !!(firstResult.refined || lastResult.refined)
+        };
+    }
+
+    function editNamePredictChunkSource(rawText, translatedText, selectionStart, selectionEnd, hanVietData, nameSet = {}) {
         const raw = String(rawText || '');
         const translated = String(translatedText || '');
         const rawClauses = editNameSplitPunctuationClauses(raw);
@@ -4217,7 +4523,11 @@
             && rawClauses.length === translatedClauses.length
             && rawClauses.every((clause, idx) => clause.separator === translatedClauses[idx].separator);
         if (!punctuationAligned) {
-            return { text: raw.trim(), method: 'safe-full-chunk' };
+            return {
+                text: raw.trim(),
+                vietnamese: translated.trim(),
+                method: 'safe-full-chunk'
+            };
         }
 
         let selectedIndices = translatedClauses
@@ -4231,7 +4541,10 @@
         }
 
         const pieces = [];
+        const vietnamesePieces = [];
         let refined = false;
+        let nameAnchored = false;
+        let hanVietRefined = false;
         selectedIndices.forEach((clauseIndex, listIndex) => {
             const rawClause = rawClauses[clauseIndex];
             const vietClause = translatedClauses[clauseIndex];
@@ -4239,40 +4552,65 @@
             const localEnd = Math.min(vietClause.end - vietClause.start, selectionEnd - vietClause.start);
             const rawClauseText = raw.slice(rawClause.start, rawClause.end);
             const vietClauseText = translated.slice(vietClause.start, vietClause.end);
-            const result = editNameRefineClauseByHanViet(
+            const result = editNameRefineClauseWithNames(
                 rawClauseText,
                 vietClauseText,
                 localStart,
                 Math.max(localStart, localEnd),
-                hanVietData
+                hanVietData,
+                nameSet
             );
             refined = refined || result.refined;
+            nameAnchored = nameAnchored || result.nameAnchored;
+            hanVietRefined = hanVietRefined || result.hanVietRefined;
             pieces.push(result.text || rawClauseText);
+            vietnamesePieces.push(result.vietnamese || vietClauseText);
             const nextClauseIndex = selectedIndices[listIndex + 1];
             if (Number.isInteger(nextClauseIndex)) {
                 pieces.push(raw.slice(rawClause.end, rawClauses[nextClauseIndex].start));
+                vietnamesePieces.push(translated.slice(vietClause.end, translatedClauses[nextClauseIndex].start));
             }
         });
         return {
             text: pieces.join('').trim(),
-            method: refined ? 'punctuation-hanviet' : 'punctuation'
+            vietnamese: vietnamesePieces.join('').trim(),
+            method: nameAnchored && hanVietRefined
+                ? 'punctuation-name-hanviet'
+                : (nameAnchored
+                    ? 'punctuation-name'
+                    : (refined ? 'punctuation-hanviet' : 'punctuation'))
         };
     }
 
-    function editNamePredictSourceForTexts(rawText, translatedText, selectedText, hanVietData = {}) {
+    function editNamePredictSourceForTexts(rawText, translatedText, selectedText, hanVietData = {}, nameSet = {}) {
+        const raw = String(rawText || '');
         const translated = String(translatedText || '');
         const selected = String(selectedText || '');
         const start = translated.indexOf(selected);
         if (start < 0) {
-            return { text: String(rawText || '').trim(), method: 'safe-full-chunk' };
+            return {
+                text: raw.trim(),
+                fallback: raw.trim(),
+                vietnamese: translated.trim(),
+                vietnameseFallback: translated.trim(),
+                selectedVietnamese: selected,
+                method: 'safe-full-chunk'
+            };
         }
-        return editNamePredictChunkSource(
+        const result = editNamePredictChunkSource(
             rawText,
             translated,
             start,
             start + selected.length,
-            hanVietData
+            hanVietData,
+            nameSet
         );
+        return {
+            ...result,
+            fallback: raw.trim(),
+            vietnameseFallback: translated.trim(),
+            selectedVietnamese: selected
+        };
     }
 
     function editNameOffsetInsideChunk(chunk, node, offset) {
@@ -4289,10 +4627,19 @@
 
     async function editNamePredictSourceFromRange(range) {
         if (!range) return null;
+        const selectedVietnamese = range.toString().trim();
         const directName = findChunkFromRange(range);
         if (directName?.classList?.contains('tm-name') && directName.contains(range.startContainer) && directName.contains(range.endContainer)) {
             const text = getDatasetOrigText(directName).trim();
-            return text ? { text, fallback: text, method: 'name' } : null;
+            const fullVietnameseName = directName.textContent.trim();
+            return text ? {
+                text,
+                fallback: text,
+                vietnamese: fullVietnameseName,
+                vietnameseFallback: fullVietnameseName,
+                selectedVietnamese,
+                method: 'name'
+            } : null;
         }
         const rangeContainer = range.commonAncestorContainer?.nodeType === 3
             ? range.commonAncestorContainer.parentElement
@@ -4307,9 +4654,28 @@
             }
         });
         if (!chunks.length) return null;
+        const configuredNameSet = readerContent && libReaderState?.book
+            ? libGetEffectiveNameSet(libReaderState.book, config)
+            : (config.nameSets[config.activeNameSet] || {});
+        const predictionNameSet = { ...configuredNameSet };
+        chunks.forEach(chunk => {
+            chunk.querySelectorAll('.tm-name[data-orig]').forEach(nameNode => {
+                const source = getDatasetOrigText(nameNode).trim();
+                const translated = nameNode.textContent.trim();
+                if (source && translated) predictionNameSet[source] = translated;
+            });
+        });
         const fallback = chunks.map(chunk => getDatasetOrigText(chunk).trim()).filter(Boolean).join('\n');
+        const vietnameseFallback = chunks.map(chunk => chunk.textContent.trim()).filter(Boolean).join('\n');
         if (config.editNamePredictionEnabled === false) {
-            return { text: fallback, fallback, method: 'disabled' };
+            return {
+                text: fallback,
+                fallback,
+                vietnamese: vietnameseFallback,
+                vietnameseFallback,
+                selectedVietnamese,
+                method: 'disabled'
+            };
         }
         let hanVietData = {};
         try {
@@ -4318,6 +4684,7 @@
             console.warn('[tm-translate] Không tải được Hán Việt cho dự đoán Edit Name:', err);
         }
         const predictedPieces = [];
+        const predictedVietnamesePieces = [];
         const methods = [];
         chunks.forEach(chunk => {
             const translated = chunk.textContent || '';
@@ -4330,22 +4697,32 @@
                 translated,
                 Math.min(selectionStart, selectionEnd),
                 Math.max(selectionStart, selectionEnd),
-                hanVietData
+                hanVietData,
+                predictionNameSet
             );
             if (result.text) predictedPieces.push(result.text);
+            if (result.vietnamese) predictedVietnamesePieces.push(result.vietnamese);
             methods.push(result.method);
         });
         const text = predictedPieces.join('\n').trim() || fallback;
         return {
             text,
             fallback,
-            method: methods.includes('punctuation-hanviet')
-                ? 'punctuation-hanviet'
-                : (methods.includes('punctuation') ? 'punctuation' : 'safe-full-chunk')
+            vietnamese: predictedVietnamesePieces.join('\n').trim() || selectedVietnamese,
+            vietnameseFallback,
+            selectedVietnamese,
+            method: methods.includes('punctuation-name-hanviet')
+                ? 'punctuation-name-hanviet'
+                : (methods.includes('punctuation-name')
+                    ? 'punctuation-name'
+                    : (methods.includes('punctuation-hanviet')
+                        ? 'punctuation-hanviet'
+                        : (methods.includes('punctuation') ? 'punctuation' : 'safe-full-chunk')))
         };
     }
 
     function showEditModal(chinese, vietnamese, options = {}) {
+        hideSelectionEditButton();
         removeElementById('tm-edit-modal');
         config = loadConfig();
         const readerBook = options.book
@@ -4362,14 +4739,21 @@
         const prediction = options.prediction || {
             text: String(chinese || ''),
             fallback: String(chinese || ''),
+            vietnamese: String(vietnamese || ''),
+            vietnameseFallback: String(vietnamese || ''),
             method: 'none'
         };
         const predictionEnabled = config.editNamePredictionEnabled !== false;
+        const initialVietnamese = predictionEnabled
+            ? String(prediction.vietnamese || vietnamese || '')
+            : String(prediction.vietnameseFallback || vietnamese || '');
         const predictionMethodText = {
             'name': 'Đã khớp Name có sẵn.',
-            'punctuation-hanviet': 'Đã thu hẹp bằng dấu câu + mốc Hán Việt.',
-            'punctuation': 'Đã khớp theo cụm dấu câu.',
-            'safe-full-chunk': 'Thiếu mốc chắc chắn, đang dùng nguyên khối RAW.',
+            'punctuation-name-hanviet': 'Đã chặn biên bằng Name và thu hẹp tiếp bằng mốc Hán Việt.',
+            'punctuation-name': 'Đã lấy cụm giữa các Name đang áp dụng.',
+            'punctuation-hanviet': 'Đã tối ưu cả cụm Trung/Việt bằng dấu câu + mốc Hán Việt.',
+            'punctuation': 'Đã khớp cụm Trung/Việt theo dấu câu.',
+            'safe-full-chunk': 'Thiếu mốc chắc chắn, đang dùng nguyên khối Trung/Việt.',
             'disabled': 'Đang tắt dự đoán beta.'
         }[prediction.method] || 'Sẽ ưu tiên dấu câu và mốc Hán Việt khi bôi đen.';
         const wrapper = document.createElement('div');
@@ -4388,7 +4772,7 @@
                 <label class="tm-label">Tiếng Trung</label>
                 <input id="tm-edit-orig-input" class="tm-input" value="${escapeHtml(chinese)}" />
                 <label class="tm-label">Tiếng Việt</label>
-                <input id="tm-edit-viet-input" class="tm-input" value="${escapeHtml(vietnamese)}" />
+                <input id="tm-edit-viet-input" class="tm-input" value="${escapeHtml(initialVietnamese)}" />
                 ${readerBook ? `
                     <label class="tm-label">Lưu vào Bộ Name</label>
                     <select id="tm-edit-name-target" class="tm-select">${targetOptions}</select>
@@ -4396,7 +4780,7 @@
                 ` : ''}
                 <label class="tm-import-customize" style="margin-top:4px;">
                     <input id="tm-edit-prediction-enabled" type="checkbox" ${predictionEnabled ? 'checked' : ''}>
-                    <span><strong>Dự đoán cụm RAW beta</strong><br><small id="tm-edit-prediction-status">${escapeHtml(predictionMethodText)}</small></span>
+                    <span><strong>Dự đoán cụm Trung/Việt beta</strong><br><small id="tm-edit-prediction-status">${escapeHtml(predictionMethodText)}</small></span>
                 </label>
             </div>
             <div id="tm-edit-footer" class="tm-modal-footer" style="justify-content: space-between;">
@@ -4508,6 +4892,10 @@
                 const target = getTarget();
                 const key = origInput.value.trim();
                 const value = vietInput.value.trim();
+                const oldBookSnapshot = readerBook?.bookId
+                    ? JSON.parse(JSON.stringify(libFindBookInIndex(readerBook.bookId) || readerBook))
+                    : null;
+                const oldConfigSnapshot = JSON.parse(JSON.stringify(config));
 
                 if (action === 'add' || action === 'save') {
                     if (!key || !value) {
@@ -4531,11 +4919,18 @@
                     stored.privateNameSetVersion = (stored.privateNameSetVersion || 1) + 1;
                     stored.updatedAt = Date.now();
                     libSaveIndex(index);
-                    await libInvalidateBookTranslations(readerBook.bookId, 'Name Riêng của truyện có thay đổi chưa sao lưu.');
                     libSetBackupStatus({ state: 'dirty', message: 'Name Riêng của truyện có thay đổi chưa sao lưu.' });
                     close(true);
-                    await libRefreshBookAfterNameChange(readerBook.bookId);
-                    showNotification(`${action === 'delete' ? 'Đã xóa' : 'Đã lưu'} Name Riêng.`);
+                    const smartResult = await libFinalizeBookNameChange(
+                        readerBook.bookId,
+                        oldBookSnapshot,
+                        oldConfigSnapshot,
+                        'Name Riêng của truyện có thay đổi chưa sao lưu.'
+                    );
+                    const detail = smartResult?.changedParagraphs
+                        ? ` Đã cập nhật ${smartResult.changedParagraphs} đoạn.`
+                        : '';
+                    showNotification(`${action === 'delete' ? 'Đã xóa' : 'Đã lưu'} Name Riêng.${detail}`);
                     return;
                 }
 
@@ -4547,9 +4942,16 @@
                 saveConfig(config);
                 close(true);
                 if (readerBook?.bookId) {
-                    await libInvalidateBookTranslations(readerBook.bookId, `Bộ Name Chung "${setName}" có thay đổi chưa sao lưu.`);
-                    await libRefreshBookAfterNameChange(readerBook.bookId);
-                    showNotification(`${action === 'delete' ? 'Đã xóa' : 'Đã lưu'} Name trong bộ Chung “${setName}”.`);
+                    const smartResult = await libFinalizeBookNameChange(
+                        readerBook.bookId,
+                        oldBookSnapshot,
+                        oldConfigSnapshot,
+                        `Bộ Name Chung "${setName}" có thay đổi chưa sao lưu.`
+                    );
+                    const detail = smartResult?.changedParagraphs
+                        ? ` Đã cập nhật ${smartResult.changedParagraphs} đoạn.`
+                        : '';
+                    showNotification(`${action === 'delete' ? 'Đã xóa' : 'Đã lưu'} Name trong bộ Chung “${setName}”.${detail}`);
                 } else {
                     const newNameSet = config.nameSets[setName] || {};
                     await applyNameChangeLive(newNameSet, oldNameSetSnapshot);
@@ -4572,14 +4974,18 @@
             saveConfig(config);
             const predictedText = String(prediction.text || '');
             const fallbackText = String(prediction.fallback || predictedText);
+            const predictedVietnamese = String(prediction.vietnamese || vietnamese || '');
+            const fallbackVietnamese = String(prediction.vietnameseFallback || vietnamese || '');
             if (predictionCheckbox.checked) {
                 if (!origInput.value.trim() || origInput.value === fallbackText) origInput.value = predictedText;
+                if (!vietInput.value.trim() || vietInput.value === fallbackVietnamese) vietInput.value = predictedVietnamese;
                 predictionStatus.textContent = predictionMethodText;
-                showNotification('Đã bật dự đoán cụm RAW beta.');
+                showNotification('Đã bật dự đoán cụm Trung/Việt beta.');
             } else {
                 if (origInput.value === predictedText) origInput.value = fallbackText;
+                if (vietInput.value === predictedVietnamese) vietInput.value = fallbackVietnamese;
                 predictionStatus.textContent = 'Đã tắt. Lần chọn sau sẽ dùng nguyên khối RAW.';
-                showNotification('Đã tắt dự đoán cụm RAW beta.');
+                showNotification('Đã tắt dự đoán cụm Trung/Việt beta.');
             }
             checkNameAndRefreshUI();
         });
@@ -4623,7 +5029,13 @@
         if (!node) return null;
 
         const nameSpan = node.closest('span.tm-name');
-        if (nameSpan) return nameSpan;
+        if (
+            nameSpan
+            && nameSpan.contains(range.startContainer)
+            && nameSpan.contains(range.endContainer)
+        ) {
+            return nameSpan;
+        }
 
         const chunkSpan = node.closest('span.tm-chunk');
         if (chunkSpan) return chunkSpan;
@@ -4662,13 +5074,17 @@
         const targetSpan = findChunkFromRange(range);
 
         if (targetSpan) {
+            const fullTranslatedText = targetSpan.textContent.trim();
             let prediction = {
                 text: getDatasetOrigText(targetSpan),
                 fallback: getDatasetOrigText(targetSpan),
+                vietnamese: fullTranslatedText,
+                vietnameseFallback: fullTranslatedText,
+                selectedVietnamese: selectedText,
                 method: targetSpan.classList.contains('tm-name') ? 'name' : 'safe-full-chunk'
             };
             if (!targetSpan.classList.contains('tm-name')) {
-                if (config.editNamePredictionEnabled !== false) showLoading('Đang dự đoán cụm RAW...');
+                if (config.editNamePredictionEnabled !== false) showLoading('Đang tối ưu cụm Trung/Việt...');
                 try {
                     prediction = await editNamePredictSourceFromRange(range) || prediction;
                 } finally {
@@ -4677,7 +5093,7 @@
             }
             const originalText = prediction.text || prediction.fallback;
             console.log(`[tm-translate] Edit Name mapping (${prediction.method}):`, originalText);
-            showEditModal(originalText, selectedText || targetSpan.textContent, {
+            showEditModal(originalText, prediction.vietnamese || selectedText || targetSpan.textContent, {
                 readerTheme: isReaderSelection,
                 book: isReaderSelection ? libReaderState?.book : null,
                 prediction
@@ -9405,6 +9821,149 @@
         return translated;
     }
 
+    function libGetChangedNameSources(oldNameSet, newNameSet) {
+        const keys = new Set([
+            ...Object.keys(oldNameSet || {}),
+            ...Object.keys(newNameSet || {})
+        ]);
+        return Array.from(keys).filter(key =>
+            String(oldNameSet?.[key] || '') !== String(newNameSet?.[key] || '')
+        );
+    }
+
+    async function libTranslateChangedNameParagraphs(jobs, nameSet) {
+        if (!jobs.length) return [];
+        config = loadConfig();
+        const placeholderMaps = [];
+        const nameReplacer = buildNameSetReplacer(nameSet || {});
+        const requestTexts = jobs.map(job => {
+            const placeholderMap = {};
+            placeholderMaps.push(placeholderMap);
+            return nameReplacer(job.rawText, placeholderMap);
+        });
+        let translatedTexts = [];
+        const batches = splitIntoBatches(requestTexts, config.maxCharsPerRequest);
+        if (config.translationMode === 'local') {
+            await initializeLocalTranslator();
+            batches.forEach(batch => {
+                translatedTexts.push(...batch.map(text => TranslateZhToVi.translateSentence(text)));
+            });
+        } else {
+            for (let index = 0; index < batches.length; index++) {
+                const translatedBatch = await requestServerTranslation(batches[index]);
+                translatedTexts.push(...(translatedBatch || []));
+                if (index < batches.length - 1) await sleep(config.delayMs || 0);
+            }
+        }
+        if (translatedTexts.length !== jobs.length) {
+            throw new Error(`Số đoạn dịch Name không khớp: ${translatedTexts.length}/${jobs.length}.`);
+        }
+        return translatedTexts.map((text, index) =>
+            capitalizeFirstLetter(restoreNames(String(text || ''), placeholderMaps[index]).trim())
+        );
+    }
+
+    async function libApplyBookNameChangeSmart(bookId, oldBookSnapshot, oldConfigSnapshot, message) {
+        const book = libFindBookInIndex(bookId);
+        const chapters = libLoadChaptersForBook(bookId);
+        const result = {
+            migratedChapterIds: new Set(),
+            invalidatedChapterIds: new Set(),
+            updatesByChapter: new Map(),
+            changedParagraphs: 0,
+            fullChapterFallbacks: 0
+        };
+        if (!book || book.langSource !== 'zh' || !chapters.length) return result;
+
+        const oldNameSet = libGetEffectiveNameSet(oldBookSnapshot || book, oldConfigSnapshot || config);
+        const newNameSet = libGetEffectiveNameSet(book, config);
+        const changedSources = libGetChangedNameSources(oldNameSet, newNameSet);
+        const plans = [];
+        const jobs = [];
+
+        for (const chapter of chapters) {
+            const oldTransKey = chapter.transKey;
+            if (!oldTransKey) continue;
+            const cached = await libGet('tm_content', oldTransKey);
+            const raw = chapter.rawKey ? await libGet('tm_content', chapter.rawKey) : null;
+            if (!cached?.text || !raw?.text) {
+                if (oldTransKey) libDeleteContent(oldTransKey);
+                chapter.transKey = null;
+                chapter.updatedAt = Date.now();
+                result.invalidatedChapterIds.add(chapter.chapterId);
+                continue;
+            }
+
+            const rawText = libNormalizeChapterParagraphBreaks(raw.text || '');
+            const translatedText = libNormalizeChapterParagraphBreaks(cached.text || '');
+            const rawParagraphs = rawText ? rawText.split('\n') : [];
+            let translatedParagraphs = translatedText ? translatedText.split('\n') : [];
+            let affectedIndices = rawParagraphs
+                .map((paragraph, index) => (
+                    changedSources.some(source => source && paragraph.includes(source)) ? index : -1
+                ))
+                .filter(index => index >= 0);
+
+            if (affectedIndices.length && translatedParagraphs.length !== rawParagraphs.length) {
+                affectedIndices = rawParagraphs.map((_paragraph, index) => index);
+                translatedParagraphs = new Array(rawParagraphs.length).fill('');
+                result.fullChapterFallbacks += 1;
+            } else {
+                while (translatedParagraphs.length < rawParagraphs.length) translatedParagraphs.push('');
+            }
+
+            const plan = {
+                chapter,
+                cached,
+                oldTransKey,
+                newTransKey: libMakeTransKey(chapter.chapterId, chapter.rawKey, book),
+                rawParagraphs,
+                translatedParagraphs,
+                affectedIndices
+            };
+            plans.push(plan);
+            affectedIndices.forEach(paragraphIndex => {
+                jobs.push({
+                    plan,
+                    paragraphIndex,
+                    rawText: rawParagraphs[paragraphIndex] || ''
+                });
+            });
+        }
+
+        const translatedJobs = await libTranslateChangedNameParagraphs(jobs, newNameSet);
+        jobs.forEach((job, index) => {
+            job.plan.translatedParagraphs[job.paragraphIndex] = translatedJobs[index] || '';
+        });
+
+        const now = Date.now();
+        plans.forEach(plan => {
+            const updatedText = plan.affectedIndices.length
+                ? plan.translatedParagraphs.join('\n')
+                : String(plan.cached.text || '');
+            libSaveContent(plan.newTransKey, {
+                ...plan.cached,
+                key: plan.newTransKey,
+                text: updatedText,
+                updatedAt: now
+            });
+            if (plan.oldTransKey !== plan.newTransKey) libDeleteContent(plan.oldTransKey);
+            plan.chapter.transKey = plan.newTransKey;
+            plan.chapter.updatedAt = now;
+            result.migratedChapterIds.add(plan.chapter.chapterId);
+            if (plan.affectedIndices.length) {
+                const updates = new Map();
+                plan.affectedIndices.forEach(index => updates.set(index, plan.translatedParagraphs[index] || ''));
+                result.updatesByChapter.set(plan.chapter.chapterId, updates);
+                result.changedParagraphs += plan.affectedIndices.length;
+            }
+        });
+        libSaveChaptersForBook(bookId, chapters);
+        libTitleCache.clear();
+        libSetBackupStatus({ state: 'dirty', message });
+        return result;
+    }
+
     async function libInvalidateBookTranslations(bookId, message = 'Name/raw truyện có thay đổi chưa sao lưu.') {
         const chapters = libLoadChaptersForBook(bookId);
         let changed = false;
@@ -9421,19 +9980,70 @@
         if (changed) libSetBackupStatus({ state: 'dirty', message });
     }
 
-    async function libRefreshBookAfterNameChange(bookId) {
+    async function libRefreshBookAfterNameChange(bookId, smartResult = null) {
         libTitleCache.clear();
         const infoWasOpen = !!tmUIRoot.querySelector('#tm-lib-book-info');
         if (libReaderState?.book?.bookId === bookId) {
+            const currentChapterId = libReaderState.chapters?.[libReaderState.currentIndex]?.chapterId;
+            const currentScrollTop = libReaderUI?.contentWrap?.scrollTop || 0;
             libReaderState.book = libFindBookInIndex(bookId);
+            libReaderState.chapters = libLoadChaptersForBook(bookId)
+                .sort((a, b) => (a.order || 0) - (b.order || 0));
+            const refreshedIndex = libReaderState.chapters.findIndex(chapter => chapter.chapterId === currentChapterId);
+            if (refreshedIndex >= 0) libReaderState.currentIndex = refreshedIndex;
             libReaderState.titleCache = new Map();
             libReaderState.bookTitleCache = new Map();
-            await libReaderLoadCurrentChapter({ scrollTo: 'restore' });
+            libReaderState.prefetchedChapterIds = new Set();
+            libReaderState.prefetchRetryAfter = new Map();
+
+            const canPatchInPlace = libReaderState.mode === 'raw'
+                || !!smartResult?.migratedChapterIds?.has(currentChapterId);
+            if (canPatchInPlace && libReaderUI) {
+                const chapter = libReaderState.chapters[libReaderState.currentIndex];
+                const updates = smartResult?.updatesByChapter?.get(currentChapterId) || new Map();
+                const chunks = Array.from(libReaderUI.content.querySelectorAll('.tm-chunk[data-orig]'));
+                const nameSet = libGetEffectiveNameSet(libReaderState.book, config);
+                updates.forEach((translatedText, paragraphIndex) => {
+                    const chunk = chunks[paragraphIndex];
+                    if (!chunk) return;
+                    const rawText = getDatasetOrigText(chunk);
+                    chunk.innerHTML = highlightNamesInText(translatedText, nameSet, rawText);
+                });
+                libReaderUI.bookTitle.textContent = await libReaderResolveBookTitle(libReaderState.book);
+                libReaderUI.chapterTitle.textContent = await libReaderResolveChapterTitle(chapter, libReaderState.currentIndex);
+                await libReaderRenderToc();
+                libReaderUpdateMiniInfo();
+                if (libReaderUI.contentWrap) libReaderUI.contentWrap.scrollTop = currentScrollTop;
+            } else {
+                await libReaderLoadCurrentChapter({ scrollTo: 'restore' });
+            }
         }
         if (infoWasOpen) {
             removeElementById('tm-lib-book-info');
             await openLibraryBookInfo(bookId, { returnToLibrary: false });
         }
+    }
+
+    async function libFinalizeBookNameChange(bookId, oldBookSnapshot, oldConfigSnapshot, message) {
+        showLoading('Đang cập nhật các đoạn chứa Name...');
+        let smartResult = null;
+        try {
+            smartResult = await libApplyBookNameChangeSmart(
+                bookId,
+                oldBookSnapshot,
+                oldConfigSnapshot,
+                message
+            );
+        } catch (err) {
+            console.error('[tm-translate] Cập nhật cache Name thông minh thất bại, dùng fallback:', err);
+            await libInvalidateBookTranslations(bookId, message);
+        }
+        try {
+            await libRefreshBookAfterNameChange(bookId, smartResult);
+        } finally {
+            removeLoading();
+        }
+        return smartResult;
     }
 
     /* --- GM-based storage helpers (cross-domain) --- */
@@ -9907,9 +10517,46 @@
         return [...(books || [])].sort((a, b) => {
             const aRead = Number(a?.lastReadAt || (a?.lastReadChapterId ? a?.updatedAt : 0)) || 0;
             const bRead = Number(b?.lastReadAt || (b?.lastReadChapterId ? b?.updatedAt : 0)) || 0;
-            if (aRead !== bRead) return bRead - aRead;
+            const aAdded = Number(a?.importedAt || a?.createdAt || 0) || 0;
+            const bAdded = Number(b?.importedAt || b?.createdAt || 0) || 0;
+            const aActivity = Math.max(aRead, aAdded);
+            const bActivity = Math.max(bRead, bAdded);
+            if (aActivity !== bActivity) return bActivity - aActivity;
             return (Number(b?.createdAt || b?.updatedAt || 0) || 0) - (Number(a?.createdAt || a?.updatedAt || 0) || 0);
         });
+    }
+
+    function libWrapDefaultCoverText(value, maxUnits = 18, maxLines = 4) {
+        const text = String(value || '').replace(/\s+/g, ' ').trim();
+        if (!text) return [];
+        const units = input => Array.from(String(input || '')).reduce((total, char) =>
+            total + (/[\p{Script=Han}]/u.test(char) ? 2 : (char === ' ' ? 0.6 : 1)), 0);
+        const tokens = /\s/u.test(text) ? text.split(' ').filter(Boolean) : Array.from(text);
+        const joiner = /\s/u.test(text) ? ' ' : '';
+        const lines = [];
+        let current = '';
+        let truncated = false;
+        for (let index = 0; index < tokens.length; index++) {
+            const candidate = current ? `${current}${joiner}${tokens[index]}` : tokens[index];
+            if (!current || units(candidate) <= maxUnits) {
+                current = candidate;
+                continue;
+            }
+            lines.push(current);
+            current = tokens[index];
+            if (lines.length >= maxLines) {
+                truncated = true;
+                break;
+            }
+        }
+        if (current && lines.length < maxLines) lines.push(current);
+        if (lines.join(joiner).length < text.length) truncated = true;
+        if (truncated && lines.length) {
+            let last = lines[lines.length - 1].replace(/[.…]+$/u, '');
+            while (last && units(`${last}…`) > maxUnits) last = Array.from(last).slice(0, -1).join('');
+            lines[lines.length - 1] = `${last || Array.from(text)[0]}…`;
+        }
+        return lines.slice(0, maxLines);
     }
 
     function libDefaultCoverDataUrl(book) {
@@ -9917,22 +10564,35 @@
         const author = String(book?.author || '').trim();
         const seed = libHashString(`${book?.bookId || ''}|${title}`);
         const palettes = [
-            ['#0f766e', '#f8fafc', '#f59e0b'],
-            ['#1d4ed8', '#f8fafc', '#22c55e'],
-            ['#be123c', '#fff7ed', '#0f172a'],
-            ['#334155', '#fef3c7', '#2563eb'],
-            ['#166534', '#ecfeff', '#ea580c']
+            ['#173f3a', '#d7a85b', '#f7f1e5', '#dce9e5'],
+            ['#253b67', '#c8955a', '#f4efe6', '#dfe6f2'],
+            ['#6b293b', '#d0a15a', '#f8f0e7', '#f0dde1'],
+            ['#3f3a56', '#d4a95f', '#f5f0e6', '#e5e1ec'],
+            ['#36533b', '#c48d52', '#f6f0e2', '#dfe9dc']
         ];
         const palette = palettes[parseInt(seed.slice(-1), 36) % palettes.length] || palettes[0];
-        const shortTitle = title.length > 18 ? `${title.slice(0, 18)}...` : title;
-        const shortAuthor = author ? (author.length > 18 ? `${author.slice(0, 18)}...` : author) : 'TM Translate';
-        const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="180" height="260" viewBox="0 0 180 260">
-<defs><linearGradient id="g" x1="0" x2="1" y1="0" y2="1"><stop offset="0" stop-color="${palette[0]}"/><stop offset="1" stop-color="${palette[2]}"/></linearGradient></defs>
-<rect width="180" height="260" rx="14" fill="url(#g)"/>
-<rect x="16" y="18" width="148" height="224" rx="10" fill="${palette[1]}" opacity=".92"/>
-<path d="M45 58h90M45 78h74M45 174h90M45 192h62" stroke="${palette[0]}" stroke-width="5" stroke-linecap="round" opacity=".35"/>
-<text x="90" y="122" text-anchor="middle" font-family="Arial, sans-serif" font-size="17" font-weight="700" fill="#111827">${escapeHtml(shortTitle)}</text>
-<text x="90" y="146" text-anchor="middle" font-family="Arial, sans-serif" font-size="11" fill="#475569">${escapeHtml(shortAuthor)}</text>
+        const titleLines = libWrapDefaultCoverText(title, 16, 3);
+        const authorLine = libWrapDefaultCoverText(author || 'TM Translate', 25, 1)[0] || 'TM Translate';
+        const titleStartY = 168 - ((titleLines.length - 1) * 18);
+        const titleSvg = titleLines.map((line, index) =>
+            `<text x="128" y="${titleStartY + index * 36}" text-anchor="middle" font-family="Georgia, 'Noto Serif SC', 'Noto Serif', serif" font-size="23" font-weight="700" letter-spacing=".3" fill="${palette[0]}">${escapeHtml(line)}</text>`
+        ).join('');
+        const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="240" height="360" viewBox="0 0 240 360">
+<defs>
+  <linearGradient id="edge" x1="0" x2="1" y1="0" y2="1"><stop offset="0" stop-color="${palette[0]}"/><stop offset="1" stop-color="${palette[1]}"/></linearGradient>
+  <pattern id="grain" width="18" height="18" patternUnits="userSpaceOnUse"><circle cx="2" cy="3" r=".8" fill="${palette[0]}" opacity=".08"/><circle cx="14" cy="12" r=".65" fill="${palette[1]}" opacity=".12"/></pattern>
+</defs>
+<rect width="240" height="360" rx="12" fill="${palette[0]}"/>
+<rect x="8" y="8" width="224" height="344" rx="8" fill="${palette[2]}"/>
+<rect x="8" y="8" width="18" height="344" rx="8" fill="url(#edge)"/>
+<rect x="26" y="8" width="206" height="344" fill="url(#grain)"/>
+<path d="M54 83h148M54 276h148" stroke="${palette[1]}" stroke-width="1.5" opacity=".8"/>
+<path d="M85 59h86l10 10-10 10H85L75 69z" fill="${palette[3]}" stroke="${palette[1]}" stroke-width="1"/>
+<text x="128" y="73" text-anchor="middle" font-family="Arial, sans-serif" font-size="9" font-weight="700" letter-spacing="2" fill="${palette[0]}">TM TRANSLATE</text>
+${titleSvg}
+<path d="M105 250h46M113 257h30" stroke="${palette[1]}" stroke-width="2" stroke-linecap="round"/>
+<text x="128" y="304" text-anchor="middle" font-family="Arial, 'Noto Sans', sans-serif" font-size="12" font-weight="600" letter-spacing=".5" fill="${palette[0]}" opacity=".82">${escapeHtml(authorLine)}</text>
+<circle cx="128" cy="327" r="6" fill="none" stroke="${palette[1]}" stroke-width="1.5"/><circle cx="128" cy="327" r="2" fill="${palette[1]}"/>
 </svg>`;
         return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
     }
@@ -11158,6 +11818,20 @@ body.tmx-fullscreen .tmx-scroll {
         return { text: '', translated: false };
     }
 
+    function libBuildBookTxtContent({ title, author, description, chapters }) {
+        const header = [
+            `Tên sách: ${String(title || '').trim()}`,
+            `Tác giả: ${String(author || '').trim()}`,
+            `Mô tả: ${String(description || '').trim()}`
+        ].join('\n');
+        const chapterBlocks = (chapters || []).map((chapter, index) => {
+            const chapterTitle = String(chapter?.title || `Chương ${index + 1}`).trim() || `Chương ${index + 1}`;
+            const chapterText = String(chapter?.text || '').trim();
+            return `${chapterTitle}\n${chapterText}`;
+        });
+        return `${header}\n\n${chapterBlocks.join('\n\n')}\n`;
+    }
+
     async function libExportBookTxt(bookId) {
         const book = libFindBookInIndex(bookId);
         if (!book) {
@@ -11184,7 +11858,14 @@ body.tmx-fullscreen .tmx-scroll {
         try {
             const cfg = loadConfig();
             const { bookTitle: exportBookTitle, chapterTitles } = await libResolveExportTitles(book, chapters);
-            const lines = [];
+            const authorText = await libResolveAuthorTranslated(book) || book.author || '';
+            let descriptionText = book.description || '';
+            if (book.langSource === 'zh' && descriptionText) {
+                descriptionText = await translatePanelText(descriptionText, 'text', {
+                    nameSet: libGetEffectiveNameSet(book, config)
+                });
+            }
+            const chapterExports = [];
             for (let i = 0; i < chapters.length; i++) {
                 const ch = chapters[i];
                 const title = chapterTitles[i] || ch.title || `Chương ${i + 1}`;
@@ -11192,17 +11873,20 @@ body.tmx-fullscreen .tmx-scroll {
                     showLoading(`Đang dịch chương ${i + 1}/${chapters.length}...`);
                 }
                 const { text, translated } = await libGetExportTextForChapter(book, ch, ensureTranslated);
-                lines.push(title);
-                lines.push('');
-                lines.push(text || '');
-                lines.push('\n');
+                chapterExports.push({ title, text: text || '' });
                 if (ensureTranslated && book.langSource === 'zh' && translated && i < chapters.length - 1) {
                     await sleep(cfg.delayMs || 0);
                 }
             }
             showLoading('Đang đóng gói TXT...');
             const filename = `${libSafeFileName(exportBookTitle || book.title)}.txt`;
-            libDownloadBlob(new Blob([lines.join('\n')], { type: 'text/plain;charset=utf-8' }), filename);
+            const txtContent = libBuildBookTxtContent({
+                title: exportBookTitle || book.title,
+                author: authorText,
+                description: descriptionText,
+                chapters: chapterExports
+            });
+            libDownloadBlob(new Blob([txtContent], { type: 'text/plain;charset=utf-8' }), filename);
             showNotification('Đã xuất TXT.');
         } catch (err) {
             console.error(err);
@@ -11592,6 +12276,7 @@ body.tmx-fullscreen .tmx-scroll {
             nameSetNames: libNormalizeBookNameSetNames(null, config),
             privateNameSet: {},
             privateNameSetVersion: 1,
+            importedAt: now,
             createdAt: now,
             updatedAt: now,
             chapterCount: chapters.length,
@@ -11666,23 +12351,88 @@ body.tmx-fullscreen .tmx-scroll {
             }
         });
 
+        const manifestItems = Array.from(manifest.values());
+        const inferImageMediaType = (path, declared = '') => {
+            if (/^image\//i.test(declared || '')) return declared;
+            const ext = String(path || '').split(/[?#]/)[0].split('.').pop().toLowerCase();
+            return {
+                apng: 'image/apng',
+                avif: 'image/avif',
+                gif: 'image/gif',
+                jpeg: 'image/jpeg',
+                jpg: 'image/jpeg',
+                png: 'image/png',
+                svg: 'image/svg+xml',
+                webp: 'image/webp'
+            }[ext] || '';
+        };
+        const findManifestByResolved = path => manifestItems.find(item => item.resolved === path) || null;
+        const readCoverFromPath = (path, declaredMediaType = '') => {
+            const mediaType = inferImageMediaType(path, declaredMediaType);
+            if (!mediaType) return '';
+            const bytes = getEntry(path);
+            return bytes ? libBytesToDataUrl(bytes, mediaType) : '';
+        };
+        const readCoverFromDocument = item => {
+            const documentText = getText(item?.resolved);
+            if (!documentText) return '';
+            const doc = new DOMParser().parseFromString(documentText, 'text/html');
+            const imageNode = Array.from(doc.getElementsByTagName('*')).find(node => {
+                const tag = String(node.localName || node.tagName || '').toLowerCase();
+                return tag === 'img' || tag === 'image' || tag === 'object';
+            });
+            const source = imageNode?.getAttribute('src')
+                || imageNode?.getAttribute('href')
+                || imageNode?.getAttribute('xlink:href')
+                || imageNode?.getAttribute('data')
+                || '';
+            if (/^data:image\//i.test(source)) return source;
+            const imagePath = libResolveZipPath(item.resolved, source);
+            const imageItem = findManifestByResolved(imagePath);
+            return readCoverFromPath(imagePath, imageItem?.mediaType || '');
+        };
+        const readCoverFromItem = item => {
+            if (!item) return '';
+            const direct = readCoverFromPath(item.resolved, item.mediaType);
+            if (direct) return direct;
+            return readCoverFromDocument(item);
+        };
+
         let coverDataUrl = '';
         let coverId = '';
         libFindAllByLocalName(metadataEl, 'meta').forEach(meta => {
             if ((meta.getAttribute('name') || '').toLowerCase() === 'cover') {
                 coverId = meta.getAttribute('content') || coverId;
             }
+            if (!coverId && /\bcover\b/i.test(meta.getAttribute('property') || '')) {
+                coverId = meta.getAttribute('content') || meta.textContent?.trim() || coverId;
+            }
         });
-        let coverItem = coverId ? manifest.get(coverId) : null;
-        if (!coverItem) {
-            coverItem = Array.from(manifest.values()).find(item =>
-                /\bcover-image\b/i.test(item.properties || '')
-                || (/^image\//i.test(item.mediaType || '') && /cover/i.test(item.href || ''))
-            ) || null;
-        }
-        if (coverItem && /^image\//i.test(coverItem.mediaType || '')) {
-            const coverBytes = getEntry(coverItem.resolved);
-            if (coverBytes) coverDataUrl = libBytesToDataUrl(coverBytes, coverItem.mediaType);
+        const coverCandidates = [];
+        if (coverId && manifest.has(coverId)) coverCandidates.push(manifest.get(coverId));
+        manifestItems.forEach(item => {
+            const coverLike = /\bcover-image\b/i.test(item.properties || '')
+                || /\bcover\b/i.test(item.id || '')
+                || /(?:^|[/_.-])cover(?:[/_.-]|$)/i.test(item.href || '')
+                || /(?:^|[/_.-])front(?:[/_.-]|$)/i.test(item.href || '');
+            if (coverLike && !coverCandidates.includes(item)) coverCandidates.push(item);
+        });
+        const guideCoverPaths = [];
+        libFindAllByLocalName(opfDoc, 'reference').forEach(reference => {
+            if (!/\bcover\b/i.test(reference.getAttribute('type') || '')) return;
+            const href = reference.getAttribute('href') || '';
+            if (href) guideCoverPaths.push(libResolveZipPath(opfPath, href));
+        });
+        guideCoverPaths.forEach(path => {
+            const item = findManifestByResolved(path) || {
+                resolved: path,
+                mediaType: inferImageMediaType(path)
+            };
+            if (!coverCandidates.includes(item)) coverCandidates.push(item);
+        });
+        for (const candidate of coverCandidates) {
+            coverDataUrl = readCoverFromItem(candidate);
+            if (coverDataUrl) break;
         }
 
         const spine = [];
@@ -12531,6 +13281,8 @@ body.tmx-fullscreen .tmx-scroll {
             const index = libLoadIndex();
             const stored = (index.books || []).find(item => item.bookId === bookId);
             if (!stored) return;
+            const oldBookSnapshot = JSON.parse(JSON.stringify(stored));
+            const oldConfigSnapshot = JSON.parse(JSON.stringify(config));
             const checked = Array.from(wrapper.querySelectorAll('input[data-common-name]:checked')).map(input => input.dataset.commonName);
             stored.nameSetNames = checked;
             stored.privateNameSet = { ...privateNames };
@@ -12538,13 +13290,18 @@ body.tmx-fullscreen .tmx-scroll {
             stored.updatedAt = Date.now();
             libSaveIndex(index);
             config = loadConfig();
-            config.nameSetVersion = (config.nameSetVersion || 1) + 1;
-            saveConfig(config);
-            await libInvalidateBookTranslations(bookId, 'Bộ Name của truyện có thay đổi chưa sao lưu.');
             libSetBackupStatus({ state: 'dirty', message: 'Bộ Name của truyện có thay đổi chưa sao lưu.' });
             close(true);
-            await libRefreshBookAfterNameChange(bookId);
-            showNotification('Đã lưu Bộ Name của truyện.');
+            const smartResult = await libFinalizeBookNameChange(
+                bookId,
+                oldBookSnapshot,
+                oldConfigSnapshot,
+                'Bộ Name của truyện có thay đổi chưa sao lưu.'
+            );
+            const detail = smartResult?.changedParagraphs
+                ? ` Đã cập nhật ${smartResult.changedParagraphs} đoạn.`
+                : '';
+            showNotification(`Đã lưu Bộ Name của truyện.${detail}`);
         };
         wrapper.querySelector('#tm-bn-close').onclick = () => close();
         wrapper.querySelector('#tm-bn-cancel').onclick = () => close();
@@ -12707,8 +13464,14 @@ body.tmx-fullscreen .tmx-scroll {
                             </select>
                         </div>
                         <div class="tm-col">
-                            <label class="tm-label">Bìa mới (tùy chọn)</label>
-                            <input id="tm-lib-edit-cover" class="tm-input" type="file" accept="image/*">
+                            <label class="tm-label">Bìa truyện</label>
+                            <div style="display:grid;grid-template-columns:68px minmax(0,1fr);gap:10px;align-items:center;">
+                                <img id="tm-lib-edit-cover-preview" src="${escapeHtml(libGetBookCoverSrc(book))}" alt="Xem trước bìa" style="width:68px;height:96px;object-fit:cover;border-radius:7px;border:1px solid #d8dde6;background:#f8fafc;">
+                                <div style="min-width:0;">
+                                    <input id="tm-lib-edit-cover" class="tm-input" style="margin:0 0 5px;" type="file" accept="image/*">
+                                    <small id="tm-lib-edit-cover-status" style="display:block;color:#64748b;">${book.coverDataUrl ? (isImportDraft ? 'Đã nhận bìa có sẵn trong EPUB.' : 'Đang dùng bìa hiện tại.') : 'Đang dùng bìa mặc định; chọn ảnh nếu muốn thay.'}</small>
+                                </div>
+                            </div>
                         </div>
                     </div>
                     <details open style="margin-top:8px;border:1px solid #d8dde6;border-radius:10px;padding:10px;">
@@ -12922,6 +13685,10 @@ body.tmx-fullscreen .tmx-scroll {
                 return showNotification('Bìa phải là ảnh nhỏ hơn 3 MB.');
             }
             state.coverDataUrl = await libReadFileAsDataUrl(file);
+            const coverPreview = wrapper.querySelector('#tm-lib-edit-cover-preview');
+            const coverStatus = wrapper.querySelector('#tm-lib-edit-cover-status');
+            if (coverPreview) coverPreview.src = state.coverDataUrl;
+            if (coverStatus) coverStatus.textContent = `Bìa mới: ${file.name}`;
         };
         wrapper.querySelector('#tm-lib-edit-preview-btn').onclick = () => {
             syncSelectedChapter();
@@ -13549,18 +14316,34 @@ body.tmx-fullscreen .tmx-scroll {
         libReaderUI.btnSettings.addEventListener('click', () => openSettingsUI('library'));
         libReaderUI.btnTtsSettings.addEventListener('click', () => openSettingsUI('tts'));
         if (libReaderUI.contentWrap) {
-            libReaderUI.contentWrap.addEventListener('pointerdown', libReaderNameTapStart, { passive: true });
-            libReaderUI.contentWrap.addEventListener('pointermove', libReaderNameTapMove, { passive: true });
-            libReaderUI.contentWrap.addEventListener('pointerup', libReaderNameTapEnd, { passive: true });
-            libReaderUI.contentWrap.addEventListener('pointercancel', libReaderNameTapEnd, { passive: true });
-            libReaderUI.contentWrap.addEventListener('touchstart', libReaderNameTapStart, { passive: true });
-            libReaderUI.contentWrap.addEventListener('touchmove', libReaderNameTapMove, { passive: true });
-            libReaderUI.contentWrap.addEventListener('touchend', libReaderNameTapEnd, { passive: true });
-            libReaderUI.contentWrap.addEventListener('touchcancel', libReaderNameTapEnd, { passive: true });
-            libReaderUI.contentWrap.addEventListener('touchstart', libReaderBoundaryTouchStart, { passive: true });
-            libReaderUI.contentWrap.addEventListener('touchmove', libReaderBoundaryTouchMove, { passive: true });
-            libReaderUI.contentWrap.addEventListener('touchend', libReaderBoundaryTouchEnd, { passive: true });
-            libReaderUI.contentWrap.addEventListener('touchcancel', libReaderBoundaryTouchEnd, { passive: true });
+            if ('PointerEvent' in window) {
+                const boundaryPointerStart = event => {
+                    if (event.pointerType === 'touch') libReaderBoundaryTouchStart(event);
+                };
+                const boundaryPointerMove = event => {
+                    if (event.pointerType === 'touch') libReaderBoundaryTouchMove(event);
+                };
+                const boundaryPointerEnd = event => {
+                    if (event.pointerType === 'touch') libReaderBoundaryTouchEnd();
+                };
+                libReaderUI.contentWrap.addEventListener('pointerdown', libReaderNameTapStart, { passive: true });
+                libReaderUI.contentWrap.addEventListener('pointermove', libReaderNameTapMove, { passive: true });
+                libReaderUI.contentWrap.addEventListener('pointerup', libReaderNameTapEnd, { passive: true });
+                libReaderUI.contentWrap.addEventListener('pointercancel', libReaderNameTapEnd, { passive: true });
+                libReaderUI.contentWrap.addEventListener('pointerdown', boundaryPointerStart, { passive: true });
+                libReaderUI.contentWrap.addEventListener('pointermove', boundaryPointerMove, { passive: true });
+                libReaderUI.contentWrap.addEventListener('pointerup', boundaryPointerEnd, { passive: true });
+                libReaderUI.contentWrap.addEventListener('pointercancel', boundaryPointerEnd, { passive: true });
+            } else {
+                libReaderUI.contentWrap.addEventListener('touchstart', libReaderNameTapStart, { passive: true });
+                libReaderUI.contentWrap.addEventListener('touchmove', libReaderNameTapMove, { passive: true });
+                libReaderUI.contentWrap.addEventListener('touchend', libReaderNameTapEnd, { passive: true });
+                libReaderUI.contentWrap.addEventListener('touchcancel', libReaderNameTapEnd, { passive: true });
+                libReaderUI.contentWrap.addEventListener('touchstart', libReaderBoundaryTouchStart, { passive: true });
+                libReaderUI.contentWrap.addEventListener('touchmove', libReaderBoundaryTouchMove, { passive: true });
+                libReaderUI.contentWrap.addEventListener('touchend', libReaderBoundaryTouchEnd, { passive: true });
+                libReaderUI.contentWrap.addEventListener('touchcancel', libReaderBoundaryTouchEnd, { passive: true });
+            }
             libReaderUI.contentWrap.addEventListener('click', (e) => {
                 const nameSpan = e.target.closest('.tm-name');
                 if (!nameSpan) return;
@@ -13592,7 +14375,7 @@ body.tmx-fullscreen .tmx-scroll {
             });
         }
         if (libReaderUI.contentWrap) {
-            libReaderUI.contentWrap.addEventListener('scroll', libReaderHandleScroll);
+            libReaderUI.contentWrap.addEventListener('scroll', libReaderHandleScroll, { passive: true });
             libReaderUI.contentWrap.addEventListener('wheel', libReaderHandleWheel, { passive: true });
         }
         if (!libReaderGlobalEventsBound) {
@@ -13716,16 +14499,26 @@ body.tmx-fullscreen .tmx-scroll {
         const bookPercent = total > 0 ? Math.max(0, Math.min(100, ((index + ratio) / total) * 100)) : 0;
         const chapterText = total > 0 ? `Chương ${index + 1} / ${total}` : 'Chưa có chương';
         const percentText = `${bookPercent.toFixed(1)}%`;
+        const miniTitleText = libReaderUI.chapterTitle?.textContent || chapter?.title || `Chương ${index + 1}`;
+        const setTextIfChanged = (element, value) => {
+            if (element && element.textContent !== value) element.textContent = value;
+        };
 
-        if (libReaderUI.progress) libReaderUI.progress.textContent = `${chapterText} · ${percentText}`;
-        if (libReaderUI.miniTitle) libReaderUI.miniTitle.textContent = libReaderUI.chapterTitle?.textContent || chapter?.title || `Chương ${index + 1}`;
-        if (libReaderUI.miniChapter) libReaderUI.miniChapter.textContent = chapterText;
-        if (libReaderUI.miniProgress) libReaderUI.miniProgress.textContent = percentText;
+        setTextIfChanged(libReaderUI.progress, `${chapterText} · ${percentText}`);
+        setTextIfChanged(libReaderUI.miniTitle, miniTitleText);
+        setTextIfChanged(libReaderUI.miniChapter, chapterText);
+        setTextIfChanged(libReaderUI.miniProgress, percentText);
 
         const showMini = libReaderIsFullscreenActive();
-        libReaderUI.root.classList.toggle('tm-reader-mini-visible', showMini);
-        if (libReaderUI.miniHead) libReaderUI.miniHead.hidden = !showMini;
-        if (libReaderUI.miniFoot) libReaderUI.miniFoot.hidden = !showMini;
+        if (libReaderUI.root.classList.contains('tm-reader-mini-visible') !== showMini) {
+            libReaderUI.root.classList.toggle('tm-reader-mini-visible', showMini);
+        }
+        if (libReaderUI.miniHead && libReaderUI.miniHead.hidden === showMini) {
+            libReaderUI.miniHead.hidden = !showMini;
+        }
+        if (libReaderUI.miniFoot && libReaderUI.miniFoot.hidden === showMini) {
+            libReaderUI.miniFoot.hidden = !showMini;
+        }
     }
 
     function libReaderTtsFormatDuration(ms) {
@@ -14565,6 +15358,10 @@ body.tmx-fullscreen .tmx-scroll {
     function libReaderClose() {
         libReaderTtsStop({ silent: true });
         libReaderSaveProgressNow();
+        if (libReaderState?.scrollFrameId) {
+            cancelAnimationFrame(libReaderState.scrollFrameId);
+            libReaderState.scrollFrameId = 0;
+        }
         const el = document.getElementById('tm-reader-overlay');
         if (el) el.remove();
         libReaderState = null;
@@ -14636,6 +15433,7 @@ body.tmx-fullscreen .tmx-scroll {
         const nextIndex = libReaderState.currentIndex + offset;
         if (nextIndex < 0 || nextIndex >= libReaderState.chapters.length) return;
         if (!options.fromTts) libReaderTtsStop({ silent: true });
+        libReaderSaveProgressNow();
         libReaderClearBoundaryGate();
         libReaderState.currentIndex = nextIndex;
         libReaderState.isSwitching = true;
@@ -14647,6 +15445,7 @@ body.tmx-fullscreen .tmx-scroll {
         if (!libReaderState || libReaderState.isSwitching) return;
         if (index < 0 || index >= libReaderState.chapters.length) return;
         if (!options.fromTts) libReaderTtsStop({ silent: true });
+        libReaderSaveProgressNow();
         libReaderClearBoundaryGate();
         libReaderState.currentIndex = index;
         libReaderState.isSwitching = true;
@@ -14695,6 +15494,17 @@ body.tmx-fullscreen .tmx-scroll {
 
     function libReaderHandleScroll() {
         if (!libReaderState || !libReaderUI?.contentWrap) return;
+        if (libReaderState.scrollFrameId) return;
+        const scheduledState = libReaderState;
+        scheduledState.scrollFrameId = requestAnimationFrame(() => {
+            scheduledState.scrollFrameId = 0;
+            if (libReaderState !== scheduledState) return;
+            libReaderProcessScroll();
+        });
+    }
+
+    function libReaderProcessScroll() {
+        if (!libReaderState || !libReaderUI?.contentWrap) return;
         const wrap = libReaderUI.contentWrap;
         const viewMode = libReaderState.viewMode || 'single';
         const prevTop = libReaderState.prevScrollTop ?? wrap.scrollTop;
@@ -14714,7 +15524,7 @@ body.tmx-fullscreen .tmx-scroll {
         if (libReaderState.scrollSaveTimer) clearTimeout(libReaderState.scrollSaveTimer);
         libReaderState.scrollSaveTimer = setTimeout(() => {
             libReaderSaveProgressNow();
-        }, 300);
+        }, 420);
 
         const threshold = (config.readerPrefetchPercent || 50) / 100;
         if (ratio >= threshold && libReaderState.book.langSource === 'zh') {
@@ -14797,24 +15607,41 @@ body.tmx-fullscreen .tmx-scroll {
 
     async function libReaderPrefetchNextChapter() {
         if (!libReaderState) return;
+        const state = libReaderState;
         const nextIndex = libReaderState.currentIndex + 1;
         if (nextIndex >= libReaderState.chapters.length) return;
         const nextChapter = libReaderState.chapters[nextIndex];
         if (!nextChapter || !nextChapter.rawKey) return;
-            const expectedKey = libMakeTransKey(nextChapter.chapterId, nextChapter.rawKey, libReaderState.book);
-        const { wasNormalized } = await libGetNormalizedRawChapterContent(nextChapter);
-        const needsRefresh = wasNormalized;
-        if (!needsRefresh && nextChapter.transKey === expectedKey) {
-            const cached = await libGet('tm_content', expectedKey);
-            if (cached?.text) return;
+        state.prefetching = state.prefetching || new Set();
+        state.prefetchedChapterIds = state.prefetchedChapterIds || new Set();
+        state.prefetchRetryAfter = state.prefetchRetryAfter || new Map();
+        if (
+            state.prefetching.has(nextChapter.chapterId)
+            || state.prefetchedChapterIds.has(nextChapter.chapterId)
+            || Date.now() < (state.prefetchRetryAfter.get(nextChapter.chapterId) || 0)
+        ) {
+            return;
         }
-        libReaderState.prefetching = libReaderState.prefetching || new Set();
-        if (libReaderState.prefetching.has(nextChapter.chapterId)) return;
-        libReaderState.prefetching.add(nextChapter.chapterId);
+        state.prefetching.add(nextChapter.chapterId);
         try {
+            const expectedKey = libMakeTransKey(nextChapter.chapterId, nextChapter.rawKey, libReaderState.book);
+            const { wasNormalized } = await libGetNormalizedRawChapterContent(nextChapter);
+            const needsRefresh = wasNormalized;
+            if (!needsRefresh && nextChapter.transKey === expectedKey) {
+                const cached = await libGet('tm_content', expectedKey);
+                if (cached?.text) {
+                    state.prefetchedChapterIds.add(nextChapter.chapterId);
+                    return;
+                }
+            }
             await libTranslateAndCacheChapter(nextChapter.chapterId);
+            state.prefetchedChapterIds.add(nextChapter.chapterId);
+            state.prefetchRetryAfter.delete(nextChapter.chapterId);
         } catch (err) {
             console.error(err);
+            state.prefetchRetryAfter.set(nextChapter.chapterId, Date.now() + 5000);
+        } finally {
+            state.prefetching.delete(nextChapter.chapterId);
         }
     }
 
@@ -15149,7 +15976,10 @@ body.tmx-fullscreen .tmx-scroll {
             mode: book.langSource === 'vi' ? 'raw' : 'trans',
             lastScrollRatio: typeof book.lastReadScrollRatio === 'number' ? book.lastReadScrollRatio : 0,
             prefetching: new Set(),
+            prefetchedChapterIds: new Set(),
+            prefetchRetryAfter: new Map(),
             scrollSaveTimer: null,
+            scrollFrameId: 0,
             chapterBoundaryGate: null,
             boundaryTouchY: null,
             fullscreen: false
@@ -15219,7 +16049,7 @@ body.tmx-fullscreen .tmx-scroll {
 <div class="tm-welcome-title">🌸 Chào mừng đến với TM Translate 🌸</div>
 		<div class="tm-welcome-sub">TM Translate v${CURRENT_VERSION} • Dịch trang web Trung → Việt, quản lý Name-set, Thư viện đọc offline, OCR dịch ảnh và TTS</div>
 		<div class="tm-welcome-banner">
-		  <strong>✨ v${CURRENT_VERSION}:</strong> Edit Name ưu tiên Name Riêng, dự đoán RAW beta chính xác hơn và popup chỉnh sửa an toàn hơn.
+		  <strong>✨ v${CURRENT_VERSION}:</strong> Edit Name ưu tiên Name Riêng, dự đoán cụm Trung/Việt beta chính xác hơn và popup chỉnh sửa an toàn hơn.
 	</div>
 <div style="height:8px;"></div>
     `.trim();
@@ -15228,7 +16058,7 @@ body.tmx-fullscreen .tmx-scroll {
 ### 🟢 Nút Nổi (Floating Buttons)
 - **Dịch Trang** (xanh lá): Dịch toàn bộ trang. Có tự động dịch khi cuộn nếu bật trong Cài đặt.
 - **Thư viện** (xanh ngọc): Mở Thư viện toàn màn hình để import/đọc/export, tìm kiếm, đổi bìa và sao lưu/khôi phục truyện.
-- **Edit Name** (xanh dương, hình bút chì): Bôi đen đoạn đã dịch trên web → bấm bút chì để sửa tên. Dự đoán RAW beta tự bật cùng Edit Name, ghép dấu câu rồi dùng mốc Hán Việt hai phía để thu hẹp vùng raw; có thể tắt ngay trong popup.
+- **Edit Name** (xanh dương, hình bút chì): Bôi đen đoạn đã dịch trên web → bấm bút chì để sửa tên. Dự đoán beta tự bật cùng Edit Name: dấu câu/ký hiệu (kể cả \`《》\`, ngoặc và dấu nháy), các Name đang áp dụng và Hán Việt cùng thu hẹp cụm. Nếu bôi trong một Name, hai ô luôn hiện trọn Name Trung/Việt. Tắt beta sẽ dùng nguyên khối Trung/Việt như cách cũ.
 - Khi tắt **Edit Name**, bản dịch được ghi thẳng vào text-node/link; script không tạo thêm span hay tooltip \`title\`.
 - **Dịch Nhanh** (xám): Dán text và dịch nhanh mà không cần dịch cả trang.
 - **OCR** (teal): Dịch chữ trong ảnh — khoanh vùng hoặc dịch ảnh.
@@ -15236,10 +16066,10 @@ body.tmx-fullscreen .tmx-scroll {
 - **Quay Về** (vàng): Quay lại trang gốc chưa dịch.
 
 ### 📚 Thư Viện & Đọc Truyện
-- Import **TXT/EPUB/DOCX/DOC/ODT/RTF/HTML**, chọn ngôn ngữ nguồn (Trung → có RAW/DỊCH, Việt → chỉ đọc). Mặc định bật **Tùy chỉnh trước khi nhập** để duyệt/sửa truyện rồi mới lưu; bỏ chọn để import tự động như cũ. DOC nhị phân cũ được đọc best-effort; nên đổi sang DOCX nếu file không đọc được.
+- Import **TXT/EPUB/DOCX/DOC/ODT/RTF/HTML**, chọn ngôn ngữ nguồn (Trung → có RAW/DỊCH, Việt → chỉ đọc). Mặc định bật **Tùy chỉnh trước khi nhập** để duyệt/sửa truyện rồi mới lưu; bỏ chọn để import tự động như cũ. EPUB có bìa nhúng sẽ tự lấy đúng bìa đó. DOC nhị phân cũ được đọc best-effort; nên đổi sang DOCX nếu file không đọc được.
 - Truyện chưa đọc sẽ mở **trang Thông tin** trước; truyện đang đọc mở tiếp Reader. Trang Thông tin có bìa, tác giả Hán Việt, mô tả, link bổ sung, mục lục, Đọc ngay/Đọc tiếp và BN.
 - Reader có: Thông tin, BN, RAW/DỊCH, Fullscreen, Mục lục, cache dịch + prefetch chương, nút mở nhanh Cài đặt/TTS.
-- Thư viện hiển thị dạng toàn màn hình, truyện vừa đọc nằm trước, có tổng số truyện, phân trang/lazy load khi cuộn và bìa mặc định cho từng truyện.
+- Thư viện hiển thị dạng toàn màn hình, truyện vừa import hoặc vừa đọc nằm trước, có tổng số truyện, phân trang/lazy load khi cuộn và bìa mặc định cho từng truyện.
 - Nút **Chỉnh sửa** cho phép sửa text gốc của tên truyện, tác giả, mô tả, bìa, link bổ sung, RAW/Việt; sửa tên/raw từng chương, chèn/xóa/đổi thứ tự chương và chia lại bằng regex có preview + giới hạn ký tự.
 - Popup Import Tùy chỉnh, Chỉnh sửa truyện và Edit Name không đóng khi chạm ra ngoài. Nếu nội dung đang sửa dở, nút Đóng/Bỏ sẽ hỏi xác nhận trước và giữ nguyên popup khi chọn quay lại sửa.
 - Ảnh bìa được lưu cùng metadata, đi theo backup và được đóng gói vào EPUB.
@@ -15256,7 +16086,7 @@ body.tmx-fullscreen .tmx-scroll {
 - **Xóa rác** luôn mở popup để sửa đoạn raw trước khi xác nhận; có tùy chọn không phân biệt hoa thường khi cần.
 - Kiểu đọc cuộn dọc: chạm đầu/cuối chương rồi cuộn thêm một nhịp mới chuyển chương.
 - Tự lưu **tiến độ đọc** (chương + vị trí cuộn).
-- Xuất **TXT/EPUB/HTML** với cache dịch & Bộ Name đã chọn của truyện. EPUB và HTML đều có trang Thông tin gồm metadata, link bổ sung và mục lục; HTML mở trang này trước khi vào Reader. Truyện lớn sẽ được đề xuất xuất **EPUB** vì HTML nhúng toàn bộ data dễ lag khi mở/xem.
+- Xuất **TXT/EPUB/HTML** với cache dịch & Bộ Name đã chọn của truyện. TXT bắt đầu bằng Tên sách, Tác giả, Mô tả rồi mới tới từng cặp tên chương/nội dung. EPUB và HTML đều có trang Thông tin gồm metadata, link bổ sung và mục lục; HTML mở trang này trước khi vào Reader. Truyện lớn sẽ được đề xuất xuất **EPUB** vì HTML nhúng toàn bộ data dễ lag khi mở/xem.
 
 ### 📷 OCR (Dịch Ảnh)
 - Chạy trên trình duyệt (không gửi ảnh lên server lạ).
@@ -15286,7 +16116,15 @@ body.tmx-fullscreen .tmx-scroll {
 - Edit Name trong Reader mặc định lưu vào Bộ Name Riêng của truyện; có thể đổi sang một Bộ Name Chung đang áp dụng. Tên truyện và văn án cũng dịch bằng đúng tổ hợp BN hiệu lực.
 - Marquee tên truyện dài chạy vòng một chiều liền mạch, không chạy tới cuối rồi quay ngược.
 - Khi tắt Edit Name, bản dịch được ghi thẳng vào text-node/link, không thêm wrapper span hoặc tooltip \`title\` làm ảnh hưởng DOM trang.
-- Thêm dự đoán cụm RAW beta: ghép cụm theo dấu câu, sau đó dò mốc Hán Việt gần nhất ở hai phía để thu hẹp raw; tự bật cùng Edit Name và có công tắc ngay trong popup.
+- Thêm dự đoán cụm Trung/Việt beta: dấu câu chia cụm lớn, Name đang áp dụng tạo các biên chắc chắn, sau đó mốc Hán Việt tiếp tục thu hẹp phần text giữa các Name. Tô chạm hoặc xuyên nhiều Name sẽ lấy trọn Name và ghép liên tục; hai ô Trung/Việt luôn nới theo cùng biên.
+- Bổ sung nhận diện các họ ngoặc, dấu nháy, \`《》\`, dấu ba chấm/gạch ngang và dấu Unicode; sửa chọn bên trong Name luôn hiện trọn cặp Trung/Việt. Khi tắt beta, cả hai ô trở về nguyên khối Trung/Việt tương ứng như trước v3.5.5.10_beta; thanh thao tác vùng chọn cũng tự ẩn để không đè popup trên phone.
+- Sửa predictor hiểu cụm dấu tương đương khi DichNgay chèn khoảng trắng giữa hai dấu, như RAW \`，“\` và bản Việt \`, “\`; nhờ đó các mốc Hán Việt ngay sau lời thoại không còn bị fallback nguyên khối.
+- Vùng tô dở giữa chữ được snap tới biên token Việt trước khi so Hán Việt: tô \`Bạch tu\` hoặc chỉ \`ạch t\` đều nhận cùng cặp \`白修\` → \`Bạch tu\`, không nới thừa sang \`不信\`.
+- TXT export bổ sung header Tên sách/Tác giả/Mô tả; mỗi tên chương nằm ngay trên nội dung và các chương cách nhau một dòng trống.
+- Khôi phục Edit Name thông minh trong Reader: chỉ dịch lại các paragraph chứa key Name thay đổi, ghép vào cache cũ và vá DOM tại chỗ; đoạn không liên quan cùng vị trí cuộn được giữ nguyên.
+- Giảm khựng khi cuộn Reader: xử lý scroll theo animation frame, chặn prefetch trùng/throttle retry, tránh ghi DOM không đổi, bỏ blur/smooth thừa và không chạy kép Pointer + Touch trên mobile.
+- Làm mới bìa mặc định theo kiểu bìa sách nhiều dòng dễ đọc hơn; khi import EPUB sẽ ưu tiên bìa nhúng, kể cả EPUB dùng cover page/guide hoặc metadata không chuẩn.
+- Truyện vừa import luôn nổi lên đầu Thư viện để mở ngay, sau đó vẫn sắp xếp tự nhiên theo lần đọc gần nhất.
 
 ### ✨ v3.5.5.10_beta
 - Sửa nút Edit Name mất nền xanh và sửa tooltip text gốc bị gán lệch khi tắt Edit Name.
@@ -15343,7 +16181,7 @@ body.tmx-fullscreen .tmx-scroll {
         const updateBanner = `
 	<div class="tm-update-banner">
 	  <div style="font-size:15px;font-weight:700;">🌈 TM Translate v${CURRENT_VERSION} đã sẵn sàng!</div>
-	  <div style="font-size:12px;color:#6a4f7a;">Edit Name an toàn hơn, ưu tiên Name Riêng và có dự đoán RAW beta theo dấu câu + Hán Việt.</div>
+	  <div style="font-size:12px;color:#6a4f7a;">Edit Name an toàn hơn, ưu tiên Name Riêng và tối ưu đồng thời cụm Trung/Việt theo dấu câu + Hán Việt.</div>
 	</div>`.trim();
         openHelpModal([updateBanner, renderHelpMarkdown(changelogMarkdown)].join('\n'));
     }
