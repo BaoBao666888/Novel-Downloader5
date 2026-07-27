@@ -1,9 +1,12 @@
 # Hướng Dẫn Sử Dụng TM Translate (Userscript)
 
+> Tài liệu này được cập nhật cho **TM Translate v3.5.5.11_beta**.
+
 **TM Translate** là userscript chạy trên Tampermonkey/Violentmonkey, hỗ trợ:
+
 - Dịch trang web Trung → Việt (đọc truyện convert).
 - Quản lý **Name-set** (Edit Name) để thay tên chính xác.
-- **Thư viện**: giao diện toàn màn hình, import TXT/EPUB, đọc truyện, cache dịch, bìa truyện, tìm kiếm, export và sao lưu/khôi phục.
+- **Thư viện**: import TXT/EPUB/Word/HTML, chỉnh sửa truyện, đọc và cache bản dịch, quản lý bìa/Name riêng, tìm kiếm, xuất sách và sao lưu/khôi phục.
 - **OCR**: dịch chữ trong ảnh (khoanh vùng hoặc dịch ảnh).
 - **TTS**: phát đoạn chọn trong reader, chọn nguồn Browser/TikTok/Google/Gemini/Bing/Zalo và chỉnh đầy đủ tham số trong Cài đặt.
 
@@ -24,18 +27,19 @@ Các nút nổi thường nằm ở góc dưới bên phải (có thể bật/t�
 *   **Tự động dịch khi cuộn:** Nếu bật trong Cài đặt, khi cuộn sẽ dịch phần nội dung mới xuất hiện.
 
 ### 🟩 Thư viện (Màu Xanh Ngọc)
-*   **Chức năng:** Mở Thư viện toàn màn hình để import, đọc, tìm kiếm, đổi bìa, export và sao lưu/khôi phục truyện.
+
+*   **Chức năng:** Mở Thư viện toàn màn hình để import, đọc, tìm kiếm, chỉnh sửa, xuất và sao lưu/khôi phục truyện.
 *   **Ghi chú:** Mặc định bật. Có thể tắt trong Cài đặt → tab **Thư viện**.
 
 ### 🔵 Edit Name (Màu Xanh Dương - Hình Bút Chì)
-*   **Chức năng:** Thêm/Sửa/Xóa một cặp **Trung → Việt** trong **Name-set** đang dùng.
-*   **Cách dùng (trang đã dịch):**
-    1. Bôi đen đúng đoạn đã được script bọc (thường là đoạn đã dịch/hightlight).
-    2. Bấm nút **Bút chì** để mở hộp Edit Name.
-*   **Cách dùng (UI đọc truyện):**
-    * Bôi đen đoạn trong khu nội dung → sẽ hiện thanh **Phát / Sửa tên hoặc Thay thế từ / Xóa rác / Sao chép**.
-    * Truyện Trung RAW+DỊCH dùng **Sửa tên**; truyện chỉ RAW dùng **Thay thế từ**.
-    * Hoặc bấm trực tiếp vào tên đã được tô highlight.
+
+- **Chức năng:** Thêm/Sửa/Xóa một cặp **Trung → Việt** trong Bộ Name.
+- **Trên trang web:** bật Edit Name, bôi đen phần đã dịch rồi bấm nút **Bút chì** màu xanh dương. Khi tắt Edit Name, script không tạo thêm `span`/`title` để tránh ảnh hưởng cấu trúc trang.
+- **Trong Reader:** bôi đen nội dung để hiện thanh **Phát / Sửa tên hoặc Thay thế từ / Xóa rác / Sao chép**. Truyện Trung RAW+DỊCH dùng **Sửa tên**; truyện chỉ RAW dùng **Thay thế từ**. Các name trên trang có thể bấm trực tiếp để mở Edit Name.
+- Name mới trong Reader mặc định lưu vào **Name Riêng — chỉ truyện này**. Hộp Edit Name cho phép chuyển sang một trong các **Name Chung đang áp dụng** nếu muốn dùng cho nhiều truyện.
+- **Dự đoán cụm Trung/Việt beta** tự bật cùng Edit Name và có thể tắt ngay trong hộp Edit Name. Chế độ này dùng dấu câu, Name đã áp dụng và âm Hán Việt làm mốc để thu gọn cụm. Đang thử nghiệm nên có thể có lỗi xảy ra, hãy báo cáo nếu bạn gặp lỗi liên quan.
+- Khi tắt beta, script dùng cách cũ: lấy nguyên khối Trung và **toàn bộ phần Việt tương ứng**.
+- Hộp Edit Name không tự đóng khi bấm ra ngoài. Nếu đang sửa dở, nút đóng/quay lại sẽ hỏi xác nhận trước khi bỏ thay đổi.
 
 ### 🔘 Dịch Nhanh (Màu Xám)
 *   **Chức năng:** Mở bảng dịch nhanh để dán text và dịch nhanh (không cần dịch cả trang).
@@ -57,46 +61,82 @@ Các nút nổi thường nằm ở góc dưới bên phải (có thể bật/t�
 ## 3. Thư Viện (Library) & UI Đọc Truyện (Reader)
 
 ### 3.1 Mở Thư viện
+
 Bạn có thể mở Thư viện bằng:
+
 - Nút nổi **Thư viện** trên trang.
 - Tampermonkey menu → **Thư viện (Beta)**.
 
 Trong Thư viện sẽ có:
-- Danh sách truyện dạng grid toàn màn hình + **tiến độ đọc** (Chương X/Y + %). Truyện vừa đọc hiển thị trước.
-- Bìa mặc định cho mỗi truyện; có thể bấm **Đổi bìa** để chọn ảnh riêng.
-- Tìm kiếm theo **tên truyện / tác giả / raw Trung / cache dịch** bằng popup chọn phạm vi.
-- Lazy load/phân trang khi cuộn để tránh lag khi có nhiều truyện; có hiển thị tổng số truyện.
-- Nút: **Mở**, **Xuất TXT**, **Xuất EPUB**, **Xóa**.
-- Nút **Import** (import TXT/EPUB).
-- Nút **Xóa cache dịch** (xóa toàn bộ cache bản dịch, có hiện dung lượng).
-- Nút **Sao lưu / Khôi phục**: chọn thư mục để lưu/khôi phục index thư viện, raw, cache dịch và ảnh bìa. Khi sao lưu sẽ có trạng thái/progress, không nên tắt/ngắt giữa chừng. Khi data thư viện thay đổi, script tự sao lưu theo chu kỳ trong tab **Thư viện** (mặc định 6 giờ sau lần sao lưu trước); muốn sao lưu ngay thì bấm **Sao lưu**.
 
-### 3.2 Import TXT/EPUB
+- Danh sách truyện dạng grid toàn màn hình + **tiến độ đọc** (Chương X/Y + %). Truyện mới import và truyện vừa đọc được đưa lên đầu.
+- Tên truyện dài chạy vòng một chiều trong thẻ, không kéo giãn làm lệch grid.
+- EPUB có bìa nhúng sẽ tự dùng bìa đó. Truyện không có ảnh dùng bìa mặc định SVG; có thể thay bìa trong **Chỉnh sửa**.
+- Tìm kiếm theo **tên truyện / tác giả gốc / tác giả đã dịch / RAW Trung / cache dịch**. Mặc định chọn tất cả phạm vi.
+- Lazy load/phân trang khi cuộn để tránh lag khi có nhiều truyện; có hiển thị tổng số truyện.
+- Nút: **Mở**, **Chỉnh sửa**, **TXT**, **EPUB**, **HTML**, **Xóa**.
+- Nút **Import** nhận TXT, EPUB, Word và HTML.
+- Nút **Xóa cache dịch** (xóa toàn bộ cache bản dịch, có hiện dung lượng).
+- **Sao lưu / Khôi phục** dùng file `.tmbackup.jsonl`: bấm **Sao lưu** để tải file, hoặc **Khôi phục** để chọn file đó nhập lại. File gồm index, RAW, cache và bìa. Khi dữ liệu thay đổi, script có thể tự sao lưu theo chu kỳ trong tab **Thư viện** (mặc định 6 giờ sau lần sao lưu trước).
+
+### 3.2 Import TXT/EPUB/Word/HTML
+
 Khi import, bạn chọn ngôn ngữ nguồn:
+
 - **Trung (zh):** Reader có 2 chế độ **RAW / DỊCH**, có cache dịch, có prefetch.
 - **Việt (vi):** Reader chỉ đọc (không dịch), ẩn nút RAW/DỊCH.
 
-**TXT**
-- Nếu file có tiêu đề kiểu `Chương/Chapter/卷/第xx章` → tách theo tiêu đề.
-- Nếu không có tiêu đề → tách theo xuống dòng (ưu tiên chỗ có **2 dòng trống**).
-- Có cơ chế **gộp chương quá ngắn**, và **cắt chương quá dài** để tránh lag.
+Các định dạng được hỗ trợ:
 
-**EPUB**
-- Đọc theo spine/TOC của EPUB, trích text từ XHTML/HTML bên trong.
+- **TXT:** tự nhận tiêu đề kiểu `Chương/Chapter/卷/第xx章`; nếu không có tiêu đề thì ưu tiên tách ở chỗ có hai dòng trống. Script có thể gộp chương quá ngắn và cắt chương quá dài.
+- **EPUB:** đọc theo spine/TOC, lấy metadata và tự dùng ảnh bìa nhúng nếu có.
+- **DOCX, DOC, ODT, RTF, HTML/HTM:** trích nội dung và đưa qua cùng quy trình chia/chỉnh chương. DOC đời cũ được đọc theo khả năng của trình duyệt nên file quá đặc biệt có thể cần đổi sang DOCX trước.
 
-### 3.3 UI Đọc Truyện (Reader)
+Mặc định tùy chọn **Tùy chỉnh trước khi nhập** được bật:
+
+1. Script đọc file thành bản nháp rồi mở giao diện chỉnh sửa.
+2. Bạn có thể sửa thông tin sách, nội dung chương, thêm/xóa chương hoặc chia lại chương.
+3. Chỉ khi bấm **Nhập vào thư viện** dữ liệu mới được lưu. Bấm **Bỏ import** sẽ không tạo truyện.
+
+Nếu bỏ chọn **Tùy chỉnh trước khi nhập**, script tự đặt thông tin và nhập ngay như cách cũ. Popup không tự đóng khi bấm ra ngoài; nếu đã thay đổi dữ liệu, script hỏi xác nhận trước khi thoát.
+
+### 3.3 Trang Thông tin và Chỉnh sửa truyện
+
+**Trang Thông tin**
+
+- Truyện chưa đọc sẽ mở trang Thông tin; truyện đã đọc tiếp tục ở vị trí Reader gần nhất.
+- Trang này có bìa, tên truyện, tác giả Hán Việt, mô tả, link bổ sung, mục lục, **Đọc ngay/Đọc tiếp** và nút **BN**.
+- Từ Reader có nút **Thông tin** để quay lại trang này.
+
+**Chỉnh sửa truyện**
+
+- Sửa dữ liệu gốc gồm **tên truyện, tác giả, mô tả/văn án, bìa và link bổ sung**.
+- Chọn lại **RAW/Việt**. Nếu là RAW, dữ liệu gốc vừa sửa sẽ được dịch lại; đây không phải thao tác sửa cache dịch.
+- Tác giả tiếng Trung được đổi sang Hán Việt và viết hoa. Đoạn Latin dính chữ Hán sẽ được tách khoảng trắng, ví dụ `alpha他` → `Alpha Tha`.
+- Sửa tiêu đề và RAW từng chương; thêm, xóa hoặc sắp xếp lại chương.
+- **Chia lại chương** bằng regex riêng, có xem trước chi tiết và giới hạn số ký tự tối đa để tránh cắt chương lung tung.
+- Văn án, tên truyện, tiêu đề chương và nội dung dịch đều áp dụng các Bộ Name đang chọn.
+- Popup chỉ đóng bằng nút **Đóng/Bỏ**; nếu đang sửa dở sẽ hỏi xác nhận trước khi thoát.
+
+### 3.4 UI Đọc Truyện (Reader)
+
 Khi bấm **Mở**, script chuyển sang giao diện reader:
+
 - Script sẽ vào **chế độ đọc sạch** (dừng trang gốc, loại phần thừa/quảng cáo).
 - Khi thoát reader (nút ×) sẽ **reload lại trang**.
 
 Thanh điều khiển trong reader:
+
 - **RAW / DỊCH:** đổi nội dung chương (nếu truyện nguồn zh).
+- **Thông tin:** quay về trang thông tin sách.
+- **BN:** chọn Bộ Name Chung và quản lý Name Riêng của truyện.
 - **Fullscreen:** bật/tắt fullscreen (không lưu). Khi bật sẽ có thông báo “Nhấn ESC để thoát”.
 - **Cài đặt:** mở Cài đặt và nhảy thẳng tab **Thư viện**.
 - **TTS:** mở Cài đặt và nhảy thẳng tab **TTS**.
 - **Mục lục:** bật/tắt TOC bên trái.
 
 **Thanh thao tác khi bôi đen text**
+
 - Trên mobile, reader ẩn menu chọn text mặc định của máy như Copy/Share/Select all, chỉ hiện thanh thao tác của TM Translate.
 - **Phát:** mở mini-player TTS và đọc từ vị trí bôi đen tới hết chương. Nếu bật **Tự qua đoạn/chương** + **Tự đọc chương kế**, TTS sẽ tự sang chương tiếp.
 - Mini-player TTS có đĩa quay, nút **Tạm dừng/Phát**, **Tiếp**, **Dừng**, countdown hẹn giờ ngủ và highlight đoạn đang đọc. Nếu bật tự cuộn, reader sẽ cuộn theo đoạn đang phát.
@@ -108,17 +148,38 @@ Thanh điều khiển trong reader:
 - **Sao chép:** copy đoạn chọn.
 
 **Cache + dịch trong reader**
+
 - Khi mở chương: ưu tiên lấy cache trước, thiếu cache mới gọi server.
 - Khi đang dịch sẽ hiện **“Đang dịch…”** trong nội dung, tránh hiểu lầm UI bị treo.
 - Có **prefetch** chương sau khi đọc tới % cấu hình.
+- Khi thêm/sửa/xóa Name, Reader ưu tiên dịch lại và vá đúng những đoạn bị ảnh hưởng, giữ nguyên vị trí cuộn và các đoạn không liên quan. Chỉ khi cache lỗi/không còn ghép được an toàn mới tải lại cả chương.
+- Cuộn và cập nhật tiến độ được gom theo khung hình; prefetch tránh gọi lặp và có thời gian chờ retry để giảm giật trên máy yếu.
 
 **Tiến độ đọc**
+
 - Script tự lưu **chương đang đọc + vị trí cuộn** để lần sau mở truyện sẽ quay đúng chỗ.
 
-### 3.4 Xuất TXT/EPUB/HTML
-- Xuất sẽ dùng cache dịch (và Name-set hiện tại).
+### 3.5 Xuất TXT/EPUB/HTML
+
+- Xuất dùng cache dịch và Bộ Name hiệu lực của truyện.
 - Nếu thiếu cache dịch: script sẽ hỏi có muốn dịch & cache trước khi xuất không, và có hiện tiến độ.
 - Quy trình đóng gói EPUB có thể lâu → script sẽ hiện thông báo “Đang xuất EPUB…”.
+- **TXT** ghi thông tin sách trước, sau đó mới tới các chương:
+
+  ```text
+  Tên sách: ...
+  Tác giả: ...
+  Mô tả: ...
+
+  Tên chương 1
+  Nội dung chương 1
+
+  Tên chương 2
+  Nội dung chương 2
+  ```
+
+- **EPUB** dùng bìa đã chỉnh/bìa nhúng từ EPUB gốc và có thêm trang Thông tin sách.
+- **HTML** mở ở trang Thông tin nằm ngoài mục lục, gồm metadata, mô tả, link bổ sung và mục lục. Bấm chương hoặc **Đọc ngay/Đọc tiếp** để vào Reader; trong Reader có nút quay lại Thông tin.
 - Nút **đề xuất** tự đổi: truyện nhỏ/vừa đề xuất **HTML**, truyện lớn đề xuất **EPUB** vì HTML nhúng toàn bộ data nên dễ lag khi mở/xem.
 
 ---
@@ -138,7 +199,7 @@ Trong Cài đặt → tab **OCR** bạn có thể chọn:
 
 Trong kết quả OCR:
 - Có thể bôi đen để copy.
-- Có thể click tên đã highlight để **Edit Name**.
+- Có thể bấm vào Name đã được script đánh dấu trong HTML để **Edit Name**; Name không được tô màu riêng.
 
 ### 4.2 Extension Helper + Quản lý Model
 Tab OCR có phần hiển thị trạng thái:
@@ -154,12 +215,14 @@ Tab OCR có phần hiển thị trạng thái:
 Bạn mở Cài đặt bằng Tampermonkey menu → **Cài đặt** (hoặc bấm **Cài đặt** trong reader).
 
 ### 5.1 Tab Thư viện
+
 - Hiển thị nút “Thư viện” trên trang.
 - Prefetch chương sau khi đọc đến (%).
 - Chu kỳ tự sao lưu khi thư viện thay đổi, mặc định 6 giờ sau lần sao lưu trước.
 - Kiểu đọc: **Cuộn dọc liên tục** / Theo chương.
 - Giao diện đọc: font, cỡ chữ, giãn dòng, màu nền, màu chữ, **lề ngang**, **căn lề**.
 - Nút **Mặc định** để reset toàn bộ cài của tab Thư viện.
+- Trên điện thoại, popup Cài đặt tự chuyển sang toàn màn hình, tab cuộn ngang và các hàng công cụ/nút được xếp lại để không mất nội dung.
 
 ### 5.2 Tab TTS
 - Chọn nguồn **Browser / TikTok / Google / Gemini / Bing / Zalo** và giọng đọc tương ứng.
@@ -189,10 +252,21 @@ Bạn mở Cài đặt bằng Tampermonkey menu → **Cài đặt** (hoặc bấ
 - Khi đã vào Simplified View sẽ có nút **Style** để chỉnh giao diện nhanh.
 
 ### 6.2 Quản lý Name-set (Bộ Tên)
+
 Trong Cài đặt → tab **Bộ Tên**:
-- Tạo/Xóa bộ name, chọn bộ đang hoạt động.
+
+- Tạo/Xóa Bộ Name Chung, chọn bộ đang hoạt động.
 - Nhập từ file (`.json` / `.txt` dạng `Trung=Việt`), xuất ra JSON/TXT.
 - Thêm/Sửa nhanh nhiều dòng (mỗi dòng `Trung=Việt`).
+
+Trong mỗi truyện:
+
+- Nút **BN** có ở cả trang Thông tin và Reader.
+- Có thể áp dụng đồng thời nhiều Bộ Name Chung và một **Name Riêng** chỉ thuộc truyện đó.
+- Name Riêng được ưu tiên hơn Name Chung khi cùng khớp một cụm.
+- Name Riêng hỗ trợ nhập file, nhập text, thêm, sửa, xóa và xuất ngay trong truyện.
+- Khi xóa truyện, Name Riêng của truyện cũng bị xóa; các Bộ Name Chung không bị ảnh hưởng.
+- Edit Name trong Reader mặc định ghi vào Name Riêng. Nếu chọn Chung, bạn chọn chính xác Bộ Name Chung đang áp dụng để lưu.
 
 ### 6.3 Dịch Local (Offline) + Từ điển Local
 - Tab **Chung** có “Chế độ dịch”: `Server` hoặc `Local` (dịch offline, nhanh).
@@ -209,7 +283,21 @@ Trong Cài đặt → tab **Bộ Tên**:
 ---
 
 ## 7. Ghi chú & Xử Lý Lỗi
-- Edit Name (Sửa Tên) cần bọc text trong `<span>` để map “gốc ↔ dịch”, có thể gây lỗi hiển thị ở một số web. Nếu web bị vỡ giao diện, hãy tắt trong tab **Chung**.
+
+- Chỉ khi **Edit Name đang bật**, script mới bọc phần dịch cần thiết để map “gốc ↔ dịch”. Khi tắt Edit Name, script dịch trực tiếp text node/link và không thêm `span` hay `title`.
 - Name-set chỉ thay theo cặp **Trung → Việt**, không thay Việt → Việt để tránh lỗi khớp lố trong bản dịch.
 - Nếu thấy chậm/lag khi dịch: giảm `maxCharsPerRequest`, tăng `delayMs`, hoặc tăng `retry` hợp lý.
+- Nếu Reader phải tải lại cả chương sau khi sửa Name, cache của chương có thể đã cũ hoặc không còn đủ dữ liệu để vá an toàn; mở lại chương để script tạo cache mới rồi thử lại.
 - TTS trong TM dùng chung logic với TTS Reader; xem thêm [hướng dẫn TTS Reader](https://github.com/BaoBao666888/Novel-Downloader5/blob/main/tools/HUONG_DAN_SU_DUNG_TTS_READER.md).
+
+---
+
+## 8. Thay đổi đáng chú ý trong 3.5.5.11_beta
+
+- Bổ sung trang Thông tin cho thư viện, HTML và EPUB; HTML mở Thông tin trước khi vào Reader.
+- **Chỉnh sửa** thay cho Đổi bìa: sửa metadata/RAW, bìa, link, ngôn ngữ, chương và chia lại chương bằng regex có preview.
+- Import thêm DOCX/DOC/ODT/RTF/HTML và chế độ **Tùy chỉnh trước khi nhập**; truyện mới được đưa lên đầu.
+- EPUB giữ bìa nhúng hoặc bìa đã chỉnh; TXT thêm tên sách/tác giả/mô tả.
+- Thêm Name Riêng theo truyện, chọn nhiều Name Chung, nút BN ở Reader/Thông tin và ưu tiên Name Riêng.
+- Edit Name beta dự đoán cụm bằng dấu câu, Name và Hán Việt; sửa Name trong Reader chỉ cập nhật đoạn bị ảnh hưởng khi cache cho phép.
+- Tối ưu cuộn Reader, prefetch chương, giao diện Cài đặt trên điện thoại và marquee tên truyện dài.
