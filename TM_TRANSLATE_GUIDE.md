@@ -1,12 +1,12 @@
 # Hướng Dẫn Sử Dụng TM Translate (Userscript)
 
-> Tài liệu này được cập nhật cho **TM Translate v3.5.5.11_beta**.
+> Tài liệu này được cập nhật cho **TM Translate v3.5.5.13_beta**.
 
 **TM Translate** là userscript chạy trên Tampermonkey/Violentmonkey, hỗ trợ:
 
 - Dịch trang web Trung → Việt (đọc truyện convert).
 - Quản lý **Name-set** (Edit Name) để thay tên chính xác.
-- **Thư viện**: import TXT/EPUB/Word/HTML, chỉnh sửa truyện, đọc và cache bản dịch, quản lý bìa/Name riêng, tìm kiếm, xuất sách và sao lưu/khôi phục.
+- **Thư viện**: import TXT/EPUB/ZIP/Word/HTML, chỉnh sửa truyện, đọc và cache bản dịch, quản lý bìa/Name riêng, tìm kiếm, xuất sách và sao lưu/khôi phục.
 - **OCR**: dịch chữ trong ảnh (khoanh vùng hoặc dịch ảnh).
 - **TTS**: phát đoạn chọn trong reader, chọn nguồn Browser/TikTok/Google/Gemini/Bing/Zalo và chỉnh đầy đủ tham số trong Cài đặt.
 
@@ -74,12 +74,14 @@ Trong Thư viện sẽ có:
 - EPUB có bìa nhúng sẽ tự dùng bìa đó. Truyện không có ảnh dùng bìa mặc định SVG; có thể thay bìa trong **Chỉnh sửa**.
 - Tìm kiếm theo **tên truyện / tác giả gốc / tác giả đã dịch / RAW Trung / cache dịch**. Mặc định chọn tất cả phạm vi.
 - Lazy load/phân trang khi cuộn để tránh lag khi có nhiều truyện; có hiển thị tổng số truyện.
-- Nút: **Mở**, **Chỉnh sửa**, **TXT**, **EPUB**, **HTML**, **Xóa**.
-- Nút **Import** nhận TXT, EPUB, Word và HTML.
+- Nút: **Mở**, **Chỉnh sửa**, **Xuất file...**, **Xóa**.
+- Nút **Import** nhận TXT, EPUB, ZIP, Word và HTML.
 - Nút **Xóa cache dịch** (xóa toàn bộ cache bản dịch, có hiện dung lượng).
 - **Sao lưu / Khôi phục** dùng file `.tmbackup.jsonl`: bấm **Sao lưu** để tải file, hoặc **Khôi phục** để chọn file đó nhập lại. File gồm index, RAW, cache và bìa. Khi dữ liệu thay đổi, script có thể tự sao lưu theo chu kỳ trong tab **Thư viện** (mặc định 6 giờ sau lần sao lưu trước).
 
-### 3.2 Import TXT/EPUB/Word/HTML
+Từ v3.5.5.13_beta, Thư viện dùng API storage bất đồng bộ và lưu nội dung/bìa thành các key riêng. Cách này tránh lỗi Tampermonkey `Message exceeded maximum allowed size of 64MiB` khi tổng RAW/cache lớn. Khi update từ bản cũ, script dùng lại đúng các key hiện có và tự tách bìa khỏi index; không cần xóa dữ liệu hay cài lại.
+
+### 3.2 Import TXT/EPUB/ZIP/Word/HTML
 
 Khi import, bạn chọn ngôn ngữ nguồn:
 
@@ -90,7 +92,10 @@ Các định dạng được hỗ trợ:
 
 - **TXT:** tự nhận tiêu đề kiểu `Chương/Chapter/卷/第xx章`; nếu không có tiêu đề thì ưu tiên tách ở chỗ có hai dòng trống. Script có thể gộp chương quá ngắn và cắt chương quá dài.
 - **EPUB:** đọc theo spine/TOC, lấy metadata và tự dùng ảnh bìa nhúng nếu có.
+- **ZIP:** đọc các file TXT/EPUB/ZIP/DOCX/DOC/ODT/RTF/HTML bên trong theo thứ tự tự nhiên; hỗ trợ ZIP lồng tối đa hai cấp.
 - **DOCX, DOC, ODT, RTF, HTML/HTM:** trích nội dung và đưa qua cùng quy trình chia/chỉnh chương. DOC đời cũ được đọc theo khả năng của trình duyệt nên file quá đặc biệt có thể cần đổi sang DOCX trước.
+
+Với file lớn, popup hiện skeleton, tên file, dung lượng và trạng thái ngay trước khi xử lý. Giải nén/chia chương chạy nền khi trình duyệt hỗ trợ; EPUB nhiều chương sẽ nhường khung hình định kỳ để giao diện vẫn phản hồi. Nếu đóng hoặc rời trang khi tác vụ/bản nháp chưa xong, script sẽ cảnh báo trước.
 
 Mặc định tùy chọn **Tùy chỉnh trước khi nhập** được bật:
 
@@ -152,8 +157,8 @@ Thanh điều khiển trong reader:
 - Khi mở chương: ưu tiên lấy cache trước, thiếu cache mới gọi server.
 - Khi đang dịch sẽ hiện **“Đang dịch…”** trong nội dung, tránh hiểu lầm UI bị treo.
 - Có **prefetch** chương sau khi đọc tới % cấu hình.
-- Khi thêm/sửa/xóa Name, Reader ưu tiên dịch lại và vá đúng những đoạn bị ảnh hưởng, giữ nguyên vị trí cuộn và các đoạn không liên quan. Chỉ khi cache lỗi/không còn ghép được an toàn mới tải lại cả chương.
-- Cuộn và cập nhật tiến độ được gom theo khung hình; prefetch tránh gọi lặp và có thời gian chờ retry để giảm giật trên máy yếu.
+- Khi thêm/sửa/xóa Name, Reader ưu tiên dịch lại và vá đúng những đoạn bị ảnh hưởng, giữ nguyên vị trí cuộn và các đoạn không liên quan. Nếu bạn tự cuộn trong lúc đang vá nhiều đoạn, script tôn trọng vị trí mới và không kéo ngược lại. Chỉ khi cache lỗi/không còn ghép được an toàn mới tải lại cả chương.
+- Cuộn và cập nhật tiến độ được gom theo khung hình; lưu tiến độ và prefetch được hoãn tới khi cuộn nghỉ để không cắt quán tính trên phone.
 
 **Tiến độ đọc**
 
@@ -161,8 +166,11 @@ Thanh điều khiển trong reader:
 
 ### 3.5 Xuất TXT/EPUB/HTML
 
-- Xuất dùng cache dịch và Bộ Name hiệu lực của truyện.
-- Nếu thiếu cache dịch: script sẽ hỏi có muốn dịch & cache trước khi xuất không, và có hiện tiến độ.
+- Bấm **Xuất file...** rồi chọn định dạng, phạm vi **Toàn bộ / Chương đang đọc / Từ chương đang đọc / Khoảng tùy chọn**.
+- Với truyện RAW, **Dịch khi xuất** được bật mặc định; có thể tắt để xuất nguyên văn. Với EPUB, có thể chọn chuẩn **EPUB 2** hoặc **EPUB 3**.
+- Xuất dùng cache dịch và đúng Bộ Name hiệu lực của truyện theo ưu tiên **Name Riêng > Name Chung**. Script cũng sửa lại cách viết hoa Name trong cache cũ theo RAW, nên Name sau dấu nháy không bị hạ chữ đầu.
+- Nếu thiếu cache và bật Dịch khi xuất, script tự dịch/cache phần còn thiếu và hiện tiến độ.
+- Khi dịch lúc xuất, khoảng cách giữa hai request tối thiểu 800 ms nếu cài đặt hiện tại thấp hơn. Retry sẽ tăng delay dần có giới hạn sau mỗi lỗi; request thành công kế tiếp trở về delay xuất mặc định.
 - Quy trình đóng gói EPUB có thể lâu → script sẽ hiện thông báo “Đang xuất EPUB…”.
 - **TXT** ghi thông tin sách trước, sau đó mới tới các chương:
 
@@ -180,7 +188,7 @@ Thanh điều khiển trong reader:
 
 - **EPUB** dùng bìa đã chỉnh/bìa nhúng từ EPUB gốc và có thêm trang Thông tin sách.
 - **HTML** mở ở trang Thông tin nằm ngoài mục lục, gồm metadata, mô tả, link bổ sung và mục lục. Bấm chương hoặc **Đọc ngay/Đọc tiếp** để vào Reader; trong Reader có nút quay lại Thông tin.
-- Nút **đề xuất** tự đổi: truyện nhỏ/vừa đề xuất **HTML**, truyện lớn đề xuất **EPUB** vì HTML nhúng toàn bộ data nên dễ lag khi mở/xem.
+- Popup tự đề xuất: truyện nhỏ/vừa dùng **HTML**, truyện lớn dùng **EPUB** vì HTML nhúng toàn bộ data nên dễ lag khi mở/xem.
 
 ---
 
@@ -239,7 +247,7 @@ Bạn mở Cài đặt bằng Tampermonkey menu → **Cài đặt** (hoặc bấ
 - Chọn provider dịch (dichngay / dichnhanh) + endpoint.
 - Delay giữa các request (ms).
 - Max ký tự / request.
-- **Số lần retry khi lỗi** (mặc định 3). Retry theo từng batch (không retry cả chương).
+- **Số lần retry khi lỗi** (mặc định 3). Retry áp dụng cả batch lẫn đoạn đơn; sau mỗi lỗi delay tăng dần có giới hạn. Khi xuất, delay hiệu lực luôn ít nhất 800 ms.
 
 ---
 
@@ -292,12 +300,10 @@ Trong mỗi truyện:
 
 ---
 
-## 8. Thay đổi đáng chú ý trong 3.5.5.11_beta
+## 8. Thay đổi đáng chú ý trong 3.5.5.13_beta
 
-- Bổ sung trang Thông tin cho thư viện, HTML và EPUB; HTML mở Thông tin trước khi vào Reader.
-- **Chỉnh sửa** thay cho Đổi bìa: sửa metadata/RAW, bìa, link, ngôn ngữ, chương và chia lại chương bằng regex có preview.
-- Import thêm DOCX/DOC/ODT/RTF/HTML và chế độ **Tùy chỉnh trước khi nhập**; truyện mới được đưa lên đầu.
-- EPUB giữ bìa nhúng hoặc bìa đã chỉnh; TXT thêm tên sách/tác giả/mô tả.
-- Thêm Name Riêng theo truyện, chọn nhiều Name Chung, nút BN ở Reader/Thông tin và ưu tiên Name Riêng.
-- Edit Name beta dự đoán cụm bằng dấu câu, Name và Hán Việt; sửa Name trong Reader chỉ cập nhật đoạn bị ảnh hưởng khi cache cho phép.
-- Tối ưu cuộn Reader, prefetch chương, giao diện Cài đặt trên điện thoại và marquee tên truyện dài.
+- Đồng bộ TXT/EPUB/HTML với Name Riêng + các Name Chung của truyện và sửa viết hoa Name trong cache cũ.
+- Gom xuất thành popup có loại file, phạm vi, Dịch khi xuất và EPUB 2/3; request xuất có nhịp tối thiểu 800 ms cùng retry backoff.
+- Thêm ZIP; import lớn có skeleton, giải nén/chia chương nền, tiến độ và cảnh báo rời trang.
+- Chuyển storage thư viện sang API bất đồng bộ, tách bìa khỏi index để tránh message 64 MiB mà vẫn giữ nguyên dữ liệu cũ.
+- Giảm công việc trong lúc Reader đang cuộn; Edit Name vá nhiều đoạn không còn kéo ngược vị trí user vừa cuộn tới.

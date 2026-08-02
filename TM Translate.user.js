@@ -2,7 +2,7 @@
 // @name         TM Translate
 // @author       QuocBao
 // @namespace    http://tampermonkey.net/
-// @version      3.5.5.12_beta
+// @version      3.5.5.13_beta
 // @description  Dịch trang, quản lý name-sets, sửa tên, Thư viện đọc offline, OCR và TTS.
 // @icon         data:image/png;base64,AAABAAEAQEAAAAEAIAAoQgAAFgAAACgAAABAAAAAgAAAAAEAIAAAAAAAAEAAAAAAAAAAAAAAAAAAAAAAAAA+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/0CLNf9BjDb/QYw2/0GMNv9BjDb/QYw2/0GMNv9BjDb/QYw2/0GMNv9BjDb/QYw2/0GMNv9BjDb/QIs1/z+LNP8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z+KNP81hCn/L4Ek/zCCJf8wgiX/MIIl/zCCJf8wgiX/MIIl/zCCJf8wgiX/MIIk/zCCJP8xgiX/MoMm/zWFKv86hy7/Pooz/0GMNv9BjDb/P4s0/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/0CLNf83hiz/gbJ6/7HQrf+py6T/qsum/6rLpv+qy6b/qsum/6rLpv+qy6b/qsum/6jKo/+fxZr/kLuJ/36xd/9oo1//UJVH/zyJMf8xgiX/MoIm/zqIL/9BjDb/QIs1/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/9AizX/M4Mo/8DZvP///////P38//////////////////////////////////////////////////////////////////X59f/b6dr/tNGw/4CyeP9Ok0T/M4Mn/zSEKP8/izT/QYw2/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/QIs1/zOEKP+71rj///////n8+f/8/fz//P38//z9/P/8/fz//P38//z9/P/8/fz//P38//z9/P/8/fz//f79//7//v//////////////////////8/jz/7zWuf9wqGj/OIYt/zOEKP9AizX/P4s0/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/0CLNv8zgyj/vde6///////8/fz//////////////////v79//3+/f/9/v3//f79//7+/v/+/v7//v/+/////////////v/+//3+/f/8/fz//f79/////////////////9Pk0f9yqWr/M4Mo/zmHLv9BjDb/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/9Aizb/M4Mo/73Xuv///////P38///////////////////////////////////////////////////////9/v3//P38//z9/P/9/v3////////////+//7//P38//3+/f///////////8DYvP9Nk0P/MoMn/0GMNv8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/QIs2/zODKP+917r///////z9/P/////////////////h7N//1+fV/9vp2f/e69z/5/Dl//P48v/9/v3///////////////////////7//v/8/fz//v7+/////////////f79//3+/P//////7/Xu/3Wrbv8wgiT/QIs1/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/0CLNv8zgyj/vde6///////8/fz/////////////////Yp9Z/zODJ/89iTP/PYoy/0ONOP9Mk0L/WptR/3Gpaf+Qu4n/ttKy/+Ds3v/9/v3////////////9/vz//v7+/////////////P38//7+/v//////lL6O/zGCJv9AizX/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/9Aizb/M4Mo/73Xuv///////P38/////////////////2ShXP82hSv/QIs1/z6KM/88iTH/Oogv/zeGLP80hCj/MYIl/zKDJv8+ijP/Yp9Z/6THn//s8+v///////7+/f/9/v3////////////+/v3//P38//////+awpX/MYIl/0GMNv8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/QIs2/zODKP+917r///////z9/P////////////////9koVz/NoUr/0CLNf8+ijP/P4o0/z+LNP8/izX/QIs1/0GMNv9BjDb/Pooz/zaFK/8wgST/Ro88/5nBk//1+fT///////z9/P////////////7//v/8/fz//////4a2gP8xgiX/QYw2/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/0CLNv8zgyj/vde6///////8/fz/////////////////ZKFb/zaFKv9AizX/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/9AizX/QYw3/zyJMf8vgSP/VZhL/9Hjzv///////P38/////////////v7+///////6/Pr/YJ9Y/zaFKv9AizX/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/9Aizb/M4Mo/73Xuv///////P38/////////////////2ShW/82hSr/QIs1/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8/ijT/Qow3/zeGLP85hy7/udW2///////8/fz////////////9/v3//////9Pk0P87iDD/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/QIs2/zODKP+917r///////z9/P////////////////9koVv/NoUq/0CLNf8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/9BjDb/PYky/zWEKf+/2Lv///////39/P////////////z9/P//////hrV//zGCJf9BjDb/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/0CLNv8zgyj/vde6///////8/fz/////////////////ZKFb/zaFKv9AizX/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/0CLNf87iTD/QIs1/93q2////////f79///////+/v3//////93q2/8/ijT/PYoy/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/9Aizb/M4Mo/73Xuv///////P38/////////////////2ShW/82hSr/QIs1/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/QYw2/zOEKP9ppGH///////7//v////////////3+/f//////dqxv/zODJ/9AjDb/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/QIs2/zODKP+917r///////z9/P////////////////9koVv/NoUq/0CLNf8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/9BjDb/MYIm/7jUtP///////f38///////8/fz//////7nUtf8ygyf/QYw2/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/0CLNv8zgyj/vde6///////8/fz/////////////////ZKFb/zaFKv9AizX/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/QIs1/zaFKv9koVz//////////////////v7+///////p8uj/RY47/zyJMf8/ijT/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/9Aizb/M4Mo/73Xuv///////P38/////////////////2ShW/82hSr/QIs1/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8/ijT/O4gw/9ro1////////f79///////+//7//////2aiXv81hSr/QIs1/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/QIs2/zODKP+917r///////z9/P////////////////9koVv/NoUq/0CLNf8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/QYw2/zCCJP+oyqP///////z9/P///////P38//////+JuIP/MYIl/0GMNv8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/0CLNv8zgyj/vde6///////8/fz/////////////////ZKFb/zaFKv9AizX/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/0GMNv8ygyb/gbJ6///////9/vz///////z9/P//////qMqj/zGCJf9BjDb/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/9Aizb/M4Mo/73Xuv///////P38/////////////////2ShW/82hSr/QIs1/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/9AizX/NYUq/2ejX////////v/+///////8/fz//////7zWuf8zgyf/QIw2/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/QIs2/zODKP+917r///////z9/P////////////////9koVv/NoUq/0CLNf8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/P4s1/ziGLP9am1D/+/37///////+//7//f79///////K38f/NoUq/0CLNf8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/0CLNv8zgyj/vde6///////8/fz/////////////////ZKFb/zaFKv9AizX/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z+LNP85hy7/U5dJ//j7+P///////v/+//3+/f//////0+TR/zmHLf8/izT/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/9Aizb/M4Mo/73Xuv///////P38/////////////////2ShW/82hSr/QIs1/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8/izT/OYcu/1OWSf/3+vf///////7//v/9/v3//////9bm1P86hy7/P4o0/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/QIs2/zODKP+917r///////z9/P////////////////9koVv/NoUq/0CLNf8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/P4s0/ziGLf9XmU7/+vz6///////+//7//f79///////R487/OIYs/z+LNP8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/0CLNv8zgyj/vde6///////8/fz/////////////////ZKFb/zaFKv9AizX/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/0CLNf82hSv/YqBa//////////////////3+/f//////xtzD/zWEKf9AizX/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/9Aizb/M4Mo/73Xuv///////P38/////////////////2ShW/82hSr/QIs1/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/9BjDb/M4Mn/3itcf///////f79///////8/fz//////7bSsv8ygyb/QYw2/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/QIs2/zODKP+917r///////z9/P////////////////9koVv/NoUq/0CLNf8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/QYw2/zCCJP+bwpX///////z9/P///////P38//////+dw5f/MIIk/0GMNv8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/0CLNv8zgyj/vde6///////8/fz/////////////////ZKFb/zaFKv9AizX/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/0CLNf81hSr/yd7F///////9/v3///////3+/f//////fK90/zKDJ/9BjDb/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/9Aizb/M4Mo/73Xuv///////P38/////////////////2ShW/82hSr/QIs1/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z+LNP85hy7/UZZI//b69v///////v/+//7//v//////+vz6/1eZTf84hi3/P4s0/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/QIs2/zODKP+917r///////z9/P////////////////9koVv/NoUq/0CLNf8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/9CjDf/MIIk/5W/j////////P38///////9/v3//////9Xl0/86hy//P4o0/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/0CLNv8zgyj/vde6///////8/fz/////////////////ZKFb/zaFKv9AizX/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8/izT/O4gw/0ePPP/r8ur///////7+/v///////P38//////+XwJH/MIIl/0GMNv8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/9Aizb/M4Mo/73Xuv///////P38/////////////////2ShW/82hSr/QIs1/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Qow3/y+BI/+tzaj///////39/P///////v/+///////2+fX/VZdL/zmHLf8/izT/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/QIs2/zODKP+917r///////z9/P////////////////9koVv/NoUq/0CLNf8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8/ijT/Qo04/y2AIf+Cs3v///////3+/f////////////z9/P//////sM+r/zKCJv9BjDb/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/0CLNv8zgyj/vde6///////8/fz/////////////////ZKFb/zaFKv9AizX/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/9BjDb/Pooz/y2AIf99sHb//P38///////+//7///////7+/v//////8/fy/1KWSf85hy7/P4s0/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/9Aizb/M4Mo/73Xuv///////P38/////////////////2ShW/82hSr/QIs1/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/P4o0/0GMNv9AizX/M4Mn/zuIMP+gxZr//v/+//7+/v/+//7////////////8/fv//////4y5hf8xgiX/QYw2/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/QIs2/zODKP+917r///////z9/P////////////////9koVv/NoUq/0CLNf8+ijP/Pooz/z6KM/8+ijP/P4o0/0CLNf9BjDb/QYw2/zyJMf8ygyb/N4Yr/3Oqa//b6dn///////3+/P/+//7////////////7/fv//////7nUtf80hCn/QIs1/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/0CLNv8zgyj/vde6///////8/fz/////////////////Z6Je/zmHLv9DjTj/QYw2/0GMNv9AizX/Pooz/zuIMP82hSv/MYIl/zKDJ/9Gjzz/frF3/9Hjzv////////////3+/f/+//7////////////7/fv//////8zgyf89iTL/PIkx/z+LNP8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/9Aizb/M4Mo/73Xuv///////P38/////////////////1maUP8nfBv/MoMn/zGCJf8ygyb/NYQp/zuIMP9JkT//YZ9Z/4e2gf+51LX/7PPr/////////////f79//3+/f////////////7+/f/8/fz//////8fdxP8/ijT/O4gv/0CLNf8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/QIs2/zODKP+917r///////z9/P////////////////+71bf/psmh/6vMpv+uzqn/t9Oz/8jdxf/a6dj/8PXv//7//v/////////////////9/v3//f79/////////////v/+//z9/P/+//7//////6rLpf84hi3/O4gw/0CLNf8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/0CLNv8zgyj/vde6///////8/fz///////////////////////////////////////////////////////////////7//P38//z9/P/+/v7////////////+/v7//P38//7+/v//////6/Pq/3mucv8xgiX/Pooz/0CLNf8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/9Aizb/M4Mo/73Xuv///////P38//////////////////3+/P/8/fz//P38//z9/P/8/fz//f79//3+/f/+/v7//////////////////v7+//z9/P/9/v3////////////4+/f/qMqj/0ePPf8ygyb/QYw2/z+KNP8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/QIs2/zODKP+81rj///////v8+v/9/v3//f79//3+/f/9/v3//f79//3+/f/9/v3//f79//3+/f/9/vz//P38//z9/P/9/v3////////////+//7//////+vz6v+myaH/VZhL/zCCJP87iDD/QYw2/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/0CLNf8zgyj/wNi8///////8/fz///////////////////////////////////////////////////////////////////////3+/f/l7+P/t9Oz/3uvdP9Gjzv/MIIl/ziHLf9BjDb/P4s0/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/9AizX/NYQp/6HGnP/l7+T/2ejX/9vp2f/b6dn/2+nZ/9vp2f/b6dn/2+nZ/9vp2f/a6Nj/1OXS/8jdxf+10rH/ncSY/36xd/9enVX/Qow3/zKCJv8ygyb/PIkx/0GMNv8/izT/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/87iDD/PIgx/zyIMf88iDH/PIgx/zyIMf88iDH/PIgx/zyIMf88iTH/O4gw/ziGLf81hCn/MYIm/zCCJP8ygyb/N4Yr/z2JMv9BjDb/QYw2/z+KNP8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/P4o0/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8/izT/QIs1/0GMNv9BjDb/QYw2/0CLNf8+ijT/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=
 // @downloadURL  https://raw.githubusercontent.com/BaoBao666888/Novel-Downloader5/main/TM%20Translate.user.js
@@ -10,12 +10,12 @@
 // @match        *://*/*
 // @grant        GM_registerMenuCommand
 // @grant        GM_xmlhttpRequest
-// @grant        GM_getValue
-// @grant        GM_setValue
+// @grant        GM.getValue
+// @grant        GM.setValue
 // @grant        GM_addStyle
 // @grant        GM_openInTab
-// @grant        GM_deleteValue
-// @grant        GM_listValues
+// @grant        GM.deleteValue
+// @grant        GM.listValues
 // @connect      unpkg.com
 // @connect      cdn.jsdelivr.net
 // @connect      raw.githubusercontent.com
@@ -48,8 +48,58 @@
 
 /* global chrome */
 
-(function () {
+(async function () {
     'use strict';
+
+    // Dùng API Promise để Tampermonkey không phải nhét toàn bộ kho dữ liệu lớn
+    // vào message khởi tạo của userscript (Chrome giới hạn mỗi message 64 MiB).
+    const TM_BOOTSTRAP_STORAGE_KEYS = [
+        'tm_translate_config_v2',
+        'twd_tts_reader_settings_v1',
+        'tm_lib_index_v1',
+        'tm_lib_backup_status_v1',
+        'tm_translate_version'
+    ];
+    const tmBootstrapStorage = new Map();
+    const tmBootstrapStorageErrors = new Map();
+
+    async function tmStorageGet(key, fallback = null) {
+        try {
+            const value = await GM.getValue(key);
+            return value === undefined ? fallback : value;
+        } catch (err) {
+            console.error(`[tm-translate] Không đọc được storage ${key}:`, err);
+            throw err;
+        }
+    }
+
+    async function tmStorageSet(key, value) {
+        await GM.setValue(key, value);
+        if (TM_BOOTSTRAP_STORAGE_KEYS.includes(key)) tmBootstrapStorage.set(key, value);
+        return value;
+    }
+
+    async function tmStorageDelete(key) {
+        await GM.deleteValue(key);
+        if (TM_BOOTSTRAP_STORAGE_KEYS.includes(key)) tmBootstrapStorage.delete(key);
+    }
+
+    async function tmStorageListValues() {
+        const values = await GM.listValues();
+        return Array.isArray(values) ? values : [];
+    }
+
+    function tmStorageGetCached(key, fallback = null) {
+        return tmBootstrapStorage.has(key) ? tmBootstrapStorage.get(key) : fallback;
+    }
+
+    await Promise.all(TM_BOOTSTRAP_STORAGE_KEYS.map(async key => {
+        try {
+            tmBootstrapStorage.set(key, await tmStorageGet(key, null));
+        } catch (err) {
+            tmBootstrapStorageErrors.set(key, err);
+        }
+    }));
 
 
     const __ttPolicy = (() => {
@@ -164,9 +214,12 @@
     const NAME_SET_PRIORITY_META = Symbol('tm-name-set-priority');
 
     function loadConfig() {
-        const c = GM_getValue('tm_translate_config_v2');
+        const c = tmStorageGetCached('tm_translate_config_v2');
         if (!c) {
-            GM_setValue('tm_translate_config_v2', DEFAULT_CONFIG);
+            tmBootstrapStorage.set('tm_translate_config_v2', DEFAULT_CONFIG);
+            void tmStorageSet('tm_translate_config_v2', DEFAULT_CONFIG).catch(err => {
+                console.error('[tm-translate] Không lưu được cấu hình mặc định:', err);
+            });
             return JSON.parse(JSON.stringify(DEFAULT_CONFIG));
         }
         const merged = { ...DEFAULT_CONFIG, ...c };
@@ -209,7 +262,10 @@
             cfg.nameSetVersion = 1;
         }
         lastNameSetsHash = nextHash;
-        GM_setValue('tm_translate_config_v2', cfg);
+        tmBootstrapStorage.set('tm_translate_config_v2', cfg);
+        void tmStorageSet('tm_translate_config_v2', cfg).catch(err => {
+            console.error('[tm-translate] Không lưu được cấu hình:', err);
+        });
     }
 
     function getTtsCore() {
@@ -302,7 +358,7 @@
 
         let stored = {};
         try {
-            stored = parseTtsSettingsValue(GM_getValue(TTS_STORAGE_KEY, null));
+            stored = parseTtsSettingsValue(tmStorageGetCached('twd_tts_reader_settings_v1', null));
         } catch (err) {
             stored = {};
         }
@@ -326,7 +382,8 @@
                 console.warn('[tm-translate] Không lưu được TTS core settings:', err);
             }
         }
-        try { GM_setValue(TTS_STORAGE_KEY, next); } catch (err) { /* ignore */ }
+        tmBootstrapStorage.set('twd_tts_reader_settings_v1', next);
+        void tmStorageSet('twd_tts_reader_settings_v1', next).catch(() => { });
         try { localStorage.setItem(TTS_STORAGE_KEY, JSON.stringify(next)); } catch (err) { /* ignore */ }
         return next;
     }
@@ -470,7 +527,7 @@
     let translatedBodyClone = null;
 
     /* ================== VERSION ================== */
-    const CURRENT_VERSION = '3.5.5.12_beta';
+    const CURRENT_VERSION = '3.5.5.13_beta';
     const TM_VERSION_KEY = 'tm_translate_version';
     const TTS_STORAGE_KEY = 'twd_tts_reader_settings_v1';
     const TTS_DEFAULT_SETTINGS = {
@@ -648,6 +705,13 @@
             return [];
         }
     }
+    function getTranslatedNameValues(nameSet) {
+        if (!nameSet || typeof nameSet !== 'object') return getActiveTranslatedNameValues();
+        return Object.values(nameSet)
+            .map(name => normalizeTextForTranslation(String(name || '')).trim())
+            .filter(Boolean)
+            .sort((a, b) => b.length - a.length);
+    }
     function isNameBoundaryChar(ch) {
         return !ch || !/[\p{L}\p{N}\p{M}]/u.test(ch);
     }
@@ -670,7 +734,35 @@
         // Không quét lại Việt -> Việt, tránh lỗi kiểu "điều sơn" bị sửa thành "điềU sơn".
         return text;
     }
-    function normalizeTranslatedTypography(s) {
+    function restoreTranslatedNameCasingForSource(text, sourceText, nameSet) {
+        const translated = String(text || '');
+        if (!translated || !nameSet || typeof nameSet !== 'object') return translated;
+        const rawLines = String(sourceText || '').split(/\r?\n/);
+        const translatedLines = translated.split(/\r?\n/);
+        const sameLineCount = rawLines.length === translatedLines.length;
+        const allSource = String(sourceText || '');
+        const entries = Object.entries(nameSet)
+            .filter(([source, value]) => source && value)
+            .sort((a, b) => String(b[1]).length - String(a[1]).length);
+
+        return translatedLines.map((line, index) => {
+            const sourceScope = sameLineCount ? (rawLines[index] || '') : allSource;
+            let restored = line;
+            for (const [source, canonicalValue] of entries) {
+                if (!sourceScope.includes(source)) continue;
+                const canonical = String(canonicalValue || '').trim();
+                if (!canonical) continue;
+                const pattern = createSafeRegExp(
+                    `(^|[^\\p{L}\\p{N}\\p{M}])(${escapeRegExp(canonical)})(?=$|[^\\p{L}\\p{N}\\p{M}])`,
+                    'giu',
+                    `restore-name-casing:${source}`
+                );
+                if (pattern) restored = restored.replace(pattern, (_match, prefix) => `${prefix}${canonical}`);
+            }
+            return normalizeTranslatedTypography(restored, nameSet);
+        }).join('\n');
+    }
+    function normalizeTranslatedTypography(s, nameSet = null) {
         if (typeof s !== 'string' || !s) return s || '';
         let result = s;
 
@@ -689,7 +781,7 @@
         result = result.replace(/([\p{L}\p{N}\p{M}.!?,…])([”’])(?=[\p{L}\p{N}\p{M}])/gu, '$1$2 ');
 
         // Quote đóng giữa câu thì từ theo sau thường không nên bị viết hoa.
-        const protectedNames = getActiveTranslatedNameValues();
+        const protectedNames = getTranslatedNameValues(nameSet);
         result = result.replace(/([\p{L}\p{N}\p{M},;:])(["”’])(\s+)([\p{Lu}])/gu, (match, prev, quote, spaces, letter, offset, fullText) => {
             const letterIndex = offset + prev.length + quote.length + spaces.length;
             if (isTranslatedNameAt(fullText, letterIndex, protectedNames)) return match;
@@ -698,9 +790,9 @@
 
         return restoreTranslatedNameCasing(result).replace(/\s+/g, ' ').trim();
     }
-    function capitalizeFirstLetter(s) {
+    function capitalizeFirstLetter(s, nameSet = null) {
         if (typeof s !== 'string' || !s) return s;
-        const normalized = normalizeTranslatedTypography(s);
+        const normalized = normalizeTranslatedTypography(s, nameSet);
         return normalized.replace(/(^|[\.?!…:])(\s*["'“‘(\[]*)(\p{L})/gu, (match, p1, p2, p3) => {
             return p1 + p2 + p3.toLocaleUpperCase('vi-VN');
         });
@@ -1098,6 +1190,14 @@
             border: 1px solid #bfdbfe; border-radius: 9px; background: #eff6ff; color: #1e3a8a;
         }
         .tm-import-customize input { flex: 0 0 auto; width: 18px; height: 18px; margin: 1px 0 0; accent-color: #0d6efd; }
+        .tm-import-skeleton { margin-top: 12px; padding: 12px; border: 1px solid var(--tm-border-color); border-radius: 10px; background: var(--tm-light); }
+        .tm-import-skeleton[hidden] { display: none !important; }
+        .tm-import-skeleton-status { margin-bottom: 10px; color: #334155; font-size: 13px; font-weight: 700; }
+        .tm-import-skeleton-line { height: 11px; margin: 7px 0; border-radius: 999px; background: linear-gradient(90deg, #e2e8f0 20%, #f8fafc 45%, #e2e8f0 70%); background-size: 240% 100%; animation: tm-import-skeleton 1.15s linear infinite; }
+        .tm-import-skeleton-line:nth-child(2) { width: 88%; }
+        .tm-import-skeleton-line:nth-child(3) { width: 72%; }
+        .tm-import-skeleton-line:nth-child(4) { width: 94%; }
+        @keyframes tm-import-skeleton { to { background-position: -240% 0; } }
         @media (max-width: 720px) {
             #tm-settings-modal { padding: 0; align-items: stretch; justify-content: stretch; }
             #tm-settings-modal .tm-modal-box {
@@ -1141,13 +1241,15 @@
             #tm-lib-import-modal .tm-modal-header { padding: max(10px, env(safe-area-inset-top)) 12px 10px; }
             #tm-lib-edit-modal .tm-modal-header h3,
             #tm-lib-name-manager .tm-modal-header h3,
-            #tm-lib-import-modal .tm-modal-header h3 {
+            #tm-lib-import-modal .tm-modal-header h3,
+            #tm-lib-export-modal .tm-modal-header h3 {
                 flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis;
                 white-space: nowrap; font-size: 18px; line-height: 1.25;
             }
             #tm-lib-edit-modal .tm-modal-header .tm-btn,
             #tm-lib-name-manager .tm-modal-header .tm-btn,
-            #tm-lib-import-modal .tm-modal-header .tm-btn {
+            #tm-lib-import-modal .tm-modal-header .tm-btn,
+            #tm-lib-export-modal .tm-modal-header .tm-btn {
                 flex: 0 0 auto; min-width: 40px; min-height: 40px; padding: 6px 10px; font-size: 18px;
             }
             #tm-lib-edit-modal .tm-modal-content,
@@ -1298,7 +1400,6 @@
             background: color-mix(in srgb, var(--tm-reader-surface, #fbf9f4) 90%, transparent);
             color: var(--tm-reader-text, #1f1f1f);
             box-shadow: 0 18px 46px rgba(0,0,0,0.18);
-            backdrop-filter: blur(18px);
             font-family: var(--tm-reader-font, "Noto Serif", "Times New Roman", serif);
             user-select: none;
             -webkit-user-select: none;
@@ -1353,8 +1454,8 @@
             position: fixed; left: 0; right: 0;
             z-index: 2147483649; display: flex; align-items: center; gap: 10px;
             border: 1px solid color-mix(in srgb, var(--tm-reader-border, #ccc) 70%, transparent);
-            background: color-mix(in srgb, var(--tm-reader-surface, #fbf9f4) 76%, transparent);
-            color: var(--tm-reader-muted, #5c5c5c); backdrop-filter: blur(8px); pointer-events: none;
+            background: color-mix(in srgb, var(--tm-reader-surface, #fbf9f4) 96%, var(--tm-reader-bg, #f7f4ee));
+            color: var(--tm-reader-muted, #5c5c5c); pointer-events: none;
             box-shadow: 0 8px 18px rgba(0,0,0,0.12);
         }
         .tm-reader-mini-head[hidden], .tm-reader-mini-foot[hidden] { display: none !important; }
@@ -2103,8 +2204,8 @@
             createdAt: raw.createdAt || now,
             updatedAt: now
         }]);
-        if (oldRawKey && oldRawKey !== nextRawKey) libDeleteContent(oldRawKey);
-        if (oldTransKey) libDeleteContent(oldTransKey);
+        if (oldRawKey && oldRawKey !== nextRawKey) await libDeleteContent(oldRawKey);
+        if (oldTransKey) await libDeleteContent(oldTransKey);
 
         const updatedChapter = {
             ...chapter,
@@ -3118,25 +3219,62 @@
         return await postTranslateSingle(endpoint, text, config.targetLang);
     }
 
+    let translationRequestPolicy = null;
+
+    function getTranslationRequestDelayMs() {
+        const configured = Math.max(0, Number(config?.delayMs) || 0);
+        const minimum = Math.max(0, Number(translationRequestPolicy?.minDelayMs) || 0);
+        return Math.max(configured, minimum);
+    }
+
+    async function waitForTranslationRequestPolicy() {
+        const policy = translationRequestPolicy;
+        if (!policy) return;
+        const delayMs = Math.max(0, Number(policy.minDelayMs) || 0);
+        const elapsed = Date.now() - (Number(policy.lastRequestAt) || 0);
+        if (policy.lastRequestAt && elapsed < delayMs) await sleep(delayMs - elapsed);
+        policy.lastRequestAt = Date.now();
+    }
+
+    async function withExportTranslationPolicy(callback) {
+        const previous = translationRequestPolicy;
+        translationRequestPolicy = { minDelayMs: 800, lastRequestAt: 0 };
+        try {
+            return await callback();
+        } finally {
+            translationRequestPolicy = previous;
+        }
+    }
+
     async function requestServerTranslation(contentArray) {
         const safeArray = Array.isArray(contentArray) ? contentArray : [];
         if (safeArray.length === 0) return [];
 
         const retries = Math.max(0, parseInt(config.retryCount, 10) || 0);
         const provider = (config.serverProvider || 'dichngay');
-        const delayMs = config.delayMs || 0;
+        const delayMs = getTranslationRequestDelayMs();
 
-        async function translateWithRetry(arr) {
+        async function translateWithRetry(arr, singleText = false) {
             let attempt = 0;
             let lastError = null;
+            let retryDelayMs = delayMs;
+            const maxRetryDelayMs = Math.max(2400, Math.min(8000, Math.max(delayMs, 400) * 8));
             while (attempt <= retries) {
                 try {
+                    await waitForTranslationRequestPolicy();
+                    if (singleText) {
+                        return [await requestServerTranslationSingleText(arr[0])];
+                    }
                     return await requestServerTranslationOnce(arr);
                 } catch (err) {
                     lastError = err;
                     if (isNonRetriableTranslationError(err)) break;
                     if (attempt >= retries) break;
-                    await sleep(delayMs || 0);
+                    retryDelayMs = Math.min(
+                        maxRetryDelayMs,
+                        Math.max(delayMs, retryDelayMs ? Math.round(retryDelayMs * 1.75) : 400)
+                    );
+                    await sleep(retryDelayMs);
                 }
                 attempt++;
             }
@@ -3148,8 +3286,7 @@
 
             if (arr.length === 1) {
                 try {
-                    const translatedSingle = await requestServerTranslationSingleText(arr[0]);
-                    return [translatedSingle];
+                    return await translateWithRetry(arr, true);
                 } catch (err) {
                     console.error('[tm-translate] Dịch đoạn đơn thất bại sau khi tách batch.', {
                         provider,
@@ -3184,7 +3321,7 @@
 
         if (safeArray.length === 1) {
             try {
-                return [await requestServerTranslationSingleText(safeArray[0])];
+                return await translateWithRetry(safeArray, true);
             } catch (err) {
                 console.error('[tm-translate] Dịch đoạn đơn thất bại.', {
                     provider,
@@ -3351,7 +3488,7 @@
             for (let b = 0; b < batches.length; b++) {
                 const translatedBatch = await requestServerTranslation(batches[b]);
                 allTranslatedTexts.push(...(translatedBatch || []));
-                if (b < batches.length - 1) await sleep(config.delayMs);
+                if (b < batches.length - 1) await sleep(getTranslationRequestDelayMs());
             }
         }
 
@@ -3369,7 +3506,7 @@
             const translatedParts = allTranslatedTexts.slice(translationIdx, translationIdx + chunk.numTextTokens);
             const reassembledText = reassembleTranslatedString(chunk.tokens, translatedParts);
             const finalRestoredText = restoreNames(reassembledText, placeholderMap);
-            const capitalizedText = capitalizeFirstLetter(finalRestoredText);
+            const capitalizedText = capitalizeFirstLetter(finalRestoredText, nameSet);
 
             if (returnType === 'html') {
                 const highlightedHtml = highlightNamesInText(capitalizedText, nameSet, chunk.original);
@@ -3462,7 +3599,7 @@
                     showLoading(`Đang dịch server... (${b + 1}/${batches.length} gói)`);
                     const translatedBatch = await requestServerTranslation(batches[b]);
                     allTranslatedTexts.push(...(translatedBatch || []));
-                    if (b < batches.length - 1) await sleep(config.delayMs);
+                    if (b < batches.length - 1) await sleep(getTranslationRequestDelayMs());
                 }
             }
 
@@ -4987,7 +5124,7 @@
                     else stored.privateNameSet[key] = value;
                     stored.privateNameSetVersion = (stored.privateNameSetVersion || 1) + 1;
                     stored.updatedAt = Date.now();
-                    libSaveIndex(index);
+                    await libSaveIndex(index);
                     libSetBackupStatus({ state: 'dirty', message: 'Name Riêng của truyện có thay đổi chưa sao lưu.' });
                     close(true);
                     const smartResult = await libFinalizeBookNameChange(
@@ -7547,14 +7684,14 @@
         updateOcrStatus = async function () {
             try {
                 // Check version first
-                const ver = await GM_getValue(paddleService.cacheKey + "_ver", null);
+                const ver = await tmStorageGet(paddleService.cacheKey + "_ver", null);
                 let allFilesExist = true;
                 let totalSize = 0;
                 let keys = [];
 
                 if (ver === paddleService.cacheVersion) {
                     for (const file of paddleService.files) {
-                        const v = await GM_getValue(paddleService.cacheKey + ":" + file, null);
+                        const v = await tmStorageGet(paddleService.cacheKey + ":" + file, null);
                         if (!v) {
                             allFilesExist = false;
                             break;
@@ -7575,7 +7712,7 @@
                 }
 
                 const wasmCacheKey = "paddleocr_ort_wasm_v1_18_0";
-                const wasmB64 = await GM_getValue(wasmCacheKey, null);
+                const wasmB64 = await tmStorageGet(wasmCacheKey, null);
                 if (wasmB64) {
                     const wSize = (wasmB64.length * 0.75 / 1024 / 1024).toFixed(2);
                     text += `<br><span style="color:#28a745">✅ Đã Cache WASM Runtime.</span> (~${wSize} MB)`;
@@ -7593,10 +7730,10 @@
         ocrClearBtn.addEventListener('click', async () => {
             if (confirm("Bạn có chắc muốn xóa toàn bộ Cache OCR (Models & WASM)?\nLần sau sử dụng sẽ phải tải lại từ đầu.")) {
                 try {
-                    await GM_deleteValue(paddleService.cacheKey);
-                    await GM_deleteValue(paddleService.cacheKey + '_ver');
-                    await GM_deleteValue("paddleocr_ort_wasm_v1_18_0");
-                    await GM_deleteValue("paddleocr_ort_wasm_v1_18_0_meta");
+                    await tmStorageDelete(paddleService.cacheKey);
+                    await tmStorageDelete(paddleService.cacheKey + '_ver');
+                    await tmStorageDelete("paddleocr_ort_wasm_v1_18_0");
+                    await tmStorageDelete("paddleocr_ort_wasm_v1_18_0_meta");
                     alert("Đã xóa cache thành công!");
                     updateOcrStatus();
                 } catch (e) { alert("Lỗi xóa cache: " + e); }
@@ -7985,7 +8122,7 @@
                     let wasmBuffer = null;
                     let loadedCandidate = null;
 
-                    let cachedB64 = await GM_getValue(wasmCacheKey, null);
+                    let cachedB64 = await tmStorageGet(wasmCacheKey, null);
                     let loadedFromCache = false;
 
                     if (cachedB64) {
@@ -8001,7 +8138,7 @@
                             console.log("[TM-Translate] Loaded WASM from Tampermonkey Storage.");
                         } catch (e) {
                             console.warn("[TM-Translate] Failed to parse cached WASM, cleaning up...", e);
-                            await GM_deleteValue(wasmCacheKey);
+                            await tmStorageDelete(wasmCacheKey);
                         }
                     }
 
@@ -8043,8 +8180,8 @@
                             const b64 = window.btoa(binary);
 
                             if (b64.length < 15 * 1024 * 1024) {
-                                await GM_setValue(wasmCacheKey, b64);
-                                await GM_setValue(wasmCacheKey + "_meta", { name: loadedCandidate });
+                                await tmStorageSet(wasmCacheKey, b64);
+                                await tmStorageSet(wasmCacheKey + "_meta", { name: loadedCandidate });
                                 console.log("[TM-Translate] WASM Cached successfully.");
                             } else {
                                 console.warn("[TM-Translate] WASM too large to cache safely.");
@@ -8053,7 +8190,7 @@
                             console.warn("[TM-Translate] Failed to cache WASM:", e);
                         }
                     } else {
-                        const meta = await GM_getValue(wasmCacheKey + "_meta", {});
+                        const meta = await tmStorageGet(wasmCacheKey + "_meta", {});
                         if (meta.name) loadedCandidate = meta.name;
                     }
 
@@ -8099,11 +8236,11 @@
             }
 
             let models = null;
-            const version = await GM_getValue(this.cacheKey + "_ver", null);
+            const version = await tmStorageGet(this.cacheKey + "_ver", null);
             if (version === this.cacheVersion) {
                 models = {};
                 for (const file of this.files) {
-                    const v = await GM_getValue(this.cacheKey + ":" + file, null);
+                    const v = await tmStorageGet(this.cacheKey + ":" + file, null);
                     if (!v) { models = null; break; }
                     models[file] = v;
                 }
@@ -8255,10 +8392,10 @@
             showLoading("Đang lưu cache...");
             console.time("GM_setValue cache");
             for (const [k, v] of Object.entries(models)) {
-                await GM_setValue(this.cacheKey + ":" + k, v);
+                await tmStorageSet(this.cacheKey + ":" + k, v);
                 await yieldUI();
             }
-            await GM_setValue(this.cacheKey + "_ver", this.cacheVersion);
+            await tmStorageSet(this.cacheKey + "_ver", this.cacheVersion);
             await yieldUI();
             console.timeEnd("GM_setValue cache");
 
@@ -9812,6 +9949,7 @@
     const LIB_INDEX_KEY = 'tm_lib_index_v1';
     const LIB_CHAPTERS_PREFIX = 'tm_lib_chapters_';
     const LIB_CONTENT_PREFIX = 'tm_lib_c_';
+    const LIB_COVER_PREFIX = 'tm_lib_cover_';
     const LIB_EXPORT_HTML_RECOMMEND_MAX_CHAPTERS = 180;
     const LIB_EXPORT_HTML_RECOMMEND_MAX_BYTES = 2 * 1024 * 1024;
     const LIB_EXPORT_HTML_WARN_CHAPTERS = 260;
@@ -9823,9 +9961,32 @@
     const LIB_BACKUP_MIN_INTERVAL_HOURS = 0.25;
     const LIB_BACKUP_MAX_INTERVAL_HOURS = 168;
     const libTitleCache = new Map();
+    const libChapterCache = new Map();
+    const libCoverCache = new Map();
+    let libStorageWriteQueue = Promise.resolve();
+    let libCriticalTaskMessage = '';
     let libBackupTask = null;
     let libBackupScheduleTimer = 0;
     let libBackupScheduleStatusEl = null;
+
+    window.addEventListener('beforeunload', event => {
+        if (!libCriticalTaskMessage) return;
+        event.preventDefault();
+        event.returnValue = libCriticalTaskMessage;
+        return libCriticalTaskMessage;
+    });
+
+    function libQueueStorageWrite(task, label = 'storage') {
+        const run = libStorageWriteQueue.catch(() => { }).then(task);
+        libStorageWriteQueue = run.catch(err => {
+            console.error(`[tm-translate] Ghi ${label} thất bại:`, err);
+        });
+        return run;
+    }
+
+    async function libFlushStorageWrites() {
+        await libStorageWriteQueue;
+    }
 
     // NEW: small hash helper for IDs
     function libHashString(str) {
@@ -9935,7 +10096,7 @@
                 stored.authorTranslated = translated;
                 stored.authorTranslatedSourceHash = sourceHash;
                 stored.updatedAt = Date.now();
-                libSaveIndex(index);
+                await libSaveIndex(index);
                 book.authorTranslated = translated;
                 book.authorTranslatedSourceHash = sourceHash;
             }
@@ -9974,20 +10135,20 @@
             for (let index = 0; index < batches.length; index++) {
                 const translatedBatch = await requestServerTranslation(batches[index]);
                 translatedTexts.push(...(translatedBatch || []));
-                if (index < batches.length - 1) await sleep(config.delayMs || 0);
+                if (index < batches.length - 1) await sleep(getTranslationRequestDelayMs());
             }
         }
         if (translatedTexts.length !== jobs.length) {
             throw new Error(`Số đoạn dịch Name không khớp: ${translatedTexts.length}/${jobs.length}.`);
         }
         return translatedTexts.map((text, index) =>
-            capitalizeFirstLetter(restoreNames(String(text || ''), placeholderMaps[index]).trim())
+            capitalizeFirstLetter(restoreNames(String(text || ''), placeholderMaps[index]).trim(), nameSet)
         );
     }
 
     async function libApplyBookNameChangeSmart(bookId, oldBookSnapshot, oldConfigSnapshot, message) {
         const book = libFindBookInIndex(bookId);
-        const chapters = libLoadChaptersForBook(bookId);
+        const chapters = await libLoadChaptersForBookAsync(bookId);
         const result = {
             migratedChapterIds: new Set(),
             invalidatedChapterIds: new Set(),
@@ -10009,7 +10170,7 @@
             const cached = await libGet('tm_content', oldTransKey);
             const raw = chapter.rawKey ? await libGet('tm_content', chapter.rawKey) : null;
             if (!cached?.text || !raw?.text) {
-                if (oldTransKey) libDeleteContent(oldTransKey);
+                if (oldTransKey) await libDeleteContent(oldTransKey);
                 chapter.transKey = null;
                 chapter.updatedAt = Date.now();
                 result.invalidatedChapterIds.add(chapter.chapterId);
@@ -10059,17 +10220,17 @@
         });
 
         const now = Date.now();
-        plans.forEach(plan => {
+        for (const plan of plans) {
             const updatedText = plan.affectedIndices.length
                 ? plan.translatedParagraphs.join('\n')
                 : String(plan.cached.text || '');
-            libSaveContent(plan.newTransKey, {
+            await libSaveContent(plan.newTransKey, {
                 ...plan.cached,
                 key: plan.newTransKey,
                 text: updatedText,
                 updatedAt: now
             });
-            if (plan.oldTransKey !== plan.newTransKey) libDeleteContent(plan.oldTransKey);
+            if (plan.oldTransKey !== plan.newTransKey) await libDeleteContent(plan.oldTransKey);
             plan.chapter.transKey = plan.newTransKey;
             plan.chapter.updatedAt = now;
             result.migratedChapterIds.add(plan.chapter.chapterId);
@@ -10079,27 +10240,72 @@
                 result.updatesByChapter.set(plan.chapter.chapterId, updates);
                 result.changedParagraphs += plan.affectedIndices.length;
             }
-        });
-        libSaveChaptersForBook(bookId, chapters);
+        }
+        await libSaveChaptersForBook(bookId, chapters);
         libTitleCache.clear();
         libSetBackupStatus({ state: 'dirty', message });
         return result;
     }
 
     async function libInvalidateBookTranslations(bookId, message = 'Name/raw truyện có thay đổi chưa sao lưu.') {
-        const chapters = libLoadChaptersForBook(bookId);
+        const chapters = await libLoadChaptersForBookAsync(bookId);
         let changed = false;
-        chapters.forEach(chapter => {
+        for (const chapter of chapters) {
             if (chapter.transKey) {
-                libDeleteContent(chapter.transKey);
+                await libDeleteContent(chapter.transKey);
                 chapter.transKey = null;
                 chapter.updatedAt = Date.now();
                 changed = true;
             }
-        });
-        if (changed) libSaveChaptersForBook(bookId, chapters);
+        }
+        if (changed) await libSaveChaptersForBook(bookId, chapters);
         libTitleCache.clear();
         if (changed) libSetBackupStatus({ state: 'dirty', message });
+    }
+
+    function libReaderCaptureScrollAnchor() {
+        const wrap = libReaderUI?.contentWrap;
+        if (!wrap) return null;
+        const rect = wrap.getBoundingClientRect();
+        const pointX = Math.min(rect.right - 12, rect.left + Math.max(12, rect.width * 0.2));
+        const pointY = Math.min(rect.bottom - 12, rect.top + 24);
+        let element = document.elementFromPoint(pointX, pointY);
+        element = element?.closest?.('.tm-chunk[data-orig], p, .tm-reader-block-title') || null;
+        if (!element || !wrap.contains(element)) {
+            element = Array.from(wrap.querySelectorAll('.tm-chunk[data-orig], p, .tm-reader-block-title'))
+                .find(item => item.getBoundingClientRect().bottom >= rect.top + 2) || null;
+        }
+        return {
+            element,
+            top: element?.getBoundingClientRect().top ?? rect.top,
+            scrollTop: wrap.scrollTop,
+            expectedScrollTop: wrap.scrollTop,
+            userMoved: false,
+            overflowAnchor: wrap.style.overflowAnchor
+        };
+    }
+
+    async function libReaderRestoreScrollAnchor(anchor) {
+        const wrap = libReaderUI?.contentWrap;
+        if (!wrap || !anchor) return;
+        await new Promise(resolve => requestAnimationFrame(resolve));
+        if (Math.abs(wrap.scrollTop - anchor.expectedScrollTop) > 2) {
+            anchor.userMoved = true;
+            anchor.expectedScrollTop = wrap.scrollTop;
+            return;
+        }
+        if (anchor.userMoved) return;
+        if (anchor.element?.isConnected && wrap.contains(anchor.element)) {
+            const delta = anchor.element.getBoundingClientRect().top - anchor.top;
+            if (Math.abs(delta) > 0.5) wrap.scrollTop += delta;
+        } else {
+            wrap.scrollTop = anchor.scrollTop;
+        }
+        anchor.expectedScrollTop = wrap.scrollTop;
+        if (libReaderState) {
+            libReaderState.ignoreScrollUntil = Date.now() + 450;
+            libReaderState.prevScrollTop = wrap.scrollTop;
+        }
     }
 
     async function libRefreshBookAfterNameChange(bookId, smartResult = null) {
@@ -10107,37 +10313,47 @@
         const infoWasOpen = !!tmUIRoot.querySelector('#tm-lib-book-info');
         if (libReaderState?.book?.bookId === bookId) {
             const currentChapterId = libReaderState.chapters?.[libReaderState.currentIndex]?.chapterId;
-            const currentScrollTop = libReaderUI?.contentWrap?.scrollTop || 0;
-            libReaderState.book = libFindBookInIndex(bookId);
-            libReaderState.chapters = libLoadChaptersForBook(bookId)
-                .sort((a, b) => (a.order || 0) - (b.order || 0));
-            const refreshedIndex = libReaderState.chapters.findIndex(chapter => chapter.chapterId === currentChapterId);
-            if (refreshedIndex >= 0) libReaderState.currentIndex = refreshedIndex;
-            libReaderState.titleCache = new Map();
-            libReaderState.bookTitleCache = new Map();
-            libReaderState.prefetchedChapterIds = new Set();
-            libReaderState.prefetchRetryAfter = new Map();
+            const scrollAnchor = libReaderCaptureScrollAnchor();
+            if (libReaderUI?.contentWrap && scrollAnchor) libReaderUI.contentWrap.style.overflowAnchor = 'none';
+            try {
+                libReaderState.book = libFindBookInIndex(bookId);
+                libReaderState.chapters = (await libLoadChaptersForBookAsync(bookId))
+                    .sort((a, b) => (a.order || 0) - (b.order || 0));
+                const refreshedIndex = libReaderState.chapters.findIndex(chapter => chapter.chapterId === currentChapterId);
+                if (refreshedIndex >= 0) libReaderState.currentIndex = refreshedIndex;
+                libReaderState.titleCache = new Map();
+                libReaderState.bookTitleCache = new Map();
+                libReaderState.prefetchedChapterIds = new Set();
+                libReaderState.prefetchRetryAfter = new Map();
 
-            const canPatchInPlace = libReaderState.mode === 'raw'
-                || !!smartResult?.migratedChapterIds?.has(currentChapterId);
-            if (canPatchInPlace && libReaderUI) {
-                const chapter = libReaderState.chapters[libReaderState.currentIndex];
-                const updates = smartResult?.updatesByChapter?.get(currentChapterId) || new Map();
-                const chunks = Array.from(libReaderUI.content.querySelectorAll('.tm-chunk[data-orig]'));
-                const nameSet = libGetEffectiveNameSet(libReaderState.book, config);
-                updates.forEach((translatedText, paragraphIndex) => {
-                    const chunk = chunks[paragraphIndex];
-                    if (!chunk) return;
-                    const rawText = getDatasetOrigText(chunk);
-                    chunk.innerHTML = highlightNamesInText(translatedText, nameSet, rawText);
-                });
-                libReaderUI.bookTitle.textContent = await libReaderResolveBookTitle(libReaderState.book);
-                libReaderUI.chapterTitle.textContent = await libReaderResolveChapterTitle(chapter, libReaderState.currentIndex);
-                await libReaderRenderToc();
-                libReaderUpdateMiniInfo();
-                if (libReaderUI.contentWrap) libReaderUI.contentWrap.scrollTop = currentScrollTop;
-            } else {
-                await libReaderLoadCurrentChapter({ scrollTo: 'restore' });
+                const canPatchInPlace = libReaderState.mode === 'raw'
+                    || !!smartResult?.migratedChapterIds?.has(currentChapterId);
+                if (canPatchInPlace && libReaderUI) {
+                    const chapter = libReaderState.chapters[libReaderState.currentIndex];
+                    const updates = smartResult?.updatesByChapter?.get(currentChapterId) || new Map();
+                    const chunks = Array.from(libReaderUI.content.querySelectorAll('.tm-chunk[data-orig]'));
+                    const nameSet = libGetEffectiveNameSet(libReaderState.book, config);
+                    const updateEntries = Array.from(updates.entries());
+                    for (let updateIndex = 0; updateIndex < updateEntries.length; updateIndex++) {
+                        const [paragraphIndex, translatedText] = updateEntries[updateIndex];
+                        const chunk = chunks[paragraphIndex];
+                        if (!chunk) continue;
+                        const rawText = getDatasetOrigText(chunk);
+                        chunk.innerHTML = highlightNamesInText(translatedText, nameSet, rawText);
+                        if ((updateIndex + 1) % 32 === 0) await libReaderRestoreScrollAnchor(scrollAnchor);
+                    }
+                    libReaderUI.bookTitle.textContent = await libReaderResolveBookTitle(libReaderState.book);
+                    libReaderUI.chapterTitle.textContent = await libReaderResolveChapterTitle(chapter, libReaderState.currentIndex);
+                    await libReaderRenderToc();
+                    libReaderUpdateMiniInfo();
+                    await libReaderRestoreScrollAnchor(scrollAnchor);
+                } else {
+                    await libReaderLoadCurrentChapter({ scrollTo: 'restore' });
+                }
+            } finally {
+                if (libReaderUI?.contentWrap && scrollAnchor) {
+                    libReaderUI.contentWrap.style.overflowAnchor = scrollAnchor.overflowAnchor || '';
+                }
             }
         }
         if (infoWasOpen) {
@@ -10168,30 +10384,44 @@
         return smartResult;
     }
 
-    /* --- GM-based storage helpers (cross-domain) --- */
+    /* --- GM-based storage helpers (cross-domain, Promise API) --- */
 
     function libSaveChaptersForBook(bookId, chapters) {
-        GM_setValue(LIB_CHAPTERS_PREFIX + bookId, chapters);
+        const value = Array.isArray(chapters) ? chapters : [];
+        libChapterCache.set(bookId, value);
+        return libQueueStorageWrite(
+            () => tmStorageSet(LIB_CHAPTERS_PREFIX + bookId, value),
+            `danh sách chương ${bookId}`
+        );
     }
 
     function libLoadChaptersForBook(bookId) {
-        return GM_getValue(LIB_CHAPTERS_PREFIX + bookId, []);
+        return libChapterCache.get(bookId) || [];
     }
 
-    function libSaveContent(key, data) {
-        GM_setValue(LIB_CONTENT_PREFIX + key, data);
+    async function libLoadChaptersForBookAsync(bookId) {
+        if (libChapterCache.has(bookId)) return libChapterCache.get(bookId);
+        const chapters = await tmStorageGet(LIB_CHAPTERS_PREFIX + bookId, []);
+        const value = Array.isArray(chapters) ? chapters : [];
+        libChapterCache.set(bookId, value);
+        return value;
     }
 
-    function libLoadContent(key) {
-        return GM_getValue(LIB_CONTENT_PREFIX + key, null);
+    async function libSaveContent(key, data) {
+        await tmStorageSet(LIB_CONTENT_PREFIX + key, data);
     }
 
-    function libDeleteContent(key) {
-        GM_deleteValue(LIB_CONTENT_PREFIX + key);
+    async function libLoadContent(key) {
+        return await tmStorageGet(LIB_CONTENT_PREFIX + key, null);
     }
 
-    function libDeleteChaptersForBook(bookId) {
-        GM_deleteValue(LIB_CHAPTERS_PREFIX + bookId);
+    async function libDeleteContent(key) {
+        await tmStorageDelete(LIB_CONTENT_PREFIX + key);
+    }
+
+    async function libDeleteChaptersForBook(bookId) {
+        libChapterCache.delete(bookId);
+        await tmStorageDelete(LIB_CHAPTERS_PREFIX + bookId);
     }
 
     // Compatibility wrappers (used by callers that previously used libPutMany/libGet)
@@ -10200,18 +10430,22 @@
         if (storeName === 'tm_chapters') {
             // Group chapters by bookId and merge into existing arrays
             const byBook = {};
-            items.forEach(item => {
+            for (const item of items) {
                 const bid = item.bookId;
-                if (!byBook[bid]) byBook[bid] = libLoadChaptersForBook(bid);
+                if (!byBook[bid]) byBook[bid] = await libLoadChaptersForBookAsync(bid);
                 const existing = byBook[bid];
                 const idx = existing.findIndex(c => c.chapterId === item.chapterId);
                 if (idx >= 0) existing[idx] = item;
                 else existing.push(item);
                 byBook[bid] = existing;
-            });
-            Object.entries(byBook).forEach(([bid, chapters]) => libSaveChaptersForBook(bid, chapters));
+            }
+            await Promise.all(Object.entries(byBook).map(([bid, chapters]) => libSaveChaptersForBook(bid, chapters)));
         } else if (storeName === 'tm_content') {
-            items.forEach(item => libSaveContent(item.key, item));
+            const concurrency = 4;
+            for (let offset = 0; offset < items.length; offset += concurrency) {
+                await Promise.all(items.slice(offset, offset + concurrency).map(item => libSaveContent(item.key, item)));
+                if (offset + concurrency < items.length) await libYieldToBrowser();
+            }
         }
     }
 
@@ -10220,13 +10454,13 @@
             // Need to find chapter by chapterId across all books
             const index = libLoadIndex();
             for (const book of (index.books || [])) {
-                const chapters = libLoadChaptersForBook(book.bookId);
+                const chapters = await libLoadChaptersForBookAsync(book.bookId);
                 const found = chapters.find(c => c.chapterId === key);
                 if (found) return found;
             }
             return null;
         } else if (storeName === 'tm_content') {
-            let data = libLoadContent(key);
+            let data = await libLoadContent(key);
             if (data) return data;
 
             // Fallback: try reading from legacy IndexedDB
@@ -10239,8 +10473,8 @@
                     req.onerror = () => reject(req.error);
                 });
                 if (data) {
-                    // Save to GM for future cross-domain access
-                    libSaveContent(key, data);
+                    // Giữ tương thích dữ liệu IndexedDB cũ rồi chuyển sang storage toàn cục.
+                    await libSaveContent(key, data);
                     return data;
                 }
             } catch (e) {
@@ -10257,17 +10491,17 @@
 
         // Clear transKey from all chapters and delete translated content
         for (const book of (index.books || [])) {
-            const chapters = libLoadChaptersForBook(book.bookId);
+            const chapters = await libLoadChaptersForBookAsync(book.bookId);
             let changed = false;
-            chapters.forEach(ch => {
+            for (const ch of chapters) {
                 if (ch.transKey) {
-                    libDeleteContent(ch.transKey);
+                    await libDeleteContent(ch.transKey);
                     ch.transKey = null;
                     ch.updatedAt = now;
                     changed = true;
                 }
-            });
-            if (changed) libSaveChaptersForBook(book.bookId, chapters);
+            }
+            if (changed) await libSaveChaptersForBook(book.bookId, chapters);
         }
         libSetBackupStatus({ state: 'dirty', message: 'Cache dịch đã thay đổi, chưa sao lưu.' });
     }
@@ -10275,10 +10509,10 @@
     async function libGetTranslatedCacheSizeBytes() {
         const encoder = new TextEncoder();
         let total = 0;
-        const allKeys = GM_listValues();
+        const allKeys = await tmStorageListValues();
         for (const gmKey of allKeys) {
             if (gmKey.startsWith(LIB_CONTENT_PREFIX + 'tr_')) {
-                const data = GM_getValue(gmKey, null);
+                const data = await tmStorageGet(gmKey, null);
                 if (data?.text) {
                     total += encoder.encode(data.text).length;
                 }
@@ -10383,23 +10617,27 @@
                 if (!byBook[ch.bookId]) byBook[ch.bookId] = [];
                 byBook[ch.bookId].push(ch);
             });
-            Object.entries(byBook).forEach(([bookId, chapters]) => {
-                const existing = libLoadChaptersForBook(bookId);
+            for (const [bookId, chapters] of Object.entries(byBook)) {
+                const existing = await libLoadChaptersForBookAsync(bookId);
                 // Merge: add new chapters, update existing
                 chapters.forEach(ch => {
                     const idx = existing.findIndex(e => e.chapterId === ch.chapterId);
                     if (idx >= 0) existing[idx] = ch;
                     else existing.push(ch);
                 });
-                libSaveChaptersForBook(bookId, existing);
-            });
+                await libSaveChaptersForBook(bookId, existing);
+            }
 
-            // 4. Save all content to GM
-            allContent.forEach(item => {
-                if (!libLoadContent(item.key)) {
-                    libSaveContent(item.key, item);
+            // 4. Save all content to GM bằng các gói nhỏ để không khóa UI.
+            for (let offset = 0; offset < allContent.length; offset += 4) {
+                const batch = allContent.slice(offset, offset + 4);
+                for (const item of batch) {
+                    if (!await libLoadContent(item.key)) {
+                        await libSaveContent(item.key, item);
+                    }
                 }
-            });
+                if (offset + 4 < allContent.length) await libYieldToBrowser();
+            }
 
             // 5. Clear legacy IndexedDB
             await new Promise((resolve, reject) => {
@@ -10507,19 +10745,63 @@
         }
 
         if (updated) {
-            libSaveIndex(index);
+            await libSaveIndex(index);
         }
     }
 
     function libLoadIndex() {
         const fallback = { books: [], nameSetVersion: config.nameSetVersion || 1, configVersion: 1 };
-        const index = GM_getValue(LIB_INDEX_KEY);
+        const index = tmStorageGetCached(LIB_INDEX_KEY, null);
         if (!index || !index.books) return fallback;
         return { ...fallback, ...index };
     }
 
     function libSaveIndex(index) {
-        GM_setValue(LIB_INDEX_KEY, index);
+        const coverWrites = [];
+        const storedIndex = {
+            ...index,
+            books: (index?.books || []).map(book => {
+                const storedBook = { ...book };
+                const coverDataUrl = String(storedBook.coverDataUrl || '');
+                if (coverDataUrl && storedBook.bookId) {
+                    libCoverCache.set(storedBook.bookId, coverDataUrl);
+                    storedBook.coverStored = true;
+                    coverWrites.push([LIB_COVER_PREFIX + storedBook.bookId, coverDataUrl]);
+                }
+                delete storedBook.coverDataUrl;
+                return storedBook;
+            })
+        };
+        tmBootstrapStorage.set(LIB_INDEX_KEY, storedIndex);
+        return libQueueStorageWrite(async () => {
+            for (const [key, value] of coverWrites) await tmStorageSet(key, value);
+            await tmStorageSet(LIB_INDEX_KEY, storedIndex);
+        }, 'index thư viện');
+    }
+
+    async function libEnsureBookCover(book) {
+        if (!book?.bookId) return String(book?.coverDataUrl || book?.cover || '');
+        if (book.coverDataUrl) {
+            libCoverCache.set(book.bookId, book.coverDataUrl);
+            return book.coverDataUrl;
+        }
+        if (libCoverCache.has(book.bookId)) {
+            const cached = libCoverCache.get(book.bookId) || '';
+            if (cached) book.coverDataUrl = cached;
+            return cached;
+        }
+        if (!book.coverStored) return String(book.cover || '');
+        const value = String(await tmStorageGet(LIB_COVER_PREFIX + book.bookId, '') || '');
+        libCoverCache.set(book.bookId, value);
+        if (value) book.coverDataUrl = value;
+        return value;
+    }
+
+    async function libCompactLibraryIndexStorage() {
+        const index = libLoadIndex();
+        if (!(index.books || []).some(book => book?.coverDataUrl)) return;
+        await libSaveIndex(index);
+        await libFlushStorageWrites();
     }
 
     function libFormatRelativeTime(timestamp) {
@@ -10616,7 +10898,7 @@
     }
 
     function libGetBackupStatus() {
-        const status = GM_getValue(LIB_BACKUP_STATUS_KEY, null);
+        const status = tmStorageGetCached(LIB_BACKUP_STATUS_KEY, null);
         return status && typeof status === 'object' ? status : {};
     }
 
@@ -10631,7 +10913,10 @@
             ...normalizedPatch,
             updatedAt: Date.now()
         };
-        GM_setValue(LIB_BACKUP_STATUS_KEY, next);
+        tmBootstrapStorage.set(LIB_BACKUP_STATUS_KEY, next);
+        void tmStorageSet(LIB_BACKUP_STATUS_KEY, next).catch(err => {
+            console.error('[tm-translate] Không lưu được trạng thái sao lưu:', err);
+        });
         return next;
     }
 
@@ -10720,7 +11005,22 @@ ${titleSvg}
     }
 
     function libGetBookCoverSrc(book) {
-        return book?.coverDataUrl || book?.cover || libDefaultCoverDataUrl(book);
+        return book?.coverDataUrl
+            || (book?.bookId ? libCoverCache.get(book.bookId) : '')
+            || book?.cover
+            || libDefaultCoverDataUrl(book);
+    }
+
+    async function libHydrateBookCovers(wrapper, books) {
+        if (!wrapper || !Array.isArray(books)) return;
+        for (const book of books) {
+            const cover = await libEnsureBookCover(book);
+            if (!cover || !wrapper.isConnected) continue;
+            const card = Array.from(wrapper.querySelectorAll('.tm-library-card[data-book-id]'))
+                .find(item => item.getAttribute('data-book-id') === book.bookId);
+            const image = card?.querySelector('.tm-library-cover');
+            if (image && image.src !== cover) image.src = cover;
+        }
     }
 
     function libReadFileAsDataUrl(file) {
@@ -10777,8 +11077,9 @@ ${titleSvg}
             return false;
         }
         book.coverDataUrl = dataUrl;
+        libCoverCache.set(bookId, dataUrl);
         book.updatedAt = Date.now();
-        libSaveIndex(index);
+        await libSaveIndex(index);
         libSetBackupStatus({ state: 'dirty', message: 'Có thay đổi ảnh bìa chưa sao lưu.' });
         showNotification('Đã cập nhật ảnh bìa.');
         return true;
@@ -10800,7 +11101,7 @@ ${titleSvg}
         }
         if (!activeScopes.has('raw') && !activeScopes.has('cache')) return false;
 
-        const chapters = libLoadChaptersForBook(book.bookId);
+        const chapters = await libLoadChaptersForBookAsync(book.bookId);
         for (const chapter of chapters) {
             if (activeScopes.has('raw') && chapter.rawKey) {
                 const raw = await libGet('tm_content', chapter.rawKey);
@@ -10820,12 +11121,16 @@ ${titleSvg}
         const bookRecords = [];
         const contentKeys = new Set();
         for (const book of books) {
-            const chapters = libLoadChaptersForBook(book.bookId);
+            const chapters = await libLoadChaptersForBookAsync(book.bookId);
+            const coverDataUrl = await libEnsureBookCover(book);
             chapters.forEach(chapter => {
                 if (chapter.rawKey) contentKeys.add(chapter.rawKey);
                 if (chapter.transKey) contentKeys.add(chapter.transKey);
             });
-            bookRecords.push({ book, chapters });
+            bookRecords.push({
+                book: coverDataUrl ? { ...book, coverDataUrl } : { ...book },
+                chapters
+            });
         }
         return { index: { ...index, books }, bookRecords, contentKeys: Array.from(contentKeys) };
     }
@@ -10981,7 +11286,7 @@ ${titleSvg}
                 await appendRecord({ type: 'book', book: item.book, chapters: item.chapters || [] });
             }
             for (const key of data.contentKeys) {
-                const content = libLoadContent(key);
+                const content = await libLoadContent(key);
                 if (content) {
                     contentCount += 1;
                     await appendRecord({ type: 'content', key, value: content });
@@ -11023,13 +11328,21 @@ ${titleSvg}
     }
 
     async function libClearLibraryAll() {
-        const allKeys = GM_listValues();
-        allKeys.forEach(key => {
-            if (key === LIB_INDEX_KEY || key.startsWith(LIB_CHAPTERS_PREFIX) || key.startsWith(LIB_CONTENT_PREFIX)) {
-                GM_deleteValue(key);
+        const allKeys = await tmStorageListValues();
+        for (const key of allKeys) {
+            if (
+                key === LIB_INDEX_KEY
+                || key.startsWith(LIB_CHAPTERS_PREFIX)
+                || key.startsWith(LIB_CONTENT_PREFIX)
+                || key.startsWith(LIB_COVER_PREFIX)
+            ) {
+                await tmStorageDelete(key);
             }
-        });
-        libSaveIndex({ books: [], nameSetVersion: config.nameSetVersion || 1, configVersion: 1 });
+        }
+        libChapterCache.clear();
+        libCoverCache.clear();
+        await libSaveIndex({ books: [], nameSetVersion: config.nameSetVersion || 1, configVersion: 1 });
+        await libFlushStorageWrites();
     }
 
     async function libRunLibraryRestore({ statusEl = null } = {}) {
@@ -11061,13 +11374,13 @@ ${titleSvg}
             }
             if (record.type === 'book' && record.book?.bookId) {
                 restoredBooks.push(record.book);
-                libSaveChaptersForBook(record.book.bookId, Array.isArray(record.chapters) ? record.chapters : []);
+                await libSaveChaptersForBook(record.book.bookId, Array.isArray(record.chapters) ? record.chapters : []);
                 return;
             }
             if (record.type === 'content') {
                 const content = record.value || record.content;
                 if (content?.key) {
-                    libSaveContent(content.key, content);
+                    await libSaveContent(content.key, content);
                     restoredContent += 1;
                 }
             }
@@ -11082,7 +11395,8 @@ ${titleSvg}
         nextIndex.books = libSortBooksForLibrary(Array.from(map.values()));
         nextIndex.nameSetVersion = manifest.index?.nameSetVersion || config.nameSetVersion || 1;
         nextIndex.configVersion = 1;
-        libSaveIndex(nextIndex);
+        await libSaveIndex(nextIndex);
+        await libFlushStorageWrites();
 
         const restoredMessage = `Đã khôi phục ${restoredBooks.length} truyện, ${restoredContent} nội dung từ ${file.name || 'file backup'}. Thư viện mới chưa sao lưu lại.`;
         const status = libSetBackupStatus({ state: 'dirty', message: restoredMessage, restoredAt: Date.now() });
@@ -11828,11 +12142,11 @@ body.tmx-fullscreen .tmx-scroll {
 </html>`;
     }
 
-    async function libResolveExportTitles(book, chapters) {
+    async function libResolveExportTitles(book, chapters, options = {}) {
         config = loadConfig();
         const rawBookTitle = book?.title || 'Untitled';
         const rawChapterTitles = chapters.map((ch, idx) => ch.title || `Chương ${idx + 1}`);
-        if (!book || book.langSource === 'vi') {
+        if (!book || book.langSource === 'vi' || options.translateRaw === false) {
             return {
                 bookTitle: rawBookTitle,
                 chapterTitles: rawChapterTitles
@@ -11897,7 +12211,7 @@ body.tmx-fullscreen .tmx-scroll {
         await libPutMany('tm_content', [raw]);
 
         if (chapter.transKey) {
-            libDeleteContent(chapter.transKey);
+            await libDeleteContent(chapter.transKey);
             chapter.transKey = null;
             chapter.updatedAt = now;
             await libPutMany('tm_chapters', [chapter]);
@@ -11920,21 +12234,39 @@ body.tmx-fullscreen .tmx-scroll {
         return false;
     }
 
-    async function libGetExportTextForChapter(book, chapter, ensureTranslated) {
+    async function libGetExportTextForChapter(book, chapter, ensureTranslated, options = {}) {
         const { rawText, wasNormalized } = await libGetNormalizedRawChapterContent(chapter);
         const needsRefresh = wasNormalized;
 
-        if (!book || book.langSource === 'vi') return { text: rawText, translated: false };
+        if (!book || book.langSource === 'vi' || options.translateRaw === false) {
+            return { text: rawText, translated: false };
+        }
 
         const expectedKey = libMakeTransKey(chapter.chapterId, chapter.rawKey, book);
         if (!needsRefresh && chapter.transKey === expectedKey) {
             const cached = await libGet('tm_content', expectedKey);
-            if (cached?.text) return { text: restoreTranslatedNameCasing(cached.text), translated: false };
+            if (cached?.text) {
+                return {
+                    text: restoreTranslatedNameCasingForSource(
+                        cached.text,
+                        rawText,
+                        libGetEffectiveNameSet(book, config)
+                    ),
+                    translated: false
+                };
+            }
         }
 
         if (ensureTranslated) {
             const translated = await libTranslateAndCacheChapter(chapter.chapterId);
-            return { text: translated, translated: true };
+            return {
+                text: restoreTranslatedNameCasingForSource(
+                    translated,
+                    rawText,
+                    libGetEffectiveNameSet(book, config)
+                ),
+                translated: true
+            };
         }
 
         return { text: '', translated: false };
@@ -11954,35 +12286,44 @@ body.tmx-fullscreen .tmx-scroll {
         return `${header}\n\n${chapterBlocks.join('\n\n')}\n`;
     }
 
-    async function libExportBookTxt(bookId) {
+    function libSelectExportChapters(chapters, options = {}) {
+        const list = Array.isArray(chapters) ? chapters : [];
+        if (!list.length) return { chapters: [], startIndex: 0, endIndex: -1 };
+        const startIndex = Math.max(0, Math.min(list.length - 1, Number(options.startIndex) || 0));
+        const requestedEnd = Number.isFinite(Number(options.endIndex)) ? Number(options.endIndex) : list.length - 1;
+        const endIndex = Math.max(startIndex, Math.min(list.length - 1, requestedEnd));
+        return { chapters: list.slice(startIndex, endIndex + 1), startIndex, endIndex };
+    }
+
+    function libExportRangeSuffix(selection, total) {
+        if (!selection || (selection.startIndex === 0 && selection.endIndex === total - 1)) return '';
+        if (selection.startIndex === selection.endIndex) return `-chuong-${selection.startIndex + 1}`;
+        return `-chuong-${selection.startIndex + 1}-${selection.endIndex + 1}`;
+    }
+
+    async function libExportBookTxt(bookId, options = {}) {
         const book = libFindBookInIndex(bookId);
         if (!book) {
             showNotification('Không tìm thấy truyện.');
             return;
         }
-        const chapters = await libGetChaptersByBook(bookId);
+        const allChapters = await libGetChaptersByBook(bookId);
+        const selection = libSelectExportChapters(allChapters, options);
+        const chapters = selection.chapters;
         if (!chapters.length) {
             showNotification('Truyện chưa có chương.');
             return;
         }
 
-        const needsTranslate = await libCheckMissingTranslations(book, chapters);
-        let ensureTranslated = false;
-        if (needsTranslate) {
-            ensureTranslated = confirm('Có chương chưa có cache dịch. Dịch và cache trước khi xuất?');
-            if (!ensureTranslated) {
-                showNotification('Hủy xuất do thiếu cache dịch.');
-                return;
-            }
-        }
+        const translateRaw = book.langSource === 'zh' && options.translateRaw !== false;
+        const ensureTranslated = translateRaw && await libCheckMissingTranslations(book, chapters);
 
         showLoading('Đang xuất TXT...');
         try {
-            const cfg = loadConfig();
-            const { bookTitle: exportBookTitle, chapterTitles } = await libResolveExportTitles(book, chapters);
-            const authorText = await libResolveAuthorTranslated(book) || book.author || '';
+            const { bookTitle: exportBookTitle, chapterTitles } = await libResolveExportTitles(book, chapters, { translateRaw });
+            const authorText = translateRaw ? (await libResolveAuthorTranslated(book) || book.author || '') : (book.author || '');
             let descriptionText = book.description || '';
-            if (book.langSource === 'zh' && descriptionText) {
+            if (translateRaw && descriptionText) {
                 descriptionText = await translatePanelText(descriptionText, 'text', {
                     nameSet: libGetEffectiveNameSet(book, config)
                 });
@@ -11994,14 +12335,15 @@ body.tmx-fullscreen .tmx-scroll {
                 if (ensureTranslated && book.langSource === 'zh') {
                     showLoading(`Đang dịch chương ${i + 1}/${chapters.length}...`);
                 }
-                const { text, translated } = await libGetExportTextForChapter(book, ch, ensureTranslated);
+                const { text, translated } = await libGetExportTextForChapter(book, ch, ensureTranslated, { translateRaw });
                 chapterExports.push({ title, text: text || '' });
-                if (ensureTranslated && book.langSource === 'zh' && translated && i < chapters.length - 1) {
-                    await sleep(cfg.delayMs || 0);
+                if (ensureTranslated && translated && i < chapters.length - 1) {
+                    await sleep(getTranslationRequestDelayMs());
                 }
             }
             showLoading('Đang đóng gói TXT...');
-            const filename = `${libSafeFileName(exportBookTitle || book.title)}.txt`;
+            const rangeSuffix = libExportRangeSuffix(selection, allChapters.length);
+            const filename = `${libSafeFileName(exportBookTitle || book.title)}${rangeSuffix}.txt`;
             const txtContent = libBuildBookTxtContent({
                 title: exportBookTitle || book.title,
                 author: authorText,
@@ -12018,33 +12360,29 @@ body.tmx-fullscreen .tmx-scroll {
         }
     }
 
-    async function libExportBookEpub(bookId) {
+    async function libExportBookEpub(bookId, options = {}) {
         const book = libFindBookInIndex(bookId);
         if (!book) {
             showNotification('Không tìm thấy truyện.');
             return;
         }
-        const chapters = await libGetChaptersByBook(bookId);
+        await libEnsureBookCover(book);
+        const allChapters = await libGetChaptersByBook(bookId);
+        const selection = libSelectExportChapters(allChapters, options);
+        const chapters = selection.chapters;
         if (!chapters.length) {
             showNotification('Truyện chưa có chương.');
             return;
         }
 
-        const needsTranslate = await libCheckMissingTranslations(book, chapters);
-        let ensureTranslated = false;
-        if (needsTranslate) {
-            ensureTranslated = confirm('Có chương chưa có cache dịch. Dịch và cache trước khi xuất?');
-            if (!ensureTranslated) {
-                showNotification('Hủy xuất do thiếu cache dịch.');
-                return;
-            }
-        }
+        const translateRaw = book.langSource === 'zh' && options.translateRaw !== false;
+        const ensureTranslated = translateRaw && await libCheckMissingTranslations(book, chapters);
+        const epubVersion = Number(options.epubVersion) === 3 ? 3 : 2;
 
         showNotification('Đang xuất EPUB... Vui lòng chờ', 4000);
         showLoading('Đang xuất EPUB...');
         try {
-            const cfg = loadConfig();
-            const { bookTitle: exportBookTitle, chapterTitles } = await libResolveExportTitles(book, chapters);
+            const { bookTitle: exportBookTitle, chapterTitles } = await libResolveExportTitles(book, chapters, { translateRaw });
             if (!window.fflate || !fflate.zipSync || !fflate.strToU8) {
                 throw new Error('fflate chưa sẵn sàng.');
             }
@@ -12073,16 +12411,16 @@ body.tmx-fullscreen .tmx-scroll {
                 coverImagePath = `Images/cover.${coverExt}`;
                 files[`OEBPS/${coverImagePath}`] = coverData.bytes;
                 files['OEBPS/Text/cover.xhtml'] = strToU8(`<?xml version="1.0" encoding="utf-8"?>\n<html xmlns="http://www.w3.org/1999/xhtml">\n<head><title>Bìa</title><style>html,body{margin:0;padding:0;height:100%;text-align:center}img{max-width:100%;max-height:100%;object-fit:contain}</style></head>\n<body><img src="../${coverImagePath}" alt="Bìa ${escapeHtml(exportBookTitle || book.title || 'truyện')}"/></body>\n</html>`);
-                manifestItems.push(`<item id="cover-image" href="${coverImagePath}" media-type="${escapeHtml(coverData.mediaType)}"/>`);
+                manifestItems.push(`<item id="cover-image" href="${coverImagePath}" media-type="${escapeHtml(coverData.mediaType)}"${epubVersion === 3 ? ' properties="cover-image"' : ''}/>`);
                 manifestItems.push('<item id="cover-page" href="Text/cover.xhtml" media-type="application/xhtml+xml"/>');
                 spineItems.push('<itemref idref="cover-page" linear="yes"/>');
                 guideReferences.push('    <reference type="cover" title="Bìa" href="Text/cover.xhtml"/>');
             }
 
-            const authorText = await libResolveAuthorTranslated(book) || book.author || '';
+            const authorText = translateRaw ? (await libResolveAuthorTranslated(book) || book.author || '') : (book.author || '');
             const author = escapeHtml(authorText);
             let descriptionText = book.description || '';
-            if (book.langSource === 'zh' && descriptionText) {
+            if (translateRaw && descriptionText) {
                 descriptionText = await translatePanelText(descriptionText, 'text', {
                     nameSet: libGetEffectiveNameSet(book, config)
                 });
@@ -12112,7 +12450,7 @@ body.tmx-fullscreen .tmx-scroll {
                 if (ensureTranslated && book.langSource === 'zh') {
                     showLoading(`Đang dịch chương ${i + 1}/${chapters.length}...`);
                 }
-                const { text, translated } = await libGetExportTextForChapter(book, ch, ensureTranslated);
+                const { text, translated } = await libGetExportTextForChapter(book, ch, ensureTranslated, { translateRaw });
                 const filename = `Text/chapter_${i + 1}.xhtml`;
                 const html = `<?xml version="1.0" encoding="utf-8"?>\n<html xmlns="http://www.w3.org/1999/xhtml">\n<head><title>${escapeHtml(title)}</title></head>\n<body>\n<h2>${escapeHtml(title)}</h2>\n${libTextToHtml(text || '')}\n</body>\n</html>`;
                 files[`OEBPS/${filename}`] = strToU8(html);
@@ -12120,8 +12458,8 @@ body.tmx-fullscreen .tmx-scroll {
                 manifestItems.push(`<item id="chap${i + 1}" href="${filename}" media-type="application/xhtml+xml"/>`);
                 spineItems.push(`<itemref idref="chap${i + 1}"/>`);
                 navPoints.push(`    <navPoint id="navPoint-${i + 1}" playOrder="${i + 1}">\n      <navLabel><text>${escapeHtml(title)}</text></navLabel>\n      <content src="${filename}"/>\n    </navPoint>`);
-                if (ensureTranslated && book.langSource === 'zh' && translated && i < chapters.length - 1) {
-                    await sleep(cfg.delayMs || 0);
+                if (ensureTranslated && translated && i < chapters.length - 1) {
+                    await sleep(getTranslationRequestDelayMs());
                 }
             }
 
@@ -12132,12 +12470,24 @@ body.tmx-fullscreen .tmx-scroll {
 
             files['OEBPS/toc.ncx'] = strToU8(`<?xml version="1.0" encoding="UTF-8"?>\n<ncx xmlns="http://www.daisy.org/z3986/2005/ncx/" version="2005-1">\n  <head>\n    <meta name="dtb:uid" content="${uid}"/>\n    <meta name="dtb:depth" content="1"/>\n    <meta name="dtb:totalPageCount" content="0"/>\n    <meta name="dtb:maxPageNumber" content="0"/>\n  </head>\n  <docTitle><text>${escapeHtml(exportBookTitle || book.title || 'Untitled')}</text></docTitle>\n  <navMap>\n${navPoints.join('\n')}\n  </navMap>\n</ncx>`);
 
-            files['OEBPS/content.opf'] = strToU8(`<?xml version="1.0" encoding="UTF-8"?>\n<package xmlns=\"http://www.idpf.org/2007/opf\" unique-identifier=\"BookId\" version=\"2.0\">\n  <metadata xmlns:dc=\"http://purl.org/dc/elements/1.1/\">\n    <dc:title>${escapeHtml(exportBookTitle || book.title || 'Untitled')}</dc:title>\n    <dc:language>${language}</dc:language>\n    <dc:identifier id=\"BookId\">${uid}</dc:identifier>\n    ${author ? `<dc:creator>${author}</dc:creator>` : ''}\n    ${description ? `<dc:description>${description}</dc:description>` : ''}${coverMeta}\n  </metadata>\n  <manifest>\n    <item id=\"ncx\" href=\"toc.ncx\" media-type=\"application/x-dtbncx+xml\"/>\n    ${manifestItems.join('\n    ')}\n  </manifest>\n  <spine toc=\"ncx\">\n    ${spineItems.join('\n    ')}\n  </spine>${guide}\n</package>`);
+            if (epubVersion === 3) {
+                const navItems = chapterTitles.map((title, index) =>
+                    `<li><a href="Text/chapter_${index + 1}.xhtml">${escapeHtml(title || chapters[index]?.title || `Chương ${index + 1}`)}</a></li>`
+                ).join('');
+                files['OEBPS/nav.xhtml'] = strToU8(`<?xml version="1.0" encoding="utf-8"?>\n<html xmlns="http://www.w3.org/1999/xhtml" xmlns:epub="http://www.idpf.org/2007/ops">\n<head><title>Mục lục</title></head>\n<body><nav epub:type="toc" id="toc"><h1>Mục lục</h1><ol>${navItems}</ol></nav></body>\n</html>`);
+                manifestItems.unshift('<item id="nav" href="nav.xhtml" media-type="application/xhtml+xml" properties="nav"/>');
+            }
+
+            const modifiedMeta = epubVersion === 3
+                ? `\n    <meta property="dcterms:modified">${new Date().toISOString().replace(/\.\d{3}Z$/, 'Z')}</meta>`
+                : '';
+            files['OEBPS/content.opf'] = strToU8(`<?xml version="1.0" encoding="UTF-8"?>\n<package xmlns=\"http://www.idpf.org/2007/opf\" unique-identifier=\"BookId\" version=\"${epubVersion}.0\">\n  <metadata xmlns:dc=\"http://purl.org/dc/elements/1.1/\">\n    <dc:title>${escapeHtml(exportBookTitle || book.title || 'Untitled')}</dc:title>\n    <dc:language>${language}</dc:language>\n    <dc:identifier id=\"BookId\">${uid}</dc:identifier>\n    ${author ? `<dc:creator>${author}</dc:creator>` : ''}\n    ${description ? `<dc:description>${description}</dc:description>` : ''}${epubVersion === 2 ? coverMeta : ''}${modifiedMeta}\n  </metadata>\n  <manifest>\n    <item id=\"ncx\" href=\"toc.ncx\" media-type=\"application/x-dtbncx+xml\"/>\n    ${manifestItems.join('\n    ')}\n  </manifest>\n  <spine toc=\"ncx\">\n    ${spineItems.join('\n    ')}\n  </spine>${epubVersion === 2 ? guide : ''}\n</package>`);
 
             showLoading('Đang đóng gói EPUB...');
             const zipped = zipSync(files, { level: 6 });
             const blob = new Blob([zipped], { type: 'application/epub+zip' });
-            const filename = `${libSafeFileName(exportBookTitle || book.title)}.epub`;
+            const rangeSuffix = libExportRangeSuffix(selection, allChapters.length);
+            const filename = `${libSafeFileName(exportBookTitle || book.title)}${rangeSuffix}.epub`;
             libDownloadBlob(blob, filename);
             showNotification('Đã xuất EPUB.');
         } catch (err) {
@@ -12148,13 +12498,16 @@ body.tmx-fullscreen .tmx-scroll {
         }
     }
 
-    async function libExportBookHtml(bookId) {
+    async function libExportBookHtml(bookId, options = {}) {
         const book = libFindBookInIndex(bookId);
         if (!book) {
             showNotification('Không tìm thấy truyện.');
             return;
         }
-        const chapters = await libGetChaptersByBook(bookId);
+        await libEnsureBookCover(book);
+        const allChapters = await libGetChaptersByBook(bookId);
+        const selection = libSelectExportChapters(allChapters, options);
+        const chapters = selection.chapters;
         if (!chapters.length) {
             showNotification('Truyện chưa có chương.');
             return;
@@ -12173,21 +12526,14 @@ body.tmx-fullscreen .tmx-scroll {
             }
         }
 
-        const needsTranslate = await libCheckMissingTranslations(book, chapters);
-        let ensureTranslated = false;
-        if (needsTranslate) {
-            ensureTranslated = confirm('Có chương chưa có cache dịch. Dịch và cache trước khi xuất?');
-            if (!ensureTranslated) {
-                showNotification('Hủy xuất do thiếu cache dịch.');
-                return;
-            }
-        }
+        const translateRaw = book.langSource === 'zh' && options.translateRaw !== false;
+        const ensureTranslated = translateRaw && await libCheckMissingTranslations(book, chapters);
 
         showNotification('Đang xuất HTML... Vui lòng chờ', 4000);
         showLoading('Đang xuất HTML...');
         try {
             const cfg = loadConfig();
-            const { bookTitle: exportBookTitle, chapterTitles } = await libResolveExportTitles(book, chapters);
+            const { bookTitle: exportBookTitle, chapterTitles } = await libResolveExportTitles(book, chapters, { translateRaw });
             const exportChapters = [];
             for (let i = 0; i < chapters.length; i++) {
                 const ch = chapters[i];
@@ -12195,19 +12541,19 @@ body.tmx-fullscreen .tmx-scroll {
                 if (ensureTranslated && book.langSource === 'zh') {
                     showLoading(`Đang dịch chương ${i + 1}/${chapters.length}...`);
                 }
-                const { text, translated } = await libGetExportTextForChapter(book, ch, ensureTranslated);
+                const { text, translated } = await libGetExportTextForChapter(book, ch, ensureTranslated, { translateRaw });
                 exportChapters.push({
                     title,
                     text: libNormalizeChapterParagraphBreaks(text || '')
                 });
-                if (ensureTranslated && book.langSource === 'zh' && translated && i < chapters.length - 1) {
-                    await sleep(cfg.delayMs || 0);
+                if (ensureTranslated && translated && i < chapters.length - 1) {
+                    await sleep(getTranslationRequestDelayMs());
                 }
             }
             showLoading('Đang đóng gói HTML...');
-            const authorTranslated = await libResolveAuthorTranslated(book);
+            const authorTranslated = translateRaw ? await libResolveAuthorTranslated(book) : (book.author || '');
             let descriptionTranslated = book.description || '';
-            if (book.langSource === 'zh' && descriptionTranslated) {
+            if (translateRaw && descriptionTranslated) {
                 descriptionTranslated = await translatePanelText(descriptionTranslated, 'text', {
                     nameSet: libGetEffectiveNameSet(book, config)
                 });
@@ -12217,7 +12563,8 @@ body.tmx-fullscreen .tmx-scroll {
                 authorTranslated,
                 descriptionTranslated
             }, exportBookTitle, exportChapters, cfg.readerStyle || DEFAULT_CONFIG.readerStyle);
-            const filename = `${libSafeFileName(exportBookTitle || book.title)}.html`;
+            const rangeSuffix = libExportRangeSuffix(selection, allChapters.length);
+            const filename = `${libSafeFileName(exportBookTitle || book.title)}${rangeSuffix}.html`;
             libDownloadBlob(new Blob([html], { type: 'text/html;charset=utf-8' }), filename);
             showNotification('Đã xuất HTML.');
         } catch (err) {
@@ -12240,16 +12587,19 @@ body.tmx-fullscreen .tmx-scroll {
 
         showLoading('Đang xóa truyện...');
         try {
-            const chapters = libLoadChaptersForBook(bookId);
-            chapters.forEach(ch => {
-                if (ch.rawKey) libDeleteContent(ch.rawKey);
-                if (ch.transKey) libDeleteContent(ch.transKey);
-            });
-            libDeleteChaptersForBook(bookId);
+            const chapters = await libLoadChaptersForBookAsync(bookId);
+            for (const ch of chapters) {
+                if (ch.rawKey) await libDeleteContent(ch.rawKey);
+                if (ch.transKey) await libDeleteContent(ch.transKey);
+            }
+            await libDeleteChaptersForBook(bookId);
+            await tmStorageDelete(LIB_COVER_PREFIX + bookId);
+            libCoverCache.delete(bookId);
 
             const index = libLoadIndex();
             index.books = (index.books || []).filter(b => b.bookId !== bookId);
-            libSaveIndex(index);
+            await libSaveIndex(index);
+            await libFlushStorageWrites();
             libSetBackupStatus({ state: 'dirty', message: 'Thư viện có thay đổi chưa sao lưu.' });
 
             showNotification('Đã xóa truyện.');
@@ -12405,26 +12755,41 @@ body.tmx-fullscreen .tmx-scroll {
             contentBytes
         });
         index.nameSetVersion = config.nameSetVersion || 1;
-        libSaveIndex(index);
 
         await libPutMany('tm_content', contentItems);
         await libPutMany('tm_chapters', chapterItems);
+        await libSaveIndex(index);
+        await libFlushStorageWrites();
         libSetBackupStatus({ state: 'dirty', message: 'Có truyện mới chưa sao lưu.' });
 
         return { bookId, title, chapterCount: chapters.length };
     }
 
+    async function libUnzipBytesAsync(bytes) {
+        if (!window.fflate || typeof fflate.unzip !== 'function') {
+            throw new Error('fflate chưa sẵn sàng.');
+        }
+        return await new Promise((resolve, reject) => {
+            fflate.unzip(bytes, (error, files) => {
+                if (error) reject(error);
+                else resolve(files || {});
+            });
+        });
+    }
+
     async function libImportEpubToLibrary(file, langSource, customTitle, options = {}) {
-        if (!window.fflate || !fflate.unzipSync) {
+        if (!window.fflate || typeof fflate.unzip !== 'function') {
             throw new Error('fflate chưa sẵn sàng.');
         }
 
-        showLoading('Đang mở EPUB...');
+        if (options.onProgress) options.onProgress('Đang mở EPUB...');
+        if (!options.onProgress) showLoading('Đang mở EPUB...');
         await sleep(0);
         const buffer = await file.arrayBuffer();
-        showLoading('Đang giải nén EPUB...');
+        if (options.onProgress) options.onProgress('Đang giải nén EPUB trong nền...');
+        if (!options.onProgress) showLoading('Đang giải nén EPUB...');
         const u8 = new Uint8Array(buffer);
-        const zip = fflate.unzipSync(u8);
+        const zip = await libUnzipBytesAsync(u8);
         const decoder = new TextDecoder('utf-8');
         const getEntry = (path) => zip[path] || zip[decodeURIComponent(path)] || zip[path.replace(/\\/g, '/')];
         const getText = (path) => {
@@ -12433,7 +12798,8 @@ body.tmx-fullscreen .tmx-scroll {
             return decoder.decode(data);
         };
 
-        showLoading('Đang đọc container.xml...');
+        if (options.onProgress) options.onProgress('Đang đọc thông tin EPUB...');
+        else showLoading('Đang đọc container.xml...');
         const containerXml = getText('META-INF/container.xml');
         if (!containerXml) throw new Error('Không tìm thấy container.xml');
         const containerDoc = libParseXml(containerXml);
@@ -12442,7 +12808,7 @@ body.tmx-fullscreen .tmx-scroll {
         const opfPath = rootfile.getAttribute('full-path');
         if (!opfPath) throw new Error('Thiếu đường dẫn OPF.');
 
-        showLoading('Đang đọc content.opf...');
+        if (!options.onProgress) showLoading('Đang đọc content.opf...');
         const opfXml = getText(opfPath);
         if (!opfXml) throw new Error('Không tìm thấy file OPF.');
         const opfDoc = libParseXml(opfXml);
@@ -12598,7 +12964,10 @@ body.tmx-fullscreen .tmx-scroll {
 
         const chapters = [];
         for (let i = 0; i < spine.length; i++) {
-            showLoading(`Đang đọc EPUB... (${i + 1}/${spine.length})`);
+            const progressText = `Đang đọc EPUB... (${i + 1}/${spine.length})`;
+            if (options.onProgress) options.onProgress(progressText);
+            else showLoading(progressText);
+            if (i > 0 && i % 12 === 0) await libYieldToBrowser();
             const idref = spine[i];
             const item = manifest.get(idref);
             if (!item || idref === 'info-page') continue;
@@ -12836,6 +13205,63 @@ body.tmx-fullscreen .tmx-scroll {
         return chapters;
     }
 
+    async function libSplitChaptersFromTextAsync(text, onProgress = null) {
+        const sourceText = String(text || '');
+        if (sourceText.length < 512 * 1024 || typeof Worker !== 'function') {
+            if (onProgress) onProgress('Đang chia chương...');
+            await libYieldToBrowser();
+            return libSplitChaptersFromText(sourceText);
+        }
+
+        if (onProgress) onProgress('Đang chia chương trong nền...');
+        const workerSource = `
+'use strict';
+let config = {};
+const INVISIBLE_TEXT_FORMATTING_GLOBAL_REGEX = /[\\u00AD\\u200B-\\u200F\\u202A-\\u202E\\u2060-\\u2064\\u2066-\\u206F\\uFEFF]/g;
+${normalizeTextForTranslation.toString()}
+${libNormalizeTextForSplit.toString()}
+${libMergeShortChapters.toString()}
+${libSplitLongBlock.toString()}
+${libSplitByNewlines.toString()}
+${libCleanChapterHeadingTitle.toString()}
+${libExtractChapterHeadingKey.toString()}
+${libCollectChapterHeadingMatches.toString()}
+${libSplitChaptersFromText.toString()}
+self.onmessage = event => {
+    try {
+        config = event.data.config || {};
+        const chapters = libSplitChaptersFromText(event.data.text || '');
+        self.postMessage({ ok: true, chapters });
+    } catch (error) {
+        self.postMessage({ ok: false, error: error && error.message ? error.message : String(error) });
+    }
+};`;
+        let worker = null;
+        let workerUrl = '';
+        try {
+            workerUrl = URL.createObjectURL(new Blob([workerSource], { type: 'text/javascript' }));
+            worker = new Worker(workerUrl);
+            return await new Promise((resolve, reject) => {
+                worker.onmessage = event => {
+                    if (event.data?.ok) resolve(event.data.chapters || []);
+                    else reject(new Error(event.data?.error || 'Worker chia chương thất bại.'));
+                };
+                worker.onerror = event => reject(new Error(event.message || 'Worker chia chương bị dừng.'));
+                worker.postMessage({
+                    text: sourceText,
+                    config: { maxCharsPerRequest: config?.maxCharsPerRequest || 4500 }
+                });
+            });
+        } catch (err) {
+            console.warn('[tm-translate] Không chạy được worker chia chương, dùng fallback:', err);
+            await libYieldToBrowser();
+            return libSplitChaptersFromText(sourceText);
+        } finally {
+            if (worker) worker.terminate();
+            if (workerUrl) URL.revokeObjectURL(workerUrl);
+        }
+    }
+
     function libParseSplitRegexConfig(value) {
         const regexes = [];
         const errors = [];
@@ -12973,10 +13399,23 @@ body.tmx-fullscreen .tmx-scroll {
     }
 
     function libEditableChaptersHash(chapters) {
-        return libHashString(stableStringify((chapters || []).map((chapter, idx) => ({
-            title: String(chapter?.title || `Chương ${idx + 1}`).trim() || `Chương ${idx + 1}`,
-            text: String(chapter?.text || '').replace(/\r\n/g, '\n').replace(/\r/g, '\n')
-        }))));
+        let h1 = 0x811c9dc5;
+        let h2 = 0x9e3779b9;
+        const feed = value => {
+            const text = String(value || '');
+            for (let i = 0; i < text.length; i++) {
+                const code = text.charCodeAt(i);
+                h1 = Math.imul(h1 ^ code, 16777619);
+                h2 = Math.imul(h2 ^ code, 2246822507);
+            }
+            h1 = Math.imul(h1 ^ 0xffff, 16777619);
+            h2 = Math.imul(h2 ^ 0xffff, 2246822507);
+        };
+        (chapters || []).forEach((chapter, idx) => {
+            feed(String(chapter?.title || `Chương ${idx + 1}`).trim() || `Chương ${idx + 1}`);
+            feed(String(chapter?.text || '').replace(/\r\n/g, '\n').replace(/\r/g, '\n'));
+        });
+        return `${(h1 >>> 0).toString(36)}:${(h2 >>> 0).toString(36)}:${(chapters || []).length}`;
     }
 
     async function libLoadEditableBookChapters(bookId) {
@@ -12998,11 +13437,11 @@ body.tmx-fullscreen .tmx-scroll {
     }
 
     async function libReplaceBookChapters(bookId, nextChapters) {
-        const oldChapters = libLoadChaptersForBook(bookId);
-        oldChapters.forEach(chapter => {
-            if (chapter.rawKey) libDeleteContent(chapter.rawKey);
-            if (chapter.transKey) libDeleteContent(chapter.transKey);
-        });
+        const oldChapters = await libLoadChaptersForBookAsync(bookId);
+        for (const chapter of oldChapters) {
+            if (chapter.rawKey) await libDeleteContent(chapter.rawKey);
+            if (chapter.transKey) await libDeleteContent(chapter.transKey);
+        }
         const now = Date.now();
         const encoder = new TextEncoder();
         let contentBytes = 0;
@@ -13017,7 +13456,7 @@ body.tmx-fullscreen .tmx-scroll {
             chapterItems.push({ chapterId, bookId, order: idx + 1, title, rawKey, transKey: null, updatedAt: now });
             contentItems.push({ key: rawKey, text, lang: 'raw', createdAt: now, updatedAt: now });
         });
-        libSaveChaptersForBook(bookId, chapterItems);
+        await libSaveChaptersForBook(bookId, chapterItems);
         await libPutMany('tm_content', contentItems);
         const index = libLoadIndex();
         const book = (index.books || []).find(item => item.bookId === bookId);
@@ -13028,16 +13467,17 @@ body.tmx-fullscreen .tmx-scroll {
             book.lastReadOrder = null;
             book.lastReadScrollRatio = 0;
             book.updatedAt = now;
-            libSaveIndex(index);
+            await libSaveIndex(index);
         }
         libTitleCache.clear();
         libSetBackupStatus({ state: 'dirty', message: 'Danh sách chương đã được chia lại, chưa sao lưu.' });
     }
 
     async function libImportTextToLibrary(file, langSource, customTitle, options = {}) {
+        if (options.onProgress) options.onProgress('Đang đọc file văn bản...');
         const text = await file.text();
         const title = (customTitle && customTitle.trim()) || file.name.replace(/\.[^.]+$/, '') || 'Untitled';
-        const chapters = libSplitChaptersFromText(text);
+        const chapters = await libSplitChaptersFromTextAsync(text, options.onProgress);
         const draft = { title, author: '', chapters, metadata: {} };
         if (options.previewOnly) return draft;
         return await libImportChaptersToLibrary(chapters, langSource, title, '');
@@ -13080,8 +13520,8 @@ body.tmx-fullscreen .tmx-scroll {
     }
 
     async function libExtractOdtText(file) {
-        if (!window.fflate || !fflate.unzipSync) throw new Error('fflate chưa sẵn sàng để đọc ODT.');
-        const zip = fflate.unzipSync(new Uint8Array(await file.arrayBuffer()));
+        if (!window.fflate || typeof fflate.unzip !== 'function') throw new Error('fflate chưa sẵn sàng để đọc ODT.');
+        const zip = await libUnzipBytesAsync(new Uint8Array(await file.arrayBuffer()));
         const content = zip['content.xml'];
         if (!content) throw new Error('Không tìm thấy content.xml trong ODT.');
         const xml = new TextDecoder('utf-8').decode(content)
@@ -13122,11 +13562,68 @@ body.tmx-fullscreen .tmx-scroll {
         }
 
         const title = (customTitle && customTitle.trim()) || file.name.replace(/\.[^.]+$/, '') || 'Untitled';
-        const chapters = libSplitChaptersFromText(text);
+        const chapters = await libSplitChaptersFromTextAsync(text, options.onProgress);
         if (!chapters.length) throw new Error('Không tìm thấy nội dung/chương trong tài liệu.');
         const draft = { title, author, chapters, metadata: { description } };
         if (options.previewOnly) return draft;
         return await libImportChaptersToLibrary(chapters, langSource, title, author, { description });
+    }
+
+    async function libImportZipToLibrary(file, langSource, customTitle, options = {}) {
+        if (options.onProgress) options.onProgress('Đang đọc ZIP...');
+        const archive = await libUnzipBytesAsync(new Uint8Array(await file.arrayBuffer()));
+        const supportedPattern = /\.(?:txt|epub|docx|doc|rtf|odt|html?|zip)$/i;
+        const entries = Object.entries(archive)
+            .filter(([path, bytes]) => bytes?.length && supportedPattern.test(path) && !/(?:^|\/)__MACOSX\//i.test(path))
+            .sort((a, b) => a[0].localeCompare(b[0], undefined, { numeric: true, sensitivity: 'base' }));
+        if (!entries.length) {
+            throw new Error('ZIP không có TXT/EPUB/Word/HTML được hỗ trợ.');
+        }
+
+        const mimeByExt = {
+            txt: 'text/plain', epub: 'application/epub+zip', docx: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+            doc: 'application/msword', rtf: 'application/rtf', odt: 'application/vnd.oasis.opendocument.text',
+            html: 'text/html', htm: 'text/html', zip: 'application/zip'
+        };
+        const drafts = [];
+        for (let index = 0; index < entries.length; index++) {
+            const [path, bytes] = entries[index];
+            const name = path.split('/').filter(Boolean).pop() || `file-${index + 1}.txt`;
+            const ext = (name.split('.').pop() || '').toLowerCase();
+            if (options.onProgress) options.onProgress(`Đang xử lý ${index + 1}/${entries.length}: ${name}`);
+            const innerFile = new File([bytes], name, { type: mimeByExt[ext] || 'application/octet-stream' });
+            const draft = await libParseLibraryImportFile(innerFile, langSource, '', {
+                ...options,
+                previewOnly: true,
+                archiveDepth: (options.archiveDepth || 0) + 1
+            });
+            if (!draft?.chapters?.length) continue;
+            if (entries.length > 1 && draft.chapters.length === 1) {
+                draft.chapters[0].title = name.replace(/\.[^.]+$/, '') || draft.chapters[0].title;
+            }
+            drafts.push(draft);
+            await libYieldToBrowser();
+        }
+        if (!drafts.length) throw new Error('Không đọc được nội dung nào trong ZIP.');
+
+        const title = (customTitle && customTitle.trim()) || file.name.replace(/\.[^.]+$/, '') || drafts[0].title || 'Untitled';
+        const chapters = drafts.flatMap(draft => draft.chapters || []);
+        const firstMetadata = drafts.find(draft => draft.metadata && Object.keys(draft.metadata).length)?.metadata || {};
+        const author = drafts.find(draft => draft.author)?.author || '';
+        const draft = { title, author, chapters, metadata: firstMetadata };
+        if (options.previewOnly) return draft;
+        return await libImportChaptersToLibrary(chapters, langSource, title, author, firstMetadata);
+    }
+
+    async function libParseLibraryImportFile(file, langSource, customTitle, options = {}) {
+        const ext = (file.name.split('.').pop() || '').toLowerCase();
+        if (ext === 'txt') return await libImportTextToLibrary(file, langSource, customTitle, options);
+        if (ext === 'epub') return await libImportEpubToLibrary(file, langSource, customTitle, options);
+        if (ext === 'zip') {
+            if ((options.archiveDepth || 0) >= 2) throw new Error('ZIP lồng quá 2 cấp không được hỗ trợ.');
+            return await libImportZipToLibrary(file, langSource, customTitle, options);
+        }
+        return await libImportDocumentToLibrary(file, langSource, customTitle, options);
     }
 
     async function libTranslateAndCacheChapter(chapterId) {
@@ -13173,9 +13670,9 @@ body.tmx-fullscreen .tmx-scroll {
                 <button class="tm-btn" id="tm-lib-import-close">&times;</button>
             </div>
             <div class="tm-modal-content">
-                <label class="tm-label">File TXT/EPUB/Word</label>
-                <input id="tm-lib-file" class="tm-input" type="file" accept=".txt,.epub,.docx,.doc,.rtf,.odt,.html,.htm" />
-                <p style="margin:-6px 0 12px;color:#64748b;font-size:12px;">Hỗ trợ TXT, EPUB, DOCX, ODT, RTF, HTML. DOC nhị phân cũ được đọc best-effort; nếu lỗi hãy lưu lại thành DOCX.</p>
+                <label class="tm-label">File TXT/EPUB/ZIP/Word</label>
+                <input id="tm-lib-file" class="tm-input" type="file" accept=".txt,.epub,.zip,.docx,.doc,.rtf,.odt,.html,.htm" />
+                <p style="margin:-6px 0 12px;color:#64748b;font-size:12px;">Hỗ trợ TXT, EPUB, ZIP, DOCX, ODT, RTF, HTML. ZIP có thể chứa một hoặc nhiều định dạng trên. DOC nhị phân cũ được đọc best-effort.</p>
                 <label class="tm-label">Nguồn văn bản</label>
                 <select id="tm-lib-lang" class="tm-input">
                     <option value="zh">Tiếng Trung (RAW)</option>
@@ -13187,6 +13684,12 @@ body.tmx-fullscreen .tmx-scroll {
                     <input id="tm-lib-customize" type="checkbox" checked>
                     <span><strong>Tùy chỉnh trước khi nhập</strong><br><small>Duyệt/sửa metadata và raw từng chương, thêm hoặc xóa chương. Chỉ ghi vào Thư viện sau khi bấm “Nhập vào thư viện”.</small></span>
                 </label>
+                <div id="tm-lib-import-skeleton" class="tm-import-skeleton" hidden>
+                    <div id="tm-lib-import-status" class="tm-import-skeleton-status">Đang chuẩn bị...</div>
+                    <div class="tm-import-skeleton-line"></div>
+                    <div class="tm-import-skeleton-line"></div>
+                    <div class="tm-import-skeleton-line"></div>
+                </div>
             </div>
             <div class="tm-modal-footer">
                 <button class="tm-btn" id="tm-lib-import-start">Import</button>
@@ -13200,6 +13703,12 @@ body.tmx-fullscreen .tmx-scroll {
         const titleInput = wrapper.querySelector('#tm-lib-title');
         const langSelect = wrapper.querySelector('#tm-lib-lang');
         const customizeInput = wrapper.querySelector('#tm-lib-customize');
+        const skeleton = wrapper.querySelector('#tm-lib-import-skeleton');
+        const statusEl = wrapper.querySelector('#tm-lib-import-status');
+        const startButton = wrapper.querySelector('#tm-lib-import-start');
+        let processing = false;
+        let committing = false;
+        let cancelled = false;
         const importFormChanged = () => !!(
             fileInput.files?.length
             || titleInput.value.trim()
@@ -13207,6 +13716,17 @@ body.tmx-fullscreen .tmx-scroll {
             || !customizeInput.checked
         );
         const close = (force = false) => {
+            if (!force && processing) {
+                if (committing) {
+                    alert('Đang ghi truyện vào storage. Hãy chờ hoàn tất để tránh dữ liệu dở dang.');
+                    return false;
+                }
+                if (!confirm('File vẫn đang được xử lý trong nền. Bỏ tác vụ import và đóng popup?')) return false;
+                cancelled = true;
+                libCriticalTaskMessage = '';
+                wrapper.remove();
+                return true;
+            }
             if (!force && importFormChanged() && !confirm('Bạn đang chuẩn bị import dở. Bỏ các lựa chọn hiện tại và đóng popup?')) {
                 return false;
             }
@@ -13222,46 +13742,67 @@ body.tmx-fullscreen .tmx-scroll {
 
         wrapper.querySelector('#tm-lib-import-close').addEventListener('click', () => close());
 
-        wrapper.querySelector('#tm-lib-import-start').addEventListener('click', async () => {
+        startButton.addEventListener('click', async () => {
+            if (processing) return;
             const file = fileInput.files && fileInput.files[0];
             if (!file) {
                 showNotification('Chưa chọn file.');
                 return;
             }
-            const ext = file.name.split('.').pop().toLowerCase();
             const langSource = langSelect.value === 'vi' ? 'vi' : 'zh';
             const title = titleInput.value;
             let isSuccess = false;
             let customizeDraft = null;
 
             try {
-                const previewOnly = !!customizeInput.checked;
-                showLoading(previewOnly ? 'Đang đọc file để tùy chỉnh...' : 'Đang import...');
-                let result = null;
-                if (ext === 'epub') {
-                    result = await libImportEpubToLibrary(file, langSource, title, { previewOnly });
-                } else if (ext === 'txt') {
-                    result = await libImportTextToLibrary(file, langSource, title, { previewOnly });
-                } else if (['docx', 'doc', 'rtf', 'odt', 'html', 'htm'].includes(ext)) {
-                    result = await libImportDocumentToLibrary(file, langSource, title, { previewOnly });
-                } else {
-                    showNotification('Định dạng file chưa được hỗ trợ.');
-                    return;
-                }
-                if (previewOnly) {
+                processing = true;
+                cancelled = false;
+                skeleton.hidden = false;
+                statusEl.textContent = `Đã nhận ${file.name} · ${libFormatBytes(file.size)}. Đang chuẩn bị...`;
+                startButton.disabled = true;
+                fileInput.disabled = true;
+                langSelect.disabled = true;
+                titleInput.disabled = true;
+                customizeInput.disabled = true;
+                libCriticalTaskMessage = 'TM Translate đang import file. Rời trang lúc này có thể làm mất bản nháp.';
+                await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+
+                const result = await libParseLibraryImportFile(file, langSource, title, {
+                    previewOnly: true,
+                    onProgress: message => {
+                        if (statusEl?.isConnected) statusEl.textContent = message;
+                    }
+                });
+                if (cancelled) return;
+                statusEl.textContent = `Đã đọc ${result.chapters?.length || 0} chương. ${customizeInput.checked ? 'Đang mở bản tùy chỉnh...' : 'Đang ghi vào thư viện...'}`;
+
+                if (customizeInput.checked) {
                     customizeDraft = {
                         ...result,
                         langSource,
                         sourceName: file.name
                     };
                 } else {
-                    showNotification(`Đã import: ${result.title} (${result.chapterCount} chương)`);
+                    committing = true;
+                    showLoading(`Đang lưu ${result.chapters?.length || 0} chương vào storage...`);
+                    const imported = await libImportChaptersToLibrary(
+                        result.chapters || [],
+                        langSource,
+                        result.title || title,
+                        result.author || '',
+                        result.metadata || {}
+                    );
+                    showNotification(`Đã import: ${imported.title} (${imported.chapterCount} chương)`);
                     isSuccess = true;
                 }
             } catch (err) {
                 console.error(err);
                 showNotification('Import thất bại: ' + (err.message || 'Lỗi không rõ'));
+                if (statusEl?.isConnected) statusEl.textContent = `Import lỗi: ${err.message || 'Không rõ lỗi'}`;
             } finally {
+                processing = false;
+                committing = false;
+                libCriticalTaskMessage = '';
                 removeLoading();
                 if (customizeDraft) {
                     close(true);
@@ -13269,6 +13810,12 @@ body.tmx-fullscreen .tmx-scroll {
                 } else if (isSuccess) {
                     close(true);
                     openLibraryListModal();
+                } else if (wrapper.isConnected) {
+                    startButton.disabled = false;
+                    fileInput.disabled = false;
+                    langSelect.disabled = false;
+                    titleInput.disabled = false;
+                    customizeInput.disabled = false;
                 }
             }
         });
@@ -13444,7 +13991,7 @@ body.tmx-fullscreen .tmx-scroll {
             stored.privateNameSet = { ...privateNames };
             stored.privateNameSetVersion = (stored.privateNameSetVersion || 1) + 1;
             stored.updatedAt = Date.now();
-            libSaveIndex(index);
+            await libSaveIndex(index);
             config = loadConfig();
             libSetBackupStatus({ state: 'dirty', message: 'Bộ Name của truyện có thay đổi chưa sao lưu.' });
             close(true);
@@ -13468,6 +14015,7 @@ body.tmx-fullscreen .tmx-scroll {
         removeElementById('tm-lib-book-info');
         const book = libFindBookInIndex(bookId);
         if (!book) return showNotification('Không tìm thấy truyện.');
+        await libEnsureBookCover(book);
         const chapters = await libGetChaptersByBook(bookId);
         const readerWasOpen = !!document.getElementById('tm-reader-overlay');
         const wrapper = document.createElement('div');
@@ -13563,6 +14111,7 @@ body.tmx-fullscreen .tmx-scroll {
             langSource: importDraft.langSource === 'vi' ? 'vi' : 'zh'
         } : libFindBookInIndex(bookId);
         if (!book) return showNotification('Không tìm thấy truyện.');
+        if (!isImportDraft) await libEnsureBookCover(book);
 
         const readerWasOpen = !isImportDraft && !!document.getElementById('tm-reader-overlay');
         let editableChapters = [];
@@ -13690,7 +14239,7 @@ body.tmx-fullscreen .tmx-scroll {
                 supplementalLinks: wrapper.querySelector('#tm-lib-edit-links')?.value || '',
                 langSource: wrapper.querySelector('#tm-lib-edit-lang')?.value || 'zh',
                 newCoverDataUrl: state.coverDataUrl || '',
-                chapters: state.chapters,
+                chaptersHash: libEditableChaptersHash(state.chapters),
                 regex: wrapper.querySelector('#tm-lib-edit-regex')?.value || '',
                 maxChars: wrapper.querySelector('#tm-lib-edit-max')?.value || ''
             });
@@ -13700,6 +14249,7 @@ body.tmx-fullscreen .tmx-scroll {
             if (!force && changed && !confirm('Bạn có thay đổi chưa lưu. Bỏ thay đổi và thoát khỏi màn hình chỉnh sửa?')) {
                 return false;
             }
+            libCriticalTaskMessage = '';
             wrapper.remove();
             if (isImportDraft) {
                 showNotification('Đã bỏ bản import tùy chỉnh.');
@@ -13824,6 +14374,7 @@ body.tmx-fullscreen .tmx-scroll {
         const regexInput = wrapper.querySelector('#tm-lib-edit-regex');
         const maxCharsInput = wrapper.querySelector('#tm-lib-edit-max');
         invalidateSplitPreview = (reason = 'Regex hoặc giới hạn đã thay đổi.') => {
+            libCriticalTaskMessage = 'TM Translate đang có bản chỉnh sửa truyện chưa lưu.';
             if (!state.preview) return;
             state.preview = null;
             useSplitBtn.disabled = true;
@@ -13892,6 +14443,7 @@ body.tmx-fullscreen .tmx-scroll {
         useSplitBtn.onclick = () => {
             if (!state.preview?.chapters?.length || useSplitBtn.disabled) return;
             state.chapters = state.preview.chapters.map(chapter => ({ title: chapter.title, text: chapter.text }));
+            libCriticalTaskMessage = 'TM Translate đang có bản chỉnh sửa truyện chưa lưu.';
             state.selectedIndex = 0;
             state.preview = null;
             selectChapter(0, false);
@@ -13926,6 +14478,7 @@ body.tmx-fullscreen .tmx-scroll {
                         supplementalLinks,
                         coverDataUrl: state.coverDataUrl || book.coverDataUrl || ''
                     });
+                    libCriticalTaskMessage = '';
                     wrapper.remove();
                     showNotification(`Đã import: ${result.title} (${result.chapterCount} chương)`);
                     openLibraryListModal();
@@ -13946,7 +14499,7 @@ body.tmx-fullscreen .tmx-scroll {
                 if (state.coverDataUrl) stored.coverDataUrl = state.coverDataUrl;
                 stored.authorTranslated = author ? await buildHanVietMixedName(author) : '';
                 stored.authorTranslatedSourceHash = author ? libHashString(author) : '';
-                libSaveIndex(index);
+                await libSaveIndex(index);
                 if (chaptersChanged) {
                     await libReplaceBookChapters(bookId, nextChapters);
                 } else if (changedTranslationSource) {
@@ -13962,6 +14515,7 @@ body.tmx-fullscreen .tmx-scroll {
                     libReaderState.bookTitleCache = new Map();
                     await libReaderLoadCurrentChapter();
                 }
+                libCriticalTaskMessage = '';
                 wrapper.remove();
                 showNotification('Đã lưu chỉnh sửa truyện.');
                 if (readerWasOpen) openLibraryBookInfo(bookId, { returnToLibrary: false });
@@ -13977,8 +14531,129 @@ body.tmx-fullscreen .tmx-scroll {
         renderChapterList();
         selectChapter(0, false);
         originalDraftSignature = buildDraftSignature();
+        if (isImportDraft) {
+            libCriticalTaskMessage = 'TM Translate đang giữ bản import chưa lưu. Rời trang sẽ làm mất bản nháp.';
+        }
+        const markEditorDirty = () => {
+            libCriticalTaskMessage = 'TM Translate đang có bản chỉnh sửa truyện chưa lưu.';
+        };
+        wrapper.addEventListener('input', markEditorDirty);
+        wrapper.addEventListener('change', markEditorDirty);
         wrapper.querySelector('#tm-lib-edit-close').onclick = () => close();
         wrapper.querySelector('#tm-lib-edit-cancel').onclick = () => close();
+    }
+
+    async function openLibraryExportModal(bookId) {
+        removeElementById('tm-lib-export-modal');
+        const book = libFindBookInIndex(bookId);
+        if (!book) return showNotification('Không tìm thấy truyện.');
+        const chapters = await libGetChaptersByBook(bookId);
+        if (!chapters.length) return showNotification('Truyện chưa có chương.');
+
+        const lastReadIndex = Math.max(0, chapters.findIndex(chapter => chapter.chapterId === book.lastReadChapterId));
+        const recommendation = libGetExportRecommendation({ ...book, chapterCount: chapters.length });
+        const wrapper = document.createElement('div');
+        wrapper.id = 'tm-lib-export-modal';
+        wrapper.className = 'tm-modal-wrapper';
+        wrapper.style.zIndex = '2147483677';
+        wrapper.innerHTML = `
+            <div class="tm-modal-backdrop"></div>
+            <div class="tm-modal-box" style="width:560px;">
+                <div class="tm-modal-header">
+                    <h3>Xuất file — ${escapeHtml(book.title || 'Untitled')}</h3>
+                    <button id="tm-lib-export-close" class="tm-btn" type="button">×</button>
+                </div>
+                <div class="tm-modal-content">
+                    <label class="tm-label">Loại file</label>
+                    <select id="tm-lib-export-type" class="tm-input">
+                        <option value="txt">TXT</option>
+                        <option value="epub" ${recommendation.recommended === 'epub' ? 'selected' : ''}>EPUB</option>
+                        <option value="html" ${recommendation.recommended === 'html' ? 'selected' : ''}>HTML</option>
+                    </select>
+                    <div id="tm-lib-export-hint" style="margin:-5px 0 12px;color:#64748b;font-size:12px;"></div>
+                    <label class="tm-label">Phạm vi xuất</label>
+                    <select id="tm-lib-export-scope" class="tm-input">
+                        <option value="all">Toàn bộ (${chapters.length} chương)</option>
+                        <option value="current">Chương đang đọc (${lastReadIndex + 1})</option>
+                        <option value="from-current">Từ chương đang đọc đến hết</option>
+                        <option value="range">Khoảng chương tùy chọn</option>
+                    </select>
+                    <div id="tm-lib-export-range" class="tm-row" hidden>
+                        <div class="tm-col"><label class="tm-label">Từ chương</label><input id="tm-lib-export-start" class="tm-input" type="number" min="1" max="${chapters.length}" value="1"></div>
+                        <div class="tm-col"><label class="tm-label">Đến chương</label><input id="tm-lib-export-end" class="tm-input" type="number" min="1" max="${chapters.length}" value="${chapters.length}"></div>
+                    </div>
+                    ${book.langSource === 'zh' ? `
+                        <label class="tm-import-customize" style="margin-bottom:12px;">
+                            <input id="tm-lib-export-translate" type="checkbox" checked>
+                            <span><strong>Dịch khi xuất</strong><br><small>Dùng cache hiện có và tự dịch phần còn thiếu bằng Bộ Name của truyện.</small></span>
+                        </label>
+                    ` : ''}
+                    <div id="tm-lib-export-epub-version">
+                        <label class="tm-label">Chuẩn EPUB</label>
+                        <select id="tm-lib-export-epub" class="tm-input">
+                            <option value="2">EPUB 2 — tương thích rộng</option>
+                            <option value="3">EPUB 3 — thiết bị/app mới</option>
+                        </select>
+                    </div>
+                    <p style="margin:0;color:#64748b;font-size:12px;">Khi cần dịch, delay giữa request tối thiểu là 800 ms; retry lỗi sẽ tăng dần delay có giới hạn.</p>
+                </div>
+                <div class="tm-modal-footer">
+                    <button id="tm-lib-export-start-btn" class="tm-btn tm-btn-primary" type="button">Xuất file</button>
+                    <button id="tm-lib-export-cancel" class="tm-btn" type="button">Bỏ</button>
+                </div>
+            </div>
+        `;
+        tmUIRoot.appendChild(wrapper);
+
+        const typeInput = wrapper.querySelector('#tm-lib-export-type');
+        const scopeInput = wrapper.querySelector('#tm-lib-export-scope');
+        const rangeRow = wrapper.querySelector('#tm-lib-export-range');
+        const epubRow = wrapper.querySelector('#tm-lib-export-epub-version');
+        const hint = wrapper.querySelector('#tm-lib-export-hint');
+        let busy = false;
+        const close = () => {
+            if (busy) return;
+            wrapper.remove();
+        };
+        const refresh = () => {
+            const type = typeInput.value;
+            rangeRow.hidden = scopeInput.value !== 'range';
+            epubRow.hidden = type !== 'epub';
+            hint.textContent = type === 'html' ? recommendation.htmlTitle
+                : (type === 'epub' ? recommendation.epubTitle : 'TXT gọn, dễ tìm kiếm và chỉnh sửa văn bản.');
+        };
+        typeInput.addEventListener('change', refresh);
+        scopeInput.addEventListener('change', refresh);
+        wrapper.querySelector('#tm-lib-export-close').onclick = close;
+        wrapper.querySelector('#tm-lib-export-cancel').onclick = close;
+        wrapper.querySelector('#tm-lib-export-start-btn').onclick = async () => {
+            let startIndex = 0;
+            let endIndex = chapters.length - 1;
+            if (scopeInput.value === 'current') {
+                startIndex = lastReadIndex;
+                endIndex = lastReadIndex;
+            } else if (scopeInput.value === 'from-current') {
+                startIndex = lastReadIndex;
+            } else if (scopeInput.value === 'range') {
+                startIndex = Math.max(0, Math.min(chapters.length - 1, Number(wrapper.querySelector('#tm-lib-export-start').value || 1) - 1));
+                endIndex = Math.max(startIndex, Math.min(chapters.length - 1, Number(wrapper.querySelector('#tm-lib-export-end').value || chapters.length) - 1));
+            }
+            const exportOptions = {
+                startIndex,
+                endIndex,
+                translateRaw: book.langSource === 'zh' ? !!wrapper.querySelector('#tm-lib-export-translate')?.checked : false,
+                epubVersion: Number(wrapper.querySelector('#tm-lib-export-epub').value) || 2
+            };
+            const type = typeInput.value;
+            busy = true;
+            wrapper.remove();
+            await withExportTranslationPolicy(async () => {
+                if (type === 'txt') await libExportBookTxt(bookId, exportOptions);
+                else if (type === 'html') await libExportBookHtml(bookId, exportOptions);
+                else await libExportBookEpub(bookId, exportOptions);
+            });
+        };
+        refresh();
     }
 
     function openLibraryListModal() {
@@ -14016,7 +14691,7 @@ body.tmx-fullscreen .tmx-scroll {
                         <div class="tm-library-menu-wrap">
                             <button class="tm-btn tm-library-menu-btn" id="tm-lib-menu-btn" type="button" title="Tùy chọn thư viện">☰</button>
                             <div class="tm-library-menu" id="tm-lib-menu">
-                                <button class="tm-btn tm-btn-primary" id="tm-lib-import-open" type="button">Import TXT/EPUB/Word</button>
+                                <button class="tm-btn tm-btn-primary" id="tm-lib-import-open" type="button">Import TXT/EPUB/ZIP/Word</button>
                                 <button class="tm-btn" id="tm-lib-clear-cache" type="button">Xóa cache dịch</button>
                                 <div class="tm-library-menu-row">
                                     <button class="tm-btn" id="tm-lib-backup" type="button">Sao lưu</button>
@@ -14088,9 +14763,7 @@ body.tmx-fullscreen .tmx-scroll {
                     <div id="tm-lib-progress-${escapeHtml(book.bookId)}" class="tm-library-progress">Tiến độ: ${formatProgressText(book)}</div>
                     <div class="tm-library-card-actions">
                         <button class="tm-btn tm-btn-primary tm-lib-open" data-book-id="${escapeHtml(book.bookId)}">Mở</button>
-                        <button class="tm-btn tm-lib-export-txt" data-book-id="${escapeHtml(book.bookId)}">TXT</button>
-                        ${libRenderExportButton('EPUB', 'epub', book)}
-                        ${libRenderExportButton('HTML', 'html', book)}
+                        <button class="tm-btn tm-lib-export" data-book-id="${escapeHtml(book.bookId)}">Xuất file...</button>
                         <button class="tm-btn tm-lib-delete" data-book-id="${escapeHtml(book.bookId)}" style="border-color:#dc3545;color:#dc3545;">Xóa</button>
                     </div>
                 </div>
@@ -14108,22 +14781,10 @@ body.tmx-fullscreen .tmx-scroll {
                     else openLibraryBookInfo(bookId);
                 };
             });
-            grid.querySelectorAll('.tm-lib-export-txt').forEach(btn => {
+            grid.querySelectorAll('.tm-lib-export').forEach(btn => {
                 btn.onclick = async () => {
                     const bookId = btn.getAttribute('data-book-id');
-                    if (bookId) await libExportBookTxt(bookId);
-                };
-            });
-            grid.querySelectorAll('.tm-lib-export-epub').forEach(btn => {
-                btn.onclick = async () => {
-                    const bookId = btn.getAttribute('data-book-id');
-                    if (bookId) await libExportBookEpub(bookId);
-                };
-            });
-            grid.querySelectorAll('.tm-lib-export-html').forEach(btn => {
-                btn.onclick = async () => {
-                    const bookId = btn.getAttribute('data-book-id');
-                    if (bookId) await libExportBookHtml(bookId);
+                    if (bookId) await openLibraryExportModal(bookId);
                 };
             });
             grid.querySelectorAll('.tm-lib-delete').forEach(btn => {
@@ -14166,6 +14827,9 @@ body.tmx-fullscreen .tmx-scroll {
             libTranslateLibraryTitles(wrapper, books);
             libUpdateLibraryProgress(wrapper, books);
             libSetupLibraryTitleMarquees(wrapper);
+            libHydrateBookCovers(wrapper, books).catch(err => {
+                console.warn('[tm-translate] Không tải được một số bìa thư viện:', err);
+            });
         };
 
         const applyFilter = async (resetOffset = true) => {
@@ -14323,7 +14987,7 @@ body.tmx-fullscreen .tmx-scroll {
     let libReaderTtsState = null;
 
     async function libGetChaptersByBook(bookId) {
-        let chapters = libLoadChaptersForBook(bookId);
+        let chapters = await libLoadChaptersForBookAsync(bookId);
         if (chapters.length > 0) {
             return chapters.sort((a, b) => (a.order || 0) - (b.order || 0));
         }
@@ -14334,7 +14998,7 @@ body.tmx-fullscreen .tmx-scroll {
             if (hasLegacy) {
                 console.log('[TM-Translate] Chapters trống trong GM, đang tự động chuyển từ IndexedDB cũ...');
                 await libMigrateLegacyData();
-                chapters = libLoadChaptersForBook(bookId);
+                chapters = await libLoadChaptersForBookAsync(bookId);
                 if (chapters.length > 0) {
                     console.log('[TM-Translate] Chuyển đổi thành công!', chapters.length, 'chương');
                 }
@@ -15526,6 +16190,10 @@ body.tmx-fullscreen .tmx-scroll {
             cancelAnimationFrame(libReaderState.scrollFrameId);
             libReaderState.scrollFrameId = 0;
         }
+        if (libReaderState?.prefetchScrollTimer) {
+            clearTimeout(libReaderState.prefetchScrollTimer);
+            libReaderState.prefetchScrollTimer = null;
+        }
         const el = document.getElementById('tm-reader-overlay');
         if (el) el.remove();
         libReaderState = null;
@@ -15684,15 +16352,27 @@ body.tmx-fullscreen .tmx-scroll {
         libReaderState.lastScrollRatio = ratio;
         libReaderState.lastScrollTop = wrap.scrollTop;
         libReaderState.lastScrollLeft = wrap.scrollLeft;
-        libReaderUpdateMiniInfo();
+        const now = performance.now();
+        if (!libReaderState.lastProgressPaintAt || now - libReaderState.lastProgressPaintAt >= 100 || ratio <= 0.002 || ratio >= 0.998) {
+            libReaderState.lastProgressPaintAt = now;
+            libReaderUpdateMiniInfo();
+        }
         if (libReaderState.scrollSaveTimer) clearTimeout(libReaderState.scrollSaveTimer);
         libReaderState.scrollSaveTimer = setTimeout(() => {
             libReaderSaveProgressNow();
-        }, 420);
+        }, 1200);
 
         const threshold = (config.readerPrefetchPercent || 50) / 100;
         if (ratio >= threshold && libReaderState.book.langSource === 'zh') {
-            libReaderPrefetchNextChapter();
+            if (libReaderState.prefetchScrollTimer) clearTimeout(libReaderState.prefetchScrollTimer);
+            libReaderState.prefetchScrollTimer = setTimeout(() => {
+                if (!libReaderState) return;
+                libReaderState.prefetchScrollTimer = null;
+                libReaderPrefetchNextChapter();
+            }, 900);
+        } else if (libReaderState.prefetchScrollTimer) {
+            clearTimeout(libReaderState.prefetchScrollTimer);
+            libReaderState.prefetchScrollTimer = null;
         }
 
         if (viewMode === 'vertical') {
@@ -16144,6 +16824,8 @@ body.tmx-fullscreen .tmx-scroll {
             prefetchRetryAfter: new Map(),
             scrollSaveTimer: null,
             scrollFrameId: 0,
+            prefetchScrollTimer: null,
+            lastProgressPaintAt: 0,
             chapterBoundaryGate: null,
             boundaryTouchY: null,
             fullscreen: false
@@ -16213,7 +16895,7 @@ body.tmx-fullscreen .tmx-scroll {
 <div class="tm-welcome-title">🌸 Chào mừng đến với TM Translate 🌸</div>
 		<div class="tm-welcome-sub">TM Translate v${CURRENT_VERSION} • Dịch trang web Trung → Việt, quản lý Name-set, Thư viện đọc offline, OCR dịch ảnh và TTS</div>
 		<div class="tm-welcome-banner">
-		  <strong>✨ v${CURRENT_VERSION}:</strong> Sửa chia lại chương, ổn định gợi ý Hán-Việt và thêm neo Latin cho dự đoán Edit Name beta.
+		  <strong>✨ v${CURRENT_VERSION}:</strong> Import lớn mượt và an toàn hơn, thêm ZIP, làm mới Xuất file và đồng bộ Bộ Name theo từng truyện.
 	</div>
 <div style="height:8px;"></div>
     `.trim();
@@ -16230,13 +16912,14 @@ body.tmx-fullscreen .tmx-scroll {
 - **Quay Về** (vàng): Quay lại trang gốc chưa dịch.
 
 ### 📚 Thư Viện & Đọc Truyện
-- Import **TXT/EPUB/DOCX/DOC/ODT/RTF/HTML**, chọn ngôn ngữ nguồn (Trung → có RAW/DỊCH, Việt → chỉ đọc). Mặc định bật **Tùy chỉnh trước khi nhập** để duyệt/sửa truyện rồi mới lưu; bỏ chọn để import tự động như cũ. EPUB có bìa nhúng sẽ tự lấy đúng bìa đó. DOC nhị phân cũ được đọc best-effort; nên đổi sang DOCX nếu file không đọc được.
+- Import **TXT/EPUB/ZIP/DOCX/DOC/ODT/RTF/HTML**, chọn ngôn ngữ nguồn (Trung → có RAW/DỊCH, Việt → chỉ đọc). ZIP có thể chứa một hoặc nhiều file được hỗ trợ. Mặc định bật **Tùy chỉnh trước khi nhập** để duyệt/sửa truyện rồi mới lưu; bỏ chọn để import tự động như cũ. File lớn hiện skeleton/trạng thái trước, chia chương và giải nén ở nền khi có thể. EPUB có bìa nhúng sẽ tự lấy đúng bìa đó. DOC nhị phân cũ được đọc best-effort; nên đổi sang DOCX nếu file không đọc được.
 - Truyện chưa đọc sẽ mở **trang Thông tin** trước; truyện đang đọc mở tiếp Reader. Trang Thông tin có bìa, tác giả Hán Việt, mô tả, link bổ sung, mục lục, Đọc ngay/Đọc tiếp và BN.
 - Reader có: Thông tin, BN, RAW/DỊCH, Fullscreen, Mục lục, cache dịch + prefetch chương, nút mở nhanh Cài đặt/TTS.
 - Thư viện hiển thị dạng toàn màn hình, truyện vừa import hoặc vừa đọc nằm trước, có tổng số truyện, phân trang/lazy load khi cuộn và bìa mặc định cho từng truyện.
 - Nút **Chỉnh sửa** cho phép sửa text gốc của tên truyện, tác giả, mô tả, bìa, link bổ sung, RAW/Việt; sửa tên/raw từng chương, chèn/xóa/đổi thứ tự chương và chia lại bằng regex có preview + giới hạn ký tự.
 - Popup Import Tùy chỉnh, Chỉnh sửa truyện và Edit Name không đóng khi chạm ra ngoài. Nếu nội dung đang sửa dở, nút Đóng/Bỏ sẽ hỏi xác nhận trước và giữ nguyên popup khi chọn quay lại sửa.
-- Ảnh bìa được lưu cùng metadata, đi theo backup và được đóng gói vào EPUB.
+- Nội dung chương và bìa được lưu thành các key riêng bằng API bất đồng bộ, tránh Tampermonkey phải chuyển cả thư viện trong một message 64 MiB. Dữ liệu bản cũ được dùng lại tự động khi cập nhật, không cần xóa/cài lại.
+- Ảnh bìa đi theo backup và được đóng gói vào EPUB.
 - Tên tác giả Trung được phiên âm Hán Việt, viết hoa và tách đúng ranh giới chữ Latin/Trung.
 - Ô tìm kiếm mặc định bật toàn bộ phạm vi: tên truyện, tác giả raw, tác giả dịch, raw Trung và cache dịch.
 - **BN** cho phép chọn nhiều Bộ Name Chung và quản lý một Bộ Name Riêng cho từng truyện (nhập file/text, thêm, sửa, xóa, xuất). Name Riêng luôn ưu tiên hơn Name Chung; Edit Name trong Reader mặc định lưu vào Riêng nhưng có thể chọn một bộ Chung đang áp dụng. Tên truyện và văn án cũng dùng đúng tổ hợp BN này khi dịch.
@@ -16251,7 +16934,8 @@ body.tmx-fullscreen .tmx-scroll {
 - **Xóa rác** luôn mở popup để sửa đoạn raw trước khi xác nhận; có tùy chọn không phân biệt hoa thường khi cần.
 - Kiểu đọc cuộn dọc: chạm đầu/cuối chương rồi cuộn thêm một nhịp mới chuyển chương.
 - Tự lưu **tiến độ đọc** (chương + vị trí cuộn).
-- Xuất **TXT/EPUB/HTML** với cache dịch & Bộ Name đã chọn của truyện. TXT bắt đầu bằng Tên sách, Tác giả, Mô tả rồi mới tới từng cặp tên chương/nội dung. EPUB và HTML đều có trang Thông tin gồm metadata, link bổ sung và mục lục; HTML mở trang này trước khi vào Reader. Truyện lớn sẽ được đề xuất xuất **EPUB** vì HTML nhúng toàn bộ data dễ lag khi mở/xem.
+- Nút **Xuất file...** mở lựa chọn TXT/EPUB/HTML, phạm vi toàn bộ/chương đang đọc/từ chương đang đọc/khoảng tùy chọn, Dịch khi xuất cho RAW và EPUB 2/3. Bản xuất dùng đúng Bộ Name của truyện theo ưu tiên **Name Riêng > Name Chung**, đồng thời sửa lại viết hoa Name trong cache cũ. TXT bắt đầu bằng Tên sách, Tác giả, Mô tả rồi mới tới từng cặp tên chương/nội dung. EPUB và HTML đều có trang Thông tin gồm metadata, link bổ sung và mục lục; HTML mở trang này trước khi vào Reader.
+- Khi dịch trong lúc xuất, khoảng cách giữa hai request tối thiểu 800 ms nếu cài đặt thấp hơn. Request lỗi sẽ retry với delay tăng dần có giới hạn; request thành công kế tiếp trở về delay xuất mặc định.
 
 ### 📷 OCR (Dịch Ảnh)
 - Chạy trên trình duyệt (không gửi ảnh lên server lạ).
@@ -16276,39 +16960,20 @@ body.tmx-fullscreen .tmx-scroll {
     `.trim();
 
     const changelogMarkdown = `
-### ✨ v3.5.5.12_beta
-- Khi chia lại chương bằng regex, tự loại đúng các tiêu đề chương cũ mà editor đã chèn tạm để ghép RAW; các dòng \`Chương 1\`, \`Chương 2\`... không còn lọt vào nội dung chương mới.
-- Sửa từ điển Hán-Việt: lỗi mạng/JSON tạm thời không còn cache rỗng đến hết phiên; script thử tải lại, dùng lại cache theo đúng URL và báo rõ thay vì hiển thị nguyên chữ Trung trong cột Hán-Việt.
-- Dự đoán Edit Name beta dùng thêm chữ/từ/câu Latin được giữ nguyên làm mốc chắc chắn, kể cả neo một ký tự như \`X\`. Ví dụ \`罗浮玉X高挚\`, tô \`La Phù ngọc\` chỉ lấy \`罗浮玉\` thay vì cả cụm.
-- Tối ưu giao diện phone: toolbar Reader thu thành một hàng nút cuộn ngang thay vì nhiều hàng che nội dung; tiêu đề Chỉnh sửa truyện/BN dùng cỡ chữ cố định, tự rút gọn tên dài và không còn phình theo CSS của website.
-- Edit Name beta không còn coi dấu nối nằm trong từ Latin như \`pop-up\`, \`e-mail\` hoặc \`X-2\` là dấu chia câu; bản dịch tự chèn từ ghép có gạch nối sẽ không làm toàn đoạn fallback.
+### ✨ v3.5.5.13_beta
+- Sửa export TXT/EPUB/HTML dùng đúng tổ hợp Bộ Name của từng truyện theo ưu tiên **Name Riêng > Name Chung**. Name đã có trong cache cũ cũng được khôi phục cách viết hoa chuẩn theo RAW, không còn bị hạ thành \`lý Nhược Hi\` sau dấu nháy.
+- Gom ba nút TXT/EPUB/HTML thành **Xuất file...**: chọn định dạng, toàn bộ/chương hiện tại/từ chương hiện tại/khoảng chương, bật/tắt dịch RAW khi xuất và chọn EPUB 2 hoặc EPUB 3.
+- Khi dịch lúc xuất, delay giữa hai request tối thiểu 800 ms nếu cấu hình thấp hơn. Retry áp dụng cả request đơn; mỗi lần lỗi tăng delay dần tới giới hạn, lần gọi thành công kế tiếp trở về nhịp xuất mặc định.
+- Thêm import ZIP chứa TXT/EPUB/ZIP/Word/RTF/ODT/HTML. Import lớn hiện skeleton/trạng thái ngay, giải nén và chia chương ở nền; EPUB nhiều chương nhường khung hình định kỳ để trang không bị khóa lâu.
+- Chuyển kho Thư viện sang API \`GM.*\` bất đồng bộ và tách bìa khỏi index lớn, tránh Tampermonkey gom toàn bộ RAW/cache/bìa vào message khởi tạo vượt 64 MiB. Dữ liệu cũ giữ nguyên key và tự dùng lại sau update, không cần xóa/cài lại script.
+- Import/chỉnh sửa đang dở cảnh báo khi đóng hoặc rời trang. Ghi nội dung được chia thành batch nhỏ và lỗi storage được trả đúng về thao tác đang chờ thay vì bị nuốt.
+- Giảm giật Reader: bỏ hiệu ứng/CSS gây thay đổi chiều cao khi đang cuộn, hoãn lưu tiến độ và prefetch tới lúc cuộn nghỉ lâu hơn, đồng thời giảm số lần vẽ tiến độ.
+- Edit Name thông minh vẫn chỉ dịch/vá các paragraph bị ảnh hưởng. Khi vá nhiều Name, Reader giữ mốc đọc nếu user không thao tác; nếu user tự cuộn giữa lúc cập nhật thì dừng kéo về mốc cũ.
 
-### ✨ v3.5.5.11_beta
-- Popup Import Tùy chỉnh, Chỉnh sửa truyện và Edit Name không còn tự đóng khi chạm nền; khi có bản nháp chưa lưu, nút Đóng/Bỏ hỏi xác nhận và cho quay lại sửa.
-- Edit Name trong Reader mặc định lưu vào Bộ Name Riêng của truyện; có thể đổi sang một Bộ Name Chung đang áp dụng. Tên truyện và văn án cũng dịch bằng đúng tổ hợp BN hiệu lực.
-- Marquee tên truyện dài chạy vòng một chiều liền mạch, không chạy tới cuối rồi quay ngược.
-- Khi tắt Edit Name, bản dịch được ghi thẳng vào text-node/link, không thêm wrapper span hoặc tooltip \`title\` làm ảnh hưởng DOM trang.
-- Thêm dự đoán cụm Trung/Việt beta: dấu câu chia cụm lớn, Name đang áp dụng tạo các biên chắc chắn, sau đó mốc Hán Việt tiếp tục thu hẹp phần text giữa các Name. Tô chạm hoặc xuyên nhiều Name sẽ lấy trọn Name và ghép liên tục; hai ô Trung/Việt luôn nới theo cùng biên.
-- Bổ sung nhận diện các họ ngoặc, dấu nháy, \`《》\`, dấu ba chấm/gạch ngang và dấu Unicode; sửa chọn bên trong Name luôn hiện trọn cặp Trung/Việt. Khi tắt beta, cả hai ô trở về nguyên khối Trung/Việt tương ứng như trước v3.5.5.10_beta; thanh thao tác vùng chọn cũng tự ẩn để không đè popup trên phone.
-- Sửa predictor hiểu cụm dấu tương đương khi DichNgay chèn khoảng trắng giữa hai dấu, như RAW \`，“\` và bản Việt \`, “\`; nhờ đó các mốc Hán Việt ngay sau lời thoại không còn bị fallback nguyên khối.
-- Vùng tô dở giữa chữ được snap tới biên token Việt trước khi so Hán Việt: tô \`Bạch tu\` hoặc chỉ \`ạch t\` đều nhận cùng cặp \`白修\` → \`Bạch tu\`, không nới thừa sang \`不信\`.
-- TXT export bổ sung header Tên sách/Tác giả/Mô tả; mỗi tên chương nằm ngay trên nội dung và các chương cách nhau một dòng trống.
-- Khôi phục Edit Name thông minh trong Reader: chỉ dịch lại các paragraph chứa key Name thay đổi, ghép vào cache cũ và vá DOM tại chỗ; đoạn không liên quan cùng vị trí cuộn được giữ nguyên.
-- Giảm khựng khi cuộn Reader: xử lý scroll theo animation frame, chặn prefetch trùng/throttle retry, tránh ghi DOM không đổi, bỏ blur/smooth thừa và không chạy kép Pointer + Touch trên mobile.
-- Làm mới bìa mặc định theo kiểu bìa sách nhiều dòng dễ đọc hơn; khi import EPUB sẽ ưu tiên bìa nhúng, kể cả EPUB dùng cover page/guide hoặc metadata không chuẩn.
-- Truyện vừa import luôn nổi lên đầu Thư viện để mở ngay, sau đó vẫn sắp xếp tự nhiên theo lần đọc gần nhất.
-
-### ✨ v3.5.5.10_beta
-- Sửa nút Edit Name mất nền xanh và sửa tooltip text gốc bị gán lệch khi tắt Edit Name.
-- Làm mới Cài đặt responsive cho phone; tab cuộn ngang, form/footer không còn bị cắt.
-- Thư viện thêm marquee tên dài, trang Thông tin, chỉnh metadata RAW/bìa/link/RAW-Việt và chia lại chương bằng regex có preview + giới hạn ký tự.
-- EPUB mang theo bìa user chọn; HTML mở ở trang Thông tin và Reader có nút quay lại.
-- Thêm Bộ Name Riêng theo truyện, chọn nhiều Bộ Name Chung, ưu tiên Riêng > Chung; BN có ở Reader và trang Thông tin.
-- Phiên âm Hán Việt + viết hoa tên tác giả, thêm bộ lọc tác giả dịch và bật sẵn toàn bộ phạm vi tìm kiếm.
-- Import thêm DOCX/DOC/ODT/RTF/HTML; gộp 17.054 mục hán việt vào từ điển Hán Việt.
-- Chỉnh sửa thêm editor tên/raw từng chương cùng thao tác chèn, xóa, đổi thứ tự; tất cả nằm trong bản nháp cho tới khi lưu.
-- Import file mặc định bật Tùy chỉnh để duyệt/sửa trước khi ghi vào Thư viện; có thể bỏ chọn để import tự động như trước.
-- EPUB thêm trang Thông tin riêng gồm bìa, tên truyện, tác giả, mô tả, link bổ sung và mục lục chương.
+### 📦 v3.5.5.10_beta - v3.5.5.12_beta (tóm tắt)
+- Hoàn thiện UI phone, trang Thông tin, chỉnh metadata/raw/chương và chia regex; thêm Name Riêng, nhiều Name Chung, tác giả Hán-Việt, bìa EPUB, import Word và export có trang Thông tin.
+- Ổn định Edit Name beta bằng dấu câu/Name/Hán-Việt/neo Latin, sửa fallback và cặp Trung-Việt; vá cache theo paragraph, tối ưu Reader, marquee tên truyện và thứ tự truyện mới import.
+- Sửa chia lại chương còn sót tiêu đề cũ, tải lại từ điển Hán-Việt khi lỗi, giao diện Reader/BN/Chỉnh sửa trên phone và nhận diện từ Latin có dấu nối.
 
 ### 📦 Các bản trước (tóm tắt)
 - v3.5.5.8 - v3.5.5.9: backup/restore JSONL dung lượng lớn, CSS thư viện cách ly và sửa popup Hướng dẫn.
@@ -16353,12 +17018,16 @@ body.tmx-fullscreen .tmx-scroll {
         const updateBanner = `
 	<div class="tm-update-banner">
 	  <div style="font-size:15px;font-weight:700;">🌈 TM Translate v${CURRENT_VERSION} đã sẵn sàng!</div>
-	  <div style="font-size:12px;color:#6a4f7a;">Edit Name an toàn hơn, ưu tiên Name Riêng và tối ưu đồng thời cụm Trung/Việt theo dấu câu + Hán Việt.</div>
+	  <div style="font-size:12px;color:#6a4f7a;">Import lớn an toàn hơn, xuất file linh hoạt và đồng bộ đúng Bộ Name của từng truyện.</div>
 	</div>`.trim();
         openHelpModal([updateBanner, renderHelpMarkdown(changelogMarkdown)].join('\n'));
     }
 
     /* ================== INIT ================== */
+
+    void libCompactLibraryIndexStorage().catch(err => {
+        console.error('[tm-translate] Không thể tách bìa khỏi index thư viện:', err);
+    });
 
     if (checkBlacklistStatus()) {
         console.log('[tm-translate] Trang này nằm trong Blacklist. Script đã dừng hoạt động.');
@@ -16401,15 +17070,15 @@ body.tmx-fullscreen .tmx-scroll {
 
     // Version check → show welcome/update popup
     setTimeout(() => {
-        const storedVer = GM_getValue(TM_VERSION_KEY, null);
+        const storedVer = tmStorageGetCached(TM_VERSION_KEY, null);
         if (!storedVer) {
             openHelpModalFull();
-            GM_setValue(TM_VERSION_KEY, CURRENT_VERSION);
+            void tmStorageSet(TM_VERSION_KEY, CURRENT_VERSION);
             return;
         }
         if (storedVer !== CURRENT_VERSION) {
             openHelpModalUpdateOnly();
-            GM_setValue(TM_VERSION_KEY, CURRENT_VERSION);
+            void tmStorageSet(TM_VERSION_KEY, CURRENT_VERSION);
         }
     }, 1200);
 
