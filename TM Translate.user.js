@@ -59,12 +59,87 @@
     const TM_STORAGE_CODEC = 'gzip-json-v1';
     const TM_STORAGE_CODEC_FIELD = '__tmTranslateStorageCodec';
     const TM_STORAGE_COMPRESSION_MARKER = 'tm_storage_compression_v1';
+    const TM_LIBRARY_QUICK_OPEN_KEY = 'tm_lib_quick_open_v1';
     const TM_STORAGE_COMPRESSION_VERSION = 1;
     const TM_STORAGE_COMPRESSION_MIN_BYTES = 1024;
     const TM_STORAGE_LARGE_PREFIXES = ['tm_lib_chapters_', 'tm_lib_c_'];
+    const TM_STORAGE_WARN_BYTES = 36 * 1024 * 1024;
+    const TM_STORAGE_CLEANUP_BYTES = 42 * 1024 * 1024;
+    const TM_STORAGE_HARD_BYTES = 50 * 1024 * 1024;
+    const TM_STORAGE_GUARDED_PREFIXES = [...TM_STORAGE_LARGE_PREFIXES, 'tm_lib_cover_'];
+    const TM_STORAGE_GUARDED_KEYS = ['tm_lib_index_v1'];
+    const tmStorageSizes = new Map();
+    let tmStorageUsageBytes = 0;
+    let tmStorageUsagePromise = null;
+    let tmStorageUsageReady = false;
+    let tmStoragePressureHandler = null;
+    let tmStoragePressureActive = false;
+    let tmStorageNextCleanupBytes = TM_STORAGE_CLEANUP_BYTES;
 
     function tmIsLargeStorageKey(key) {
         return TM_STORAGE_LARGE_PREFIXES.some(prefix => String(key || '').startsWith(prefix));
+    }
+
+    function tmIsGuardedStorageKey(key) {
+        const normalized = String(key || '');
+        return TM_STORAGE_GUARDED_KEYS.includes(normalized)
+            || TM_STORAGE_GUARDED_PREFIXES.some(prefix => normalized.startsWith(prefix));
+    }
+
+    function tmEstimateStoredValueBytes(key, value) {
+        try {
+            const json = JSON.stringify([String(key || ''), value]);
+            return new TextEncoder().encode(json === undefined ? String(value ?? '') : json).byteLength + 64;
+        } catch (_) {
+            return String(key || '').length + String(value ?? '').length + 64;
+        }
+    }
+
+    async function tmRefreshStorageUsage() {
+        const keys = await GM.listValues();
+        const nextSizes = new Map();
+        let total = 0;
+        for (let i = 0; i < keys.length; i++) {
+            const key = keys[i];
+            const size = tmEstimateStoredValueBytes(key, await GM.getValue(key));
+            nextSizes.set(key, size);
+            total += size;
+            if ((i + 1) % 16 === 0) await new Promise(resolve => setTimeout(resolve, 0));
+        }
+        tmStorageSizes.clear();
+        nextSizes.forEach((size, key) => tmStorageSizes.set(key, size));
+        tmStorageUsageBytes = total;
+        tmStorageNextCleanupBytes = total < TM_STORAGE_CLEANUP_BYTES
+            ? TM_STORAGE_CLEANUP_BYTES
+            : Math.max(TM_STORAGE_CLEANUP_BYTES, total);
+        tmStorageUsageReady = true;
+        return total;
+    }
+
+    async function tmEnsureStorageUsageReady() {
+        if (tmStorageUsageReady) return tmStorageUsageBytes;
+        if (!tmStorageUsagePromise) {
+            tmStorageUsagePromise = tmRefreshStorageUsage().finally(() => {
+                tmStorageUsagePromise = null;
+            });
+        }
+        return await tmStorageUsagePromise;
+    }
+
+    function tmGetStorageUsageBytes() {
+        return tmStorageUsageReady ? tmStorageUsageBytes : null;
+    }
+
+    function tmCreateStorageLimitError(projectedBytes, label = 'dữ liệu mới') {
+        const usedMiB = (tmStorageUsageBytes / 1024 / 1024).toFixed(1);
+        const projectedMiB = (projectedBytes / 1024 / 1024).toFixed(1);
+        const error = new Error(
+            `Kho Tampermonkey đang dùng khoảng ${usedMiB} MiB và ${label} có thể đẩy lên ${projectedMiB} MiB, `
+            + `vượt ngưỡng an toàn 50 MiB. Cache dịch đã được dọn nếu có; hãy sao lưu rồi xóa bớt truyện, dùng bìa nhỏ hơn hoặc chọn lưu trên thiết bị.`
+        );
+        error.code = 'TM_STORAGE_LIMIT';
+        error.projectedBytes = projectedBytes;
+        return error;
     }
 
     function tmIsCompressedStorageValue(value) {
@@ -249,6 +324,7 @@
         'twd_tts_reader_settings_v1',
         'tm_lib_index_v1',
         'tm_lib_backup_status_v1',
+        TM_LIBRARY_QUICK_OPEN_KEY,
         'tm_translate_version'
     ];
     const tmBootstrapStorage = new Map();
@@ -264,14 +340,65 @@
         }
     }
 
-    async function tmStorageSet(key, value) {
-        await GM.setValue(key, await tmEncodeStorageValue(key, value));
+    async function tmStorageSet(key, value, options = {}) {
+        const guarded = tmIsGuardedStorageKey(key);
+        if (guarded) await tmEnsureStorageUsageReady();
+        let encoded = Object.prototype.hasOwnProperty.call(options, 'preparedValue')
+            ? options.preparedValue
+            : await tmEncodeStorageValue(key, value);
+        const oldSize = tmStorageSizes.get(key) || 0;
+        let newSize = tmEstimateStoredValueBytes(key, encoded);
+
+        if (guarded && !tmStoragePressureActive && newSize > oldSize
+            && tmStorageUsageBytes - oldSize + newSize >= tmStorageNextCleanupBytes
+            && typeof tmStoragePressureHandler === 'function') {
+            tmStoragePressureActive = true;
+            try {
+                const attemptedProjected = tmStorageUsageBytes - oldSize + newSize;
+                const result = await tmStoragePressureHandler({ key, projectedBytes: attemptedProjected });
+                const retryGap = result?.freedBytes > 0 ? 2 * 1024 * 1024 : 4 * 1024 * 1024;
+                const retryBase = result?.freedBytes > 0 ? tmStorageUsageBytes : attemptedProjected;
+                tmStorageNextCleanupBytes = Math.min(
+                    TM_STORAGE_HARD_BYTES,
+                    Math.max(TM_STORAGE_CLEANUP_BYTES, retryBase + retryGap)
+                );
+            } finally {
+                tmStoragePressureActive = false;
+            }
+            // Handler có thể vừa xóa transKey ngay trên chapter array đang được giữ trong cache.
+            // Nén lại array đó để lần ghi đang chờ không khôi phục reference cache cũ.
+            if (String(key || '').startsWith('tm_lib_chapters_')) {
+                encoded = await tmEncodeStorageValue(key, value);
+                newSize = tmEstimateStoredValueBytes(key, encoded);
+            }
+        }
+
+        const refreshedOldSize = tmStorageSizes.get(key) || 0;
+        const projectedBytes = tmStorageUsageBytes - refreshedOldSize + newSize;
+        const mustProtect = tmIsGuardedStorageKey(key);
+        if (guarded && !tmStoragePressureActive && mustProtect
+            && newSize > refreshedOldSize && projectedBytes > TM_STORAGE_HARD_BYTES) {
+            throw tmCreateStorageLimitError(projectedBytes);
+        }
+
+        await GM.setValue(key, encoded);
+        if (tmStorageUsageReady) {
+            tmStorageSizes.set(key, newSize);
+            tmStorageUsageBytes = Math.max(0, tmStorageUsageBytes - refreshedOldSize + newSize);
+        }
         if (TM_BOOTSTRAP_STORAGE_KEYS.includes(key)) tmBootstrapStorage.set(key, value);
         return value;
     }
 
     async function tmStorageDelete(key) {
+        if (tmIsGuardedStorageKey(key)) await tmEnsureStorageUsageReady();
         await GM.deleteValue(key);
+        if (tmStorageUsageReady) {
+            const oldSize = tmStorageSizes.get(key) || 0;
+            tmStorageSizes.delete(key);
+            tmStorageUsageBytes = Math.max(0, tmStorageUsageBytes - oldSize);
+            if (tmStorageUsageBytes < TM_STORAGE_CLEANUP_BYTES) tmStorageNextCleanupBytes = TM_STORAGE_CLEANUP_BYTES;
+        }
         if (TM_BOOTSTRAP_STORAGE_KEYS.includes(key)) tmBootstrapStorage.delete(key);
     }
 
@@ -282,6 +409,74 @@
 
     function tmStorageGetCached(key, fallback = null) {
         return tmBootstrapStorage.has(key) ? tmBootstrapStorage.get(key) : fallback;
+    }
+
+    async function tmStorageAssertBatchFits(entries, label = 'dữ liệu import', options = {}) {
+        const uniqueEntries = new Map();
+        for (const entry of entries || []) {
+            if (!entry || !entry.key) continue;
+            uniqueEntries.set(String(entry.key), entry.value);
+        }
+        const removeKeys = new Set((options.removeKeys || [])
+            .map(key => String(key || ''))
+            .filter(key => key && !uniqueEntries.has(key)));
+        if (!uniqueEntries.size && !removeKeys.size) {
+            return { preparedValues: null, projectedBytes: await tmEnsureStorageUsageReady() };
+        }
+
+        await tmEnsureStorageUsageReady();
+        let conservativeProjected = tmStorageUsageBytes;
+        for (const key of removeKeys) conservativeProjected -= tmStorageSizes.get(key) || 0;
+        for (const [key, value] of uniqueEntries) {
+            conservativeProjected -= tmStorageSizes.get(key) || 0;
+            conservativeProjected += tmEstimateStoredValueBytes(key, value);
+        }
+        if (conservativeProjected < TM_STORAGE_CLEANUP_BYTES) {
+            return { preparedValues: null, projectedBytes: conservativeProjected };
+        }
+
+        const preparedValues = new Map();
+        const incomingSizes = new Map();
+        for (const [key, value] of uniqueEntries) {
+            const encoded = await tmEncodeStorageValue(key, value);
+            preparedValues.set(key, encoded);
+            incomingSizes.set(key, tmEstimateStoredValueBytes(key, encoded));
+            if (preparedValues.size % 8 === 0) await new Promise(resolve => setTimeout(resolve, 0));
+        }
+
+        const calculateProjected = () => {
+            let projected = tmStorageUsageBytes;
+            for (const key of removeKeys) projected -= tmStorageSizes.get(key) || 0;
+            for (const [key, size] of incomingSizes) {
+                projected -= tmStorageSizes.get(key) || 0;
+                projected += size;
+            }
+            return projected;
+        };
+
+        let projectedBytes = calculateProjected();
+        if (projectedBytes >= TM_STORAGE_CLEANUP_BYTES && typeof tmStoragePressureHandler === 'function') {
+            tmStoragePressureActive = true;
+            try {
+                const result = await tmStoragePressureHandler({ key: '', projectedBytes, reason: 'batch' });
+                const retryGap = result?.freedBytes > 0 ? 2 * 1024 * 1024 : 4 * 1024 * 1024;
+                const retryBase = result?.freedBytes > 0 ? tmStorageUsageBytes : projectedBytes;
+                tmStorageNextCleanupBytes = Math.min(
+                    TM_STORAGE_HARD_BYTES,
+                    Math.max(TM_STORAGE_CLEANUP_BYTES, retryBase + retryGap)
+                );
+            } finally {
+                tmStoragePressureActive = false;
+            }
+            projectedBytes = calculateProjected();
+            // Batch đã dọn cache và được đo trọn gói; đừng quét lại giữa lúc đang ghi chính batch đó.
+            tmStorageNextCleanupBytes = Math.min(TM_STORAGE_HARD_BYTES, Math.max(
+                tmStorageNextCleanupBytes,
+                projectedBytes + 2 * 1024 * 1024
+            ));
+        }
+        if (projectedBytes > TM_STORAGE_HARD_BYTES) throw tmCreateStorageLimitError(projectedBytes, label);
+        return { preparedValues, projectedBytes };
     }
 
     await tmMigrateLargeStorageCompression();
@@ -2388,7 +2583,7 @@
         const now = Date.now();
         const oldRawKey = chapter.rawKey;
         const oldTransKey = chapter.transKey;
-        const nextRawKey = libMakeRawKey(chapter.chapterId, normalizedText);
+        const nextRawKey = libMakeRawKey(chapter.chapterId, normalizedText, context.book);
         await libPutMany('tm_content', [{
             ...raw,
             key: nextRawKey,
@@ -10143,6 +10338,9 @@
     const LIB_CHAPTERS_PREFIX = 'tm_lib_chapters_';
     const LIB_CONTENT_PREFIX = 'tm_lib_c_';
     const LIB_COVER_PREFIX = 'tm_lib_cover_';
+    const LIB_COVER_OPTIMIZE_TRIGGER_CHARS = 256 * 1024;
+    const LIB_COVER_MAX_WIDTH = 720;
+    const LIB_COVER_MAX_HEIGHT = 1080;
     const LIB_EXPORT_HTML_RECOMMEND_MAX_CHAPTERS = 180;
     const LIB_EXPORT_HTML_RECOMMEND_MAX_BYTES = 2 * 1024 * 1024;
     const LIB_EXPORT_HTML_WARN_CHAPTERS = 260;
@@ -10153,10 +10351,19 @@
     const LIB_BACKUP_STATUS_KEY = 'tm_lib_backup_status_v1';
     const LIB_BACKUP_MIN_INTERVAL_HOURS = 0.25;
     const LIB_BACKUP_MAX_INTERVAL_HOURS = 168;
+    const LIB_STORAGE_BACKEND_GM = 'gm';
+    const LIB_STORAGE_BACKEND_LOCAL = 'local';
+    const LIB_LOCAL_DB_NAME = 'tm_translate_library_local_v1';
+    const LIB_LOCAL_DB_VERSION = 1;
+    const LIB_LOCAL_OPFS_DIR = 'tm-translate-library-v1';
     const libTitleCache = new Map();
     const libChapterCache = new Map();
     const libCoverCache = new Map();
+    const libBookStorageCache = new Map();
     let libStorageWriteQueue = Promise.resolve();
+    let libLocalDbPromise = null;
+    let libOpfsRootPromise = null;
+    let libLocalPersistencePromise = null;
     let libCriticalTaskMessage = '';
     let libBackupTask = null;
     let libBackupScheduleTimer = 0;
@@ -10181,6 +10388,316 @@
         await libStorageWriteQueue;
     }
 
+    function libCurrentStorageOrigin() {
+        return String(location.origin || `${location.protocol}//${location.host}` || '');
+    }
+
+    function libCurrentStorageEntryUrl() {
+        try {
+            const url = new URL(location.href);
+            url.hash = '';
+            return url.href;
+        } catch (_) {
+            return location.href;
+        }
+    }
+
+    function libNormalizeStorageBackend(value) {
+        return value === LIB_STORAGE_BACKEND_LOCAL ? LIB_STORAGE_BACKEND_LOCAL : LIB_STORAGE_BACKEND_GM;
+    }
+
+    function libRememberBookStorage(book) {
+        if (book?.bookId) libBookStorageCache.set(book.bookId, book);
+        return book;
+    }
+
+    function libGetBookStorageInfo(bookId) {
+        return libBookStorageCache.get(bookId) || libFindBookInIndex(bookId) || null;
+    }
+
+    function libIsLocalBook(book) {
+        return libNormalizeStorageBackend(book?.storageBackend) === LIB_STORAGE_BACKEND_LOCAL;
+    }
+
+    function libCanAccessBookStorage(book) {
+        return !libIsLocalBook(book) || String(book?.storageOrigin || '') === libCurrentStorageOrigin();
+    }
+
+    function libBookStorageLabel(book) {
+        if (!libIsLocalBook(book)) return 'TM';
+        try {
+            return `Máy · ${new URL(book.storageOrigin).host || book.storageOrigin}`;
+        } catch (_) {
+            return `Máy · ${book?.storageOrigin || 'domain cũ'}`;
+        }
+    }
+
+    function libAssertBookStorageAccess(book) {
+        if (libCanAccessBookStorage(book)) return;
+        const error = new Error(`Truyện này được lưu cục bộ tại ${book?.storageOrigin || 'domain khác'}.`);
+        error.code = 'TM_LOCAL_WRONG_ORIGIN';
+        throw error;
+    }
+
+    function libContentBookId(key) {
+        const match = String(key || '').match(/^(?:raw|tr)_(bk_[a-z0-9]+)_/i);
+        return match?.[1] || '';
+    }
+
+    function libContentBelongsToBook(key, bookId) {
+        return !!bookId && libContentBookId(key) === bookId;
+    }
+
+    function libLocalDbRequest(request) {
+        return new Promise((resolve, reject) => {
+            request.onsuccess = () => resolve(request.result);
+            request.onerror = () => reject(request.error || new Error('IndexedDB request thất bại.'));
+        });
+    }
+
+    function libOpenLocalDb() {
+        if (libLocalDbPromise) return libLocalDbPromise;
+        if (!globalThis.indexedDB) {
+            return Promise.reject(new Error('Trình duyệt không hỗ trợ IndexedDB trên domain này.'));
+        }
+        libLocalDbPromise = new Promise((resolve, reject) => {
+            const request = indexedDB.open(LIB_LOCAL_DB_NAME, LIB_LOCAL_DB_VERSION);
+            request.onupgradeneeded = () => {
+                const db = request.result;
+                ['chapters', 'content', 'covers'].forEach(name => {
+                    if (!db.objectStoreNames.contains(name)) db.createObjectStore(name);
+                });
+            };
+            request.onsuccess = () => {
+                request.result.onversionchange = () => request.result.close();
+                resolve(request.result);
+            };
+            request.onerror = () => reject(request.error || new Error('Không mở được IndexedDB local.'));
+        });
+        return libLocalDbPromise;
+    }
+
+    async function libLocalStoreGet(storeName, key, fallback = null) {
+        const db = await libOpenLocalDb();
+        const value = await libLocalDbRequest(db.transaction(storeName, 'readonly').objectStore(storeName).get(key));
+        return value === undefined ? fallback : value;
+    }
+
+    async function libLocalStoreSet(storeName, key, value) {
+        const db = await libOpenLocalDb();
+        const tx = db.transaction(storeName, 'readwrite');
+        tx.objectStore(storeName).put(value, key);
+        await new Promise((resolve, reject) => {
+            tx.oncomplete = resolve;
+            tx.onerror = () => reject(tx.error || new Error('Không ghi được IndexedDB local.'));
+            tx.onabort = () => reject(tx.error || new Error('IndexedDB local đã hủy giao dịch.'));
+        });
+        return value;
+    }
+
+    async function libLocalStoreDelete(storeName, key) {
+        const db = await libOpenLocalDb();
+        const tx = db.transaction(storeName, 'readwrite');
+        tx.objectStore(storeName).delete(key);
+        await new Promise((resolve, reject) => {
+            tx.oncomplete = resolve;
+            tx.onerror = () => reject(tx.error || new Error('Không xóa được IndexedDB local.'));
+            tx.onabort = () => reject(tx.error || new Error('IndexedDB local đã hủy giao dịch.'));
+        });
+    }
+
+    async function libLocalStoreKeys(storeName) {
+        const db = await libOpenLocalDb();
+        return await libLocalDbRequest(db.transaction(storeName, 'readonly').objectStore(storeName).getAllKeys());
+    }
+
+    async function libGetOpfsContentDirectory({ create = false } = {}) {
+        if (!navigator.storage?.getDirectory) return null;
+        try {
+            if (!libOpfsRootPromise) libOpfsRootPromise = navigator.storage.getDirectory();
+            const root = await libOpfsRootPromise;
+            return await root.getDirectoryHandle(LIB_LOCAL_OPFS_DIR, { create });
+        } catch (err) {
+            if (create) console.warn('[tm-translate] OPFS không khả dụng, dùng IndexedDB:', err);
+            return null;
+        }
+    }
+
+    function libOpfsContentFileName(key) {
+        return `${encodeURIComponent(String(key || ''))}.json`;
+    }
+
+    async function libLocalSaveContent(key, data) {
+        const encoded = await tmEncodeStorageValue(LIB_CONTENT_PREFIX + key, data);
+        const directory = await libGetOpfsContentDirectory({ create: true });
+        if (directory) {
+            try {
+                const handle = await directory.getFileHandle(libOpfsContentFileName(key), { create: true });
+                const writable = await handle.createWritable();
+                await writable.write(JSON.stringify(encoded));
+                await writable.close();
+                await libLocalStoreDelete('content', key).catch(() => { });
+                return data;
+            } catch (err) {
+                console.warn('[tm-translate] Ghi OPFS thất bại, thử IndexedDB:', err);
+                try { await directory.removeEntry(libOpfsContentFileName(key)); } catch (_) { }
+            }
+        }
+        await libLocalStoreSet('content', key, encoded);
+        return data;
+    }
+
+    async function libLocalLoadContent(key) {
+        const directory = await libGetOpfsContentDirectory();
+        if (directory) {
+            try {
+                const handle = await directory.getFileHandle(libOpfsContentFileName(key));
+                const value = JSON.parse(await (await handle.getFile()).text());
+                return await tmDecodeStorageValue(value);
+            } catch (err) {
+                if (err?.name !== 'NotFoundError') console.warn('[tm-translate] Không đọc được content OPFS:', err);
+            }
+        }
+        return await tmDecodeStorageValue(await libLocalStoreGet('content', key, null));
+    }
+
+    async function libLocalDeleteContent(key) {
+        const directory = await libGetOpfsContentDirectory();
+        if (directory) {
+            try {
+                await directory.removeEntry(libOpfsContentFileName(key));
+            } catch (err) {
+                if (err?.name !== 'NotFoundError') console.warn('[tm-translate] Không xóa được content OPFS:', err);
+            }
+        }
+        await libLocalStoreDelete('content', key).catch(() => { });
+    }
+
+    async function libDeleteLocalBookData(bookId, chapters = null) {
+        const list = Array.isArray(chapters) ? chapters : await libLocalStoreGet('chapters', bookId, []);
+        const keys = new Set();
+        for (const chapter of (list || [])) {
+            if (chapter?.rawKey) keys.add(chapter.rawKey);
+            if (chapter?.transKey) keys.add(chapter.transKey);
+        }
+        for (const key of await libLocalStoreKeys('content').catch(() => [])) {
+            if (libContentBelongsToBook(key, bookId)) keys.add(key);
+        }
+        const directory = await libGetOpfsContentDirectory();
+        if (directory) {
+            try {
+                for await (const [name] of directory.entries()) {
+                    if (!name.endsWith('.json')) continue;
+                    let key = '';
+                    try { key = decodeURIComponent(name.slice(0, -5)); } catch (_) { }
+                    if (libContentBelongsToBook(key, bookId)) keys.add(key);
+                }
+            } catch (err) {
+                console.warn('[tm-translate] Không quét được OPFS khi xóa truyện:', err);
+            }
+        }
+        for (const key of keys) await libLocalDeleteContent(key);
+        await Promise.all([
+            libLocalStoreDelete('chapters', bookId).catch(() => { }),
+            libLocalStoreDelete('covers', bookId).catch(() => { })
+        ]);
+        libChapterCache.delete(bookId);
+        libCoverCache.delete(bookId);
+    }
+
+    async function libRequestLocalStoragePersistence() {
+        if (libLocalPersistencePromise) return await libLocalPersistencePromise;
+        if (!navigator.storage?.persist) return false;
+        libLocalPersistencePromise = (async () => {
+            try {
+                if (await navigator.storage.persisted?.()) return true;
+                return !!(await navigator.storage.persist());
+            } catch (_) {
+                return false;
+            }
+        })();
+        return await libLocalPersistencePromise;
+    }
+
+    async function libGetOriginStorageEstimate() {
+        if (!navigator.storage?.estimate) return null;
+        try {
+            const estimate = await navigator.storage.estimate();
+            return {
+                usage: Math.max(0, Number(estimate?.usage || 0)),
+                quota: Math.max(0, Number(estimate?.quota || 0))
+            };
+        } catch (_) {
+            return null;
+        }
+    }
+
+    async function libOpenBookOnStorageOrigin(book, action = 'reader') {
+        if (!libIsLocalBook(book) || libCanAccessBookStorage(book)) return true;
+        const storageOrigin = String(book?.storageOrigin || '');
+        if (!/^https?:\/\//i.test(storageOrigin)) {
+            showNotification('Domain lưu truyện không còn hợp lệ. Hãy import lại hoặc xóa mục truyện này.');
+            return false;
+        }
+        let targetUrl = `${storageOrigin}/`;
+        try {
+            const candidate = new URL(book.storageEntryUrl || targetUrl);
+            if (candidate.origin === storageOrigin) targetUrl = candidate.href;
+        } catch (_) { }
+        await tmStorageSet(TM_LIBRARY_QUICK_OPEN_KEY, {
+            bookId: book.bookId,
+            storageOrigin,
+            action,
+            requestedAt: Date.now()
+        });
+        showNotification(`Đang mở ${new URL(storageOrigin).host} để lấy dữ liệu truyện...`, 3500);
+        if (typeof GM_openInTab === 'function') {
+            GM_openInTab(targetUrl, { active: true, insert: true, setParent: true });
+        } else {
+            window.open(targetUrl, '_blank', 'noopener,noreferrer');
+        }
+        return false;
+    }
+
+    async function libEnsureBookActionOnCurrentOrigin(bookId, action = 'reader') {
+        const book = libFindBookInIndex(bookId);
+        if (!book) {
+            showNotification('Không tìm thấy truyện.');
+            return false;
+        }
+        if (libCanAccessBookStorage(book)) return true;
+        return await libOpenBookOnStorageOrigin(book, action);
+    }
+
+    async function libHandleQuickOpenRequest() {
+        const request = tmStorageGetCached(TM_LIBRARY_QUICK_OPEN_KEY, null);
+        if (!request?.bookId || request.storageOrigin !== libCurrentStorageOrigin()) return;
+        if (Date.now() - Number(request.requestedAt || 0) > 10 * 60 * 1000) {
+            await tmStorageDelete(TM_LIBRARY_QUICK_OPEN_KEY);
+            return;
+        }
+        const book = libFindBookInIndex(request.bookId);
+        await tmStorageDelete(TM_LIBRARY_QUICK_OPEN_KEY);
+        if (!book || !libCanAccessBookStorage(book)) {
+            showNotification('Không tìm thấy dữ liệu truyện trên domain này.');
+            return;
+        }
+        const action = request.action || 'reader';
+        setTimeout(() => {
+            let task;
+            if (action === 'edit') task = openLibraryEditModal(book.bookId);
+            else if (action === 'export') task = openLibraryExportModal(book.bookId);
+            else if (action === 'name') task = openLibraryNameManager(book.bookId);
+            else if (action === 'delete') task = libDeleteBook(book.bookId);
+            else if (action === 'info') task = openLibraryBookInfo(book.bookId, { returnToLibrary: true });
+            else task = openLibraryReader(book.bookId);
+            Promise.resolve(task).catch(err => {
+                console.error('[tm-translate] Không thể hoàn tất thao tác mở nhanh:', err);
+                showNotification('Không thể mở dữ liệu truyện trên domain này.');
+            });
+        }, 250);
+    }
+
     // NEW: small hash helper for IDs
     function libHashString(str) {
         let h1 = 0xdeadbeef ^ str.length, h2 = 0x41c6ce57 ^ str.length;
@@ -10200,8 +10717,9 @@
     function libMakeChapterId(bookId, order, title) {
         return 'ch_' + libHashString(`${bookId}|${order}|${title}`);
     }
-    function libMakeRawKey(chapterId, text) {
-        return 'raw_' + libHashString(`${chapterId}|${text}`);
+    function libMakeRawKey(chapterId, text, book = null) {
+        const owner = libIsLocalBook(book) && book?.bookId ? `${book.bookId}_` : '';
+        return `raw_${owner}${libHashString(`${chapterId}|${text}`)}`;
     }
     function libNormalizeBookNameSetNames(book, cfg = config || loadConfig()) {
         const available = cfg?.nameSets || {};
@@ -10238,7 +10756,8 @@
     function libMakeTransKey(chapterId, rawKey, book = null) {
         const version = config.nameSetVersion || 1;
         const scopeVersion = book ? libNameScopeVersion(book, config) : String(version);
-        return 'tr_' + libHashString(`${chapterId}|${rawKey}|${scopeVersion}`);
+        const owner = libIsLocalBook(book) && book?.bookId ? `${book.bookId}_` : '';
+        return `tr_${owner}${libHashString(`${chapterId}|${rawKey}|${scopeVersion}`)}`;
     }
 
     function libNormalizeSupplementalLinks(value) {
@@ -10579,11 +11098,22 @@
 
     /* --- GM-based storage helpers (cross-domain, Promise API) --- */
 
-    function libSaveChaptersForBook(bookId, chapters) {
+    function libSaveChaptersForBook(bookId, chapters, preparedValues = null) {
         const value = Array.isArray(chapters) ? chapters : [];
         libChapterCache.set(bookId, value);
+        const book = libGetBookStorageInfo(bookId);
+        if (libIsLocalBook(book)) {
+            libAssertBookStorageAccess(book);
+            return libQueueStorageWrite(
+                () => libLocalStoreSet('chapters', bookId, value),
+                `danh sách chương local ${bookId}`
+            );
+        }
+        const storageKey = LIB_CHAPTERS_PREFIX + bookId;
+        const preparedValue = preparedValues?.get(storageKey);
         return libQueueStorageWrite(
-            () => tmStorageSet(LIB_CHAPTERS_PREFIX + bookId, value),
+            () => tmStorageSet(storageKey, value,
+                preparedValues?.has(storageKey) ? { preparedValue } : {}),
             `danh sách chương ${bookId}`
         );
     }
@@ -10594,31 +11124,64 @@
 
     async function libLoadChaptersForBookAsync(bookId) {
         if (libChapterCache.has(bookId)) return libChapterCache.get(bookId);
-        const chapters = await tmStorageGet(LIB_CHAPTERS_PREFIX + bookId, []);
+        const book = libGetBookStorageInfo(bookId);
+        if (libIsLocalBook(book) && !libCanAccessBookStorage(book)) return [];
+        const chapters = libIsLocalBook(book)
+            ? await libLocalStoreGet('chapters', bookId, [])
+            : await tmStorageGet(LIB_CHAPTERS_PREFIX + bookId, []);
         const value = Array.isArray(chapters) ? chapters : [];
         libChapterCache.set(bookId, value);
         return value;
     }
 
-    async function libSaveContent(key, data) {
-        await tmStorageSet(LIB_CONTENT_PREFIX + key, data);
+    async function libSaveContent(key, data, preparedValues = null) {
+        const bookId = libContentBookId(key);
+        const book = bookId ? libGetBookStorageInfo(bookId) : null;
+        if (libIsLocalBook(book)) {
+            libAssertBookStorageAccess(book);
+            await libLocalSaveContent(key, data);
+            return;
+        }
+        const storageKey = LIB_CONTENT_PREFIX + key;
+        const preparedValue = preparedValues?.get(storageKey);
+        await tmStorageSet(storageKey, data,
+            preparedValues?.has(storageKey) ? { preparedValue } : {});
     }
 
     async function libLoadContent(key) {
+        const bookId = libContentBookId(key);
+        const book = bookId ? libGetBookStorageInfo(bookId) : null;
+        if (libIsLocalBook(book)) {
+            if (!libCanAccessBookStorage(book)) return null;
+            return await libLocalLoadContent(key);
+        }
         return await tmStorageGet(LIB_CONTENT_PREFIX + key, null);
     }
 
     async function libDeleteContent(key) {
+        const bookId = libContentBookId(key);
+        const book = bookId ? libGetBookStorageInfo(bookId) : null;
+        if (libIsLocalBook(book)) {
+            libAssertBookStorageAccess(book);
+            await libLocalDeleteContent(key);
+            return;
+        }
         await tmStorageDelete(LIB_CONTENT_PREFIX + key);
     }
 
     async function libDeleteChaptersForBook(bookId) {
         libChapterCache.delete(bookId);
+        const book = libGetBookStorageInfo(bookId);
+        if (libIsLocalBook(book)) {
+            libAssertBookStorageAccess(book);
+            await libLocalStoreDelete('chapters', bookId);
+            return;
+        }
         await tmStorageDelete(LIB_CHAPTERS_PREFIX + bookId);
     }
 
     // Compatibility wrappers (used by callers that previously used libPutMany/libGet)
-    async function libPutMany(storeName, items) {
+    async function libPutMany(storeName, items, preparedValues = null) {
         if (!items || items.length === 0) return;
         if (storeName === 'tm_chapters') {
             // Group chapters by bookId and merge into existing arrays
@@ -10632,11 +11195,11 @@
                 else existing.push(item);
                 byBook[bid] = existing;
             }
-            await Promise.all(Object.entries(byBook).map(([bid, chapters]) => libSaveChaptersForBook(bid, chapters)));
+            await Promise.all(Object.entries(byBook).map(([bid, chapters]) => libSaveChaptersForBook(bid, chapters, preparedValues)));
         } else if (storeName === 'tm_content') {
             const concurrency = 4;
             for (let offset = 0; offset < items.length; offset += concurrency) {
-                await Promise.all(items.slice(offset, offset + concurrency).map(item => libSaveContent(item.key, item)));
+                await Promise.all(items.slice(offset, offset + concurrency).map(item => libSaveContent(item.key, item, preparedValues)));
                 if (offset + concurrency < items.length) await libYieldToBrowser();
             }
         }
@@ -10678,26 +11241,58 @@
         return null;
     }
 
-    async function libClearTranslatedContent() {
+    async function libClearTranslatedContent({ automatic = false, directWrite = false } = {}) {
         const now = Date.now();
         const index = libLoadIndex();
+        const beforeBytes = tmGetStorageUsageBytes() ?? await tmEnsureStorageUsageReady();
+        const deletedKeys = new Set();
 
         // Clear transKey from all chapters and delete translated content
         for (const book of (index.books || [])) {
+            if (!libCanAccessBookStorage(book) || (automatic && libIsLocalBook(book))) continue;
             const chapters = await libLoadChaptersForBookAsync(book.bookId);
             let changed = false;
             for (const ch of chapters) {
                 if (ch.transKey) {
                     await libDeleteContent(ch.transKey);
+                    deletedKeys.add(LIB_CONTENT_PREFIX + ch.transKey);
                     ch.transKey = null;
                     ch.updatedAt = now;
                     changed = true;
                 }
             }
-            if (changed) await libSaveChaptersForBook(book.bookId, chapters);
+            if (changed) {
+                if (directWrite) {
+                    libChapterCache.set(book.bookId, chapters);
+                    if (libIsLocalBook(book)) await libLocalStoreSet('chapters', book.bookId, chapters);
+                    else await tmStorageSet(LIB_CHAPTERS_PREFIX + book.bookId, chapters);
+                } else {
+                    await libSaveChaptersForBook(book.bookId, chapters);
+                }
+            }
+        }
+        // Dọn luôn cache mồ côi còn sót sau import/ghi lỗi cũ.
+        const allKeys = await tmStorageListValues();
+        for (const key of allKeys) {
+            if (!key.startsWith(LIB_CONTENT_PREFIX + 'tr_') || deletedKeys.has(key)) continue;
+            await tmStorageDelete(key);
+            deletedKeys.add(key);
         }
         libSetBackupStatus({ state: 'dirty', message: 'Cache dịch đã thay đổi, chưa sao lưu.' });
+        const afterBytes = tmGetStorageUsageBytes() ?? beforeBytes;
+        const result = {
+            deleted: deletedKeys.size,
+            freedBytes: Math.max(0, beforeBytes - afterBytes)
+        };
+        if (automatic && result.deleted > 0) {
+            showNotification(`Kho gần đầy: đã tự dọn ${libFormatBytes(result.freedBytes)} cache dịch.`, 4500);
+        }
+        return result;
     }
+
+    tmStoragePressureHandler = async () => {
+        return await libClearTranslatedContent({ automatic: true, directWrite: true });
+    };
 
     async function libGetTranslatedCacheSizeBytes() {
         const encoder = new TextEncoder();
@@ -10709,6 +11304,15 @@
                 if (data?.text) {
                     total += encoder.encode(data.text).length;
                 }
+            }
+        }
+        for (const book of (libLoadIndex().books || [])) {
+            if (!libIsLocalBook(book) || !libCanAccessBookStorage(book)) continue;
+            const chapters = await libLoadChaptersForBookAsync(book.bookId);
+            for (const chapter of chapters) {
+                if (!chapter.transKey) continue;
+                const data = await libLoadContent(chapter.transKey);
+                if (data?.text) total += encoder.encode(data.text).length;
             }
         }
         return total;
@@ -10946,10 +11550,11 @@
         const fallback = { books: [], nameSetVersion: config.nameSetVersion || 1, configVersion: 1 };
         const index = tmStorageGetCached(LIB_INDEX_KEY, null);
         if (!index || !index.books) return fallback;
+        (index.books || []).forEach(libRememberBookStorage);
         return { ...fallback, ...index };
     }
 
-    function libSaveIndex(index) {
+    function libPrepareIndexStorage(index, { updateCoverCache = true } = {}) {
         const coverWrites = [];
         const storedIndex = {
             ...index,
@@ -10957,19 +11562,43 @@
                 const storedBook = { ...book };
                 const coverDataUrl = String(storedBook.coverDataUrl || '');
                 if (coverDataUrl && storedBook.bookId) {
-                    libCoverCache.set(storedBook.bookId, coverDataUrl);
+                    if (updateCoverCache) libCoverCache.set(storedBook.bookId, coverDataUrl);
                     storedBook.coverStored = true;
-                    coverWrites.push([LIB_COVER_PREFIX + storedBook.bookId, coverDataUrl]);
+                    coverWrites.push([LIB_COVER_PREFIX + storedBook.bookId, coverDataUrl, storedBook]);
                 }
                 delete storedBook.coverDataUrl;
                 return storedBook;
             })
         };
+        return { storedIndex, coverWrites };
+    }
+
+    function libSaveIndex(index, preparedValues = null) {
+        const { storedIndex, coverWrites } = libPrepareIndexStorage(index);
+        (storedIndex.books || []).forEach(libRememberBookStorage);
+        const previousIndex = tmBootstrapStorage.get(LIB_INDEX_KEY);
         tmBootstrapStorage.set(LIB_INDEX_KEY, storedIndex);
-        return libQueueStorageWrite(async () => {
-            for (const [key, value] of coverWrites) await tmStorageSet(key, value);
-            await tmStorageSet(LIB_INDEX_KEY, storedIndex);
+        const write = libQueueStorageWrite(async () => {
+            for (const [key, value, book] of coverWrites) {
+                if (libIsLocalBook(book)) {
+                    libAssertBookStorageAccess(book);
+                    await libLocalStoreSet('covers', book.bookId, value);
+                    continue;
+                }
+                const preparedValue = preparedValues?.get(key);
+                await tmStorageSet(key, value, preparedValues?.has(key) ? { preparedValue } : {});
+            }
+            const preparedIndex = preparedValues?.get(LIB_INDEX_KEY);
+            await tmStorageSet(LIB_INDEX_KEY, storedIndex,
+                preparedValues?.has(LIB_INDEX_KEY) ? { preparedValue: preparedIndex } : {});
         }, 'index thư viện');
+        return write.catch(err => {
+            if (tmBootstrapStorage.get(LIB_INDEX_KEY) === storedIndex) {
+                if (previousIndex === undefined) tmBootstrapStorage.delete(LIB_INDEX_KEY);
+                else tmBootstrapStorage.set(LIB_INDEX_KEY, previousIndex);
+            }
+            throw err;
+        });
     }
 
     async function libEnsureBookCover(book) {
@@ -10984,7 +11613,23 @@
             return cached;
         }
         if (!book.coverStored) return String(book.cover || '');
-        const value = String(await tmStorageGet(LIB_COVER_PREFIX + book.bookId, '') || '');
+        if (libIsLocalBook(book) && !libCanAccessBookStorage(book)) return String(book.cover || '');
+        const storageKey = LIB_COVER_PREFIX + book.bookId;
+        let value = String(libIsLocalBook(book)
+            ? await libLocalStoreGet('covers', book.bookId, '')
+            : await tmStorageGet(storageKey, '') || '');
+        if (value.length > LIB_COVER_OPTIMIZE_TRIGGER_CHARS) {
+            try {
+                const optimized = await libOptimizeCoverDataUrl(value);
+                if (optimized && optimized.length < value.length) {
+                    value = optimized;
+                    if (libIsLocalBook(book)) await libLocalStoreSet('covers', book.bookId, value);
+                    else await tmStorageSet(storageKey, value);
+                }
+            } catch (err) {
+                console.warn('[tm-translate] Không thể thu nhỏ bìa cũ:', err);
+            }
+        }
         libCoverCache.set(book.bookId, value);
         if (value) book.coverDataUrl = value;
         return value;
@@ -11225,6 +11870,40 @@ ${titleSvg}
         });
     }
 
+    async function libOptimizeCoverDataUrl(dataUrl) {
+        const source = String(dataUrl || '');
+        if (!/^data:image\//i.test(source) || source.length <= LIB_COVER_OPTIMIZE_TRIGGER_CHARS) return source;
+        const image = await new Promise((resolve, reject) => {
+            const img = new Image();
+            img.onload = () => resolve(img);
+            img.onerror = () => reject(new Error('Không giải mã được ảnh bìa.'));
+            img.src = source;
+        });
+        const sourceWidth = Math.max(1, image.naturalWidth || image.width || 1);
+        const sourceHeight = Math.max(1, image.naturalHeight || image.height || 1);
+        const ratio = Math.min(1, LIB_COVER_MAX_WIDTH / sourceWidth, LIB_COVER_MAX_HEIGHT / sourceHeight);
+        const width = Math.max(1, Math.round(sourceWidth * ratio));
+        const height = Math.max(1, Math.round(sourceHeight * ratio));
+        const canvas = document.createElement('canvas');
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d', { alpha: true });
+        if (!ctx) return source;
+        ctx.imageSmoothingEnabled = true;
+        ctx.imageSmoothingQuality = 'high';
+        ctx.drawImage(image, 0, 0, width, height);
+        let optimized = canvas.toDataURL('image/webp', 0.8);
+        if (!/^data:image\/webp/i.test(optimized)) {
+            ctx.globalCompositeOperation = 'destination-over';
+            ctx.fillStyle = '#ffffff';
+            ctx.fillRect(0, 0, width, height);
+            optimized = canvas.toDataURL('image/jpeg', 0.82);
+        }
+        canvas.width = 1;
+        canvas.height = 1;
+        return optimized && optimized.length < source.length ? optimized : source;
+    }
+
     function libBytesToDataUrl(bytes, mediaType = 'application/octet-stream') {
         if (!bytes) return '';
         let binary = '';
@@ -11262,7 +11941,7 @@ ${titleSvg}
             showNotification('Ảnh bìa nên nhỏ hơn 3 MB.');
             return false;
         }
-        const dataUrl = await libReadFileAsDataUrl(file);
+        const dataUrl = await libOptimizeCoverDataUrl(await libReadFileAsDataUrl(file));
         const index = libLoadIndex();
         const book = (index.books || []).find(b => b.bookId === bookId);
         if (!book) {
@@ -11313,7 +11992,12 @@ ${titleSvg}
         const books = libSortBooksForLibrary(index.books || []);
         const bookRecords = [];
         const contentKeys = new Set();
+        const skippedBooks = [];
         for (const book of books) {
+            if (!libCanAccessBookStorage(book)) {
+                skippedBooks.push(book);
+                continue;
+            }
             const chapters = await libLoadChaptersForBookAsync(book.bookId);
             const coverDataUrl = await libEnsureBookCover(book);
             chapters.forEach(chapter => {
@@ -11325,7 +12009,12 @@ ${titleSvg}
                 chapters
             });
         }
-        return { index: { ...index, books }, bookRecords, contentKeys: Array.from(contentKeys) };
+        return {
+            index: { ...index, books: bookRecords.map(record => record.book) },
+            bookRecords,
+            contentKeys: Array.from(contentKeys),
+            skippedBooks
+        };
     }
 
     function libClearAutoBackupTimer() {
@@ -11450,6 +12139,10 @@ ${titleSvg}
             if (silent) return null;
             showNotification('Đang tạo file sao lưu. Đừng tắt tab giữa chừng.', 6000);
             const data = await libCollectBackupData();
+            if (data.skippedBooks.length && !confirm(
+                `Có ${data.skippedBooks.length} truyện lưu cục bộ ở domain khác nên không thể đọc từ tab này và sẽ không nằm trong file backup. `
+                + 'Bạn nên mở đúng domain để backup/export các truyện đó. Vẫn tiếp tục?'
+            )) return null;
             const total = Math.max(1, data.bookRecords.length + data.contentKeys.length + 2);
             const chunks = [];
             let done = 0;
@@ -11467,12 +12160,17 @@ ${titleSvg}
             await appendRecord({
                 type: 'manifest',
                 format: LIB_BACKUP_FILE_FORMAT,
-                version: 1,
+                version: LIB_BACKUP_FILE_VERSION,
                 app: 'TM Translate',
                 createdAt: Date.now(),
                 index: { ...data.index, books: [] },
                 bookCount: data.bookRecords.length,
-                contentCount: data.contentKeys.length
+                contentCount: data.contentKeys.length,
+                skippedLocalBooks: data.skippedBooks.map(book => ({
+                    bookId: book.bookId,
+                    title: book.title,
+                    storageOrigin: book.storageOrigin
+                }))
             });
 
             for (const item of data.bookRecords) {
@@ -11521,6 +12219,14 @@ ${titleSvg}
     }
 
     async function libClearLibraryAll() {
+        const existingBooks = [...(libLoadIndex().books || [])];
+        for (const book of existingBooks) {
+            if (libIsLocalBook(book) && libCanAccessBookStorage(book)) {
+                await libDeleteLocalBookData(book.bookId).catch(err => {
+                    console.warn('[tm-translate] Không xóa hết dữ liệu local của truyện:', book.bookId, err);
+                });
+            }
+        }
         const allKeys = await tmStorageListValues();
         for (const key of allKeys) {
             if (
@@ -11534,6 +12240,7 @@ ${titleSvg}
         }
         libChapterCache.clear();
         libCoverCache.clear();
+        libBookStorageCache.clear();
         await libSaveIndex({ books: [], nameSetVersion: config.nameSetVersion || 1, configVersion: 1 });
         await libFlushStorageWrites();
     }
@@ -11551,6 +12258,12 @@ ${titleSvg}
             if (!mode) return;
         }
         if (mode === 'replace') {
+            const inaccessibleLocal = (existing.books || []).filter(book => libIsLocalBook(book) && !libCanAccessBookStorage(book));
+            if (inaccessibleLocal.length) {
+                alert(`Không thể thay thế an toàn: có ${inaccessibleLocal.length} truyện nằm ở domain khác. `
+                    + 'Hãy chọn Gộp, hoặc mở đúng các domain đó để xóa truyện trước.');
+                return;
+            }
             const ok = confirm('Thay thế sẽ xóa toàn bộ thư viện hiện tại trước khi khôi phục. Tiếp tục?');
             if (!ok) return;
             await libClearLibraryAll();
@@ -11566,8 +12279,15 @@ ${titleSvg}
                 return;
             }
             if (record.type === 'book' && record.book?.bookId) {
-                restoredBooks.push(record.book);
-                await libSaveChaptersForBook(record.book.bookId, Array.isArray(record.chapters) ? record.chapters : []);
+                const restoredBook = { ...record.book };
+                if (libIsLocalBook(restoredBook)) {
+                    restoredBook.storageOrigin = libCurrentStorageOrigin();
+                    restoredBook.storageEntryUrl = libCurrentStorageEntryUrl();
+                    restoredBook.storagePersistent = await libRequestLocalStoragePersistence();
+                }
+                libRememberBookStorage(restoredBook);
+                restoredBooks.push(restoredBook);
+                await libSaveChaptersForBook(restoredBook.bookId, Array.isArray(record.chapters) ? record.chapters : []);
                 return;
             }
             if (record.type === 'content') {
@@ -12774,6 +13494,7 @@ body.tmx-fullscreen .tmx-scroll {
             showNotification('Không tìm thấy truyện.');
             return;
         }
+        if (!await libEnsureBookActionOnCurrentOrigin(bookId, 'delete')) return;
         if (!confirm(`Xóa truyện "${book.title || 'Untitled'}"? Dữ liệu sẽ bị xóa vĩnh viễn.`)) {
             return;
         }
@@ -12781,13 +13502,19 @@ body.tmx-fullscreen .tmx-scroll {
         showLoading('Đang xóa truyện...');
         try {
             const chapters = await libLoadChaptersForBookAsync(bookId);
-            for (const ch of chapters) {
-                if (ch.rawKey) await libDeleteContent(ch.rawKey);
-                if (ch.transKey) await libDeleteContent(ch.transKey);
+            if (libIsLocalBook(book)) {
+                libAssertBookStorageAccess(book);
+                await libDeleteLocalBookData(bookId, chapters);
+            } else {
+                for (const ch of chapters) {
+                    if (ch.rawKey) await libDeleteContent(ch.rawKey);
+                    if (ch.transKey) await libDeleteContent(ch.transKey);
+                }
+                await libDeleteChaptersForBook(bookId);
+                await tmStorageDelete(LIB_COVER_PREFIX + bookId);
             }
-            await libDeleteChaptersForBook(bookId);
-            await tmStorageDelete(LIB_COVER_PREFIX + bookId);
             libCoverCache.delete(bookId);
+            libBookStorageCache.delete(bookId);
 
             const index = libLoadIndex();
             index.books = (index.books || []).filter(b => b.bookId !== bookId);
@@ -12896,6 +13623,35 @@ body.tmx-fullscreen .tmx-scroll {
         const bookId = libMakeBookId(safeTitle, safeAuthor, now);
         const lang = langSource === 'vi' ? 'vi' : 'zh';
         const authorTranslated = safeAuthor ? await buildHanVietMixedName(safeAuthor) : '';
+        const coverDataUrl = await libOptimizeCoverDataUrl(String(metadata.coverDataUrl || ''));
+        const storageBackend = libNormalizeStorageBackend(metadata.storageBackend);
+        const storagePersistent = storageBackend === LIB_STORAGE_BACKEND_LOCAL
+            ? await libRequestLocalStoragePersistence()
+            : false;
+        const bookRecord = {
+            bookId,
+            title: safeTitle,
+            author: safeAuthor,
+            authorTranslated,
+            authorTranslatedSourceHash: safeAuthor ? libHashString(safeAuthor) : '',
+            description: normalizeTextForTranslation(metadata.description || '').trim(),
+            supplementalLinks: libNormalizeSupplementalLinks(metadata.supplementalLinks),
+            coverDataUrl,
+            langSource: lang,
+            storageBackend,
+            storageOrigin: storageBackend === LIB_STORAGE_BACKEND_LOCAL ? libCurrentStorageOrigin() : '',
+            storageEntryUrl: storageBackend === LIB_STORAGE_BACKEND_LOCAL ? libCurrentStorageEntryUrl() : '',
+            storagePersistent,
+            nameSetNames: libNormalizeBookNameSetNames(null, config),
+            privateNameSet: {},
+            privateNameSetVersion: 1,
+            importedAt: now,
+            createdAt: now,
+            updatedAt: now,
+            chapterCount: chapters.length,
+            contentBytes: 0
+        };
+        if (storageBackend === LIB_STORAGE_BACKEND_LOCAL) libRememberBookStorage(bookRecord);
 
         const chapterItems = [];
         const contentItems = [];
@@ -12907,9 +13663,10 @@ body.tmx-fullscreen .tmx-scroll {
             const chapterText = libNormalizeChapterParagraphBreaks(ch.text || '');
             contentBytes += encoder.encode(chapterText).length;
             const chapterId = libMakeChapterId(bookId, idx + 1, chapterTitle);
-            const rawKey = libMakeRawKey(chapterId, chapterText);
+            const rawKey = libMakeRawKey(chapterId, chapterText, bookRecord);
             contentItems.push({
                 key: rawKey,
+                bookId,
                 text: chapterText,
                 lang: lang,
                 createdAt: now,
@@ -12926,36 +13683,49 @@ body.tmx-fullscreen .tmx-scroll {
             });
         });
 
+        bookRecord.contentBytes = contentBytes;
         const index = libLoadIndex();
-        index.books = index.books || [];
-        index.books.unshift({
-            bookId: bookId,
-            title: safeTitle,
-            author: safeAuthor,
-            authorTranslated,
-            authorTranslatedSourceHash: safeAuthor ? libHashString(safeAuthor) : '',
-            description: normalizeTextForTranslation(metadata.description || '').trim(),
-            supplementalLinks: libNormalizeSupplementalLinks(metadata.supplementalLinks),
-            coverDataUrl: String(metadata.coverDataUrl || ''),
-            langSource: lang,
-            nameSetNames: libNormalizeBookNameSetNames(null, config),
-            privateNameSet: {},
-            privateNameSetVersion: 1,
-            importedAt: now,
-            createdAt: now,
-            updatedAt: now,
-            chapterCount: chapters.length,
-            contentBytes
-        });
+        index.books = [...(index.books || [])];
+        index.books.unshift(bookRecord);
         index.nameSetVersion = config.nameSetVersion || 1;
 
-        await libPutMany('tm_content', contentItems);
-        await libPutMany('tm_chapters', chapterItems);
-        await libSaveIndex(index);
-        await libFlushStorageWrites();
+        const { storedIndex, coverWrites } = libPrepareIndexStorage(index, { updateCoverCache: false });
+        let preparedValues = null;
+        if (storageBackend === LIB_STORAGE_BACKEND_GM) {
+            const storageEntries = [
+                ...contentItems.map(item => ({ key: LIB_CONTENT_PREFIX + item.key, value: item })),
+                { key: LIB_CHAPTERS_PREFIX + bookId, value: chapterItems },
+                ...coverWrites
+                    .filter(([_key, _value, book]) => !libIsLocalBook(book))
+                    .map(([key, value]) => ({ key, value })),
+                { key: LIB_INDEX_KEY, value: storedIndex }
+            ];
+            ({ preparedValues } = await tmStorageAssertBatchFits(storageEntries, `truyện “${safeTitle}”`));
+        } else {
+            // Content local không làm phình GM, nhưng index dùng chung vẫn cần chặn
+            // trước ngưỡng 64 MiB để import nhiều file không làm Tampermonkey tê liệt.
+            ({ preparedValues } = await tmStorageAssertBatchFits([
+                { key: LIB_INDEX_KEY, value: storedIndex }
+            ], `index của truyện “${safeTitle}”`));
+        }
+
+        try {
+            await libPutMany('tm_content', contentItems, preparedValues);
+            await libPutMany('tm_chapters', chapterItems, preparedValues);
+            await libSaveIndex(index, preparedValues);
+            await libFlushStorageWrites();
+        } catch (err) {
+            if (storageBackend === LIB_STORAGE_BACKEND_LOCAL) {
+                await libDeleteLocalBookData(bookId, chapterItems).catch(cleanupError => {
+                    console.warn('[tm-translate] Không dọn hết import local lỗi:', cleanupError);
+                });
+                libBookStorageCache.delete(bookId);
+            }
+            throw err;
+        }
         libSetBackupStatus({ state: 'dirty', message: 'Có truyện mới chưa sao lưu.' });
 
-        return { bookId, title, chapterCount: chapters.length };
+        return { bookId, title: safeTitle, chapterCount: chapters.length };
     }
 
     async function libUnzipBytesAsync(bytes) {
@@ -13192,7 +13962,8 @@ body.tmx-fullscreen .tmx-scroll {
         if (options.previewOnly) return draft;
         return await libImportChaptersToLibrary(chapters, langSource, title, author, {
             description,
-            coverDataUrl
+            coverDataUrl,
+            storageBackend: options.storageBackend
         });
     }
 
@@ -13631,10 +14402,7 @@ self.onmessage = event => {
 
     async function libReplaceBookChapters(bookId, nextChapters) {
         const oldChapters = await libLoadChaptersForBookAsync(bookId);
-        for (const chapter of oldChapters) {
-            if (chapter.rawKey) await libDeleteContent(chapter.rawKey);
-            if (chapter.transKey) await libDeleteContent(chapter.transKey);
-        }
+        const storageBook = libGetBookStorageInfo(bookId);
         const now = Date.now();
         const encoder = new TextEncoder();
         let contentBytes = 0;
@@ -13645,25 +14413,41 @@ self.onmessage = event => {
             const text = libNormalizeChapterParagraphBreaks(chapter.text || '');
             contentBytes += encoder.encode(text).length;
             const chapterId = libMakeChapterId(bookId, idx + 1, title);
-            const rawKey = libMakeRawKey(chapterId, text);
+            const rawKey = libMakeRawKey(chapterId, text, libGetBookStorageInfo(bookId));
             chapterItems.push({ chapterId, bookId, order: idx + 1, title, rawKey, transKey: null, updatedAt: now });
-            contentItems.push({ key: rawKey, text, lang: 'raw', createdAt: now, updatedAt: now });
+            contentItems.push({ key: rawKey, bookId, text, lang: 'raw', createdAt: now, updatedAt: now });
         });
-        await libSaveChaptersForBook(bookId, chapterItems);
-        await libPutMany('tm_content', contentItems);
-        const index = libLoadIndex();
-        const book = (index.books || []).find(item => item.bookId === bookId);
-        if (book) {
-            book.chapterCount = chapterItems.length;
-            book.contentBytes = contentBytes;
-            book.lastReadChapterId = null;
-            book.lastReadOrder = null;
-            book.lastReadScrollRatio = 0;
-            book.updatedAt = now;
-            await libSaveIndex(index);
+        let preparedValues = null;
+        if (!libIsLocalBook(storageBook)) {
+            const removeKeys = oldChapters.flatMap(chapter => [chapter.rawKey, chapter.transKey])
+                .filter(Boolean)
+                .map(key => LIB_CONTENT_PREFIX + key);
+            ({ preparedValues } = await tmStorageAssertBatchFits([
+                ...contentItems.map(item => ({ key: LIB_CONTENT_PREFIX + item.key, value: item })),
+                { key: LIB_CHAPTERS_PREFIX + bookId, value: chapterItems }
+            ], `nội dung chỉnh sửa của “${storageBook?.title || 'truyện'}”`, { removeKeys }));
+        }
+        const nextKeys = new Set(contentItems.map(item => item.key));
+        if (libIsLocalBook(storageBook)) {
+            // Không có transaction chung cho IDB + OPFS: chỉ dọn bản cũ sau khi
+            // content và chapter list mới đã ghi xong, tránh mất RAW khi hết quota.
+            await libPutMany('tm_content', contentItems);
+            await libSaveChaptersForBook(bookId, chapterItems);
+            for (const chapter of oldChapters) {
+                if (chapter.rawKey && !nextKeys.has(chapter.rawKey)) await libDeleteContent(chapter.rawKey);
+                if (chapter.transKey && !nextKeys.has(chapter.transKey)) await libDeleteContent(chapter.transKey);
+            }
+        } else {
+            for (const chapter of oldChapters) {
+                if (chapter.rawKey) await libDeleteContent(chapter.rawKey);
+                if (chapter.transKey) await libDeleteContent(chapter.transKey);
+            }
+            await libPutMany('tm_content', contentItems, preparedValues);
+            await libSaveChaptersForBook(bookId, chapterItems, preparedValues);
         }
         libTitleCache.clear();
         libSetBackupStatus({ state: 'dirty', message: 'Danh sách chương đã được chia lại, chưa sao lưu.' });
+        return { chapterCount: chapterItems.length, contentBytes, updatedAt: now };
     }
 
     async function libImportTextToLibrary(file, langSource, customTitle, options = {}) {
@@ -13673,7 +14457,9 @@ self.onmessage = event => {
         const chapters = await libSplitChaptersFromTextAsync(text, options.onProgress);
         const draft = { title, author: '', chapters, metadata: {} };
         if (options.previewOnly) return draft;
-        return await libImportChaptersToLibrary(chapters, langSource, title, '');
+        return await libImportChaptersToLibrary(chapters, langSource, title, '', {
+            storageBackend: options.storageBackend
+        });
     }
 
     function libStripRtf(rtfText) {
@@ -13759,7 +14545,10 @@ self.onmessage = event => {
         if (!chapters.length) throw new Error('Không tìm thấy nội dung/chương trong tài liệu.');
         const draft = { title, author, chapters, metadata: { description } };
         if (options.previewOnly) return draft;
-        return await libImportChaptersToLibrary(chapters, langSource, title, author, { description });
+        return await libImportChaptersToLibrary(chapters, langSource, title, author, {
+            description,
+            storageBackend: options.storageBackend
+        });
     }
 
     async function libImportZipToLibrary(file, langSource, customTitle, options = {}) {
@@ -13805,7 +14594,10 @@ self.onmessage = event => {
         const author = drafts.find(draft => draft.author)?.author || '';
         const draft = { title, author, chapters, metadata: firstMetadata };
         if (options.previewOnly) return draft;
-        return await libImportChaptersToLibrary(chapters, langSource, title, author, firstMetadata);
+        return await libImportChaptersToLibrary(chapters, langSource, title, author, {
+            ...firstMetadata,
+            storageBackend: options.storageBackend
+        });
     }
 
     async function libParseLibraryImportFile(file, langSource, customTitle, options = {}) {
@@ -13871,6 +14663,12 @@ self.onmessage = event => {
                     <option value="zh">Tiếng Trung (RAW)</option>
                     <option value="vi">Tiếng Việt (KHÔNG dịch)</option>
                 </select>
+                <label class="tm-label">Nơi lưu nội dung truyện</label>
+                <select id="tm-lib-storage-backend" class="tm-input">
+                    <option value="gm">Tampermonkey — dùng chung mọi domain</option>
+                    <option value="local">Thiết bị này — IndexedDB/OPFS theo domain</option>
+                </select>
+                <div id="tm-lib-storage-hint" style="margin:-6px 0 12px;padding:9px 10px;border:1px solid #d8dde6;border-radius:8px;color:#475569;font-size:12px;line-height:1.45;"></div>
                 <label class="tm-label">Tiêu đề truyện (tùy chọn)</label>
                 <input id="tm-lib-title" class="tm-input" placeholder="Để trống để lấy theo tên file" />
                 <label class="tm-import-customize">
@@ -13895,6 +14693,8 @@ self.onmessage = event => {
         const fileInput = wrapper.querySelector('#tm-lib-file');
         const titleInput = wrapper.querySelector('#tm-lib-title');
         const langSelect = wrapper.querySelector('#tm-lib-lang');
+        const storageSelect = wrapper.querySelector('#tm-lib-storage-backend');
+        const storageHint = wrapper.querySelector('#tm-lib-storage-hint');
         const customizeInput = wrapper.querySelector('#tm-lib-customize');
         const skeleton = wrapper.querySelector('#tm-lib-import-skeleton');
         const statusEl = wrapper.querySelector('#tm-lib-import-status');
@@ -13906,8 +14706,19 @@ self.onmessage = event => {
             fileInput.files?.length
             || titleInput.value.trim()
             || langSelect.value !== 'zh'
+            || storageSelect.value !== LIB_STORAGE_BACKEND_GM
             || !customizeInput.checked
         );
+        const refreshStorageHint = () => {
+            if (storageSelect.value === LIB_STORAGE_BACKEND_LOCAL) {
+                storageHint.innerHTML = `<strong>Dung lượng lớn hơn</strong>, dùng OPFS khi trình duyệt hỗ trợ và tự fallback IndexedDB. `
+                    + `Dữ liệu phụ thuộc quota/ổ đĩa và có thể mất nếu xóa dữ liệu website/profile. Chỉ domain <strong>${escapeHtml(libCurrentStorageOrigin())}</strong> đọc/sửa trực tiếp được; TM Translate sẽ tự mở tab domain này khi cần.`;
+            } else {
+                storageHint.innerHTML = '<strong>Tiện dùng ở mọi website</strong>, backup/khôi phục tập trung. Bị giới hạn bởi message 64 MiB của Tampermonkey; script cảnh báo, dọn cache và chặn trước vùng an toàn 50 MiB.';
+            }
+        };
+        storageSelect.addEventListener('change', refreshStorageHint);
+        refreshStorageHint();
         const close = (force = false) => {
             if (!force && processing) {
                 if (committing) {
@@ -13943,6 +14754,7 @@ self.onmessage = event => {
                 return;
             }
             const langSource = langSelect.value === 'vi' ? 'vi' : 'zh';
+            const storageBackend = libNormalizeStorageBackend(storageSelect.value);
             const title = titleInput.value;
             let isSuccess = false;
             let customizeDraft = null;
@@ -13955,6 +14767,7 @@ self.onmessage = event => {
                 startButton.disabled = true;
                 fileInput.disabled = true;
                 langSelect.disabled = true;
+                storageSelect.disabled = true;
                 titleInput.disabled = true;
                 customizeInput.disabled = true;
                 libCriticalTaskMessage = 'TM Translate đang import file. Rời trang lúc này có thể làm mất bản nháp.';
@@ -13973,6 +14786,7 @@ self.onmessage = event => {
                     customizeDraft = {
                         ...result,
                         langSource,
+                        storageBackend,
                         sourceName: file.name
                     };
                 } else {
@@ -13983,7 +14797,7 @@ self.onmessage = event => {
                         langSource,
                         result.title || title,
                         result.author || '',
-                        result.metadata || {}
+                        { ...(result.metadata || {}), storageBackend }
                     );
                     showNotification(`Đã import: ${imported.title} (${imported.chapterCount} chương)`);
                     isSuccess = true;
@@ -14007,6 +14821,7 @@ self.onmessage = event => {
                     startButton.disabled = false;
                     fileInput.disabled = false;
                     langSelect.disabled = false;
+                    storageSelect.disabled = false;
                     titleInput.disabled = false;
                     customizeInput.disabled = false;
                 }
@@ -14030,7 +14845,7 @@ self.onmessage = event => {
         return Object.entries(nameSet || {}).map(([key, value]) => `${key}=${value}`).join('\n');
     }
 
-    function openLibraryNameManager(bookId) {
+    async function openLibraryNameManager(bookId) {
         removeElementById('tm-lib-name-manager');
         config = loadConfig();
         const book = libFindBookInIndex(bookId);
@@ -14038,6 +14853,7 @@ self.onmessage = event => {
             showNotification('Không tìm thấy truyện.');
             return;
         }
+        if (!await libEnsureBookActionOnCurrentOrigin(bookId, 'name')) return;
         const wrapper = document.createElement('div');
         wrapper.id = 'tm-lib-name-manager';
         wrapper.className = 'tm-modal-wrapper';
@@ -14208,6 +15024,7 @@ self.onmessage = event => {
         removeElementById('tm-lib-book-info');
         const book = libFindBookInIndex(bookId);
         if (!book) return showNotification('Không tìm thấy truyện.');
+        if (!await libEnsureBookActionOnCurrentOrigin(bookId, 'info')) return;
         await libEnsureBookCover(book);
         const chapters = await libGetChaptersByBook(bookId);
         const readerWasOpen = !!document.getElementById('tm-reader-overlay');
@@ -14293,6 +15110,7 @@ self.onmessage = event => {
         removeElementById('tm-lib-edit-modal');
         const importDraft = options.importDraft || null;
         const isImportDraft = !!importDraft;
+        if (!isImportDraft && !await libEnsureBookActionOnCurrentOrigin(bookId, 'edit')) return;
         const draftMetadata = importDraft?.metadata || {};
         const book = isImportDraft ? {
             bookId: '',
@@ -14301,7 +15119,8 @@ self.onmessage = event => {
             description: draftMetadata.description || '',
             supplementalLinks: draftMetadata.supplementalLinks || [],
             coverDataUrl: draftMetadata.coverDataUrl || '',
-            langSource: importDraft.langSource === 'vi' ? 'vi' : 'zh'
+            langSource: importDraft.langSource === 'vi' ? 'vi' : 'zh',
+            storageBackend: libNormalizeStorageBackend(importDraft.storageBackend)
         } : libFindBookInIndex(bookId);
         if (!book) return showNotification('Không tìm thấy truyện.');
         if (!isImportDraft) await libEnsureBookCover(book);
@@ -14338,7 +15157,7 @@ self.onmessage = event => {
                     <button id="tm-lib-edit-close" class="tm-btn">×</button>
                 </div>
                 <div class="tm-modal-content">
-                    ${isImportDraft ? `<p style="margin:0 0 12px;color:#475569;font-size:13px;">File <strong>${escapeHtml(importDraft.sourceName || '')}</strong> chưa được ghi vào Thư viện. Hãy duyệt lại rồi bấm “Nhập vào thư viện”.</p>` : ''}
+                    ${isImportDraft ? `<p style="margin:0 0 12px;color:#475569;font-size:13px;">File <strong>${escapeHtml(importDraft.sourceName || '')}</strong> chưa được ghi vào Thư viện. Nơi lưu: <strong>${libIsLocalBook(book) ? `Thiết bị này (${escapeHtml(libCurrentStorageOrigin())})` : 'Tampermonkey (mọi domain)'}</strong>. Hãy duyệt lại rồi bấm “Nhập vào thư viện”.</p>` : ''}
                     <div class="tm-row">
                         <div class="tm-col">
                             <label class="tm-label">Tên truyện (text gốc)</label>
@@ -14584,7 +15403,7 @@ self.onmessage = event => {
                 event.target.value = '';
                 return showNotification('Bìa phải là ảnh nhỏ hơn 3 MB.');
             }
-            state.coverDataUrl = await libReadFileAsDataUrl(file);
+            state.coverDataUrl = await libOptimizeCoverDataUrl(await libReadFileAsDataUrl(file));
             const coverPreview = wrapper.querySelector('#tm-lib-edit-cover-preview');
             const coverStatus = wrapper.querySelector('#tm-lib-edit-cover-status');
             if (coverPreview) coverPreview.src = state.coverDataUrl;
@@ -14669,7 +15488,8 @@ self.onmessage = event => {
                     const result = await libImportChaptersToLibrary(nextChapters, langSource, title, author, {
                         description,
                         supplementalLinks,
-                        coverDataUrl: state.coverDataUrl || book.coverDataUrl || ''
+                        coverDataUrl: state.coverDataUrl || book.coverDataUrl || '',
+                        storageBackend: libNormalizeStorageBackend(importDraft.storageBackend)
                     });
                     libCriticalTaskMessage = '';
                     wrapper.remove();
@@ -14679,6 +15499,7 @@ self.onmessage = event => {
                 }
 
                 const index = libLoadIndex();
+                index.books = (index.books || []).map(item => item.bookId === bookId ? { ...item } : item);
                 const stored = (index.books || []).find(item => item.bookId === bookId);
                 if (!stored) throw new Error('Không tìm thấy truyện.');
                 Object.assign(stored, {
@@ -14692,10 +15513,19 @@ self.onmessage = event => {
                 if (state.coverDataUrl) stored.coverDataUrl = state.coverDataUrl;
                 stored.authorTranslated = author ? await buildHanVietMixedName(author) : '';
                 stored.authorTranslatedSourceHash = author ? libHashString(author) : '';
-                await libSaveIndex(index);
                 if (chaptersChanged) {
-                    await libReplaceBookChapters(bookId, nextChapters);
-                } else if (changedTranslationSource) {
+                    const replacement = await libReplaceBookChapters(bookId, nextChapters);
+                    Object.assign(stored, {
+                        chapterCount: replacement.chapterCount,
+                        contentBytes: replacement.contentBytes,
+                        lastReadChapterId: null,
+                        lastReadOrder: null,
+                        lastReadScrollRatio: 0,
+                        updatedAt: replacement.updatedAt
+                    });
+                }
+                await libSaveIndex(index);
+                if (!chaptersChanged && changedTranslationSource) {
                     await libInvalidateBookTranslations(bookId, 'Metadata RAW/ngôn ngữ truyện có thay đổi chưa sao lưu.');
                 }
                 libTitleCache.clear();
@@ -14738,6 +15568,7 @@ self.onmessage = event => {
 
     async function openLibraryExportModal(bookId) {
         removeElementById('tm-lib-export-modal');
+        if (!await libEnsureBookActionOnCurrentOrigin(bookId, 'export')) return;
         const book = libFindBookInIndex(bookId);
         if (!book) return showNotification('Không tìm thấy truyện.');
         const chapters = await libGetChaptersByBook(bookId);
@@ -14910,7 +15741,8 @@ self.onmessage = event => {
             filteredBooks: [],
             visibleCount: LIB_LIST_PAGE_SIZE,
             searchTimer: 0,
-            renderToken: 0
+            renderToken: 0,
+            originStorage: null
         };
         const grid = wrapper.querySelector('#tm-lib-grid');
         const scrollEl = wrapper.querySelector('#tm-lib-scroll');
@@ -14952,10 +15784,10 @@ self.onmessage = event => {
                 <div class="tm-library-card-main">
                     <div class="tm-library-title tm-lib-book-title" data-raw-title="${escapeHtml(book.title || 'Untitled')}" title="${escapeHtml(book.title || 'Untitled')}"><span class="tm-library-title-track"><span class="tm-library-title-text">${escapeHtml(book.title || 'Untitled')}</span><span class="tm-library-title-text tm-library-title-copy" aria-hidden="true">${escapeHtml(book.title || 'Untitled')}</span></span></div>
                     <div class="tm-library-author">${book.author ? `Tác giả: ${escapeHtml(book.author)}` : 'Chưa có tác giả'}</div>
-                    <div class="tm-library-meta">${book.chapterCount || 0} chương · Nguồn: ${(book.langSource || 'zh').toUpperCase()} · ${libEstimateExportBytes(book).bytes ? libFormatBytes(libEstimateExportBytes(book).bytes) : 'chưa rõ dung lượng'}</div>
+                    <div class="tm-library-meta">${book.chapterCount || 0} chương · Nguồn: ${(book.langSource || 'zh').toUpperCase()} · Lưu: ${escapeHtml(libBookStorageLabel(book))} · ${libEstimateExportBytes(book).bytes ? libFormatBytes(libEstimateExportBytes(book).bytes) : 'chưa rõ dung lượng'}</div>
                     <div id="tm-lib-progress-${escapeHtml(book.bookId)}" class="tm-library-progress">Tiến độ: ${formatProgressText(book)}</div>
                     <div class="tm-library-card-actions">
-                        <button class="tm-btn tm-btn-primary tm-lib-open" data-book-id="${escapeHtml(book.bookId)}">Mở</button>
+                        <button class="tm-btn tm-btn-primary tm-lib-open" data-book-id="${escapeHtml(book.bookId)}">${libCanAccessBookStorage(book) ? 'Mở' : 'Mở đúng domain'}</button>
                         <button class="tm-btn tm-lib-export" data-book-id="${escapeHtml(book.bookId)}">Xuất file...</button>
                         <button class="tm-btn tm-lib-delete" data-book-id="${escapeHtml(book.bookId)}" style="border-color:#dc3545;color:#dc3545;">Xóa</button>
                     </div>
@@ -15004,7 +15836,18 @@ self.onmessage = event => {
             const shownCount = Math.min(state.visibleCount, state.filteredBooks.length);
             const remainingCount = Math.max(0, state.filteredBooks.length - shownCount);
             const hasMore = remainingCount > 0;
-            totalEl.textContent = `Tổng ${state.allBooks.length} truyện trong thư viện`;
+            const storageBytes = tmGetStorageUsageBytes();
+            const storageText = storageBytes === null ? 'đang đo kho nén...'
+                : `kho nén ~${libFormatBytes(storageBytes)}/${libFormatBytes(TM_STORAGE_HARD_BYTES)}`;
+            const hasLocalHere = state.allBooks.some(book => libIsLocalBook(book) && libCanAccessBookStorage(book));
+            const originText = hasLocalHere && state.originStorage?.quota
+                ? ` · quota domain ~${libFormatBytes(state.originStorage.usage)}/${libFormatBytes(state.originStorage.quota)}`
+                : '';
+            totalEl.textContent = `Tổng ${state.allBooks.length} truyện · TM ${storageText}${originText}`;
+            totalEl.style.color = storageBytes !== null && storageBytes >= TM_STORAGE_WARN_BYTES ? '#dc2626' : '';
+            totalEl.title = storageBytes !== null && storageBytes >= TM_STORAGE_WARN_BYTES
+                ? 'Kho đang gần ngưỡng an toàn. TM Translate sẽ tự dọn cache dịch trước khi ghi thêm.'
+                : 'Dung lượng GM storage sau nén; giới hạn 50 MB là vùng an toàn trước mốc 64 MiB của Tampermonkey.';
             metaEl.textContent = state.filteredBooks.length === state.allBooks.length
                 ? `Hiển thị ${shownCount}/${state.filteredBooks.length} truyện`
                 : `Tìm thấy ${state.filteredBooks.length}/${state.allBooks.length} truyện · đang hiển thị ${shownCount}`;
@@ -15170,6 +16013,13 @@ self.onmessage = event => {
                 : libFormatRelativeTime(status.lastCompletedAt)
         );
         applyFilter(true);
+        void tmEnsureStorageUsageReady().then(() => {
+            if (wrapper.isConnected) renderVisible();
+        }).catch(err => console.warn('[tm-translate] Không đo được dung lượng storage:', err));
+        void libGetOriginStorageEstimate().then(originStorage => {
+            state.originStorage = originStorage;
+            if (wrapper.isConnected) renderVisible();
+        }).catch(() => { });
         libMaybeRunBackgroundBackup(backupStatusEl);
     }
 
@@ -15205,7 +16055,7 @@ self.onmessage = event => {
 
     function libFindBookInIndex(bookId) {
         const index = libLoadIndex();
-        return (index.books || []).find(b => b.bookId === bookId) || null;
+        return libRememberBookStorage((index.books || []).find(b => b.bookId === bookId) || null);
     }
 
     function libUpdateBookLastRead(bookId, chapterId, scrollRatio, chapterOrder) {
@@ -15221,7 +16071,9 @@ self.onmessage = event => {
         }
         book.lastReadAt = Date.now();
         book.updatedAt = Date.now();
-        libSaveIndex(index);
+        void libSaveIndex(index).catch(err => {
+            console.error('[tm-translate] Không lưu được tiến độ đọc:', err);
+        });
         if (libGetBackupStatus().state !== 'dirty') {
             libSetBackupStatus({ state: 'dirty', message: 'Tiến độ đọc có thay đổi chưa sao lưu.' });
         }
@@ -16989,6 +17841,7 @@ self.onmessage = event => {
             showNotification('Không tìm thấy truyện.');
             return;
         }
+        if (!await libEnsureBookActionOnCurrentOrigin(bookId, 'reader')) return;
         const chapters = await libGetChaptersByBook(bookId);
         if (!chapters.length) {
             showNotification('Truyện chưa có chương.');
@@ -17088,7 +17941,7 @@ self.onmessage = event => {
 <div class="tm-welcome-title">🌸 Chào mừng đến với TM Translate 🌸</div>
 		<div class="tm-welcome-sub">TM Translate v${CURRENT_VERSION} • Dịch trang web Trung → Việt, quản lý Name-set, Thư viện đọc offline, OCR dịch ảnh và TTS</div>
 		<div class="tm-welcome-banner">
-		  <strong>✨ v${CURRENT_VERSION}:</strong> Thu gọn storage Thư viện để xử lý dứt điểm lỗi message 64 MiB của Tampermonkey.
+		  <strong>✨ v${CURRENT_VERSION}:</strong> Chọn lưu truyện qua Tampermonkey hoặc IndexedDB/OPFS theo domain; kho TM vẫn được nén và chặn trước vùng nguy hiểm.
 	</div>
 <div style="height:8px;"></div>
     `.trim();
@@ -17111,8 +17964,9 @@ self.onmessage = event => {
 - Thư viện hiển thị dạng toàn màn hình, truyện vừa import hoặc vừa đọc nằm trước, có tổng số truyện, phân trang/lazy load khi cuộn và bìa mặc định cho từng truyện.
 - Nút **Chỉnh sửa** cho phép sửa text gốc của tên truyện, tác giả, mô tả, bìa, link bổ sung, RAW/Việt; sửa tên/raw từng chương, chèn/xóa/đổi thứ tự chương và chia lại bằng regex có preview + giới hạn ký tự.
 - Popup Import Tùy chỉnh, Chỉnh sửa truyện và Edit Name không đóng khi chạm ra ngoài. Nếu nội dung đang sửa dở, nút Đóng/Bỏ sẽ hỏi xác nhận trước và giữ nguyên popup khi chọn quay lại sửa.
-- Nội dung chương/raw/cache được nén gzip trước khi ghi GM storage; bìa vẫn nằm ở key riêng. Lần đầu lên bản mới, script tự hiện tiến độ thu gọn dữ liệu cũ rồi dùng lại bình thường, không xóa truyện.
-- Ảnh bìa đi theo backup và được đóng gói vào EPUB.
+- Khi import có thể chọn **Tampermonkey** (dùng chung mọi domain, vùng an toàn 50 MiB) hoặc **Thiết bị này** (RAW/cache ưu tiên OPFS, tự fallback IndexedDB; bìa/chương nằm trong IndexedDB). Lựa chọn local có quota lớn hơn nhưng theo từng domain/profile và có thể mất nếu xóa dữ liệu website; không phải dung lượng vô hạn.
+- Index nhẹ vẫn nằm trong Tampermonkey nên truyện local hiện ở mọi website, đồng thời index cũng bị chặn trước vùng 64 MiB. Khi bấm truyện từ sai domain, script tự mở tab domain đã import và tiếp tục Reader/Thông tin/Chỉnh sửa/BN/Xuất/Xóa. Backup chỉ đọc được truyện local thuộc domain tab hiện tại và sẽ cảnh báo những truyện phải bỏ qua.
+- Nội dung lưu trong Tampermonkey được nén gzip; lần đầu lên bản mới, script tự hiện tiến độ thu gọn dữ liệu cũ rồi dùng lại bình thường, không xóa truyện. Thư viện hiện dung lượng kho nén/quota domain, tự dọn cache dịch khi GM gần đầy và kiểm tra đủ chỗ trước khi import để không ghi dở nửa truyện. Bìa lớn được tự thu nhỏ; ảnh bìa vẫn đi theo backup và EPUB.
 - Tên tác giả Trung được phiên âm Hán Việt, viết hoa và tách đúng ranh giới chữ Latin/Trung.
 - Ô tìm kiếm mặc định bật toàn bộ phạm vi: tên truyện, tác giả raw, tác giả dịch, raw Trung và cache dịch.
 - **BN** cho phép chọn nhiều Bộ Name Chung và quản lý một Bộ Name Riêng cho từng truyện (nhập file/text, thêm, sửa, xóa, xuất). Name Riêng luôn ưu tiên hơn Name Chung; Edit Name trong Reader mặc định lưu vào Riêng nhưng có thể chọn một bộ Chung đang áp dụng. Tên truyện và văn án cũng dùng đúng tổ hợp BN này khi dịch.
@@ -17157,6 +18011,11 @@ self.onmessage = event => {
 - Sửa đúng nguyên nhân Tampermonkey báo **Message exceeded maximum allowed size of 64MiB**: Tampermonkey 5.5 vẫn đóng gói toàn bộ storage vào sandbox trước khi userscript chạy, nên chỉ đổi sang API bất đồng bộ ở bản trước là chưa đủ.
 - Danh sách chương, RAW và cache dịch nay được nén gzip trong GM storage rồi giải nén trong suốt khi đọc/import/export. Migration một lần có thanh tiến độ, chặn đóng nhầm và giữ nguyên key/dữ liệu cũ.
 - Thêm **noframes** để không lặp bundle/storage của TM Translate trong từng iframe. Storage cũ đã vượt 64 MiB cần bật **UserScripts API Dynamic** một lần để migration khởi động; xong có thể đổi về chế độ cũ.
+- Thêm bộ đo dung lượng GM storage sau nén: cảnh báo từ 36 MiB, tự dọn cache dịch từ 42 MiB và chặn RAW/bìa mới trước ngưỡng an toàn 50 MiB để còn khoảng trống cho overhead Tampermonkey.
+- Import vào Tampermonkey được kiểm tra dung lượng toàn bộ trước khi ghi nên không để lại nửa bộ truyện nếu kho không đủ chỗ; import local lỗi giữa chừng cũng tự dọn dữ liệu đang ghi. Bìa lớn (kể cả bìa EPUB và bìa cũ khi tải) tự giảm tối đa 720×1080 bằng WebP/JPEG nếu bản mới nhỏ hơn.
+- Import nay cho chọn **Tampermonkey** hoặc **Thiết bị này**. Chế độ thiết bị lưu RAW/cache vào OPFS (fallback IndexedDB), chương/bìa vào IndexedDB; quota lớn hơn nhưng bị tách theo domain/profile và có thể mất khi xóa dữ liệu website.
+- Index nhẹ vẫn dùng chung qua Tampermonkey và cũng được đo/chặn trước ngưỡng nguy hiểm. Truyện local ghi nhớ domain/trang import; thao tác từ website khác sẽ mở tab đúng domain rồi tự tiếp tục Reader/Thông tin/Chỉnh sửa/BN/Xuất/Xóa, kể cả domain đang nằm trong blacklist dịch trang.
+- Thẻ truyện ghi rõ backend, đầu Thư viện hiện thêm quota của origin. Backup cảnh báo và bỏ qua dữ liệu local ở domain khác; restore local đặt dữ liệu vào domain đang mở.
 
 ### ✨ v3.5.5.13_beta
 - Sửa export TXT/EPUB/HTML dùng đúng tổ hợp Bộ Name của từng truyện theo ưu tiên **Name Riêng > Name Chung**. Name đã có trong cache cũ cũng được khôi phục cách viết hoa chuẩn theo RAW, không còn bị hạ thành \`lý Nhược Hi\` sau dấu nháy.
@@ -17216,7 +18075,7 @@ self.onmessage = event => {
         const updateBanner = `
 	<div class="tm-update-banner">
 	  <div style="font-size:15px;font-weight:700;">🌈 TM Translate v${CURRENT_VERSION} đã sẵn sàng!</div>
-	  <div style="font-size:12px;color:#6a4f7a;">Storage Thư viện được nén tự động để không làm Tampermonkey vượt giới hạn message 64 MiB.</div>
+	  <div style="font-size:12px;color:#6a4f7a;">Có thể chọn kho Tampermonkey dùng chung hoặc IndexedDB/OPFS theo domain; mỗi lựa chọn đều hiển thị rõ giới hạn.</div>
 	</div>`.trim();
         openHelpModal([updateBanner, renderHelpMarkdown(changelogMarkdown)].join('\n'));
     }
@@ -17231,6 +18090,13 @@ self.onmessage = event => {
         console.log('[tm-translate] Trang này nằm trong Blacklist. Script đã dừng hoạt động.');
 
         injectGlobalCSS();
+
+        // Truyện local có thể đã được import từ một domain hiện đang nằm trong blacklist.
+        // Cho phép yêu cầu mở nhanh hoàn tất trước khi dừng các tính năng dịch trang.
+        void libHandleQuickOpenRequest().catch(err => {
+            console.error('[tm-translate] Mở nhanh truyện theo domain thất bại:', err);
+            showNotification('Không thể mở nhanh truyện trên domain lưu dữ liệu.');
+        });
 
         GM_registerMenuCommand('🚫 Mở Cài đặt (Bỏ chặn)', () => {
             openSettingsUI();
@@ -17261,6 +18127,10 @@ self.onmessage = event => {
 
     injectGlobalCSS();
     updateFloatingButtons();
+    void libHandleQuickOpenRequest().catch(err => {
+        console.error('[tm-translate] Mở nhanh truyện theo domain thất bại:', err);
+        showNotification('Không thể mở nhanh truyện trên domain lưu dữ liệu.');
+    });
 
     if (config.translationMode === 'local') {
         initializeLocalTranslator();

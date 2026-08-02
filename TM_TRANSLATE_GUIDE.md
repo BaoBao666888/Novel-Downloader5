@@ -73,13 +73,25 @@ Trong Thư viện sẽ có:
 - Tên truyện dài chạy vòng một chiều trong thẻ, không kéo giãn làm lệch grid.
 - EPUB có bìa nhúng sẽ tự dùng bìa đó. Truyện không có ảnh dùng bìa mặc định SVG; có thể thay bìa trong **Chỉnh sửa**.
 - Tìm kiếm theo **tên truyện / tác giả gốc / tác giả đã dịch / RAW Trung / cache dịch**. Mặc định chọn tất cả phạm vi.
-- Lazy load/phân trang khi cuộn để tránh lag khi có nhiều truyện; có hiển thị tổng số truyện.
+- Lazy load/phân trang khi cuộn để tránh lag khi có nhiều truyện; có hiển thị tổng số truyện và dung lượng kho nén.
+- Mỗi thẻ ghi rõ nơi lưu: **TM** (Tampermonkey) hoặc **Máy · domain** (IndexedDB/OPFS của website đã import).
 - Nút: **Mở**, **Chỉnh sửa**, **Xuất file...**, **Xóa**.
 - Nút **Import** nhận TXT, EPUB, ZIP, Word và HTML.
 - Nút **Xóa cache dịch** (xóa toàn bộ cache bản dịch, có hiện dung lượng).
 - **Sao lưu / Khôi phục** dùng file `.tmbackup.jsonl`: bấm **Sao lưu** để tải file, hoặc **Khôi phục** để chọn file đó nhập lại. File gồm index, RAW, cache và bìa. Khi dữ liệu thay đổi, script có thể tự sao lưu theo chu kỳ trong tab **Thư viện** (mặc định 6 giờ sau lần sao lưu trước).
 
 Từ v3.5.5.14_beta, danh sách chương, RAW và cache dịch được nén gzip ngay trong GM storage; bìa nằm ở key riêng. Lần chạy đầu sau update sẽ hiện tiến độ thu gọn dữ liệu cũ. Script giữ nguyên key và tự giải nén khi đọc/import/export nên không cần xóa truyện hay cài lại.
+
+Script đo dung lượng GM storage sau nén và chừa khoảng an toàn trước giới hạn message 64 MiB của Tampermonkey: Thư viện cảnh báo từ khoảng 36 MiB, tự xóa cache dịch khi chạm khoảng 42 MiB, và không ghi thêm RAW/bìa nếu dự kiến vượt 50 MiB. Import được kiểm tra trọn bộ trước khi ghi nên thiếu chỗ sẽ báo ngay, không để lại nửa bộ truyện. Ảnh bìa lớn, kể cả bìa EPUB, được tự giảm tối đa 720×1080 bằng WebP/JPEG khi bản tối ưu nhỏ hơn ảnh gốc.
+
+Khi import, mục **Nơi lưu nội dung truyện** có hai lựa chọn và luôn giải thích bất cập ngay bên dưới:
+
+- **Tampermonkey — dùng chung mọi domain:** mở/đọc/sửa được ở mọi website, nhưng toàn bộ dữ liệu nằm trong kho Tampermonkey và phải tuân theo vùng an toàn 50 MiB nói trên.
+- **Thiết bị này — IndexedDB/OPFS theo domain:** danh sách chương và bìa nằm trong IndexedDB; RAW/cache dịch ưu tiên OPFS, tự fallback sang IndexedDB nếu trình duyệt không hỗ trợ OPFS. Dung lượng thường lớn hơn nhiều nhưng **không vô hạn**: quota do trình duyệt cấp dựa trên ổ đĩa, profile và origin. Script xin persistent storage theo khả năng trình duyệt; dữ liệu vẫn có thể mất khi xóa dữ liệu website/profile, dùng chế độ riêng tư, đổi trình duyệt/máy hoặc khi trình duyệt thu hồi kho không-persistent.
+
+Index nhẹ của Thư viện vẫn được lưu trong Tampermonkey, vì vậy truyện local vẫn hiện ở website khác; index này cũng nằm trong bộ đo/chặn 50 MiB để số lượng file cực lớn không làm Tampermonkey vượt 64 MiB. Nếu bấm **Mở/Thông tin/Chỉnh sửa/BN/Xuất/Xóa** từ sai domain, script ghi một yêu cầu mở nhanh, mở tab đúng domain đã import rồi tự tiếp tục thao tác. Nếu domain đó không còn truy cập được, dữ liệu local của origin ấy cũng không thể đọc trực tiếp; khi đó cần đưa domain hoạt động lại hoặc import/khôi phục truyện sang origin khác.
+
+Dung lượng local hiển thị ở đầu Thư viện là ước lượng **toàn bộ storage của domain**, không chỉ riêng TM Translate. Backup tại một tab gồm dữ liệu GM và các truyện local của đúng domain hiện tại; truyện local thuộc domain khác được liệt kê là bỏ qua và có cảnh báo. Muốn backup đầy đủ, hãy mở từng domain đang giữ truyện rồi sao lưu. Khi khôi phục một truyện local, dữ liệu được đặt vào local storage của domain đang mở.
 
 ### 3.2 Import TXT/EPUB/ZIP/Word/HTML
 
@@ -96,6 +108,8 @@ Các định dạng được hỗ trợ:
 - **DOCX, DOC, ODT, RTF, HTML/HTM:** trích nội dung và đưa qua cùng quy trình chia/chỉnh chương. DOC đời cũ được đọc theo khả năng của trình duyệt nên file quá đặc biệt có thể cần đổi sang DOCX trước.
 
 Với file lớn, popup hiện skeleton, tên file, dung lượng và trạng thái ngay trước khi xử lý. Giải nén/chia chương chạy nền khi trình duyệt hỗ trợ; EPUB nhiều chương sẽ nhường khung hình định kỳ để giao diện vẫn phản hồi. Nếu đóng hoặc rời trang khi tác vụ/bản nháp chưa xong, script sẽ cảnh báo trước.
+
+Với lựa chọn Tampermonkey, trước lúc lưu script ước lượng dữ liệu đã nén của toàn bộ bản import. Nếu vượt vùng an toàn, cache dịch được dọn trước; nếu vẫn không đủ chỗ, import bị hủy nguyên vẹn và popup hiện lý do để bạn sao lưu/xóa bớt truyện rồi thử lại. Với lựa chọn Thiết bị, trình duyệt quyết định quota; lỗi hết quota được báo và bản import local đang ghi được dọn lại.
 
 Mặc định tùy chọn **Tùy chỉnh trước khi nhập** được bật:
 
@@ -308,3 +322,8 @@ Trong mỗi truyện:
 - Thêm migration một lần có tiến độ và cảnh báo đóng tab, giữ nguyên dữ liệu của bản cũ.
 - Thêm `@noframes` để Tampermonkey không inject lặp TM Translate cùng storage vào iframe.
 - Bổ sung hướng dẫn cứu storage đã vượt 64 MiB qua **UserScripts API Dynamic**, không cần xóa/cài lại script.
+- Hiển thị dung lượng kho nén; tự dọn cache dịch ở 42 MiB và chặn ghi thêm dữ liệu thư viện trước vùng nguy hiểm ở 50 MiB.
+- Kiểm tra đủ chỗ cho toàn bộ truyện trước khi import, đồng thời tự thu nhỏ bìa lớn/bìa EPUB nếu có lợi.
+- Cho chọn nơi lưu khi import: kho Tampermonkey dùng chung mọi domain, hoặc kho thiết bị dùng OPFS/IndexedDB theo domain với quota lớn hơn.
+- Giữ index nhẹ trong Tampermonkey; truyện local được gắn domain, bấm từ domain khác sẽ mở tab đúng nơi lưu và tự tiếp tục vào Reader/Thông tin/Chỉnh sửa/BN/Xuất/Xóa.
+- Hiển thị rõ giới hạn của từng nơi lưu, quota local của origin và cảnh báo backup không thể lấy truyện local đang nằm ở domain khác.
