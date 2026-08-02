@@ -1380,6 +1380,16 @@
         .tm-library-titleblock { min-width: 0; display: grid; gap: 2px; }
         .tm-library-titleblock h2 { margin: 0; font-size: 23px; line-height: 1.1; letter-spacing: 0; color: #111827; }
         .tm-library-muted { color: #64748b; font-size: 12px; line-height: 1.35; }
+        .tm-library-status { min-width: 0; width: 100%; overflow: hidden; white-space: nowrap; }
+        .tm-library-status-track { display: inline-flex; min-width: 100%; width: max-content; align-items: baseline; }
+        .tm-library-status-copy { display: none; flex: 0 0 auto; }
+        .tm-library-status.is-marquee .tm-library-status-track {
+            min-width: 0; gap: var(--tm-marquee-gap, 32px);
+            animation: tm-library-title-marquee var(--tm-marquee-duration, 12s) linear infinite;
+            will-change: transform;
+        }
+        .tm-library-status.is-marquee .tm-library-status-copy { display: block; }
+        .tm-library-status:hover .tm-library-status-track { animation-play-state: paused; }
         .tm-library-close { flex: 0 0 auto; min-width: 38px; min-height: 34px; padding: 6px 10px; font-weight: 800; font-size: 18px; line-height: 1; }
         .tm-library-searchbox { position: relative; display: grid; gap: 6px; min-width: 0; }
         .tm-library-searchrow { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px; }
@@ -12377,6 +12387,28 @@ ${titleSvg}
         });
     }
 
+    function libSetupLibraryStatusMarquee(wrapper) {
+        if (!wrapper) return;
+        requestAnimationFrame(() => {
+            const status = wrapper.querySelector('.tm-library-status');
+            const textEl = status?.querySelector('#tm-lib-total');
+            const copyEl = status?.querySelector('.tm-library-status-copy');
+            if (!status || !textEl || !copyEl) return;
+            status.classList.remove('is-marquee');
+            status.style.removeProperty('--tm-marquee-shift');
+            status.style.removeProperty('--tm-marquee-duration');
+            copyEl.textContent = textEl.textContent || '';
+            copyEl.style.color = textEl.style.color || '';
+            const overflow = Math.max(0, textEl.scrollWidth - status.clientWidth);
+            if (overflow < 4) return;
+            const gap = 32;
+            status.style.setProperty('--tm-marquee-gap', `${gap}px`);
+            status.style.setProperty('--tm-marquee-shift', `${textEl.scrollWidth + gap}px`);
+            status.style.setProperty('--tm-marquee-duration', `${Math.max(10, Math.min(32, 6 + textEl.scrollWidth / 34))}s`);
+            status.classList.add('is-marquee');
+        });
+    }
+
     // NEW: export helpers
     function libSafeFileName(name) {
         const cleaned = (name || 'book').replace(/[\\/:*?"<>|]+/g, '_').trim();
@@ -15600,9 +15632,9 @@ self.onmessage = event => {
                         <option value="all">Toàn bộ (${chapters.length} chương)</option>
                         <option value="current">Chương đang đọc (${lastReadIndex + 1})</option>
                         <option value="from-current">Từ chương đang đọc đến hết</option>
-                        <option value="range">Khoảng chương tùy chọn</option>
+                        <option value="range">Khoảng chương đang chọn</option>
                     </select>
-                    <div id="tm-lib-export-range" class="tm-row" hidden>
+                    <div id="tm-lib-export-range" class="tm-row">
                         <div class="tm-col"><label class="tm-label">Từ chương</label><input id="tm-lib-export-start" class="tm-input" type="number" min="1" max="${chapters.length}" value="1"></div>
                         <div class="tm-col"><label class="tm-label">Đến chương</label><input id="tm-lib-export-end" class="tm-input" type="number" min="1" max="${chapters.length}" value="${chapters.length}"></div>
                     </div>
@@ -15631,7 +15663,8 @@ self.onmessage = event => {
 
         const typeInput = wrapper.querySelector('#tm-lib-export-type');
         const scopeInput = wrapper.querySelector('#tm-lib-export-scope');
-        const rangeRow = wrapper.querySelector('#tm-lib-export-range');
+        const startInput = wrapper.querySelector('#tm-lib-export-start');
+        const endInput = wrapper.querySelector('#tm-lib-export-end');
         const epubRow = wrapper.querySelector('#tm-lib-export-epub-version');
         const hint = wrapper.querySelector('#tm-lib-export-hint');
         let busy = false;
@@ -15641,13 +15674,41 @@ self.onmessage = event => {
         };
         const refresh = () => {
             const type = typeInput.value;
-            rangeRow.hidden = scopeInput.value !== 'range';
             epubRow.hidden = type !== 'epub';
             hint.textContent = type === 'html' ? recommendation.htmlTitle
                 : (type === 'epub' ? recommendation.epubTitle : 'TXT gọn, dễ tìm kiếm và chỉnh sửa văn bản.');
         };
+        const syncRangeFromScope = () => {
+            if (scopeInput.value === 'range') return;
+            if (scopeInput.value === 'current') {
+                startInput.value = String(lastReadIndex + 1);
+                endInput.value = String(lastReadIndex + 1);
+            } else if (scopeInput.value === 'from-current') {
+                startInput.value = String(lastReadIndex + 1);
+                endInput.value = String(chapters.length);
+            } else {
+                startInput.value = '1';
+                endInput.value = String(chapters.length);
+            }
+        };
+        const normalizeSelectedRange = () => {
+            const start = Math.max(1, Math.min(chapters.length, Number(startInput.value || 1)));
+            const end = Math.max(start, Math.min(chapters.length, Number(endInput.value || chapters.length)));
+            startInput.value = String(start);
+            endInput.value = String(end);
+        };
         typeInput.addEventListener('change', refresh);
-        scopeInput.addEventListener('change', refresh);
+        scopeInput.addEventListener('change', () => {
+            syncRangeFromScope();
+            refresh();
+        });
+        [startInput, endInput].forEach(input => {
+            input.addEventListener('input', () => {
+                scopeInput.value = 'range';
+                refresh();
+            });
+            input.addEventListener('change', normalizeSelectedRange);
+        });
         wrapper.querySelector('#tm-lib-export-close').onclick = close;
         wrapper.querySelector('#tm-lib-export-cancel').onclick = close;
         wrapper.querySelector('#tm-lib-export-start-btn').onclick = async () => {
@@ -15677,6 +15738,7 @@ self.onmessage = event => {
                 else await libExportBookEpub(bookId, exportOptions);
             });
         };
+        syncRangeFromScope();
         refresh();
     }
 
@@ -15693,8 +15755,12 @@ self.onmessage = event => {
                 <div class="tm-library-topbar">
                     <div class="tm-library-titleblock">
                         <h2>Thư viện</h2>
-                        <div id="tm-lib-total" class="tm-library-muted">Đang tải...</div>
-                        <div id="tm-lib-result-meta" class="tm-library-result-meta"></div>
+                        <div class="tm-library-status">
+                            <span class="tm-library-status-track">
+                                <span id="tm-lib-total" class="tm-library-muted">Đang tải...</span>
+                                <span class="tm-library-muted tm-library-status-copy" aria-hidden="true"></span>
+                            </span>
+                        </div>
                     </div>
                     <div class="tm-library-searchbox">
                         <div class="tm-library-searchrow">
@@ -15747,7 +15813,6 @@ self.onmessage = event => {
         const grid = wrapper.querySelector('#tm-lib-grid');
         const scrollEl = wrapper.querySelector('#tm-lib-scroll');
         const totalEl = wrapper.querySelector('#tm-lib-total');
-        const metaEl = wrapper.querySelector('#tm-lib-result-meta');
         const loadHintEl = wrapper.querySelector('#tm-lib-load-hint');
         const searchInput = wrapper.querySelector('#tm-lib-search');
         const filterBtn = wrapper.querySelector('#tm-lib-filter-btn');
@@ -15843,14 +15908,14 @@ self.onmessage = event => {
             const originText = hasLocalHere && state.originStorage?.quota
                 ? ` · quota domain ~${libFormatBytes(state.originStorage.usage)}/${libFormatBytes(state.originStorage.quota)}`
                 : '';
-            totalEl.textContent = `Tổng ${state.allBooks.length} truyện · TM ${storageText}${originText}`;
+            const metaText = state.filteredBooks.length === state.allBooks.length
+                ? `Hiển thị ${shownCount}/${state.filteredBooks.length} truyện`
+                : `Tìm thấy ${state.filteredBooks.length}/${state.allBooks.length} truyện · đang hiển thị ${shownCount}`;
+            totalEl.textContent = `${metaText} · Tổng ${state.allBooks.length} truyện · TM ${storageText}${originText}`;
             totalEl.style.color = storageBytes !== null && storageBytes >= TM_STORAGE_WARN_BYTES ? '#dc2626' : '';
             totalEl.title = storageBytes !== null && storageBytes >= TM_STORAGE_WARN_BYTES
                 ? 'Kho đang gần ngưỡng an toàn. TM Translate sẽ tự dọn cache dịch trước khi ghi thêm.'
                 : 'Dung lượng GM storage sau nén; giới hạn 50 MB là vùng an toàn trước mốc 64 MiB của Tampermonkey.';
-            metaEl.textContent = state.filteredBooks.length === state.allBooks.length
-                ? `Hiển thị ${shownCount}/${state.filteredBooks.length} truyện`
-                : `Tìm thấy ${state.filteredBooks.length}/${state.allBooks.length} truyện · đang hiển thị ${shownCount}`;
             grid.innerHTML = books.length
                 ? books.map(renderBookCard).join('')
                 : '<div class="tm-library-empty">Không có truyện phù hợp.</div>';
@@ -15860,6 +15925,7 @@ self.onmessage = event => {
                 loadHintEl.textContent = hasMore ? `Còn ${remainingCount} truyện, cuộn xuống hoặc bấm Tải thêm` : '';
             }
             bindCardActions();
+            libSetupLibraryStatusMarquee(wrapper);
             libTranslateLibraryTitles(wrapper, books);
             libUpdateLibraryProgress(wrapper, books);
             libSetupLibraryTitleMarquees(wrapper);
@@ -15873,7 +15939,10 @@ self.onmessage = event => {
             const query = String(searchInput.value || '').trim();
             const scopes = getScopes();
             if (resetOffset) state.visibleCount = LIB_LIST_PAGE_SIZE;
-            metaEl.textContent = query ? 'Đang tìm...' : '';
+            if (query) {
+                totalEl.textContent = 'Đang tìm...';
+                libSetupLibraryStatusMarquee(wrapper);
+            }
             const matched = [];
             for (const book of state.allBooks) {
                 if (token !== state.renderToken) return;
