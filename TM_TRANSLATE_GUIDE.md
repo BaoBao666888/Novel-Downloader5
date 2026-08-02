@@ -1,6 +1,6 @@
 # Hướng Dẫn Sử Dụng TM Translate (Userscript)
 
-> Tài liệu này được cập nhật cho **TM Translate v3.5.5.13_beta**.
+> Tài liệu này được cập nhật cho **TM Translate v3.5.5.14_beta**.
 
 **TM Translate** là userscript chạy trên Tampermonkey/Violentmonkey, hỗ trợ:
 
@@ -79,7 +79,7 @@ Trong Thư viện sẽ có:
 - Nút **Xóa cache dịch** (xóa toàn bộ cache bản dịch, có hiện dung lượng).
 - **Sao lưu / Khôi phục** dùng file `.tmbackup.jsonl`: bấm **Sao lưu** để tải file, hoặc **Khôi phục** để chọn file đó nhập lại. File gồm index, RAW, cache và bìa. Khi dữ liệu thay đổi, script có thể tự sao lưu theo chu kỳ trong tab **Thư viện** (mặc định 6 giờ sau lần sao lưu trước).
 
-Từ v3.5.5.13_beta, Thư viện dùng API storage bất đồng bộ và lưu nội dung/bìa thành các key riêng. Cách này tránh lỗi Tampermonkey `Message exceeded maximum allowed size of 64MiB` khi tổng RAW/cache lớn. Khi update từ bản cũ, script dùng lại đúng các key hiện có và tự tách bìa khỏi index; không cần xóa dữ liệu hay cài lại.
+Từ v3.5.5.14_beta, danh sách chương, RAW và cache dịch được nén gzip ngay trong GM storage; bìa nằm ở key riêng. Lần chạy đầu sau update sẽ hiện tiến độ thu gọn dữ liệu cũ. Script giữ nguyên key và tự giải nén khi đọc/import/export nên không cần xóa truyện hay cài lại.
 
 ### 3.2 Import TXT/EPUB/ZIP/Word/HTML
 
@@ -292,6 +292,8 @@ Trong mỗi truyện:
 
 ## 7. Ghi chú & Xử Lý Lỗi
 
+- Nếu Tampermonkey đã báo `Message exceeded maximum allowed size of 64MiB` trước khi bản mới kịp chạy: đóng bớt tab, mở **Dashboard Tampermonkey → Settings**, đổi **Config mode** thành **Advanced**, chọn **Content Script API → UserScripts API Dynamic**, rồi tải lại đúng một tab web và chờ hộp **Đang thu gọn dữ liệu TM Translate** chạy xong. Sau đó có thể đổi Content Script API về lựa chọn cũ. Không xóa script/storage trong lúc cứu dữ liệu.
+- Nếu không thấy mục **UserScripts API Dynamic**, hãy cập nhật Tampermonkey và bật quyền chạy userscript/Developer mode mà Chrome yêu cầu, rồi mở lại Settings.
 - Chỉ khi **Edit Name đang bật**, script mới bọc phần dịch cần thiết để map “gốc ↔ dịch”. Khi tắt Edit Name, script dịch trực tiếp text node/link và không thêm `span` hay `title`.
 - Name-set chỉ thay theo cặp **Trung → Việt**, không thay Việt → Việt để tránh lỗi khớp lố trong bản dịch.
 - Nếu thấy chậm/lag khi dịch: giảm `maxCharsPerRequest`, tăng `delayMs`, hoặc tăng `retry` hợp lý.
@@ -300,10 +302,9 @@ Trong mỗi truyện:
 
 ---
 
-## 8. Thay đổi đáng chú ý trong 3.5.5.13_beta
+## 8. Thay đổi đáng chú ý trong 3.5.5.14_beta
 
-- Đồng bộ TXT/EPUB/HTML với Name Riêng + các Name Chung của truyện và sửa viết hoa Name trong cache cũ.
-- Gom xuất thành popup có loại file, phạm vi, Dịch khi xuất và EPUB 2/3; request xuất có nhịp tối thiểu 800 ms cùng retry backoff.
-- Thêm ZIP; import lớn có skeleton, giải nén/chia chương nền, tiến độ và cảnh báo rời trang.
-- Chuyển storage thư viện sang API bất đồng bộ, tách bìa khỏi index để tránh message 64 MiB mà vẫn giữ nguyên dữ liệu cũ.
-- Giảm công việc trong lúc Reader đang cuộn; Edit Name vá nhiều đoạn không còn kéo ngược vị trí user vừa cuộn tới.
+- Nén gzip danh sách chương, RAW và cache dịch trong GM storage; dữ liệu được giải nén trong suốt khi sử dụng.
+- Thêm migration một lần có tiến độ và cảnh báo đóng tab, giữ nguyên dữ liệu của bản cũ.
+- Thêm `@noframes` để Tampermonkey không inject lặp TM Translate cùng storage vào iframe.
+- Bổ sung hướng dẫn cứu storage đã vượt 64 MiB qua **UserScripts API Dynamic**, không cần xóa/cài lại script.
