@@ -66,7 +66,7 @@ Script được khai báo chạy trên mọi website để có thể mở công 
 2. Nhấn cài script chính: [Auto Volume Chapter Uploader.user.js](https://raw.githubusercontent.com/BaoBao666888/Novel-Downloader5/main/Auto%20Volume%20Chapter%20Uploader.user.js)
    hoặc copy link sau rồi mở trong tab mới:
    ```
-   https://raw.githubusercontent.com/BaoBao666888/Novel-Downloader5/main/Auto%20Volume%20Chapter%20Uploader.user.js]
+   https://raw.githubusercontent.com/BaoBao666888/Novel-Downloader5/main/Auto%20Volume%20Chapter%20Uploader.user.js
    ```
 
 4. Khi Tampermonkey hiện trang cài đặt, bấm **Install/Cài đặt**.
