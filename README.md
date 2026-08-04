@@ -217,7 +217,7 @@ Rule.special.push({
 
 ### Userscript bổ trợ
 
-*   **Auto Volume Chapter Uploader.user.js:** Tự động chèn tập/chương, kiểm tra trùng/thiếu và chọn vị trí chèn -n/n- khi đăng truyện; [Cài đặt](https://raw.githubusercontent.com/BaoBao666888/Novel-Downloader5/main/Auto%20Volume%20Chapter%20Uploader.user.js) và khuyến nghị dùng kèm app [rename_chapters](rename_chapters) để đồng bộ tên chương trước khi tải lên.
+*   **Auto Volume Chapter Uploader.user.js:** Tự động chèn tập/chương, kiểm tra trùng/thiếu và chọn vị trí chèn -n/n- khi đăng truyện; [Cài đặt](https://raw.githubusercontent.com/BaoBao666888/Novel-Downloader5/main/Auto%20Volume%20Chapter%20Uploader.user.js) • [Hướng dẫn sử dụng](HUONG_DAN_AUTO_VOLUME_CHAPTER_UPLOADER.md) và khuyến nghị dùng kèm app [rename_chapters](rename_chapters) để đồng bộ tên chương trước khi tải lên.
 *   **Fanqie Chapter Replacer and copy Full.user.js:** Thay nội dung chương Fanqie từ API cá nhân và thêm nút copy tiêu đề + nội dung để dùng lại nhanh; [Cài đặt](https://raw.githubusercontent.com/BaoBao666888/Novel-Downloader5/main/Fanqie%20Chapter%20Replacer%20and%20copy%20Full.user.js).
 *   **TM Translate.user.js:** Dịch trang, quản lý name-set, Thư viện đọc offline, OCR, selection toolbar và TTS trong reader; [Cài đặt](https://raw.githubusercontent.com/BaoBao666888/Novel-Downloader5/main/TM%20Translate.user.js) • [Hướng dẫn sử dụng](TM_TRANSLATE_GUIDE.md) • [Hướng dẫn TTS](tools/HUONG_DAN_SU_DUNG_TTS_READER.md).
 *   **TruyenWikiDich_Works_Manager.user.js:** Đồng bộ toàn bộ works cá nhân trên Wikidich, lưu vào localForage, hỗ trợ lọc nâng cao và xuất/nhập dữ liệu; [Cài đặt](https://raw.githubusercontent.com/BaoBao666888/Novel-Downloader5/main/TruyenWikiDich_Works_Manager.user.js).
