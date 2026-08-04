@@ -2,7 +2,7 @@
 
 Tài liệu này dành cho người dùng hai thành phần sau:
 
-- [`Auto Volume Chapter Uploader.user.js`](./Auto%20Volume%20Chapter%20Uploader.user.js), phiên bản `1.2.8.6`: script chính để chọn quyển, phân tích và gán file chương, chia một TXT lớn, lưu/khôi phục form và bấm tải lên trên WikiCV/Web Hồng.
+- [`Auto Volume Chapter Uploader.user.js`](./Auto%20Volume%20Chapter%20Uploader.user.js), phiên bản `1.2.8.6`: script chính để chọn quyển, phân tích và gán file chương, chia một TXT lớn, lưu/khôi phục form và bấm tải lên trên WikiCV.
 - [`Wikidich_Autofill.user.js`](./Wikidich_Autofill.user.js), phiên bản `0.3.9.6`: thư viện con lấy thông tin truyện từ web Trung, dịch, gợi ý phân loại, xử lý ảnh bìa và kiểm tra trùng/cấm nhúng.
 
 > **Điểm quan trọng:** thông thường chỉ cần cài script chính. Không cần cài thư viện con thành một userscript riêng.
@@ -16,8 +16,6 @@ Script chính hỗ trợ:
 - Chạy đầy đủ trên:
   - `https://wikicv.org/nhung-file`
   - `https://wikicv.org/truyen/.../chinh-sua`
-  - `https://koanchay.org/nhung-file`
-  - `https://koanchay.org/truyen/.../chinh-sua`
 - Chọn quyển hiện có, quyển bổ sung hoặc tạo quyển mới.
 - Chọn nhiều file `.txt`, tự đọc số chương, tự sắp xếp và điền tên chương + file vào form web.
 - Phát hiện file nhỏ, bảng mã không phải UTF-8, emoji/ký tự 4-byte, ký tự ẩn zero-width và dấu `、` có thể làm web từ chối.
@@ -51,7 +49,7 @@ Thư viện con hỗ trợ:
 Bạn cần:
 
 1. Trình duyệt Chromium hoặc Firefox có cài Tampermonkey.
-2. Đã đăng nhập `wikicv.org` hoặc `koanchay.org`.
+2. Đã đăng nhập `wikicv.org`.
 3. Quyền chỉnh sửa/nhúng truyện phù hợp với tài khoản đang dùng.
 4. Nếu lấy dữ liệu PO18 hoặc Hải Đường Longma, nên đăng nhập trang nguồn trong cùng trình duyệt.
 5. Nếu dùng Gemini tự động, cần Gemini API Key hợp lệ. Luồng lấy dữ liệu và dịch cơ bản không bắt buộc có Gemini API Key.
@@ -666,7 +664,7 @@ Công cụ này độc lập với việc áp form, phù hợp để kiểm tra 
 
 ### Không thấy icon WDU
 
-- Kiểm tra URL phải đúng `/nhung-file` hoặc kết thúc bằng `/chinh-sua` trên `wikicv.org`/`koanchay.org`.
+- Kiểm tra URL phải đúng `/nhung-file` hoặc kết thúc bằng `/chinh-sua` trên `wikicv.org`.
 - Kiểm tra script đang bật.
 - Tải lại trang bằng `Ctrl+F5`.
 - Kiểm tra Console nếu giao diện web vừa thay đổi DOM.
