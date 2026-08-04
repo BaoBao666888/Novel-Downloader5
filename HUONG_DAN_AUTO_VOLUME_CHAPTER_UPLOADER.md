@@ -63,11 +63,13 @@ Script được khai báo chạy trên mọi website để có thể mở công 
 1. Cài Tampermonkey và bật tiện ích.
 2. Nhấn cài script chính: [Auto Volume Chapter Uploader.user.js](https://raw.githubusercontent.com/BaoBao666888/Novel-Downloader5/main/Auto%20Volume%20Chapter%20Uploader.user.js)
    hoặc copy link sau rồi mở trong tab mới:
-   ```https://raw.githubusercontent.com/BaoBao666888/Novel-Downloader5/main/Auto%20Volume%20Chapter%20Uploader.user.js```
+   ```
+   https://raw.githubusercontent.com/BaoBao666888/Novel-Downloader5/main/Auto%20Volume%20Chapter%20Uploader.user.js
+   ```
 
-3. Khi Tampermonkey hiện trang cài đặt, bấm **Install/Cài đặt**.
-4. Mở hoặc tải lại trang `/nhung-file` hay `/chinh-sua`.
-5. Nếu Tampermonkey hỏi quyền kết nối tới nguồn truyện, DichNgay hoặc Google Gemini, hãy chỉ cấp các quyền bạn thực sự muốn dùng.
+4. Khi Tampermonkey hiện trang cài đặt, bấm **Install/Cài đặt**.
+5. Mở hoặc tải lại trang `/nhung-file` hay `/chinh-sua`.
+6. Nếu Tampermonkey hỏi quyền kết nối tới nguồn truyện, DichNgay hoặc Google Gemini, hãy chỉ cấp các quyền bạn thực sự muốn dùng.
 
 ### 3.2. Có cần cài `Wikidich_Autofill.user.js` riêng không?
 
