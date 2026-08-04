@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         TruyenWikiDich Get Names
-// @version      2.3.1
-// @description  Bảng quản lý name cho wikicv.net: xem folder, copy/tải name, quét lịch sử và xuất thống kê.
+// @version      2.4.1
+// @description  Bảng quản lý name cho wikicv.org: xem, áp dụng, sửa, copy/tải name và quét lịch sử có thể tiếp tục.
 // @author       QuocBao
 // @icon         data:image/x-icon;base64,AAABAAEAQEAAAAEAIAAoQgAAFgAAACgAAABAAAAAgAAAAAEAIAAAAAAAAEAAAAAAAAAAAAAAAAAAAAAAAADaxiYA2sYmAdrGJnPaxibZ2sYm+9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJvzaxibf2sYmgNrGJgbaxiYA2sYmAtrGJpzaxib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axiaw2sYmCNrGJm3axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJn/axibd2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axibl2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axiT/2cUg/9jDG//Ywxr/2MMZ/9jDGf/Ywxr/2cQd/9rFIv/axiX/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJf/axSL/2cQd/9jDGv/Ywxn/2MMZ/9jDGf/Ywxv/2cQe/9rFI//axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2cUi/9jDGv/Ywxr/28cp/+DORf/l12X/6dx6/+vgh//r4If/6Nt1/+PTVv/dyjT/2cQe/9jDGf/ZxB//2sYm/9rGJv/axib/2sYm/9rGJv/axiT/2cQd/9jDGf/ZxSD/3cs3/+PUWv/o3Hf/6+CH/+vgh//q3oH/5tls/+HRT//cyC7/2cQc/9jDGf/ZxSD/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/ZxSD/2MMa/93LN//n2nL/8eqt//n23P/+/vr//////////////////////////////////Prs//Xvw//r4In/4M9G/9nEHf/ZxB3/2sYm/9rGJP/Ywxr/2sYm/+LTVf/t45L/9vHI//377v//////////////////////////////////////+/jk//PtuP/p3n//381B/9nEHP/ZxB7/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJf/Ywxj/3sw7/+/moP/9++7///////////////////////////////////////////////////////////////////////7++f/z7bf/4dFN/9jCF//axiX/6d16//j01f////////////////////////////////////////////////////////////////////////////799f/y67L/4M9I/9jDGP/axiT/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYn/9nFIf/ZxR//6d19//z77P/////////////////////////////////////////////////////////////////////////////////////////////++//w56T/9/LN//////////////////////////////////////////////////////////////////////////////////////////////////799v/s4Yr/2sYj/9nEH//axif/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYn/9nEH//byCz/8+yz//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////Xww//dyzj/2cQc/9rGJ//axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYn/9nEHv/cyS//9/LN//////////////////////////////////////////////////389P/7+OT/+PXX//n12P/8+un////9///////////////////////////////////////////////////////////////////////////////9//z66//59tz/+PTV//r33//8++7/////////////////////////////////////////////////+vji/+HQSf/Zwxv/2sYn/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9nFIP/cyS//9/LN///////////////////////////////////////59tv/7eOS/+PUWv/ezDv/3Mgt/9rGJf/axib/3Mkx/+DQSf/p3Xr/9vHI//////////////////////////////////////////////////799f/z7LX/6Ntz/+DQSf/cyTL/28co/9rGJP/bxyr/3co1/+LSUP/r34X/9/PQ///////////////////////////////////////7+ej/385C/9nEHf/axif/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJP/ZxR//9O68//////////////////////////////////r44v/o23X/28co/9jCGP/ZxBz/2cUh/9rGI//axiX/2sYk/9rFI//ZxB//2MMY/9nFIP/k1V//9vLL/////////////////////////////v76/+/mnv/fzT//2MMb/9jDGf/ZxB//2sUj/9rGJP/axiX/2sYk/9rFIv/ZxB7/2MMY/9rFIv/l1mP/+fXX//////////////////////////////////n12P/byCv/2sUi/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/Ywxj/6t6B//////////////////////////////////Pstv/cyjL/2MMX/9rGJP/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axiX/2MMa/9rFIv/r4Ib//fvv////////////+fXY/+LSUf/Ywxf/2cUf/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axiX/2MMZ/9vIKf/w6KX/////////////////////////////////8emr/9jDGv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/ZxSD/380///788/////////////////////////////Hpqf/ZxB7/2cUg/9rGJ//axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axSH/2MMX//bwxf//////9e/A/9zJLf/Zwxv/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axSL/2MMa/+zhiv/////////////////////////////////m2Gf/2cQa/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2MMa//Hpqf////////////////////////////PstP/ZxB7/2sUi/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2MMZ/+3jkv//////9fDE/9rGJv/ZxR//2sYn/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJP/Ywxf/7uSW////////////////////////////+vfh/9vIKv/axiP/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sUh/97MO//+/fX///////////////////////r44f/cyS7/2cUg/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2cQc/+PTVf////7/+/jj/93KMv/ZxB7/2sYn/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYj/9nFHv/178H////////////////////////////p3Xv/2MMZ/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9jDGv/o3Hf////////////////////////////n2m//2MMY/9rGJ//axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYl/9rFIv/388///////+TWYP/Ywxn/2sYn/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/ZxB7/381A//388///////////////////////+PTS/9rFIv/axiX/2sYm/9rGJv/axib/2sYm/9rGJv/ZxBv/8+y2///////////////////////59tv/2sYm/9rGJP/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axSP/2cUh/9rFIv/axiX/2sYm/9nEG//m12b///////Pstf/Ywxr/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sUj/9nFIf/ZxSL/2sYl/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9jDF//u5Zr//////////////////////////P/gz0j/2cUf/9rGJv/axib/2sYm/9rGJv/axiT/3Mgs//v45P//////////////////////7eKR/9jDGP/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rFI//Ywxv/3Mkv/97MPv/dyzf/2cQf/9nEHv/ZxB3/9e/C///////h0U7/2cQd/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axiP/2MMa/9zILv/ezD7/3cs4/9nEH//ZxB7/2sYn/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/ZxSD/381A//799v//////////////////////6d5+/9jDGf/axib/2sYm/9rGJv/axib/2cQe/+HRTv////7//////////////////////+LSU//ZxB3/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rFIv/bxyj/7uSW//v45P/+/fb//fvv//Tuu//fzkL/3co0///++//38sv/2cQe/9rGJf/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axSL/28cn/+3jlP/7+OP//v32//378P/07r3/4dBK/9nEHP/axif/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9nEHf/28MX///////////////////////Lrs//ZxBv/2sYm/9rGJv/axib/2sYm/9jDGv/o23b///////////////////////z67P/cyjL/2sYj/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJf/axSD/8+23////////////////////////////+/nl/+3jk///////6t5+/9jDGf/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axiX/2cUg//PstP////////////////////////////377//gz0X/2cUf/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/Ywxj/7eKP///////////////////////59tz/28cn/9rGJP/axib/2sYm/9rGJv/Ywxn/7uSZ///////////////////////489D/2sUi/9rGJf/axib/2sYm/9rGJv/axib/2sYm/9rGJv/ZxBv/5tlr///////////////////////////////////////////////8/+HQSf/ZxR//2sYm/9rGJv/axib/2sYm/9rGJv/axib/2cQb/+bYaP//////////////////////////////////////9O69/9nEHf/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2MMb/+bYaf///////////////////////fzz/97MOv/axSH/2sYm/9rGJv/axib/2MMb//LqsP//////////////////////9O26/9jDHP/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2cQe//XwxP////////////////////////////////////////////v55v/cyC3/2sYj/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9nEHf/177/////////////////////////////////////////+/P/gz0f/2cUf/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9nEHv/i01T///////////////////////7++//fzkT/2cUg/9rGJv/axib/2sYm/9nEHf/07r////////////////////////Dopv/Ywxn/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sUi/93LNv/9/PH////////////////////////////////////////////38s3/2sUh/9rGJf/axib/2sYm/9rGJv/axib/2sYm/9rFIv/dyjT//fvu////////////////////////////////////////////6dx5/9jDGv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/ZxB7/4tJT///////////////////////+/vr/385D/9nFIP/axib/2sYm/9rGJv/ZxB3/9O6////////////////////////v56H/2MMZ/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9nEHv/i0lD/////////////////////////////////////////////////9O69/9nEHf/axib/2sYm/9rGJv/axib/2sYm/9rGJv/ZxB7/4dFO/////////////////////////////////////////////////+/mnf/Ywxn/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2cQe/+LSU////////////////////////v76/9/OQ//ZxSD/2sYm/9rGJv/axib/2cQd//Tuv///////////////////////7+ei/9jDGf/axib/2sYm/9rGJv/axib/2sYm/9rGJv/ZxBz/5ddl//////////////////////////////////////////////////Ptuf/ZxBz/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2cQc/+XWY//////////////////////////////////////////////////z7LX/2cQb/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9nEHv/i0lP///////////////////////7++v/fzkP/2cUg/9rGJv/axib/2sYm/9nEHf/07r///////////////////////+/nov/Ywxn/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2MMb/+bZa//////////////////////////////////////////////////z7bn/2MQc/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9jDG//n2Gn/////////////////////////////////////////////////9e68/9nEHP/axib/2sYm/9rGJv/axib/2sYm/9rGJv/ZxB7/4tJT///////////////////////+/vr/385D/9nFIP/axib/2sYm/9rGJv/ZxB3/9O6////////////////////////v56L/2MMZ/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9jDG//m2Gr/////////////////////////////////////////////////8+25/9jEHP/axib/2sYm/9rGJv/axib/2sYm/9rGJv/Ywxv/5tdo//////////////////////////////////////////////////Ttu//ZxBz/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2cQe/+LSU////////////////////////v76/9/OQ//ZxSD/2sYm/9rGJv/axib/2cQd//Tuv///////////////////////7+ei/9jDGf/axib/2sYm/9rGJv/axib/2sYm/9rGJv/Ywxv/5thq//////////////////////////////////////////////////Ptuf/YxBz/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2MMb/+bXaP/////////////////////////////////////////////////07bv/2cQc/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9nEHv/i0lP///////////////////////7++v/fzkP/2cUg/9rGJv/axib/2sYm/9nEHf/07r///////////////////////+/nov/Ywxn/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2MMb/+bYav/////////////////////////////////////////////////z7bn/2MQc/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9jDG//m12j/////////////////////////////////////////////////9O27/9nEHP/axib/2sYm/9rGJv/axib/2sYm/9rGJv/ZxB7/4tJT///////////////////////+/vr/385D/9nFIP/axib/2sYm/9rGJv/ZxB3/9O6////////////////////////v56L/2MMZ/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9jDG//m2Gr/////////////////////////////////////////////////8+25/9jEHP/axib/2sYm/9rGJv/axib/2sYm/9rGJv/Ywxv/5tdo//////////////////////////////////////////////////Ttu//ZxBz/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2cQe/+LSU////////////////////////v76/9/OQ//ZxSD/2sYm/9rGJv/axib/2cQd//Tuv///////////////////////7+ei/9jDGf/axib/2sYm/9rGJv/axib/2sYm/9rGJv/Ywxv/5thq//////////////////////////////////////////////////Ptuf/YxBz/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2MMb/+bXaP/////////////////////////////////////////////////07bv/2cQc/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9nEHv/i0lP///////////////////////7++v/fzkP/2cUg/9rGJv/axib/2sYm/9nEHf/07r///////////////////////+/nov/Ywxn/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2MMb/+bYav/////////////////////////////////////////////////z7bn/2MQc/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9jDG//m12j/////////////////////////////////////////////////9O27/9nEHP/axib/2sYm/9rGJv/axib/2sYm/9rGJv/ZxB7/4tJT///////////////////////+/vr/385D/9nFIP/axib/2sYm/9rGJv/ZxB3/9O6////////////////////////v56L/2MMZ/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9jDG//m2Gr/////////////////////////////////////////////////8+25/9jEHP/axib/2sYm/9rGJv/axib/2sYm/9rGJv/Ywxv/5tdo//////////////////////////////////////////////////Ttu//ZxBz/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2cQe/+LSU////////////////////////v76/9/OQ//ZxSD/2sYm/9rGJv/axib/2cQd//Tuv///////////////////////7+ei/9jDGf/axib/2sYm/9rGJv/axib/2sYm/9rGJv/Ywxv/5thq//////////////////////////////////////////////////Ptuf/YxBz/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2MMb/+bXaP/////////////////////////////////////////////////07bv/2cQc/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9nEHv/i0lP///////////////////////7++v/fzkP/2cUg/9rGJv/axib/2sYm/9nEHf/07r///////////////////////+/nov/Ywxn/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2MMb/+bYav/////////////////////////////////////////////////z7bn/2MQc/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9jDG//m12j/////////////////////////////////////////////////9O27/9nEHP/axib/2sYm/9rGJv/axib/2sYm/9rGJv/ZxB7/4tJT///////////////////////+/vr/385D/9nFIP/axib/2sYm/9rGJv/ZxB3/9O6////////////////////////v56L/2MMZ/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9jDG//m2Gr/////////////////////////////////////////////////8+25/9jEHP/axib/2sYm/9rGJv/axib/2sYm/9rGJv/Ywxv/5tdo//////////////////////////////////////////////////Ttu//ZxBz/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2cQe/+LSU////////////////////////v76/9/OQ//ZxSD/2sYm/9rGJv/axib/2cQd//Tuv///////////////////////7+ei/9jDGf/axib/2sYm/9rGJv/axib/2sYm/9rGJv/Ywxv/5thq//////////////////////////////////////////////////Ptuf/YxBz/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2MMb/+bXaP/////////////////////////////////////////////////07bv/2cQc/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9nEHv/i0lP///////////////////////7++v/fzkP/2cUg/9rGJv/axib/2sYm/9nEHf/07r///////////////////////+/nov/Ywxn/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2MMb/+bYav/////////////////////////////////////////////////z7bn/2MQc/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9jDG//m12j/////////////////////////////////////////////////9O27/9nEHP/axib/2sYm/9rGJv/axib/2sYm/9rGJv/ZxB7/4tJT///////////////////////+/vr/385D/9nFIP/axib/2sYm/9rGJv/ZxB3/9O6////////////////////////v56L/2MMZ/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9jDG//m2Gr/////////////////////////////////////////////////8+25/9jEHP/axib/2sYm/9rGJv/axib/2sYm/9rGJv/Ywxv/5tdo//////////////////////////////////////////////////Ttu//ZxBz/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2cQe/+LSU////////////////////////v76/9/OQ//ZxSD/2sYm/9rGJv/axib/2cQd//Tuv///////////////////////7+ei/9jDGP/axiX/2sYl/9rGJf/axiX/2sYl/9rGJf/Ywxr/5thq//////////////////////////////////////////////////Ptuf/YxBv/2sYl/9rGJf/axiX/2sYl/9rGJf/axiX/2MMa/+bXaP/////////////////////////////////////////////////07bv/2cQb/9rGJf/axiX/2sYl/9rGJf/axiX/2sYl/9nEHf/i0lP///////////////////////7++v/fzkP/2cUg/9rGJv/axib/2sYm/9nEHf/078D//////////////////////+/mn//XwRL/2cQf/9nEH//ZxB//2cQf/9nEH//ZxB//18EU/+XXZv/////////////////////////////////////////////////z7bf/18IV/9nEH//ZxB//2cQf/9nEH//ZxB//2cQf/9fBFP/l1mP/////////////////////////////////////////////////9O25/9jCFf/ZxB//2cQf/9nEH//ZxB//2cQf/9nEH//Ywhf/4dFO///////////////////////+/vv/385E/9nFIP/axib/2sYm/9rGJv/ZxBz/8+25///////////////////////7+ej/9fDE//bxyP/28cj/9vHI//bxyP/28cj/9vHI//Xwxf/59dn//////////////////////////////////////////////////Pvt//Xwxf/28cj/9vHI//bxyP/28cj/9vHI//bxyP/18MX/+fXZ//////////////////////////////////////////////////z77v/28MX/9vHI//bxyP/28cj/9vHI//bxyP/28cj/9vDG//j00////////////////////////v73/9/NP//ZxSH/2sYm/9rGJv/axib/2MMZ/+zijf/////////////////////////////////////////////////////////////////////////////////////////////////+/ff//////////////////////////////////////////////////////////////////////////////////////////////////v33//////////////////////////////////////////////////////////////////////////////////////////////////n22//bxib/2sYk/9rGJv/axib/2sYm/9nEHv/i0U/////+////////////////////////////////////////////////////////////////////////////////////////////7eOT//z66////////////////////////////////////////////////////////////////////////////////////////////+7klv/7+eb////////////////////////////////////////////////////////////////////////////////////////////v5pz/2MMa/9rGJv/axib/2sYm/9rGJv/axib/2cQb/+3klf//////////////////////////////////////////////////////////////////////////////////////9fDD/9jDGf/p3Xz///////////////////////////////////////////////////////////////////////////////////////bxyP/ZxBv/6Nt1///////////////////////////////////////////////////////////////////////////////////////59tr/3Mkv/9rFIv/axib/2sYm/9rGJv/axib/2sYm/9rGJP/axSH/6+CJ//378P///////////////////////////////////////////////////////////////////vz/8uqu/9zILv/ZxSD/2cQd/+ncef/8+uz////////////////////////////////////////////////////////////////////9//Lqr//cyS//2cUg/9nEHf/o3Hj//Prr/////////////////////////////////////////////////////////////////////v/07rv/3sw5/9nEHv/axif/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYk/9jDG//ezDv/5thp/+3jkv/u5Jj/7uSY/+7kmP/u5Jj/7uSY/+7kmP/u5Jj/7uSY/+7kl//o3Hj/4M9I/9nEH//axSH/2sYn/9rGJf/Ywxv/3cs3/+XXZ//t45H/7uSY/+7kmP/u5Jj/7uSY/+7kmP/u5Jj/7uSY/+7kmP/u5Jf/6dx6/+DQSv/ZxB//2cUh/9rGJ//axiX/2MMb/93LNv/l12X/7eKQ/+7kmP/u5Jj/7uSY/+7kmP/u5Jj/7uSY/+7kmP/u5Jj/7uSY/+ndfP/h0Ez/2sUi/9nFH//axif/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2cUh/9jDG//Ywxn/2MMZ/9jDGf/Ywxn/2MMZ/9jDGf/Ywxn/2MMZ/9jDGf/Ywxn/2MMa/9nEH//axiX/2sYm/9rGJv/axib/2sYm/9rFIv/Ywxv/2MMZ/9jDGf/Ywxn/2MMZ/9jDGf/Ywxn/2MMZ/9jDGf/Ywxn/2MMZ/9jDGv/ZxB//2sYl/9rGJv/axib/2sYm/9rGJv/axSL/2cQc/9jDGf/Ywxn/2MMZ/9jDGf/Ywxn/2MMZ/9jDGf/Ywxn/2MMZ/9jDGf/Ywxr/2cQf/9rGJf/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv7axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv7axibW2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axibf2sYmX9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYmcdrGJgDaxiaH2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYmnNrGJgPaxiYA2sYmANrGJmHaxibR2sYm+trGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJvzaxibX2sYmb9rGJgDaxiYAgAAAAAAAAAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAIAAAAAAAAAAwAAAAAAAAAM=
 // @match        https://wikicv.org/truyen/*
@@ -9,6 +9,7 @@
 // @grant        GM_download
 // @grant        GM_getValue
 // @grant        GM_setValue
+// @grant        GM_deleteValue
 // @updateURL    https://github.com/BaoBao666888/Novel-Downloader5/raw/refs/heads/main/tools/TruyenWikiDich_Get_Names.user.js
 // @downloadURL  https://github.com/BaoBao666888/Novel-Downloader5/raw/refs/heads/main/tools/TruyenWikiDich_Get_Names.user.js
 // @run-at       document-end
@@ -23,13 +24,57 @@
     const COOKIE_MAX_ENTRIES = 37;
     const COOKIE_MAX_IDS = 3;
     const APP_NAME = 'WikiCV Name Desk';
-    const SCRIPT_VERSION = '2.3.0';
+    const SCRIPT_VERSION = '2.4.1';
     const STORAGE_PREFIX = 'wknm';
     const VERSION_STORAGE_KEY = `${STORAGE_PREFIX}:version`;
     const FAB_POSITION_STORAGE_KEY = `${STORAGE_PREFIX}:fab-position`;
     const GUIDE_CHECK_DELAY = 900;
-    const HISTORY_RETRY_LIMIT = 3;
-    const HISTORY_RETRY_BASE_DELAY = 900;
+    const HISTORY_RETRY_LIMIT = 5;
+    const HISTORY_RETRY_BASE_DELAY = 1500;
+    const HISTORY_PAGE_DELAY = 700;
+    const HISTORY_CACHE_TTL_MS = 30 * 24 * 60 * 60 * 1000;
+    const HISTORY_CACHE_VERSION = 2;
+    const CHANGELOG = [
+        {
+            version: '2.4.1',
+            date: '04-08-2026',
+            changes: [
+                'Gom gọn header, thêm nút Lọc/Ẩn lọc và popup Xuất cho Copy/TXT/CSV/JSON.',
+                'Thêm marquee cho tiêu đề, folder, name và trạng thái dài; bổ sung id/name/autocomplete cho toàn bộ field.',
+                'Chỉ cho quét lịch sử ở bộ Name hợp tác (COMMON), vì endpoint history trả lịch sử cộng tác cấp truyện.',
+                'Tải lại tất cả giờ hỏi xác nhận, xóa cache/checkpoint của truyện rồi mới tải lại.',
+                'Thêm changelog đầy đủ và tự lọc các phiên bản nằm giữa bản cũ với bản hiện tại khi cập nhật.',
+                'Popup Xuất có thể chỉ lấy các name đang khớp bộ lọc hiện tại.',
+            ],
+        },
+        {
+            version: '2.4.0',
+            date: '04-08-2026',
+            changes: [
+                'Nhận quyền sửa cho cả admin và chủ bộ name cá nhân qua is_admin/is_indiv.',
+                'Hiện, áp dụng, bỏ và đổi thứ tự tối đa ba bộ name ngay trong Name Desk.',
+                'Quét lịch sử có Dừng, retry, delay, checkpoint và cache tự hết hạn sau khoảng 30 ngày.',
+                'Cho quét bổ sung tới khi gặp dữ liệu cũ; đóng panel hoặc reload vẫn có thể tiếp tục.',
+                'Copy/TXT có thể kèm name đã xóa và hỏi cách xử lý khi trùng name CN.',
+            ],
+        },
+        {
+            version: '2.3.1',
+            date: '04-08-2026',
+            changes: [
+                'Chuyển phạm vi chạy userscript từ wikicv.net sang wikicv.org.',
+            ],
+        },
+        {
+            version: '2.3.0',
+            date: '01-04-2026',
+            changes: [
+                'Ra mắt Name Desk: xem folder/name, copy và tải danh sách name.',
+                'Quét lịch sử, dựng timeline theo name và xuất thống kê CSV/JSON.',
+                'Thêm giao diện nổi, sidebar folder, tìm kiếm/lọc và thao tác thêm/sửa/xóa name.',
+            ],
+        },
+    ];
 
     const state = {
         host: null,
@@ -39,6 +84,7 @@
         panelOpen: false,
         guideOpen: false,
         guideMode: '',
+        changelogOpen: false,
         previousVersion: '',
         book: {
             id: '',
@@ -49,10 +95,12 @@
             editToken: '',
         },
         folders: [],
+        appliedFolderIds: [],
         selectedFolderId: '',
         selectedNameKey: '',
         namesCache: new Map(),
         historyCache: new Map(),
+        historyProgressCache: new Map(),
         search: '',
         statusFilter: 'all',
         sortBy: 'latest',
@@ -60,6 +108,12 @@
         isLoadingFolders: false,
         isLoadingNames: false,
         isScanningHistory: false,
+        historyScanTask: null,
+        includeDeletedInNameExport: false,
+        filteredOnlyInNameExport: false,
+        exportOpen: false,
+        refreshConfirmOpen: false,
+        filtersVisible: true,
         progress: {
             current: 0,
             total: 0,
@@ -249,6 +303,23 @@
         }
     }
 
+    function storageDelete(key) {
+        try {
+            if (typeof GM_deleteValue === 'function') {
+                GM_deleteValue(key);
+                return;
+            }
+        } catch (error) {
+            console.warn(`[${APP_NAME}] Không xóa được GM storage cho key ${key}:`, error);
+        }
+
+        try {
+            localStorage.removeItem(key);
+        } catch (error) {
+            console.warn(`[${APP_NAME}] Không xóa được localStorage cho key ${key}:`, error);
+        }
+    }
+
     function sanitizeFabPosition(value) {
         if (!value) {
             return null;
@@ -329,6 +400,77 @@
             clearCookie(COOKIE_NAME);
         }
         return serialized;
+    }
+
+    function normalizeAppliedFolderIds(folders) {
+        const availableFolders = Array.isArray(folders) ? folders : state.folders;
+        const availableIds = new Set(availableFolders.map((folder) => folder.id));
+        const indivFolder = availableFolders.find((folder) => folder.indiv === 1);
+        const cookieIds = parseFolderCookie(getCookie(COOKIE_NAME)).get(state.book.id) || [];
+        const expandedIds = cookieIds.map((id) => (id === 'INDIV' && indivFolder ? indivFolder.id : id));
+        const validIds = Array.from(new Set(expandedIds.filter((id) => availableIds.has(id))));
+
+        if (validIds.length) {
+            return validIds.slice(0, COOKIE_MAX_IDS);
+        }
+
+        return availableFolders.filter((folder) => folder.checked).map((folder) => folder.id).slice(0, COOKIE_MAX_IDS);
+    }
+
+    function commitAppliedFolderIds(folderIds, message) {
+        const availableIds = new Set(state.folders.map((folder) => folder.id));
+        const nextIds = Array.from(new Set((folderIds || []).filter((id) => availableIds.has(id)))).slice(0, COOKIE_MAX_IDS);
+        setFolderCookie(state.book.id, nextIds);
+        state.appliedFolderIds = nextIds;
+        state.folders.forEach((folder) => {
+            folder.checked = nextIds.includes(folder.id);
+        });
+        if (message) {
+            setInfo(message);
+        }
+        render();
+    }
+
+    function toggleFolderApplication(folderId) {
+        if (state.isScanningHistory) {
+            throw new Error('Hãy dừng quét lịch sử trước khi đổi bộ name đang áp dụng.');
+        }
+        const folder = state.folders.find((item) => item.id === folderId);
+        if (!folder) {
+            throw new Error('Không tìm thấy folder cần áp dụng.');
+        }
+
+        const nextIds = state.appliedFolderIds.slice();
+        const existingIndex = nextIds.indexOf(folderId);
+        if (existingIndex >= 0) {
+            nextIds.splice(existingIndex, 1);
+            commitAppliedFolderIds(nextIds, `Đã bỏ áp dụng bộ ${folder.label}.`);
+            return;
+        }
+
+        if (!nextIds.length && folderId !== 'COMMON' && state.folders.some((item) => item.id === 'COMMON')) {
+            nextIds.push('COMMON');
+        }
+        if (nextIds.length >= COOKIE_MAX_IDS) {
+            throw new Error(`WikiCV chỉ cho áp dụng tối đa ${COOKIE_MAX_IDS} bộ name. Hãy bỏ một bộ trước.`);
+        }
+        nextIds.push(folderId);
+        commitAppliedFolderIds(nextIds, `Đã áp dụng bộ ${folder.label} ở vị trí #${nextIds.length}; lần tải/dịch tiếp theo sẽ dùng cấu hình mới.`);
+    }
+
+    function moveFolderApplication(folderId, direction) {
+        if (state.isScanningHistory) {
+            throw new Error('Hãy dừng quét lịch sử trước khi đổi thứ tự bộ name.');
+        }
+        const nextIds = state.appliedFolderIds.slice();
+        const index = nextIds.indexOf(folderId);
+        const targetIndex = index + Number(direction || 0);
+        if (index < 0 || targetIndex < 0 || targetIndex >= nextIds.length) {
+            return;
+        }
+        const moved = nextIds.splice(index, 1)[0];
+        nextIds.splice(targetIndex, 0, moved);
+        commitAppliedFolderIds(nextIds, 'Đã đổi thứ tự ưu tiên bộ name.');
     }
 
     async function withSelectedFoldersCookie(folderIds, work) {
@@ -481,6 +623,8 @@
             const response = await fetch(url.toString(), {
                 method: 'GET',
                 credentials: 'include',
+                cache: options && options.noCache ? 'no-store' : 'default',
+                signal: options && options.signal ? options.signal : undefined,
                 headers: {
                     Accept: '*/*',
                     'X-Requested-With': 'XMLHttpRequest',
@@ -1203,6 +1347,13 @@
         return filtered;
     }
 
+    function getExportRows(folderId) {
+        const rows = state.filteredOnlyInNameExport && folderId === state.selectedFolderId
+            ? getFilteredRows()
+            : getRowsForFolder(folderId).slice();
+        return rows.filter((row) => state.includeDeletedInNameExport || row.status !== 'deleted');
+    }
+
     function syncSelectedNameKey() {
         const rows = getSelectedRows();
         if (!rows.length) {
@@ -1245,6 +1396,10 @@
             }
 
             state.folders = folders;
+            state.appliedFolderIds = normalizeAppliedFolderIds(folders);
+            folders.forEach((folder) => {
+                folder.checked = state.appliedFolderIds.includes(folder.id);
+            });
             if (!state.selectedFolderId || !folders.some((folder) => folder.id === state.selectedFolderId)) {
                 state.selectedFolderId = (folders.find((folder) => folder.checked) || folders[0]).id;
             }
@@ -1279,6 +1434,7 @@
             }
 
             const doc = parseHtml(payload.data.content);
+            const canManage = !!(payload.data && (payload.data.is_admin || payload.data.is_indiv));
             const names = Array.from(doc.querySelectorAll('#listName li')).map((li, index) => {
                 const cn = normalizeSpace(li.getAttribute('data-ncn') || '');
                 const vi = normalizeSpace(li.getAttribute('data-nvi') || '');
@@ -1290,7 +1446,7 @@
                     vi: vi,
                     lt: ltRaw,
                     listType: listType,
-                    editable: normalizeSpace(li.getAttribute('data-action') || '') === 'showMdAddName',
+                    editable: canManage || normalizeSpace(li.getAttribute('data-action') || '') === 'showMdAddName',
                     text: normalizeSpace(li.textContent || `${cn}=${vi}`),
                 };
             }).filter((item) => item.cn || item.vi);
@@ -1302,7 +1458,9 @@
                 loadedAt: Date.now(),
                 total: totalMatch ? Number(totalMatch[1]) : names.length,
                 names: names,
-                isAdmin: !!(payload.data && payload.data.is_admin),
+                isAdmin: canManage,
+                isServerAdmin: !!(payload.data && payload.data.is_admin),
+                isIndiv: !!(payload.data && payload.data.is_indiv),
                 footerHtml: String(payload.data && payload.data.footer ? payload.data.footer : ''),
             };
 
@@ -1311,6 +1469,7 @@
             const folder = state.folders.find((item) => item.id === folderId);
             if (folder) {
                 folder.count = record.total;
+                folder.indiv = record.isIndiv ? 1 : folder.indiv;
             }
 
             const historyRecord = state.historyCache.get(folderId);
@@ -1327,87 +1486,366 @@
         }
     }
 
-    async function requestHistoryPageWithRetry(folder, start, pageIndex, pageTotal) {
+    function isCollaborativeFolder(folderOrId) {
+        const folderId = typeof folderOrId === 'string' ? folderOrId : (folderOrId && folderOrId.id);
+        return String(folderId || '').toUpperCase() === 'COMMON';
+    }
+
+    function historyStorageKey(bookId, folderId) {
+        return `${STORAGE_PREFIX}:history:${HISTORY_CACHE_VERSION}:${bookId}:${folderId}`;
+    }
+
+    function discardHistoryCache(folderId) {
+        if (!folderId) {
+            return;
+        }
+        storageDelete(historyStorageKey(state.book.id, folderId));
+        state.historyCache.delete(folderId);
+        state.historyProgressCache.delete(folderId);
+    }
+
+    function clearCurrentBookCaches() {
+        const folderIds = new Set([
+            ...state.folders.map((folder) => folder.id),
+            ...state.namesCache.keys(),
+            ...state.historyCache.keys(),
+            ...state.historyProgressCache.keys(),
+        ]);
+        folderIds.forEach((folderId) => {
+            storageDelete(historyStorageKey(state.book.id, folderId));
+        });
+        state.namesCache.clear();
+        state.historyCache.clear();
+        state.historyProgressCache.clear();
+        state.selectedNameKey = '';
+        resetEditorForFolder(state.selectedFolderId);
+    }
+
+    function historyEventSignature(event) {
+        return [
+            event && event.dateText,
+            event && event.actor,
+            event && event.message,
+        ].map((value) => String(value || '')).join('\u001f');
+    }
+
+    function mergeHistoryEvents(freshEvents, baseEvents) {
+        const fresh = Array.isArray(freshEvents) ? freshEvents : [];
+        const base = Array.isArray(baseEvents) ? baseEvents : [];
+        const freshSignatures = new Set(fresh.map(historyEventSignature));
+        return fresh.concat(base.filter((event) => !freshSignatures.has(historyEventSignature(event))));
+    }
+
+    function normalizeHistoryCheckpoint(raw, folderId) {
+        if (!raw || raw.version !== HISTORY_CACHE_VERSION || raw.bookId !== state.book.id || raw.folderId !== folderId) {
+            return null;
+        }
+        if (!Number(raw.expiresAt) || Number(raw.expiresAt) <= Date.now()) {
+            storageDelete(historyStorageKey(state.book.id, folderId));
+            return null;
+        }
+        return {
+            ...raw,
+            status: ['complete', 'paused', 'failed'].includes(raw.status) ? raw.status : 'paused',
+            events: Array.isArray(raw.events) ? raw.events : [],
+            baseEvents: Array.isArray(raw.baseEvents) ? raw.baseEvents : [],
+            pageStarts: Array.isArray(raw.pageStarts) ? raw.pageStarts : [],
+            nextIndex: Math.max(0, Number(raw.nextIndex) || 0),
+        };
+    }
+
+    function loadHistoryCheckpoint(folderId) {
+        const key = historyStorageKey(state.book.id, folderId);
+        const checkpoint = normalizeHistoryCheckpoint(storageGet(key, null), folderId);
+        if (checkpoint) {
+            state.historyProgressCache.set(folderId, checkpoint);
+        } else {
+            state.historyProgressCache.delete(folderId);
+        }
+        return checkpoint;
+    }
+
+    function checkpointDisplayEvents(checkpoint) {
+        if (!checkpoint) {
+            return [];
+        }
+        return enhanceHistoryEvents(mergeHistoryEvents(checkpoint.events, checkpoint.baseEvents));
+    }
+
+    function saveHistoryCheckpoint(folder, namesRecord, checkpoint) {
+        if (!isCollaborativeFolder(folder)) {
+            throw new Error('WikiCV chỉ có lịch sử cho bộ Name hợp tác (COMMON).');
+        }
+        const now = Date.now();
+        const saved = {
+            version: HISTORY_CACHE_VERSION,
+            bookId: state.book.id,
+            folderId: folder.id,
+            folderLabel: folder.label,
+            status: checkpoint.status || 'paused',
+            mode: checkpoint.mode || 'full',
+            updatedAt: now,
+            expiresAt: now + HISTORY_CACHE_TTL_MS,
+            scannedAt: Number(checkpoint.scannedAt) || now,
+            pageStarts: Array.isArray(checkpoint.pageStarts) ? checkpoint.pageStarts : [],
+            nextIndex: Math.max(0, Number(checkpoint.nextIndex) || 0),
+            events: Array.isArray(checkpoint.events) ? checkpoint.events : [],
+            baseEvents: Array.isArray(checkpoint.baseEvents) ? checkpoint.baseEvents : [],
+            lastError: normalizeSpace(checkpoint.lastError || ''),
+        };
+        storageSet(historyStorageKey(state.book.id, folder.id), saved);
+        state.historyProgressCache.set(folder.id, saved);
+
+        if (namesRecord) {
+            const displayEvents = checkpointDisplayEvents(saved);
+            state.historyCache.set(folder.id, buildHistoryRecord(folder, namesRecord, displayEvents, saved.scannedAt));
+        }
+        return saved;
+    }
+
+    function restoreHistoryCheckpoint(folderId) {
+        const folder = state.folders.find((item) => item.id === folderId);
+        if (folder && !isCollaborativeFolder(folder)) {
+            discardHistoryCache(folderId);
+            return null;
+        }
+        const checkpoint = loadHistoryCheckpoint(folderId);
+        const namesRecord = state.namesCache.get(folderId);
+        if (checkpoint && folder && namesRecord) {
+            state.historyCache.set(folderId, buildHistoryRecord(
+                folder,
+                namesRecord,
+                checkpointDisplayEvents(checkpoint),
+                checkpoint.scannedAt || checkpoint.updatedAt
+            ));
+        }
+        return checkpoint;
+    }
+
+    function restoreAvailableHistoryCheckpoints() {
+        state.folders.forEach((folder) => {
+            restoreHistoryCheckpoint(folder.id);
+        });
+    }
+
+    function createScanStoppedError() {
+        const error = new Error('Đã dừng quét lịch sử.');
+        error.code = 'WKNM_SCAN_STOPPED';
+        return error;
+    }
+
+    function assertScanRunning(task) {
+        if (!task || task.stopRequested) {
+            throw createScanStoppedError();
+        }
+    }
+
+    async function sleepDuringScan(ms, task) {
+        let remaining = Math.max(0, Number(ms) || 0);
+        while (remaining > 0) {
+            assertScanRunning(task);
+            const slice = Math.min(200, remaining);
+            await sleep(slice);
+            remaining -= slice;
+        }
+        assertScanRunning(task);
+    }
+
+    function stopHistoryScan() {
+        const task = state.historyScanTask;
+        if (!task || task.stopRequested) {
+            return;
+        }
+        task.stopRequested = true;
+        if (task.controller) {
+            task.controller.abort();
+        }
+        state.progress.label = `Đang dừng quét ${task.folderLabel || 'lịch sử'}...`;
+        render();
+    }
+
+    async function requestHistoryPageWithRetry(folder, start, pageIndex, pageTotal, task) {
         let lastError = null;
         for (let attempt = 1; attempt <= HISTORY_RETRY_LIMIT; attempt += 1) {
+            assertScanRunning(task);
+            const controller = new AbortController();
+            task.controller = controller;
             try {
                 return await requestText('/history', {
                     bookId: state.book.id,
                     group: 1,
                     start: start,
                 }, {
-                    folderIds: [folder.id],
+                    signal: controller.signal,
+                    noCache: true,
                 });
             } catch (error) {
+                if (task.stopRequested || (error && error.name === 'AbortError')) {
+                    throw createScanStoppedError();
+                }
                 lastError = error;
                 if (attempt >= HISTORY_RETRY_LIMIT) {
                     break;
                 }
                 const delayMs = HISTORY_RETRY_BASE_DELAY * attempt;
-                state.progress.label = `Đang quét lịch sử ${folder.label} (${pageIndex}/${Math.max(pageTotal || 1, 1)}), retry ${attempt}/${HISTORY_RETRY_LIMIT - 1} sau ${(delayMs / 1000).toFixed(1)}s`;
+                state.progress.label = `Quét ${folder.label} (${pageIndex}/${Math.max(pageTotal || 1, 1)}) lỗi; thử lại ${attempt}/${HISTORY_RETRY_LIMIT - 1} sau ${(delayMs / 1000).toFixed(1)}s`;
                 render();
-                await sleep(delayMs);
+                await sleepDuringScan(delayMs, task);
+            } finally {
+                if (task.controller === controller) {
+                    task.controller = null;
+                }
             }
         }
         throw new Error(`Quét lịch sử ${folder.label} thất bại ở trang ${start}: ${lastError && lastError.message ? lastError.message : 'Lỗi không rõ'}`);
     }
 
-    async function scanFolderHistory(folderId, force) {
-        const cached = state.historyCache.get(folderId);
-        if (!force && cached) {
-            return cached;
+    async function scanFolderHistory(folderId) {
+        if (state.isScanningHistory) {
+            throw new Error('Một tác vụ quét lịch sử đang chạy.');
         }
 
         const folder = state.folders.find((item) => item.id === folderId);
         if (!folder) {
             throw new Error('Không tìm thấy folder đã chọn.');
         }
+        if (!isCollaborativeFolder(folder)) {
+            discardHistoryCache(folder.id);
+            throw new Error('Lịch sử WikiCV chỉ áp dụng cho bộ Name hợp tác (COMMON).');
+        }
 
         const namesRecord = state.namesCache.get(folderId) || await fetchNames(folderId, false);
+        const previous = loadHistoryCheckpoint(folderId);
+        const canResume = previous
+            && previous.status !== 'complete'
+            && previous.pageStarts.length
+            && previous.nextIndex <= previous.pageStarts.length;
+        const task = {
+            folderId: folderId,
+            folderLabel: folder.label,
+            stopRequested: false,
+            controller: null,
+        };
+        let checkpoint = canResume ? {
+            ...previous,
+            status: 'paused',
+            lastError: '',
+        } : {
+            status: 'paused',
+            mode: previous && previous.status === 'complete' ? 'incremental' : 'full',
+            scannedAt: Date.now(),
+            pageStarts: [],
+            nextIndex: 0,
+            events: [],
+            baseEvents: previous && previous.status === 'complete' ? previous.events.slice() : [],
+            lastError: '',
+        };
+        let metCachedHistory = false;
+
         state.isScanningHistory = true;
+        state.historyScanTask = task;
         state.progress = {
-            current: 0,
-            total: 1,
-            label: `Chuẩn bị quét lịch sử ${folder.label}`,
+            current: checkpoint.nextIndex,
+            total: checkpoint.pageStarts.length || 1,
+            label: canResume ? `Tiếp tục quét ${folder.label}` : `Chuẩn bị quét lịch sử ${folder.label}`,
         };
         clearError();
         render();
 
         try {
-            const firstHtml = await requestHistoryPageWithRetry(folder, 0, 1, 1);
-            const firstParsed = parseHistoryPage(firstHtml, 0);
-            const pageSize = firstParsed.pageSize || 10;
-            const maxStart = firstParsed.maxStart || 0;
-            const pageStarts = [];
-            for (let start = 0; start <= maxStart; start += pageSize) {
-                pageStarts.push(start);
-            }
+            if (!canResume) {
+                const firstHtml = await requestHistoryPageWithRetry(folder, 0, 1, 1, task);
+                const firstParsed = parseHistoryPage(firstHtml, 0);
+                const pageSize = firstParsed.pageSize || 10;
+                const maxStart = firstParsed.maxStart || 0;
+                checkpoint.pageStarts = [];
+                for (let start = 0; start <= maxStart; start += pageSize) {
+                    checkpoint.pageStarts.push(start);
+                }
+                if (!checkpoint.pageStarts.length) {
+                    checkpoint.pageStarts.push(0);
+                }
 
-            state.progress.total = pageStarts.length || 1;
-            state.progress.current = 1;
-            state.progress.label = `Đang quét lịch sử ${folder.label} (1/${state.progress.total})`;
-            render();
-
-            const events = firstParsed.events.slice();
-
-            for (let index = 1; index < pageStarts.length; index += 1) {
-                const start = pageStarts[index];
-                state.progress.current = index + 1;
-                state.progress.label = `Đang quét lịch sử ${folder.label} (${index + 1}/${pageStarts.length})`;
+                if (checkpoint.mode === 'incremental') {
+                    const knownSignatures = new Set(checkpoint.baseEvents.map(historyEventSignature));
+                    for (const event of firstParsed.events) {
+                        if (knownSignatures.has(historyEventSignature(event))) {
+                            metCachedHistory = true;
+                            break;
+                        }
+                        checkpoint.events.push(event);
+                    }
+                } else {
+                    checkpoint.events.push.apply(checkpoint.events, firstParsed.events);
+                }
+                checkpoint.nextIndex = 1;
+                state.progress.current = 1;
+                state.progress.total = checkpoint.pageStarts.length;
+                state.progress.label = `Đang quét ${folder.label} (1/${checkpoint.pageStarts.length})`;
+                saveHistoryCheckpoint(folder, namesRecord, checkpoint);
                 render();
-                const html = await requestHistoryPageWithRetry(folder, start, index + 1, pageStarts.length);
-                const parsed = parseHistoryPage(html, start);
-                events.push.apply(events, parsed.events);
             }
 
-            const enhancedEvents = enhanceHistoryEvents(events);
-            const historyRecord = buildHistoryRecord(folder, namesRecord, enhancedEvents, Date.now());
-            state.historyCache.set(folderId, historyRecord);
-            setInfo(`Đã quét ${historyRecord.summary.eventCount} sự kiện lịch sử cho folder ${folder.label}.`);
+            for (let index = checkpoint.nextIndex; index < checkpoint.pageStarts.length && !metCachedHistory; index += 1) {
+                await sleepDuringScan(HISTORY_PAGE_DELAY, task);
+                const start = checkpoint.pageStarts[index];
+                state.progress.label = `Đang quét ${folder.label} (${index + 1}/${checkpoint.pageStarts.length})`;
+                render();
+                const html = await requestHistoryPageWithRetry(folder, start, index + 1, checkpoint.pageStarts.length, task);
+                const parsed = parseHistoryPage(html, start);
+
+                if (checkpoint.mode === 'incremental') {
+                    const knownSignatures = new Set(checkpoint.baseEvents.map(historyEventSignature));
+                    for (const event of parsed.events) {
+                        if (knownSignatures.has(historyEventSignature(event))) {
+                            metCachedHistory = true;
+                            break;
+                        }
+                        checkpoint.events.push(event);
+                    }
+                } else {
+                    checkpoint.events.push.apply(checkpoint.events, parsed.events);
+                }
+
+                checkpoint.nextIndex = index + 1;
+                state.progress.current = checkpoint.nextIndex;
+                saveHistoryCheckpoint(folder, namesRecord, checkpoint);
+                render();
+            }
+
+            assertScanRunning(task);
+            const completeEvents = enhanceHistoryEvents(mergeHistoryEvents(checkpoint.events, checkpoint.baseEvents));
+            checkpoint = saveHistoryCheckpoint(folder, namesRecord, {
+                ...checkpoint,
+                status: 'complete',
+                mode: 'full',
+                nextIndex: checkpoint.pageStarts.length,
+                events: completeEvents,
+                baseEvents: [],
+                lastError: '',
+                scannedAt: Date.now(),
+            });
+            const historyRecord = state.historyCache.get(folderId);
+            setInfo(metCachedHistory
+                ? `Đã bổ sung lịch sử mới và dừng khi gặp dữ liệu cũ của ${folder.label}.`
+                : `Đã quét ${historyRecord ? historyRecord.summary.eventCount : completeEvents.length} sự kiện cho ${folder.label}.`);
             syncSelectedNameKey();
             return historyRecord;
+        } catch (error) {
+            const stopped = error && error.code === 'WKNM_SCAN_STOPPED';
+            checkpoint = saveHistoryCheckpoint(folder, namesRecord, {
+                ...checkpoint,
+                status: stopped ? 'paused' : 'failed',
+                lastError: stopped ? '' : (error && error.message ? error.message : String(error)),
+            });
+            if (stopped) {
+                setInfo(`Đã dừng ở ${checkpoint.nextIndex}/${checkpoint.pageStarts.length || '?'} trang. Bấm Tiếp tục quét để chạy tiếp.`);
+                return state.historyCache.get(folderId) || null;
+            }
+            throw error;
         } finally {
             state.isScanningHistory = false;
+            state.historyScanTask = null;
             state.progress = {
                 current: 0,
                 total: 0,
@@ -1464,12 +1902,117 @@
         throw new Error('Trình duyệt không hỗ trợ copy clipboard.');
     }
 
-    function getNamesText(folderId) {
+    async function getNamesText(folderId, includeDeleted, exportRows) {
         const namesRecord = state.namesCache.get(folderId);
         if (!namesRecord) {
-            return '';
+            return { text: '', count: 0, deletedCount: 0 };
         }
-        return namesRecord.names.map((item) => `${item.cn}=${item.vi}`).join('\n');
+
+        const scopedRows = Array.isArray(exportRows) ? exportRows : null;
+        const allowedKeys = scopedRows ? new Set(scopedRows.map((row) => row.key)) : null;
+        const rowOrder = scopedRows ? new Map(scopedRows.map((row, index) => [row.key, index])) : null;
+        const entries = [];
+        const entryByCn = new Map();
+        namesRecord.names.forEach((item) => {
+            const cn = normalizeSpace(item.cn);
+            const vi = normalizeSpace(item.vi);
+            if (!cn && !vi) {
+                return;
+            }
+            const key = cn || vi;
+            if (allowedKeys && !allowedKeys.has(key)) {
+                return;
+            }
+            const entry = { cn: cn, vi: vi, source: 'active' };
+            if (cn && entryByCn.has(cn)) {
+                const oldIndex = entries.indexOf(entryByCn.get(cn));
+                if (oldIndex >= 0) {
+                    entries.splice(oldIndex, 1);
+                }
+            }
+            entries.push(entry);
+            if (cn) {
+                entryByCn.set(cn, entry);
+            }
+        });
+
+        let deletedCount = 0;
+        if (includeDeleted) {
+            const deletedByCn = new Map();
+            const historyRecord = state.historyCache.get(folderId);
+            (historyRecord ? historyRecord.events : []).forEach((event) => {
+                if (event.type !== 'delete' || !event.before) {
+                    return;
+                }
+                const cn = normalizeSpace(event.before.cn || event.nameCn);
+                const vi = normalizeSpace(event.before.vi || event.nameVi);
+                if (allowedKeys && !allowedKeys.has(cn || vi)) {
+                    return;
+                }
+                if ((cn || vi) && !deletedByCn.has(cn)) {
+                    deletedByCn.set(cn, { cn: cn, vi: vi, source: 'deleted' });
+                }
+            });
+            getRowsForFolder(folderId).filter((row) => row.status === 'deleted').forEach((row) => {
+                const cn = normalizeSpace(row.nameCn);
+                if (allowedKeys && !allowedKeys.has(row.key)) {
+                    return;
+                }
+                if (!deletedByCn.has(cn)) {
+                    deletedByCn.set(cn, {
+                        cn: cn,
+                        vi: normalizeSpace(row.lastKnownVi || row.displayVi),
+                        source: 'deleted',
+                    });
+                }
+            });
+            const deletedEntries = Array.from(deletedByCn.values());
+            const conflicts = deletedEntries.filter((item) => {
+                const active = entryByCn.get(item.cn);
+                return active && active.vi !== item.vi;
+            });
+            let preferDeleted = false;
+            if (conflicts.length) {
+                const preview = conflicts.slice(0, 8)
+                    .map((item) => `${item.cn}: đang có “${entryByCn.get(item.cn).vi}” / đã xóa “${item.vi}”`)
+                    .join('\n');
+                preferDeleted = !window.confirm(
+                    `Có ${conflicts.length} name CN bị trùng nhưng khác bản dịch:\n\n${preview}${conflicts.length > 8 ? '\n…' : ''}\n\nOK = giữ name đang có; Cancel = giữ name đã xóa.`
+                );
+            }
+
+            deletedEntries.forEach((item) => {
+                const active = entryByCn.get(item.cn);
+                if (active) {
+                    if (preferDeleted && active.vi !== item.vi) {
+                        active.vi = item.vi;
+                        active.source = 'deleted';
+                        deletedCount += 1;
+                    }
+                    return;
+                }
+                entries.push(item);
+                if (item.cn) {
+                    entryByCn.set(item.cn, item);
+                }
+                deletedCount += 1;
+            });
+        }
+
+        if (rowOrder) {
+            entries.sort((left, right) => {
+                const leftKey = left.cn || left.vi;
+                const rightKey = right.cn || right.vi;
+                return (rowOrder.get(leftKey) ?? Number.MAX_SAFE_INTEGER)
+                    - (rowOrder.get(rightKey) ?? Number.MAX_SAFE_INTEGER);
+            });
+        }
+
+        return {
+            text: entries.map((item) => `${item.cn}=${item.vi}`).join('\n'),
+            count: entries.length,
+            deletedCount: deletedCount,
+        };
     }
 
     function csvCell(value) {
@@ -1598,52 +2141,100 @@
         return `Phiên bản ${SCRIPT_VERSION}`;
     }
 
-    function buildGuideContent() {
-        if (state.guideMode === 'update') {
-            return `
-                <div class="wknm-guide-section">
-                    <h3>Điểm mới trong bản ${escapeHtml(SCRIPT_VERSION)}</h3>
-                    <ul class="wknm-guide-list">
-                        <li>Float button giờ có thể kéo thả và sẽ nhớ vị trí sau khi tải lại trang.</li>
-                        <li>Font, chữ và nút đã thu gọn hơn để hợp màn hình nhỏ và hiển thị tiếng Việt gọn hơn.</li>
-                        <li>Scrollbar của panel, bảng name và popup hướng dẫn đã được làm lại để đỡ thô hơn.</li>
-                        <li>Thêm nút <strong>?</strong> để mở hướng dẫn bất kỳ lúc nào mà không phải nhớ flow.</li>
-                        <li>Thêm form add 1/add nhiều name, gợi ý name, sửa name và popup xác nhận khi xóa.</li>
-                        <li>Add/sửa/xóa thành công sẽ cập nhật ngay dữ liệu hiện tại; quét history có retry; name không có event sẽ được đánh dấu là <strong>Hệ thống</strong>.</li>
-                        <li>Sidebar folder mặc định được thu gọn; dùng tay nắm ở mép trái để mở/đóng nhanh, và nút <strong>+ Name</strong> trên header để nhảy thẳng tới khối thêm name.</li>
-                    </ul>
-                </div>
-                <div class="wknm-guide-section">
-                    <h3>Mẹo dùng nhanh</h3>
-                    <ul class="wknm-guide-list">
-                        <li>Chọn folder ở cột trái, bấm <strong>Quét lịch sử</strong>, rồi click từng name để xem timeline chi tiết.</li>
-                        <li>Dùng <strong>Copy</strong>, <strong>Tải TXT</strong>, <strong>Tải CSV</strong> hoặc <strong>Tải JSON</strong> ngay trên thanh header.</li>
-                        <li>Nếu thiếu chỗ hiển thị, kéo icon nổi ra góc khác rồi mở lại panel.</li>
-                    </ul>
-                </div>
-            `;
+    function compareVersions(left, right) {
+        const leftParts = String(left || '').split('.').map((part) => Number(part) || 0);
+        const rightParts = String(right || '').split('.').map((part) => Number(part) || 0);
+        const length = Math.max(leftParts.length, rightParts.length);
+        for (let index = 0; index < length; index += 1) {
+            const difference = (leftParts[index] || 0) - (rightParts[index] || 0);
+            if (difference) {
+                return difference;
+            }
         }
+        return 0;
+    }
 
+    function visibleChangelogEntries() {
+        const previous = String(state.previousVersion || '').trim();
+        if (state.guideMode === 'update' && previous && compareVersions(previous, SCRIPT_VERSION) < 0) {
+            return CHANGELOG.filter((entry) => (
+                compareVersions(entry.version, previous) > 0
+                && compareVersions(entry.version, SCRIPT_VERSION) <= 0
+            ));
+        }
+        return CHANGELOG.slice();
+    }
+
+    function renderChangelogSection() {
+        const entries = visibleChangelogEntries();
+        const rangeText = state.guideMode === 'update' && state.previousVersion
+            ? `Các bản > ${state.previousVersion} và ≤ ${SCRIPT_VERSION}`
+            : `Tất cả ${CHANGELOG.length} phiên bản`;
         return `
+            <div class="wknm-guide-section wknm-changelog-section">
+                <div class="wknm-changelog-toggle-row">
+                    <div>
+                        <h3>Changelog</h3>
+                        <p>${escapeHtml(rangeText)}</p>
+                    </div>
+                    <button type="button" class="wknm-btn is-ghost" data-action="toggle-changelog" aria-expanded="${state.changelogOpen ? 'true' : 'false'}">
+                        ${state.changelogOpen ? 'Ẩn changelog' : 'Hiện changelog'}
+                    </button>
+                </div>
+                ${state.changelogOpen ? `
+                    <div class="wknm-changelog-list">
+                        ${entries.length ? entries.map((entry) => `
+                            <article class="wknm-changelog-item">
+                                <div class="wknm-changelog-version">
+                                    <strong>v${escapeHtml(entry.version)}</strong>
+                                    <span>${escapeHtml(entry.date)}</span>
+                                </div>
+                                <ul class="wknm-guide-list">
+                                    ${entry.changes.map((change) => `<li>${escapeHtml(change)}</li>`).join('')}
+                                </ul>
+                            </article>
+                        `).join('') : '<div class="wknm-empty-box">Không có phiên bản nào trong khoảng cập nhật này.</div>'}
+                    </div>
+                ` : ''}
+            </div>
+        `;
+    }
+
+    function buildGuideContent() {
+        const mainContent = state.guideMode === 'update' ? `
+            <div class="wknm-guide-section">
+                <h3>Cập nhật từ ${escapeHtml(state.previousVersion || 'bản cũ')} lên ${escapeHtml(SCRIPT_VERSION)}</h3>
+                <p>Name Desk sẽ chỉ liệt kê bên dưới những phiên bản lớn hơn bản bạn từng dùng và không vượt quá bản hiện tại.</p>
+            </div>
+            <div class="wknm-guide-section">
+                <h3>Mẹo dùng nhanh</h3>
+                <ul class="wknm-guide-list">
+                    <li>Lịch sử chỉ có ở bộ <strong>Name hợp tác (COMMON)</strong>; các bộ cá nhân và bộ khác không có history riêng.</li>
+                    <li>Khi nút quét đổi thành <strong>Dừng</strong>, bạn có thể đóng Name Desk; tác vụ vẫn chạy nền trên tab đó.</li>
+                    <li>Mở <strong>Xuất</strong>, chọn có kèm name đã xóa hay không, rồi chọn Copy/TXT/CSV/JSON.</li>
+                </ul>
+            </div>
+        ` : `
             <div class="wknm-guide-section">
                 <h3>Script này làm gì</h3>
-                <p>Name Desk giúp bạn xem danh sách folder name, copy/tải list name, quét lịch sử chỉnh sửa và đọc lại timeline theo từng name ngay trên trang truyện của <code>wikicv.net</code>.</p>
+                <p>Name Desk giúp bạn xem và áp dụng folder name, copy/tải list name, quét lịch sử cộng tác và đọc timeline theo từng name ngay trên <code>wikicv.org</code>.</p>
             </div>
             <div class="wknm-guide-section">
                 <h3>Flow gợi ý</h3>
                 <ul class="wknm-guide-list">
-                    <li>Mở panel bằng icon nổi ở góc màn hình. Có thể kéo icon đó sang vị trí khác nếu che nội dung.</li>
+                    <li>Mở panel bằng nút nổi ở góc màn hình; nút sẽ ẩn trong lúc panel đang mở.</li>
                     <li>Chọn folder cần xem ở cột trái để tải danh sách name hiện tại.</li>
-                    <li>Bấm <strong>Quét lịch sử</strong> để gom log sửa name của folder đó.</li>
-                        <li>Click vào từng dòng name để xem user đã thêm, xóa, sửa và các biến thể từng xuất hiện.</li>
-                        <li>Nếu có quyền admin, bạn có thể thêm name ở tổng quan folder và sửa/xóa ngay trong panel chi tiết.</li>
-                        <li>Xuất nhanh dữ liệu bằng TXT, CSV hoặc JSON tùy mục đích đối soát.</li>
-                    </ul>
-                </div>
+                    <li>Chỉ chọn <strong>Name hợp tác (COMMON)</strong> khi cần quét history; có thể Dừng, đóng panel hoặc reload rồi tiếp tục.</li>
+                    <li>Click từng dòng name để xem timeline, user và các biến thể từng xuất hiện.</li>
+                    <li>Nếu là admin hoặc chủ bộ name cá nhân, bạn có thể thêm, sửa và xóa name ngay trong panel.</li>
+                    <li>Xuất nhanh dữ liệu bằng Copy, TXT, CSV hoặc JSON.</li>
+                </ul>
+            </div>
             <div class="wknm-guide-note">
-                <strong>Tip:</strong> nút <strong>?</strong> trong header sẽ mở lại bảng hướng dẫn này bất cứ lúc nào.
+                <strong>Tip:</strong> nút <strong>?</strong> trong header sẽ mở lại hướng dẫn; changelog đầy đủ nằm ngay bên dưới.
             </div>
         `;
+        return `${mainContent}${renderChangelogSection()}`;
     }
 
     function renderGuideModal() {
@@ -1673,6 +2264,7 @@
 
     function openGuide(mode) {
         state.guideMode = mode || 'help';
+        state.changelogOpen = state.guideMode === 'update';
         state.guideOpen = true;
         render();
     }
@@ -1695,6 +2287,7 @@
         if (!storedVersion) {
             state.previousVersion = '';
             state.guideMode = 'welcome';
+            state.changelogOpen = false;
             state.guideOpen = true;
             storageSet(VERSION_STORAGE_KEY, SCRIPT_VERSION);
             render();
@@ -1704,6 +2297,7 @@
         if (storedVersion !== SCRIPT_VERSION) {
             state.previousVersion = String(storedVersion);
             state.guideMode = 'update';
+            state.changelogOpen = true;
             state.guideOpen = true;
             storageSet(VERSION_STORAGE_KEY, SCRIPT_VERSION);
             render();
@@ -1745,6 +2339,28 @@
         }
     }
 
+    function syncMarqueeElements() {
+        if (!state.shadow) {
+            return;
+        }
+        state.shadow.querySelectorAll('[data-marquee]').forEach((container) => {
+            const track = container.querySelector('.wknm-marquee-track');
+            if (!track) {
+                return;
+            }
+            container.classList.remove('is-running');
+            container.style.removeProperty('--wknm-marquee-distance');
+            container.style.removeProperty('--wknm-marquee-duration');
+            const distance = Math.ceil(track.scrollWidth - container.clientWidth);
+            if (container.clientWidth > 0 && distance > 6) {
+                const duration = Math.max(7, Math.min(30, 6 + (distance / 32)));
+                container.style.setProperty('--wknm-marquee-distance', `-${distance}px`);
+                container.style.setProperty('--wknm-marquee-duration', `${duration.toFixed(1)}s`);
+                container.classList.add('is-running');
+            }
+        });
+    }
+
     function progressPercent() {
         if (!state.progress.total) {
             return 0;
@@ -1765,24 +2381,66 @@
         return `<span class="wknm-status-text is-ok">${escapeHtml(state.info || 'Sẵn sàng')}</span>`;
     }
 
+    function renderAppliedFoldersBar(selectedFolder) {
+        const appliedFolders = state.appliedFolderIds
+            .map((id) => state.folders.find((folder) => folder.id === id))
+            .filter(Boolean);
+        const currentIsApplied = !!(selectedFolder && state.appliedFolderIds.includes(selectedFolder.id));
+        const locked = state.isScanningHistory ? 'disabled' : '';
+        const chips = appliedFolders.length
+            ? appliedFolders.map((folder, index) => `
+                <span class="wknm-applied-chip" title="Vị trí WikiCV lưu: ${index + 1}">
+                    <b>#${index + 1}</b> ${escapeHtml(folder.label)}
+                    <button type="button" data-action="move-application" data-folder-id="${escapeAttr(folder.id)}" data-direction="-1" title="Đưa lên trước" ${(index === 0 || state.isScanningHistory) ? 'disabled' : ''}>↑</button>
+                    <button type="button" data-action="move-application" data-folder-id="${escapeAttr(folder.id)}" data-direction="1" title="Đưa xuống sau" ${(index === appliedFolders.length - 1 || state.isScanningHistory) ? 'disabled' : ''}>↓</button>
+                    <button type="button" data-action="toggle-application" data-folder-id="${escapeAttr(folder.id)}" title="Bỏ áp dụng" ${locked}>×</button>
+                </span>
+            `).join('')
+            : '<span class="wknm-applied-empty">Chưa chọn bộ name nào</span>';
+        return `
+            <div class="wknm-applied-bar">
+                <span class="wknm-applied-label">Đang áp dụng</span>
+                <div class="wknm-applied-list">${chips}</div>
+                ${selectedFolder ? `
+                    <button type="button" class="wknm-btn ${currentIsApplied ? 'is-danger-soft' : 'is-ghost'}" data-action="toggle-application" data-folder-id="${escapeAttr(selectedFolder.id)}" ${locked}>
+                        ${currentIsApplied ? 'Bỏ bộ đang xem' : 'Áp dụng bộ đang xem'}
+                    </button>
+                ` : ''}
+                <span class="wknm-applied-note">Tối đa ${COOKIE_MAX_IDS} bộ; số # là thứ tự WikiCV lưu/áp dụng.</span>
+            </div>
+        `;
+    }
+
     function renderFolderCards() {
         if (!state.folders.length) {
             return `<div class="wknm-empty-box">Chưa có folder. Mở panel trên trang truyện rồi bấm tải lại.</div>`;
         }
 
         return state.folders.map((folder) => {
-            const history = state.historyCache.get(folder.id);
+            const supportsHistory = isCollaborativeFolder(folder);
+            const history = supportsHistory ? state.historyCache.get(folder.id) : null;
+            const checkpoint = supportsHistory ? state.historyProgressCache.get(folder.id) : null;
             const names = state.namesCache.get(folder.id);
             const isActive = folder.id === state.selectedFolderId;
+            const appliedIndex = state.appliedFolderIds.indexOf(folder.id);
             const status = history
                 ? `${history.summary.eventCount} sự kiện`
-                : (names ? `${names.total} name` : 'Chưa tải');
-            const badge = history ? 'Đã quét' : (names ? 'Đã tải' : 'Mới');
+                : (checkpoint
+                    ? `${mergeHistoryEvents(checkpoint.events, checkpoint.baseEvents).length} sự kiện đã lưu`
+                    : (names ? `${names.total} name` : 'Chưa tải'));
+            const badge = !supportsHistory
+                ? 'Không history'
+                : (checkpoint && checkpoint.status !== 'complete'
+                    ? (checkpoint.status === 'failed' ? 'Quét lỗi' : 'Đang dở')
+                    : (checkpoint ? 'Đã lưu' : (history ? 'Đã quét' : (names ? 'Đã tải' : 'Mới'))));
             return `
                 <button type="button" class="wknm-folder-card${isActive ? ' is-active' : ''}" data-action="select-folder" data-folder-id="${escapeAttr(folder.id)}">
                     <div class="wknm-folder-head">
-                        <span class="wknm-folder-title">${escapeHtml(folder.label)}</span>
-                        <span class="wknm-folder-badge">${escapeHtml(badge)}</span>
+                        <span class="wknm-folder-title" data-marquee title="${escapeAttr(folder.label)}"><span class="wknm-marquee-track">${escapeHtml(folder.label)}</span></span>
+                        <span class="wknm-folder-badges">
+                            ${appliedIndex >= 0 ? `<span class="wknm-folder-badge is-applied">Áp dụng #${appliedIndex + 1}</span>` : ''}
+                            <span class="wknm-folder-badge">${escapeHtml(badge)}</span>
+                        </span>
                     </div>
                     <div class="wknm-folder-meta">${escapeHtml(folder.id)}</div>
                     <div class="wknm-folder-submeta">
@@ -1810,8 +2468,8 @@
             return `
                 <button type="button" class="wknm-table-row${selected ? ' is-selected' : ''}" data-action="select-name" data-name-key="${escapeAttr(row.key)}">
                     <div class="wknm-cell wknm-cell-name">
-                        <span class="wknm-name-cn">${escapeHtml(row.nameCn)}</span>
-                        <span class="wknm-name-vi">${escapeHtml(row.displayVi || 'Chưa có tên Việt')}</span>
+                        <span class="wknm-name-cn" data-marquee title="${escapeAttr(row.nameCn)}"><span class="wknm-marquee-track">${escapeHtml(row.nameCn)}</span></span>
+                        <span class="wknm-name-vi" data-marquee title="${escapeAttr(row.displayVi || 'Chưa có tên Việt')}"><span class="wknm-marquee-track">${escapeHtml(row.displayVi || 'Chưa có tên Việt')}</span></span>
                     </div>
                     <div class="wknm-cell">
                         <span class="wknm-status-pill is-${escapeAttr(row.status)}">${escapeHtml(statusLabel(row.status))}</span>
@@ -1857,20 +2515,20 @@
                 <div class="wknm-editor-card">
                     <div class="wknm-editor-grid">
                         <div class="wknm-field">
-                            <label class="wknm-field-label">Name CN</label>
-                            <input class="wknm-input" data-input="add-cn" value="${escapeAttr(state.editor.addCn)}" placeholder="Ví dụ: 护卫长" />
+                            <label class="wknm-field-label" for="wknm-add-cn">Name CN</label>
+                            <input id="wknm-add-cn" name="wknm_add_cn" type="text" autocomplete="off" class="wknm-input" data-input="add-cn" value="${escapeAttr(state.editor.addCn)}" placeholder="Ví dụ: 护卫长" />
                         </div>
                         <div class="wknm-field">
-                            <label class="wknm-field-label">Name VI</label>
-                            <input class="wknm-input" data-input="add-vi" value="${escapeAttr(state.editor.addVi)}" placeholder="Ví dụ: Hộ vệ trưởng" />
+                            <label class="wknm-field-label" for="wknm-add-vi">Name VI</label>
+                            <input id="wknm-add-vi" name="wknm_add_vi" type="text" autocomplete="off" class="wknm-input" data-input="add-vi" value="${escapeAttr(state.editor.addVi)}" placeholder="Ví dụ: Hộ vệ trưởng" />
                         </div>
                     </div>
                     <div class="wknm-editor-actions">
                         <button type="button" class="wknm-btn is-accent" data-action="add-single">Thêm 1 name</button>
                     </div>
                     <div class="wknm-field">
-                        <label class="wknm-field-label">Thêm hàng loạt</label>
-                        <textarea class="wknm-textarea" data-input="bulk-names" placeholder="Mỗi dòng: CN=VI&#10;护卫长=Hộ vệ trưởng&#10;许先生=Hứa tiên sinh">${escapeHtml(state.editor.bulkText)}</textarea>
+                        <label class="wknm-field-label" for="wknm-bulk-names">Thêm hàng loạt</label>
+                        <textarea id="wknm-bulk-names" name="wknm_bulk_names" autocomplete="off" class="wknm-textarea" data-input="bulk-names" placeholder="Mỗi dòng: CN=VI&#10;护卫长=Hộ vệ trưởng&#10;许先生=Hứa tiên sinh">${escapeHtml(state.editor.bulkText)}</textarea>
                     </div>
                     <div class="wknm-help">
                         <p>Bulk add nhận mỗi dòng theo dạng <strong>CN=VI</strong> hoặc <strong>CN[TAB]VI</strong>.</p>
@@ -1885,6 +2543,7 @@
 
     function renderSummaryPanel(folder, rows) {
         const historyRecord = folder ? state.historyCache.get(folder.id) : null;
+        const supportsHistory = isCollaborativeFolder(folder);
         const activeCount = rows.filter((row) => row.status === 'active').length;
         const deletedCount = rows.filter((row) => row.status === 'deleted').length;
         const trackedCount = rows.length;
@@ -1914,14 +2573,16 @@
             ${renderAddNamePanel(folder)}
             <div class="wknm-detail-block">
                 <div class="wknm-section-title">Top user</div>
-                ${historyRecord ? renderUserChips(historyRecord.summary.topUsers) : `<div class="wknm-empty-box">Chưa quét lịch sử cho folder này.</div>`}
+                ${historyRecord
+                    ? renderUserChips(historyRecord.summary.topUsers)
+                    : `<div class="wknm-empty-box">${supportsHistory ? 'Chưa quét lịch sử cho folder này.' : 'WikiCV chỉ có lịch sử cộng tác cho bộ Name hợp tác (COMMON).'}</div>`}
             </div>
             <div class="wknm-detail-block">
                 <div class="wknm-section-title">Gợi ý</div>
                 <div class="wknm-help">
-                    <p>Bấm <strong>Quét lịch sử</strong> để gom toàn bộ lịch sử sửa name của folder hiện tại.</p>
+                    <p>${supportsHistory ? 'Bấm <strong>Quét lịch sử</strong> để gom lịch sử cộng tác của truyện.' : 'Folder này không có history riêng; hãy chọn <strong>Name hợp tác (COMMON)</strong> nếu cần xem lịch sử.'}</p>
                     <p>Bấm vào từng dòng name để xem timeline chi tiết, user tham gia và biến thể đã từng xuất hiện.</p>
-                    <p>Nút <strong>Tải CSV</strong> và <strong>Tải JSON</strong> sẽ xuất bảng thống kê của folder đang mở.</p>
+                    <p>Mở <strong>Xuất</strong> trên header để Copy hoặc tải TXT/CSV/JSON của folder đang xem.</p>
                     <p>Name đang tồn tại nhưng không có event nào sau khi quét full history sẽ được xem là name do hệ thống thêm.</p>
                 </div>
             </div>
@@ -2010,8 +2671,8 @@
                     <div class="wknm-section-title">Chi tiết name</div>
                     <button type="button" class="wknm-detail-link" data-action="show-summary">Tổng quan folder</button>
                 </div>
-                <div class="wknm-detail-title">${escapeHtml(row.nameCn)}</div>
-                <div class="wknm-detail-subtitle">${escapeHtml(row.displayVi || 'Chưa có tên Việt')}</div>
+                <div class="wknm-detail-title" data-marquee title="${escapeAttr(row.nameCn)}"><span class="wknm-marquee-track">${escapeHtml(row.nameCn)}</span></div>
+                <div class="wknm-detail-subtitle" data-marquee title="${escapeAttr(row.displayVi || 'Chưa có tên Việt')}"><span class="wknm-marquee-track">${escapeHtml(row.displayVi || 'Chưa có tên Việt')}</span></div>
                 <div class="wknm-pill-row">
                     <span class="wknm-status-pill is-${escapeAttr(row.status)}">${escapeHtml(statusLabel(row.status))}</span>
                     <span class="wknm-metric-pill">${escapeHtml(String(row.revisions || 0))} sự kiện</span>
@@ -2025,12 +2686,12 @@
                     <div class="wknm-editor-card">
                         <div class="wknm-editor-grid">
                             <div class="wknm-field">
-                                <label class="wknm-field-label">Name CN</label>
-                                <input class="wknm-input" value="${escapeAttr(state.editor.nameCn)}" disabled />
+                                <label class="wknm-field-label" for="wknm-edit-cn">Name CN</label>
+                                <input id="wknm-edit-cn" name="wknm_edit_cn" type="text" autocomplete="off" class="wknm-input" value="${escapeAttr(state.editor.nameCn)}" disabled />
                             </div>
                             <div class="wknm-field">
-                                <label class="wknm-field-label">Name VI</label>
-                                <input class="wknm-input" data-input="edit-name-vi" value="${escapeAttr(state.editor.nameVi)}" placeholder="Nhập hoặc chọn gợi ý..." />
+                                <label class="wknm-field-label" for="wknm-edit-vi">Name VI</label>
+                                <input id="wknm-edit-vi" name="wknm_edit_vi" type="text" autocomplete="off" class="wknm-input" data-input="edit-name-vi" value="${escapeAttr(state.editor.nameVi)}" placeholder="Nhập hoặc chọn gợi ý..." />
                             </div>
                         </div>
                         <div class="wknm-meta-grid">
@@ -2084,6 +2745,93 @@
         `;
     }
 
+    function renderExportModal() {
+        if (!state.exportOpen) {
+            return '';
+        }
+        const folder = getSelectedFolder();
+        const namesRecord = folder ? state.namesCache.get(folder.id) : null;
+        const rows = folder ? getRowsForFolder(folder.id) : [];
+        const filteredRows = folder ? getFilteredRows() : [];
+        const exportRows = folder ? getExportRows(folder.id) : [];
+        const historyRecord = folder ? state.historyCache.get(folder.id) : null;
+        const hasNames = !!(namesRecord && exportRows.some((row) => row.status === 'active' || row.status === 'deleted'));
+        const hasStats = exportRows.length > 0;
+        const deletedCount = rows.filter((row) => row.status === 'deleted').length;
+
+        return `
+            <div class="wknm-export is-open">
+                <div class="wknm-export-backdrop" data-action="close-export"></div>
+                <div class="wknm-export-card" role="dialog" aria-modal="true" aria-label="Xuất dữ liệu name">
+                    <div class="wknm-export-head">
+                        <div>
+                            <div class="wknm-guide-kicker">Export Center</div>
+                            <h3 class="wknm-export-title">Xuất ${escapeHtml(folder ? folder.label : 'folder hiện tại')}</h3>
+                        </div>
+                        <button type="button" class="wknm-btn is-ghost is-icon" data-action="close-export" aria-label="Đóng cửa sổ xuất">×</button>
+                    </div>
+                    <div class="wknm-export-body">
+                        <label class="wknm-export-check" for="wknm-include-deleted-export">
+                            <input id="wknm-include-deleted-export" name="wknm_include_deleted_export" type="checkbox" autocomplete="off" data-input="include-deleted-export" ${state.includeDeletedInNameExport ? 'checked' : ''} ${!historyRecord ? 'disabled' : ''} />
+                            <span>
+                                <strong>Kèm name đã xóa</strong>
+                                <small>${historyRecord ? `Đang thấy ${deletedCount} dòng đã xóa; nếu trùng CN khi xuất list, script sẽ hỏi giữ bản nào.` : 'Cần quét lịch sử trước để lấy name đã xóa.'}</small>
+                            </span>
+                        </label>
+                        <label class="wknm-export-check" for="wknm-filtered-only-export">
+                            <input id="wknm-filtered-only-export" name="wknm_filtered_only_export" type="checkbox" autocomplete="off" data-input="filtered-only-export" ${state.filteredOnlyInNameExport ? 'checked' : ''} />
+                            <span>
+                                <strong>Các name đang lọc</strong>
+                                <small>Bật để chỉ xuất ${filteredRows.length}/${rows.length} dòng đang khớp tìm kiếm và trạng thái; lựa chọn name đã xóa vẫn được áp dụng.</small>
+                            </span>
+                        </label>
+                        <div class="wknm-export-grid">
+                            <button type="button" class="wknm-export-choice" data-action="copy-folder" ${!hasNames ? 'disabled' : ''}>
+                                <strong>Copy</strong><span>Chép list CN=VI vào clipboard</span>
+                            </button>
+                            <button type="button" class="wknm-export-choice" data-action="download-names" ${!hasNames ? 'disabled' : ''}>
+                                <strong>TXT</strong><span>Tải list name CN=VI</span>
+                            </button>
+                            <button type="button" class="wknm-export-choice" data-action="export-csv" ${!hasStats ? 'disabled' : ''}>
+                                <strong>CSV</strong><span>Bảng thống kê dễ mở bằng Excel</span>
+                            </button>
+                            <button type="button" class="wknm-export-choice" data-action="export-json" ${!hasStats ? 'disabled' : ''}>
+                                <strong>JSON</strong><span>Dữ liệu chi tiết kèm timeline</span>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="wknm-export-foot">
+                        <span>Cả Copy/TXT/CSV/JSON đều tuân theo hai lựa chọn bên trên.</span>
+                        <button type="button" class="wknm-btn is-ghost" data-action="close-export">Đóng</button>
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+
+    function renderRefreshConfirmModal() {
+        if (!state.refreshConfirmOpen) {
+            return '';
+        }
+        return `
+            <div class="wknm-confirm is-open">
+                <div class="wknm-confirm-backdrop" data-action="cancel-refresh-all"></div>
+                <div class="wknm-confirm-card" role="dialog" aria-modal="true" aria-label="Xác nhận tải lại tất cả">
+                    <div class="wknm-confirm-kicker">Xóa cache cục bộ</div>
+                    <h3 class="wknm-confirm-title">Tải lại toàn bộ dữ liệu?</h3>
+                    <div class="wknm-confirm-body">
+                        <p>Thao tác này sẽ xóa danh sách name đang giữ trong bộ nhớ, lịch sử đã lưu và checkpoint quét của truyện hiện tại, sau đó tải lại từ WikiCV.</p>
+                        <p><strong>Không xóa hoặc thay đổi name trên máy chủ WikiCV.</strong></p>
+                    </div>
+                    <div class="wknm-confirm-actions">
+                        <button type="button" class="wknm-btn is-ghost" data-action="cancel-refresh-all">Hủy</button>
+                        <button type="button" class="wknm-btn is-danger" data-action="confirm-refresh-all">Xóa cache và tải lại</button>
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+
     function renderDeleteConfirmModal() {
         if (!state.deleteConfirm.open) {
             return '';
@@ -2117,6 +2865,7 @@
         const main = state.shadow.querySelector('.wknm-main');
         const detail = state.shadow.querySelector('.wknm-detail');
         const tableBody = state.shadow.querySelector('.wknm-table-body');
+        const guideBody = state.shadow.querySelector('.wknm-guide-body');
         const activeElement = state.shadow.activeElement;
         const searchInput = activeElement && activeElement.matches && activeElement.matches('[data-input="search"]')
             ? {
@@ -2130,6 +2879,7 @@
             mainScrollTop: main ? main.scrollTop : 0,
             detailScrollTop: detail ? detail.scrollTop : 0,
             tableScrollTop: tableBody ? tableBody.scrollTop : 0,
+            guideScrollTop: guideBody ? guideBody.scrollTop : 0,
             searchInput: searchInput,
         };
     }
@@ -2143,6 +2893,7 @@
         const main = state.shadow.querySelector('.wknm-main');
         const detail = state.shadow.querySelector('.wknm-detail');
         const tableBody = state.shadow.querySelector('.wknm-table-body');
+        const guideBody = state.shadow.querySelector('.wknm-guide-body');
         if (sidebar) {
             sidebar.scrollTop = viewState.sidebarScrollTop || 0;
         }
@@ -2154,6 +2905,9 @@
         }
         if (tableBody) {
             tableBody.scrollTop = viewState.tableScrollTop || 0;
+        }
+        if (guideBody) {
+            guideBody.scrollTop = viewState.guideScrollTop || 0;
         }
 
         if (viewState.searchInput) {
@@ -2183,8 +2937,20 @@
         const historyRecord = selectedFolder ? state.historyCache.get(selectedFolder.id) : null;
         syncEditorState(selectedFolder, selectedRow);
         const isBusy = state.isBooting || state.isLoadingFolders || state.isLoadingNames || state.isScanningHistory;
-        const namesDisabled = !selectedFolder || (!namesRecord && state.isLoadingNames);
-        const statsDisabled = !selectedFolder || (!historyRecord && !currentRows.length);
+        const exportDisabled = !selectedFolder || (!namesRecord && !currentRows.length);
+        const selectedSupportsHistory = isCollaborativeFolder(selectedFolder);
+        const selectedCheckpoint = selectedFolder && selectedSupportsHistory ? state.historyProgressCache.get(selectedFolder.id) : null;
+        const activeScanTask = state.historyScanTask;
+        const scanLabel = activeScanTask
+            ? (activeScanTask.stopRequested ? 'Đang dừng...' : 'Dừng')
+            : (!selectedSupportsHistory
+                ? 'Không có history'
+                : (selectedCheckpoint && selectedCheckpoint.status !== 'complete'
+                ? 'Tiếp tục quét'
+                : (selectedCheckpoint && selectedCheckpoint.status === 'complete' ? 'Quét bổ sung' : 'Quét lịch sử')));
+        const scanDisabled = activeScanTask
+            ? activeScanTask.stopRequested
+            : (!selectedFolder || !selectedSupportsHistory || state.isBooting || state.isLoadingFolders || state.isLoadingNames);
         state.shadow.innerHTML = `
             <style>
                 :host, * {
@@ -2227,6 +2993,14 @@
                     transform: translateY(-1px);
                     box-shadow: 0 22px 42px rgba(37, 99, 235, 0.34);
                 }
+                .wknm-fab.is-panel-open {
+                    display: none;
+                }
+                .wknm-fab.is-scanning {
+                    min-width: 166px;
+                    background: linear-gradient(135deg, #f97316 0%, #dc2626 100%);
+                    box-shadow: 0 18px 38px rgba(220, 38, 38, 0.3);
+                }
                 .wknm-fab-icon {
                     width: 18px;
                     height: 18px;
@@ -2245,6 +3019,30 @@
                 .wknm-fab-label {
                     white-space: nowrap;
                     font-size: 12px;
+                }
+                .wknm-fab-scan {
+                    display: flex;
+                    min-width: 78px;
+                    flex-direction: column;
+                    gap: 4px;
+                    text-align: left;
+                    font-size: 10px;
+                    line-height: 1.1;
+                }
+                .wknm-fab-scan-track {
+                    display: block;
+                    width: 100%;
+                    height: 4px;
+                    overflow: hidden;
+                    border-radius: 999px;
+                    background: rgba(255,255,255,0.3);
+                }
+                .wknm-fab-scan-bar {
+                    display: block;
+                    width: ${progressPercent()}%;
+                    height: 100%;
+                    border-radius: inherit;
+                    background: #fff;
                 }
                 .wknm-overlay {
                     position: fixed;
@@ -2280,15 +3078,18 @@
                 .wknm-header {
                     display: flex;
                     justify-content: space-between;
+                    align-items: center;
                     gap: 16px;
-                    padding: 18px 20px 14px;
+                    padding: 14px 18px 12px;
                     border-bottom: 1px solid rgba(203, 213, 225, 0.65);
                     background:
                         radial-gradient(circle at left top, rgba(125, 211, 252, 0.20), transparent 40%),
                         linear-gradient(135deg, rgba(239, 246, 255, 0.92), rgba(255, 255, 255, 0.96));
                 }
                 .wknm-title-wrap {
+                    flex: 1 1 460px;
                     min-width: 0;
+                    overflow: hidden;
                 }
                 .wknm-kicker {
                     margin-bottom: 5px;
@@ -2300,6 +3101,7 @@
                 }
                 .wknm-title {
                     margin: 0;
+                    width: 100%;
                     font-size: 22px;
                     line-height: 1.18;
                     color: #10233a;
@@ -2307,10 +3109,19 @@
                 .wknm-subtitle {
                     margin-top: 7px;
                     display: flex;
-                    flex-wrap: wrap;
-                    gap: 8px 12px;
+                    align-items: center;
+                    gap: 10px;
+                    min-width: 0;
                     color: #4b5d74;
                     font-size: 12px;
+                }
+                .wknm-book-meta {
+                    display: flex;
+                    flex: 0 1 auto;
+                    flex-wrap: wrap;
+                    align-items: center;
+                    gap: 6px 12px;
+                    min-width: 0;
                 }
                 .wknm-subtitle code {
                     padding: 2px 7px;
@@ -2321,9 +3132,24 @@
                 .wknm-header-actions {
                     display: flex;
                     flex-wrap: wrap;
-                    gap: 8px;
-                    align-items: flex-start;
+                    flex: 0 1 auto;
+                    gap: 6px;
+                    align-items: center;
                     justify-content: flex-end;
+                }
+                .wknm-action-group {
+                    display: inline-flex;
+                    align-items: center;
+                    gap: 4px;
+                    padding: 3px;
+                    border: 1px solid rgba(148, 163, 184, 0.24);
+                    border-radius: 14px;
+                    background: rgba(255,255,255,0.62);
+                }
+                .wknm-action-group .wknm-btn {
+                    min-height: 34px;
+                    padding: 7px 10px;
+                    border-radius: 10px;
                 }
                 .wknm-btn,
                 .wknm-select,
@@ -2373,9 +3199,78 @@
                     background: linear-gradient(135deg, #0ea5e9 0%, #14b8a6 100%);
                     box-shadow: 0 12px 24px rgba(14, 165, 233, 0.20);
                 }
+                .wknm-btn.is-danger-soft {
+                    background: rgba(254, 226, 226, 0.94);
+                    color: #b91c1c;
+                    border: 1px solid rgba(239, 68, 68, 0.28);
+                    box-shadow: none;
+                }
+                .wknm-applied-bar {
+                    display: flex;
+                    flex-wrap: wrap;
+                    align-items: center;
+                    gap: 8px;
+                    padding: 9px 20px;
+                    border-bottom: 1px solid rgba(226, 232, 240, 0.9);
+                    background: rgba(240, 249, 255, 0.86);
+                }
+                .wknm-applied-label {
+                    color: #075985;
+                    font-size: 11px;
+                    font-weight: 800;
+                    letter-spacing: 0.05em;
+                    text-transform: uppercase;
+                }
+                .wknm-applied-list {
+                    display: flex;
+                    flex: 1;
+                    flex-wrap: wrap;
+                    gap: 6px;
+                    min-width: 180px;
+                }
+                .wknm-applied-chip {
+                    display: inline-flex;
+                    align-items: center;
+                    gap: 4px;
+                    padding: 4px 6px 4px 9px;
+                    border: 1px solid rgba(14, 165, 233, 0.26);
+                    border-radius: 999px;
+                    background: #fff;
+                    color: #075985;
+                    font-size: 11px;
+                }
+                .wknm-applied-chip button {
+                    width: 21px;
+                    height: 21px;
+                    padding: 0;
+                    border: 0;
+                    border-radius: 50%;
+                    background: rgba(14, 165, 233, 0.1);
+                    color: #0369a1;
+                    cursor: pointer;
+                    font-weight: 800;
+                }
+                .wknm-applied-chip button:disabled {
+                    cursor: not-allowed;
+                    opacity: 0.35;
+                }
+                .wknm-applied-empty,
+                .wknm-applied-note {
+                    color: #64748b;
+                    font-size: 11px;
+                }
+                .wknm-export-option {
+                    display: inline-flex;
+                    align-items: center;
+                    gap: 5px;
+                    color: #475569;
+                    font-size: 11px;
+                    white-space: nowrap;
+                    cursor: pointer;
+                }
                 .wknm-toolbar {
                     display: grid;
-                    grid-template-columns: minmax(220px, 1.5fr) repeat(2, minmax(150px, 0.6fr)) auto 1fr;
+                    grid-template-columns: minmax(260px, 1.5fr) repeat(2, minmax(170px, 0.6fr));
                     gap: 10px;
                     align-items: center;
                     padding: 12px 20px;
@@ -2406,12 +3301,29 @@
                     text-align: right;
                     font-size: 12px;
                 }
+                .wknm-header-status {
+                    flex: 1 1 200px;
+                    min-width: 100px;
+                    color: #0f766e;
+                    font-size: 12px;
+                }
                 .wknm-status-text {
                     display: inline-block;
-                    max-width: 100%;
                     white-space: nowrap;
+                }
+                [data-marquee] {
+                    display: block;
+                    min-width: 0;
                     overflow: hidden;
-                    text-overflow: ellipsis;
+                    white-space: nowrap;
+                }
+                .wknm-marquee-track {
+                    display: inline-block;
+                    min-width: max-content;
+                    will-change: transform;
+                }
+                [data-marquee].is-running .wknm-marquee-track {
+                    animation: wknm-marquee-loop var(--wknm-marquee-duration, 10s) linear infinite;
                 }
                 .wknm-status-text.is-error {
                     color: #b91c1c;
@@ -2611,6 +3523,8 @@
                     align-items: center;
                 }
                 .wknm-folder-title {
+                    flex: 1;
+                    min-width: 0;
                     font-weight: 700;
                     line-height: 1.35;
                     color: #0f172a;
@@ -2623,6 +3537,16 @@
                     color: #1d4ed8;
                     font-size: 11px;
                     font-weight: 700;
+                }
+                .wknm-folder-badges {
+                    display: inline-flex;
+                    flex-wrap: wrap;
+                    justify-content: flex-end;
+                    gap: 4px;
+                }
+                .wknm-folder-badge.is-applied {
+                    background: rgba(16, 185, 129, 0.13);
+                    color: #047857;
                 }
                 .wknm-folder-meta,
                 .wknm-folder-submeta {
@@ -2698,13 +3622,13 @@
                     color: #0f172a;
                     white-space: nowrap;
                     overflow: hidden;
-                    text-overflow: ellipsis;
+                    text-overflow: clip;
                 }
                 .wknm-name-vi {
                     color: #475569;
                     white-space: nowrap;
                     overflow: hidden;
-                    text-overflow: ellipsis;
+                    text-overflow: clip;
                 }
                 .wknm-cell-num {
                     font-weight: 700;
@@ -2745,10 +3669,16 @@
                     color: #1d4ed8;
                 }
                 .wknm-detail-title {
+                    overflow: hidden;
+                    white-space: nowrap;
                     font-size: 20px;
                     line-height: 1.16;
                     font-weight: 800;
                     color: #10233a;
+                }
+                .wknm-detail-subtitle {
+                    overflow: hidden;
+                    white-space: nowrap;
                 }
                 .wknm-detail-topbar {
                     display: flex;
@@ -3066,6 +3996,121 @@
                     background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
                     box-shadow: 0 12px 24px rgba(220, 38, 38, 0.18);
                 }
+                .wknm-export {
+                    position: fixed;
+                    inset: 0;
+                    z-index: 2147483003;
+                    display: none;
+                    align-items: center;
+                    justify-content: center;
+                    padding: 18px;
+                }
+                .wknm-export.is-open {
+                    display: flex;
+                }
+                .wknm-export-backdrop {
+                    position: absolute;
+                    inset: 0;
+                    background: rgba(15, 23, 42, 0.58);
+                    backdrop-filter: blur(5px);
+                }
+                .wknm-export-card {
+                    position: relative;
+                    width: min(620px, 100%);
+                    overflow: hidden;
+                    border: 1px solid rgba(148, 163, 184, 0.24);
+                    border-radius: 24px;
+                    background: linear-gradient(180deg, rgba(255,255,255,0.99), rgba(247,250,255,0.99));
+                    box-shadow: 0 32px 70px rgba(15, 23, 42, 0.3);
+                }
+                .wknm-export-head,
+                .wknm-export-foot {
+                    display: flex;
+                    align-items: center;
+                    justify-content: space-between;
+                    gap: 12px;
+                    padding: 15px 18px;
+                }
+                .wknm-export-head {
+                    border-bottom: 1px solid rgba(226, 232, 240, 0.9);
+                    background: linear-gradient(135deg, rgba(239, 246, 255, 0.96), rgba(255,255,255,0.98));
+                }
+                .wknm-export-title {
+                    margin: 5px 0 0;
+                    color: #10233a;
+                    font-size: 20px;
+                }
+                .wknm-export-body {
+                    display: grid;
+                    gap: 14px;
+                    padding: 18px;
+                }
+                .wknm-export-check {
+                    display: flex;
+                    align-items: flex-start;
+                    gap: 10px;
+                    padding: 12px 14px;
+                    border: 1px solid rgba(125, 211, 252, 0.52);
+                    border-radius: 16px;
+                    background: rgba(240, 249, 255, 0.74);
+                    cursor: pointer;
+                }
+                .wknm-export-check input {
+                    margin-top: 3px;
+                }
+                .wknm-export-check span,
+                .wknm-export-check small {
+                    display: block;
+                }
+                .wknm-export-check strong {
+                    color: #0f172a;
+                    font-size: 13px;
+                }
+                .wknm-export-check small {
+                    margin-top: 3px;
+                    color: #64748b;
+                    font-size: 11px;
+                    line-height: 1.45;
+                }
+                .wknm-export-grid {
+                    display: grid;
+                    grid-template-columns: repeat(2, minmax(0, 1fr));
+                    gap: 10px;
+                }
+                .wknm-export-choice {
+                    display: grid;
+                    gap: 4px;
+                    padding: 14px;
+                    border: 1px solid rgba(148, 163, 184, 0.3);
+                    border-radius: 16px;
+                    background: #fff;
+                    color: #334155;
+                    text-align: left;
+                    cursor: pointer;
+                    transition: transform 0.16s ease, border-color 0.16s ease, box-shadow 0.16s ease;
+                }
+                .wknm-export-choice:hover:not(:disabled) {
+                    transform: translateY(-1px);
+                    border-color: rgba(14, 165, 233, 0.5);
+                    box-shadow: 0 14px 24px rgba(14, 165, 233, 0.12);
+                }
+                .wknm-export-choice:disabled {
+                    cursor: not-allowed;
+                    opacity: 0.5;
+                }
+                .wknm-export-choice strong {
+                    color: #0369a1;
+                    font-size: 15px;
+                }
+                .wknm-export-choice span,
+                .wknm-export-foot {
+                    color: #64748b;
+                    font-size: 11px;
+                }
+                .wknm-export-foot {
+                    border-top: 1px solid rgba(226, 232, 240, 0.9);
+                    background: rgba(248, 250, 252, 0.86);
+                }
                 .wknm-confirm {
                     position: fixed;
                     inset: 0;
@@ -3217,6 +4262,49 @@
                 .wknm-guide-list li + li {
                     margin-top: 8px;
                 }
+                .wknm-changelog-section {
+                    padding-top: 18px;
+                    border-top: 1px solid rgba(203, 213, 225, 0.72);
+                }
+                .wknm-changelog-toggle-row,
+                .wknm-changelog-version {
+                    display: flex;
+                    align-items: center;
+                    justify-content: space-between;
+                    gap: 12px;
+                }
+                .wknm-changelog-toggle-row h3 {
+                    margin-bottom: 4px;
+                }
+                .wknm-changelog-toggle-row p {
+                    color: #64748b;
+                    font-size: 11px;
+                }
+                .wknm-changelog-list {
+                    display: grid;
+                    gap: 10px;
+                    margin-top: 14px;
+                }
+                .wknm-changelog-item {
+                    padding: 13px 14px;
+                    border: 1px solid rgba(191, 219, 254, 0.72);
+                    border-radius: 16px;
+                    background: rgba(248, 251, 255, 0.94);
+                }
+                .wknm-changelog-version {
+                    margin-bottom: 9px;
+                }
+                .wknm-changelog-version strong {
+                    color: #0369a1;
+                    font-size: 14px;
+                }
+                .wknm-changelog-version span {
+                    color: #64748b;
+                    font-size: 11px;
+                }
+                .wknm-changelog-item .wknm-guide-list {
+                    font-size: 12px;
+                }
                 .wknm-guide-note {
                     margin-top: 18px;
                     padding: 12px 14px;
@@ -3245,6 +4333,11 @@
                     0%, 100% { transform: translate(-18%, -50%); }
                     50% { transform: translate(-6%, -50%); }
                 }
+                @keyframes wknm-marquee-loop {
+                    0%, 10% { transform: translateX(0); }
+                    82%, 94% { transform: translateX(var(--wknm-marquee-distance, 0px)); }
+                    94.01%, 100% { transform: translateX(0); }
+                }
                 @media (max-width: 1280px) {
                     .wknm-dialog {
                         inset: 12px;
@@ -3269,6 +4362,10 @@
                     }
                     .wknm-header {
                         flex-direction: column;
+                        align-items: stretch;
+                    }
+                    .wknm-header-actions {
+                        justify-content: flex-start;
                     }
                     .wknm-toolbar {
                         grid-template-columns: 1fr 1fr;
@@ -3342,6 +4439,13 @@
                     .wknm-title {
                         font-size: 18px;
                     }
+                    .wknm-subtitle {
+                        align-items: stretch;
+                        flex-direction: column;
+                    }
+                    .wknm-header-status {
+                        flex-basis: auto;
+                    }
                     .wknm-toolbar {
                         grid-template-columns: 1fr;
                     }
@@ -3389,10 +4493,19 @@
                     .wknm-confirm-card {
                         border-radius: 18px;
                     }
+                    .wknm-export {
+                        padding: 10px;
+                    }
+                    .wknm-export-card {
+                        border-radius: 18px;
+                    }
+                    .wknm-export-grid {
+                        grid-template-columns: 1fr;
+                    }
                 }
             </style>
             <div class="wknm-root">
-                <button type="button" class="wknm-fab" data-action="toggle-panel" title="Mở ${escapeAttr(APP_NAME)}. Kéo để di chuyển." ${getFabInlineStyle()}>
+                <button type="button" class="wknm-fab${state.panelOpen ? ' is-panel-open' : ''}${state.isScanningHistory ? ' is-scanning' : ''}" data-action="toggle-panel" title="Mở ${escapeAttr(APP_NAME)}. Kéo để di chuyển." ${getFabInlineStyle()}>
                     <span class="wknm-fab-icon" aria-hidden="true">
                         <svg viewBox="0 0 24 24" width="20" height="20" fill="none">
                             <path d="M10.5 4.5a6 6 0 1 0 3.73 10.7l4.78 4.78 1.42-1.42-4.78-4.78A6 6 0 0 0 10.5 4.5Z" stroke="rgba(255,255,255,0.95)" stroke-width="1.7"/>
@@ -3400,6 +4513,12 @@
                         </svg>
                     </span>
                     <span class="wknm-fab-label">Name Desk</span>
+                    ${state.isScanningHistory ? `
+                        <span class="wknm-fab-scan">
+                            <b>${escapeHtml(`${state.progress.current}/${state.progress.total || '?'}`)}</b>
+                            <span class="wknm-fab-scan-track"><span class="wknm-fab-scan-bar"></span></span>
+                        </span>
+                    ` : ''}
                 </button>
                 <div class="wknm-overlay${state.panelOpen ? ' is-open' : ''}">
                     <div class="wknm-backdrop" data-action="close-panel"></div>
@@ -3407,45 +4526,50 @@
                         <div class="wknm-header">
                             <div class="wknm-title-wrap">
                                 <div class="wknm-kicker">Name Workspace</div>
-                                <h2 class="wknm-title">${escapeHtml(state.book.title || 'Đang nhận diện truyện...')}</h2>
+                                <h2 class="wknm-title" data-marquee title="${escapeAttr(state.book.title || 'Đang nhận diện truyện...')}"><span class="wknm-marquee-track">${escapeHtml(state.book.title || 'Đang nhận diện truyện...')}</span></h2>
                                 <div class="wknm-subtitle">
-                                    <span>bookId <code>${escapeHtml(state.book.id || 'chưa có')}</code></span>
-                                    <span>${escapeHtml(selectedFolder ? `Folder: ${selectedFolder.label}` : 'Chưa chọn folder')}</span>
-                                    <span>${escapeHtml(selectedFolder ? selectedFolder.id : '')}</span>
-                                    ${namesRecord ? `<span>${escapeHtml(namesRecord.isAdmin ? 'Có quyền sửa name' : 'Chỉ có quyền xem')}</span>` : ''}
+                                    <div class="wknm-book-meta">
+                                        <span>bookId <code>${escapeHtml(state.book.id || 'chưa có')}</code></span>
+                                        <span>${escapeHtml(selectedFolder ? `Folder: ${selectedFolder.label}` : 'Chưa chọn folder')}</span>
+                                        <span>${escapeHtml(selectedFolder ? selectedFolder.id : '')}</span>
+                                        ${namesRecord ? `<span>${escapeHtml(namesRecord.isAdmin ? (namesRecord.isIndiv ? 'Bộ cá nhân · có quyền sửa' : 'Có quyền sửa name') : 'Chỉ có quyền xem')}</span>` : ''}
+                                    </div>
+                                    <div class="wknm-header-status" data-marquee title="${escapeAttr(state.error || state.progress.label || state.info || 'Sẵn sàng')}"><span class="wknm-marquee-track">${renderStatusText()}</span></div>
                                 </div>
                             </div>
                             <div class="wknm-header-actions">
-                                <button type="button" class="wknm-btn is-ghost is-icon" data-action="open-help" title="Hướng dẫn">?</button>
-                                <button type="button" class="wknm-btn is-ghost" data-action="refresh-folders" ${isBusy ? 'disabled' : ''}>Tải lại</button>
-                                ${namesRecord && namesRecord.isAdmin ? `<button type="button" class="wknm-btn is-ghost" data-action="show-add-panel">+ Name</button>` : ''}
-                                <button type="button" class="wknm-btn is-accent" data-action="scan-history" ${(!selectedFolder || state.isBooting || state.isLoadingFolders || state.isLoadingNames || state.isScanningHistory) ? 'disabled' : ''}>Quét lịch sử</button>
-                                <button type="button" class="wknm-btn is-ghost" data-action="copy-folder" ${namesDisabled ? 'disabled' : ''}>Copy</button>
-                                <button type="button" class="wknm-btn is-ghost" data-action="download-names" ${namesDisabled ? 'disabled' : ''}>Tải TXT</button>
-                                <button type="button" class="wknm-btn is-ghost" data-action="export-csv" ${statsDisabled ? 'disabled' : ''}>Tải CSV</button>
-                                <button type="button" class="wknm-btn is-ghost" data-action="export-json" ${statsDisabled ? 'disabled' : ''}>Tải JSON</button>
-                                <button type="button" class="wknm-btn is-ghost" data-action="close-panel">Đóng</button>
+                                <div class="wknm-action-group">
+                                    <button type="button" class="wknm-btn is-ghost is-icon" data-action="open-help" title="Hướng dẫn">?</button>
+                                    <button type="button" class="wknm-btn ${activeScanTask ? 'is-danger' : 'is-accent'}" data-action="scan-history" title="${escapeAttr(selectedSupportsHistory || activeScanTask ? 'Quét lịch sử cộng tác của truyện' : 'WikiCV chỉ có history cho bộ Name hợp tác (COMMON)')}" ${scanDisabled ? 'disabled' : ''}>${escapeHtml(scanLabel)}</button>
+                                    ${namesRecord && namesRecord.isAdmin ? `<button type="button" class="wknm-btn is-ghost" data-action="show-add-panel">+ Name</button>` : ''}
+                                </div>
+                                <div class="wknm-action-group">
+                                    <button type="button" class="wknm-btn is-ghost" data-action="refresh-folder" ${(!selectedFolder || isBusy) ? 'disabled' : ''}>Làm mới folder</button>
+                                    <button type="button" class="wknm-btn is-ghost" data-action="refresh-folders" title="Xóa cache của truyện rồi tải lại toàn bộ từ WikiCV" ${isBusy ? 'disabled' : ''}>Tải lại tất cả</button>
+                                </div>
+                                <div class="wknm-action-group">
+                                    <button type="button" class="wknm-btn is-ghost" data-action="toggle-filters" aria-pressed="${state.filtersVisible ? 'true' : 'false'}">${state.filtersVisible ? 'Ẩn lọc' : 'Lọc'}</button>
+                                    <button type="button" class="wknm-btn is-ghost" data-action="open-export" ${exportDisabled ? 'disabled' : ''}>Xuất</button>
+                                    <button type="button" class="wknm-btn is-ghost" data-action="close-panel">Đóng</button>
+                                </div>
                             </div>
                         </div>
-                        <div class="wknm-toolbar">
-                            <input class="wknm-input" type="search" data-input="search" value="${escapeAttr(state.search)}" placeholder="Tìm theo name CN/VI hoặc user..." />
-                            <select class="wknm-select" data-select="statusFilter">
+                        ${renderAppliedFoldersBar(selectedFolder)}
+                        ${state.filtersVisible ? `<div class="wknm-toolbar">
+                            <input id="wknm-search" name="wknm_search" autocomplete="off" class="wknm-input" type="search" data-input="search" value="${escapeAttr(state.search)}" placeholder="Tìm theo name CN/VI hoặc user..." />
+                            <select id="wknm-status-filter" name="wknm_status_filter" autocomplete="off" class="wknm-select" data-select="statusFilter">
                                 <option value="all"${state.statusFilter === 'all' ? ' selected' : ''}>Tất cả trạng thái</option>
                                 <option value="active"${state.statusFilter === 'active' ? ' selected' : ''}>Đang có</option>
                                 <option value="deleted"${state.statusFilter === 'deleted' ? ' selected' : ''}>Đã xóa</option>
                                 <option value="history"${state.statusFilter === 'history' ? ' selected' : ''}>Chỉ lịch sử</option>
                             </select>
-                            <select class="wknm-select" data-select="sortBy">
+                            <select id="wknm-sort-by" name="wknm_sort_by" autocomplete="off" class="wknm-select" data-select="sortBy">
                                 <option value="latest"${state.sortBy === 'latest' ? ' selected' : ''}>Ưu tiên mới nhất</option>
                                 <option value="revisions"${state.sortBy === 'revisions' ? ' selected' : ''}>Nhiều thay đổi nhất</option>
                                 <option value="contributors"${state.sortBy === 'contributors' ? ' selected' : ''}>Nhiều user nhất</option>
                                 <option value="az"${state.sortBy === 'az' ? ' selected' : ''}>A-Z</option>
                             </select>
-                            <button type="button" class="wknm-btn is-ghost" data-action="refresh-folder" ${(!selectedFolder || isBusy) ? 'disabled' : ''}>Làm mới folder</button>
-                            <div class="wknm-toolbar-right">
-                                <div class="wknm-status">${renderStatusText()}</div>
-                            </div>
-                        </div>
+                        </div>` : ''}
                         ${state.isScanningHistory ? `
                             <div class="wknm-progress">
                                 <div class="wknm-progress-track">
@@ -3482,12 +4606,15 @@
                     </div>
                 </div>
                 ${renderGuideModal()}
+                ${renderExportModal()}
+                ${renderRefreshConfirmModal()}
                 ${renderDeleteConfirmModal()}
             </div>
         `;
         restoreRenderState(viewState);
         requestAnimationFrame(() => {
             syncFabButtonToViewport(false);
+            syncMarqueeElements();
         });
     }
 
@@ -3504,12 +4631,14 @@
 
         try {
             if (!state.book.id) {
-                throw new Error('Không tìm thấy bookId trên trang này. Hãy mở trang truyện hoặc chương thuộc wikicv.net.');
+                throw new Error('Không tìm thấy bookId trên trang này. Hãy mở trang truyện hoặc chương thuộc wikicv.org.');
             }
 
             await fetchFolders(!!force);
+            restoreAvailableHistoryCheckpoints();
             if (state.selectedFolderId) {
                 await fetchNames(state.selectedFolderId, !!force);
+                restoreHistoryCheckpoint(state.selectedFolderId);
             }
             state.initialized = true;
             syncSelectedNameKey();
@@ -3534,6 +4663,7 @@
         render();
         try {
             await fetchNames(folderId, false);
+            restoreHistoryCheckpoint(folderId);
         } catch (error) {
             setError(error);
             render();
@@ -3565,13 +4695,16 @@
             return;
         }
         try {
-            const namesRecord = state.namesCache.get(state.selectedFolderId) || await fetchNames(state.selectedFolderId, false);
-            const text = namesRecord.names.map((item) => `${item.cn}=${item.vi}`).join('\n');
-            if (!text) {
-                throw new Error('Folder hiện tại không có name để copy.');
+            state.namesCache.get(state.selectedFolderId) || await fetchNames(state.selectedFolderId, false);
+            const exportRows = state.filteredOnlyInNameExport ? getExportRows(state.selectedFolderId) : null;
+            const result = await getNamesText(state.selectedFolderId, state.includeDeletedInNameExport, exportRows);
+            if (!result.text) {
+                throw new Error(state.filteredOnlyInNameExport
+                    ? 'Bộ lọc hiện tại không có name phù hợp để copy.'
+                    : 'Folder hiện tại không có name để copy.');
             }
-            await copyText(text);
-            setInfo(`Đã copy ${namesRecord.names.length} name của folder ${state.selectedFolderId}.`);
+            await copyText(result.text);
+            setInfo(`Đã copy ${result.count} name${state.filteredOnlyInNameExport ? ' đang lọc' : ''}${result.deletedCount ? ` (kèm ${result.deletedCount} name đã xóa)` : ''}.`);
         } catch (error) {
             setError(error);
         } finally {
@@ -3584,14 +4717,17 @@
             return;
         }
         try {
-            const namesRecord = state.namesCache.get(state.selectedFolderId) || await fetchNames(state.selectedFolderId, false);
-            const text = namesRecord.names.map((item) => `${item.cn}=${item.vi}`).join('\n');
-            if (!text) {
-                throw new Error('Folder hiện tại không có name để tải.');
+            state.namesCache.get(state.selectedFolderId) || await fetchNames(state.selectedFolderId, false);
+            const exportRows = state.filteredOnlyInNameExport ? getExportRows(state.selectedFolderId) : null;
+            const result = await getNamesText(state.selectedFolderId, state.includeDeletedInNameExport, exportRows);
+            if (!result.text) {
+                throw new Error(state.filteredOnlyInNameExport
+                    ? 'Bộ lọc hiện tại không có name phù hợp để tải.'
+                    : 'Folder hiện tại không có name để tải.');
             }
             const filename = `${sanitizeFilename(state.book.title || state.book.id)}__${sanitizeFilename(state.selectedFolderId)}__names.txt`;
-            downloadText(filename, text, 'text/plain;charset=utf-8');
-            setInfo(`Đang tải file name của folder ${state.selectedFolderId}.`);
+            downloadText(filename, result.text, 'text/plain;charset=utf-8');
+            setInfo(`Đang tải ${result.count} name${state.filteredOnlyInNameExport ? ' đang lọc' : ''}${result.deletedCount ? `, gồm ${result.deletedCount} name đã xóa` : ''}.`);
         } catch (error) {
             setError(error);
         } finally {
@@ -3605,14 +4741,16 @@
             return;
         }
         try {
-            const rows = getRowsForFolder(folder.id);
+            const rows = getExportRows(folder.id);
             if (!rows.length) {
-                throw new Error('Folder hiện tại chưa có dữ liệu để xuất.');
+                throw new Error(state.filteredOnlyInNameExport
+                    ? 'Bộ lọc hiện tại không có dữ liệu để xuất.'
+                    : 'Folder hiện tại chưa có dữ liệu để xuất.');
             }
             const csv = buildStatsCsv(folder, rows);
             const filename = `${sanitizeFilename(state.book.title || state.book.id)}__${sanitizeFilename(folder.id)}__stats.csv`;
             downloadText(filename, csv, 'text/csv;charset=utf-8');
-            setInfo(`Đang tải CSV thống kê của folder ${folder.label}.`);
+            setInfo(`Đang tải CSV ${state.filteredOnlyInNameExport ? `${rows.length} name đang lọc` : `thống kê của folder ${folder.label}`}.`);
         } catch (error) {
             setError(error);
         } finally {
@@ -3626,14 +4764,16 @@
             return;
         }
         try {
-            const rows = getRowsForFolder(folder.id);
+            const rows = getExportRows(folder.id);
             if (!rows.length) {
-                throw new Error('Folder hiện tại chưa có dữ liệu để xuất.');
+                throw new Error(state.filteredOnlyInNameExport
+                    ? 'Bộ lọc hiện tại không có dữ liệu để xuất.'
+                    : 'Folder hiện tại chưa có dữ liệu để xuất.');
             }
             const json = exportStatsJson(folder, rows);
             const filename = `${sanitizeFilename(state.book.title || state.book.id)}__${sanitizeFilename(folder.id)}__stats.json`;
             downloadText(filename, json, 'application/json;charset=utf-8');
-            setInfo(`Đang tải JSON thống kê của folder ${folder.label}.`);
+            setInfo(`Đang tải JSON ${state.filteredOnlyInNameExport ? `${rows.length} name đang lọc` : `thống kê của folder ${folder.label}`}.`);
         } catch (error) {
             setError(error);
         } finally {
@@ -3902,13 +5042,26 @@
             return;
         }
         const folder = state.folders.find((item) => item.id === folderId);
+        if (folder && !isCollaborativeFolder(folder)) {
+            discardHistoryCache(folderId);
+            return;
+        }
         const namesRecord = state.namesCache.get(folderId);
         const historyRecord = state.historyCache.get(folderId);
         if (!folder || !namesRecord || !historyRecord) {
             return;
         }
-        const nextEvents = events.concat(historyRecord.events);
-        state.historyCache.set(folderId, buildHistoryRecord(folder, namesRecord, nextEvents, Date.now()));
+        const nextEvents = enhanceHistoryEvents(events.concat(historyRecord.events));
+        saveHistoryCheckpoint(folder, namesRecord, {
+            status: 'complete',
+            mode: 'full',
+            scannedAt: Date.now(),
+            pageStarts: [],
+            nextIndex: 0,
+            events: nextEvents,
+            baseEvents: [],
+            lastError: '',
+        });
     }
 
     async function refreshFolderAfterMutation(folderId, mutation, message) {
@@ -4197,6 +5350,16 @@
             render();
             return;
         }
+        if (name === 'include-deleted-export') {
+            state.includeDeletedInNameExport = !!target.checked;
+            render();
+            return;
+        }
+        if (name === 'filtered-only-export') {
+            state.filteredOnlyInNameExport = !!target.checked;
+            render();
+            return;
+        }
         if (name === 'edit-name-vi') {
             state.editor.nameVi = target.value || '';
             return;
@@ -4240,11 +5403,15 @@
 
         if (action === 'close-panel') {
             state.panelOpen = false;
+            state.exportOpen = false;
+            state.refreshConfirmOpen = false;
             render();
             return;
         }
 
         if (action === 'open-help') {
+            state.exportOpen = false;
+            state.refreshConfirmOpen = false;
             openGuide('help');
             return;
         }
@@ -4254,18 +5421,57 @@
             return;
         }
 
+        if (action === 'toggle-changelog') {
+            state.changelogOpen = !state.changelogOpen;
+            render();
+            return;
+        }
+
+        if (action === 'open-export') {
+            state.exportOpen = true;
+            render();
+            return;
+        }
+
+        if (action === 'close-export') {
+            state.exportOpen = false;
+            render();
+            return;
+        }
+
         if (action === 'cancel-delete') {
             closeDeleteConfirm();
             return;
         }
 
         if (action === 'refresh-folders') {
+            state.refreshConfirmOpen = true;
+            render();
+            return;
+        }
+
+        if (action === 'cancel-refresh-all') {
+            state.refreshConfirmOpen = false;
+            render();
+            return;
+        }
+
+        if (action === 'confirm-refresh-all') {
+            state.refreshConfirmOpen = false;
+            clearCurrentBookCaches();
+            state.initialized = false;
             await ensureInitialized(true);
             return;
         }
 
         if (action === 'refresh-folder') {
             await refreshCurrentFolder();
+            return;
+        }
+
+        if (action === 'toggle-filters') {
+            state.filtersVisible = !state.filtersVisible;
+            render();
             return;
         }
 
@@ -4280,12 +5486,29 @@
             return;
         }
 
+        if (action === 'toggle-application') {
+            toggleFolderApplication(target.getAttribute('data-folder-id') || state.selectedFolderId);
+            return;
+        }
+
+        if (action === 'move-application') {
+            moveFolderApplication(
+                target.getAttribute('data-folder-id') || '',
+                Number(target.getAttribute('data-direction') || '0')
+            );
+            return;
+        }
+
         if (action === 'scan-history') {
+            if (state.historyScanTask) {
+                stopHistoryScan();
+                return;
+            }
             if (!state.selectedFolderId) {
                 return;
             }
             try {
-                await scanFolderHistory(state.selectedFolderId, true);
+                await scanFolderHistory(state.selectedFolderId);
             } catch (error) {
                 setError(error);
                 render();
@@ -4312,6 +5535,7 @@
         }
 
         if (action === 'copy-folder') {
+            state.exportOpen = false;
             await copyCurrentFolder();
             return;
         }
@@ -4359,16 +5583,19 @@
         }
 
         if (action === 'download-names') {
+            state.exportOpen = false;
             await downloadCurrentFolderNames();
             return;
         }
 
         if (action === 'export-csv') {
+            state.exportOpen = false;
             await exportCurrentCsv();
             return;
         }
 
         if (action === 'export-json') {
+            state.exportOpen = false;
             await exportCurrentJson();
             return;
         }
@@ -4523,6 +5750,7 @@
         window.addEventListener('touchcancel', onFabDragEnd);
         window.addEventListener('resize', () => {
             syncFabButtonToViewport(true);
+            syncMarqueeElements();
         });
 
         document.addEventListener('keydown', (event) => {
@@ -4531,6 +5759,16 @@
             }
             if (state.guideOpen) {
                 state.guideOpen = false;
+                render();
+                return;
+            }
+            if (state.exportOpen) {
+                state.exportOpen = false;
+                render();
+                return;
+            }
+            if (state.refreshConfirmOpen) {
+                state.refreshConfirmOpen = false;
                 render();
                 return;
             }
