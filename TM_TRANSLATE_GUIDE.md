@@ -16,6 +16,8 @@ Nếu bạn chưa cài script, hãy nhấp vào link dưới để cài vào Tam
 
 👉 **[Cài đặt TM Translate.user.js](https://raw.githubusercontent.com/BaoBao666888/Novel-Downloader5/main/TM%20Translate.user.js)**
 
+**Lưu ý:** Bạn cần cài đặt một trình quản lý userscript cho trình duyệt của mình. Xem [1. Yêu cầu](README.md#cài-đặt). Nếu dùng trên điện thoại, với android có thể thử [Quetta Browser](https://play.google.com/store/apps/details?id=net.quetta.browser), mình dùng thử thấy khá mượt.
+
 ---
 
 ## 2. Nút Nổi Trên Trang (Floating Buttons)
@@ -82,7 +84,7 @@ Trong Thư viện sẽ có:
 
 Từ v3.5.5.14_beta, danh sách chương, RAW và cache dịch được nén gzip ngay trong GM storage; bìa nằm ở key riêng. Lần chạy đầu sau update sẽ hiện tiến độ thu gọn dữ liệu cũ. Script giữ nguyên key và tự giải nén khi đọc/import/export nên không cần xóa truyện hay cài lại.
 
-Script đo dung lượng GM storage sau nén và chừa khoảng an toàn trước giới hạn message 64 MiB của Tampermonkey: Thư viện cảnh báo từ khoảng 36 MiB, tự xóa cache dịch khi chạm khoảng 42 MiB, và không ghi thêm RAW/bìa nếu dự kiến vượt 50 MiB. Import được kiểm tra trọn bộ trước khi ghi nên thiếu chỗ sẽ báo ngay, không để lại nửa bộ truyện. Ảnh bìa lớn, kể cả bìa EPUB, được tự giảm tối đa 720×1080 bằng WebP/JPEG khi bản tối ưu nhỏ hơn ảnh gốc.
+Script đo dung lượng GM storage sau nén và chừa khoảng an toàn trước giới hạn message 64 MiB của Tampermonkey: Thư viện cảnh báo từ khoảng 36 MiB, tự xóa cache dịch khi chạm khoảng 42 MiB, và không ghi thêm RAW/bìa nếu dự kiến vượt 50 MiB. Import được kiểm tra trọn bộ trước khi ghi nên thiếu chỗ sẽ báo ngay, không để lại nửa bộ truyện. Ảnh bìa lớn, kể cả bìa EPUB, được tự giảm tối đa 720×1080 thành JPEG tương thích máy đọc sách khi bản tối ưu nhỏ hơn ảnh gốc; bìa WebP do bản cũ tạo sẽ tự được đổi sang JPEG.
 
 Khi import, mục **Nơi lưu nội dung truyện** có hai lựa chọn và luôn giải thích bất cập ngay bên dưới:
 
