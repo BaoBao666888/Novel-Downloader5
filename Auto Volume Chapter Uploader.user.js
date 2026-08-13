@@ -3205,10 +3205,19 @@
         }
         const volumeCount = getRealVolumeWrappers().length;
         if (volumeCount >= MAX_VOLUMES) {
-            const message = `Hiện đã có ${volumeCount} quyển, vượt giới hạn khuyến nghị ${MAX_VOLUMES} quyển nếu tiếp tục thêm.\n\nScript chỉ cảnh báo và vẫn cho phép thêm quyển.`;
+            const message = `Hiện đã có ${volumeCount} quyển, vượt giới hạn khuyến nghị ${MAX_VOLUMES} quyển nếu tiếp tục thêm.`;
             log(`⚠️ ${message}`, 'warn');
-            await showUiAlert(message, 'Cảnh báo số quyển');
+            const shouldContinue = await showUiConfirm(
+                message,
+                'Cảnh báo số quyển',
+                'Vẫn thêm',
+                'Hủy'
+            );
             updateAddVolumeLimitUi();
+            if (!shouldContinue) {
+                log('⛔ Đã hủy thêm quyển để chỉnh lại.', 'warn');
+                return;
+            }
         }
         const addBtn = document.querySelector('.btn-add-volume[data-action="addVolumeWrapper"]');
         if (!addBtn) {
@@ -3268,7 +3277,7 @@
 - Quyển có **1 file**: mỗi file tối đa **5 MB**.
 - Quyển có **nhiều hơn 1 file** (đánh số tự động hoặc không): mỗi file tối đa **100 KB**, đồng thời tối đa **1000 file/quyển**.
 - Tổng dung lượng tất cả file của một quyển nên không vượt quá **5 MB**.
-- Script chỉ **cảnh báo** khi vượt giới hạn, không chặn người dùng tiếp tục gán hoặc upload.
+- Khi vượt giới hạn, popup cho phép **vẫn tiếp tục** hoặc **hủy để chỉnh lại**.
 
 ### 🚦 Cảnh báo file nhỏ
 - Nếu file < ngưỡng KB sẽ cảnh báo trước khi tiếp tục.
@@ -3300,7 +3309,7 @@
 ### ✨ v1.2.8.7
 - Thêm cảnh báo giới hạn **40 quyển**, **1000 file/quyển** và tổng dung lượng **5 MB/quyển**.
 - Quyển 1 file được cảnh báo ở mốc **5 MB/file**; quyển nhiều file ở mốc **100 KB/file** trong cả hai chế độ đánh số.
-- Cảnh báo nêu chi tiết file vượt giới hạn nhưng không chặn người dùng tiếp tục gán hoặc upload.
+- Cảnh báo nêu chi tiết file vượt giới hạn, cho phép tiếp tục hoặc hủy để chỉnh lại trước khi gán/upload.
 
 ### ✨ v1.2.8.6
 - Đổi tên miền wikicv.net sang wikicv.org.
@@ -4700,10 +4709,17 @@
         const limitResult = validateCurrentUploadFormLimits();
         if (!limitResult.ok) {
             log(`⚠️ Cảnh báo trước upload:\n${limitResult.message}`, 'warn');
-            await showUiAlert(
-                `${limitResult.message}\n\nScript chỉ cảnh báo; bấm OK để tiếp tục upload.`,
-                'Cảnh báo giới hạn upload'
+            const shouldContinue = await showUiConfirm(
+                limitResult.message,
+                'Cảnh báo giới hạn upload',
+                'Vẫn upload',
+                'Hủy'
             );
+            if (!shouldContinue) {
+                log('⛔ Đã hủy upload để chỉnh lại.', 'warn');
+                showUploadToast('Đã hủy upload để chỉnh lại.', 'warning', 2600);
+                return;
+            }
         }
         const realBtn = document.querySelector("#btnGetInfo");
 
@@ -7937,10 +7953,17 @@
             const warningMessage = `${volumeName}:\n${limitResult.message}`;
             log(`⚠️ Cảnh báo khi gán file:\n${warningMessage}`, 'warn');
             showUploadToast('Có file vượt giới hạn khuyến nghị.', 'warning', 3200);
-            await showUiAlert(
-                `${warningMessage}\n\nScript chỉ cảnh báo; bấm OK để tiếp tục gán file.`,
-                'Cảnh báo giới hạn upload'
+            const shouldContinue = await showUiConfirm(
+                warningMessage,
+                'Cảnh báo giới hạn upload',
+                'Vẫn gán',
+                'Hủy'
             );
+            if (!shouldContinue) {
+                log('⛔ Đã hủy gán file để chỉnh lại.', 'warn');
+                showUploadToast('Đã hủy gán file để chỉnh lại.', 'warning', 2600);
+                return;
+            }
         }
 
         showUploadToast('Đang gán tên chương và file lên web...', 'loading');
