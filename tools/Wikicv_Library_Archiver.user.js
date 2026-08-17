@@ -1,10 +1,12 @@
 // ==UserScript==
-// @name         Wikicv Library Archiver
+// @name         Wikicv Library & Bookmarks Archiver
 // @namespace    https://github.com/BaoBao666888/
-// @version      0.2.0
-// @description  Quét, lưu, xem và xuất thư viện Wikicv/Koanchay, hỗ trợ checkpoint, helper và HTML linh hoạt hơn.
+// @version      0.3.0
+// @description  Quét, lưu, xem và xuất thư viện/bookmarks Wikicv; hỗ trợ Đang đọc, Yêu thích, checkpoint và tên/tác giả Việt-Trung.
 // @author       QuocBao
 // @icon         data:image/x-icon;base64,AAABAAEAQEAAAAEAIAAoQgAAFgAAACgAAABAAAAAgAAAAAEAIAAAAAAAAEAAAAAAAAAAAAAAAAAAAAAAAADaxiYA2sYmAdrGJnPaxibZ2sYm+9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJvzaxibf2sYmgNrGJgbaxiYA2sYmAtrGJpzaxib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axiaw2sYmCNrGJm3axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJn/axibd2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axibl2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axiT/2cUg/9jDG//Ywxr/2MMZ/9jDGf/Ywxr/2cQd/9rFIv/axiX/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJf/axSL/2cQd/9jDGv/Ywxn/2MMZ/9jDGf/Ywxv/2cQe/9rFI//axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2cUi/9jDGv/Ywxr/28cp/+DORf/l12X/6dx6/+vgh//r4If/6Nt1/+PTVv/dyjT/2cQe/9jDGf/ZxB//2sYm/9rGJv/axib/2sYm/9rGJv/axiT/2cQd/9jDGf/ZxSD/3cs3/+PUWv/o3Hf/6+CH/+vgh//q3oH/5tls/+HRT//cyC7/2cQc/9jDGf/ZxSD/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/ZxSD/2MMa/93LN//n2nL/8eqt//n23P/+/vr//////////////////////////////////Prs//Xvw//r4In/4M9G/9nEHf/ZxB3/2sYm/9rGJP/Ywxr/2sYm/+LTVf/t45L/9vHI//377v//////////////////////////////////////+/jk//PtuP/p3n//381B/9nEHP/ZxB7/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJf/Ywxj/3sw7/+/moP/9++7///////////////////////////////////////////////////////////////////////7++f/z7bf/4dFN/9jCF//axiX/6d16//j01f////////////////////////////////////////////////////////////////////////////799f/y67L/4M9I/9jDGP/axiT/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYn/9nFIf/ZxR//6d19//z77P/////////////////////////////////////////////////////////////////////////////////////////////++//w56T/9/LN//////////////////////////////////////////////////////////////////////////////////////////////////799v/s4Yr/2sYj/9nEH//axif/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYn/9nEH//byCz/8+yz//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////Xww//dyzj/2cQc/9rGJ//axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYn/9nEHv/cyS//9/LN//////////////////////////////////////////////////389P/7+OT/+PXX//n12P/8+un////9///////////////////////////////////////////////////////////////////////////////9//z66//59tz/+PTV//r33//8++7/////////////////////////////////////////////////+vji/+HQSf/Zwxv/2sYn/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9nFIP/cyS//9/LN///////////////////////////////////////59tv/7eOS/+PUWv/ezDv/3Mgt/9rGJf/axib/3Mkx/+DQSf/p3Xr/9vHI//////////////////////////////////////////////////799f/z7LX/6Ntz/+DQSf/cyTL/28co/9rGJP/bxyr/3co1/+LSUP/r34X/9/PQ///////////////////////////////////////7+ej/385C/9nEHf/axif/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJP/ZxR//9O68//////////////////////////////////r44v/o23X/28co/9jCGP/ZxBz/2cUh/9rGI//axiX/2sYk/9rFI//ZxB//2MMY/9nFIP/k1V//9vLL/////////////////////////////v76/+/mnv/fzT//2MMb/9jDGf/ZxB//2sUj/9rGJP/axiX/2sYk/9rFIv/ZxB7/2MMY/9rFIv/l1mP/+fXX//////////////////////////////////n12P/byCv/2sUi/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/Ywxj/6t6B//////////////////////////////////Pstv/cyjL/2MMX/9rGJP/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axiX/2MMa/9rFIv/r4Ib//fvv////////////+fXY/+LSUf/Ywxf/2cUf/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axiX/2MMZ/9vIKf/w6KX/////////////////////////////////8emr/9jDGv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/ZxSD/380///788/////////////////////////////Hpqf/ZxB7/2cUg/9rGJ//axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axSH/2MMX//bwxf//////9e/A/9zJLf/Zwxv/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axSL/2MMa/+zhiv/////////////////////////////////m2Gf/2cQa/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2MMa//Hpqf////////////////////////////PstP/ZxB7/2sUi/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2MMZ/+3jkv//////9fDE/9rGJv/ZxR//2sYn/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJP/Ywxf/7uSW////////////////////////////+vfh/9vIKv/axiP/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sUh/97MO//+/fX///////////////////////r44f/cyS7/2cUg/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2cQc/+PTVf////7/+/jj/93KMv/ZxB7/2sYn/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYj/9nFHv/178H////////////////////////////p3Xv/2MMZ/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9jDGv/o3Hf////////////////////////////n2m//2MMY/9rGJ//axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYl/9rFIv/388///////+TWYP/Ywxn/2sYn/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/ZxB7/381A//388///////////////////////+PTS/9rFIv/axiX/2sYm/9rGJv/axib/2sYm/9rGJv/ZxBv/8+y2///////////////////////59tv/2sYm/9rGJP/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axSP/2cUh/9rFIv/axiX/2sYm/9nEG//m12b///////Pstf/Ywxr/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sUj/9nFIf/ZxSL/2sYl/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9jDF//u5Zr//////////////////////////P/gz0j/2cUf/9rGJv/axib/2sYm/9rGJv/axiT/3Mgs//v45P//////////////////////7eKR/9jDGP/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rFI//Ywxv/3Mkv/97MPv/dyzf/2cQf/9nEHv/ZxB3/9e/C///////h0U7/2cQd/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axiP/2MMa/9zILv/ezD7/3cs4/9nEH//ZxB7/2sYn/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/ZxSD/381A//799v//////////////////////6d5+/9jDGf/axib/2sYm/9rGJv/axib/2cQe/+HRTv////7//////////////////////+LSU//ZxB3/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rFIv/bxyj/7uSW//v45P/+/fb//fvv//Tuu//fzkL/3co0///++//38sv/2cQe/9rGJf/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axSL/28cn/+3jlP/7+OP//v32//378P/07r3/4dBK/9nEHP/axif/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9nEHf/28MX///////////////////////Lrs//ZxBv/2sYm/9rGJv/axib/2sYm/9jDGv/o23b///////////////////////z67P/cyjL/2sYj/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJf/axSD/8+23////////////////////////////+/nl/+3jk///////6t5+/9jDGf/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axiX/2cUg//PstP////////////////////////////377//gz0X/2cUf/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/Ywxj/7eKP///////////////////////59tz/28cn/9rGJP/axib/2sYm/9rGJv/Ywxn/7uSZ///////////////////////489D/2sUi/9rGJf/axib/2sYm/9rGJv/axib/2sYm/9rGJv/ZxBv/5tlr///////////////////////////////////////////////8/+HQSf/ZxR//2sYm/9rGJv/axib/2sYm/9rGJv/axib/2cQb/+bYaP//////////////////////////////////////9O69/9nEHf/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2MMb/+bYaf///////////////////////fzz/97MOv/axSH/2sYm/9rGJv/axib/2MMb//LqsP//////////////////////9O26/9jDHP/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2cQe//XwxP////////////////////////////////////////////v55v/cyC3/2sYj/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9nEHf/177/////////////////////////////////////////+/P/gz0f/2cUf/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9nEHv/i01T///////////////////////7++//fzkT/2cUg/9rGJv/axib/2sYm/9nEHf/07r////////////////////////Dopv/Ywxn/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sUi/93LNv/9/PH////////////////////////////////////////////38s3/2sUh/9rGJf/axib/2sYm/9rGJv/axib/2sYm/9rFIv/dyjT//fvu////////////////////////////////////////////6dx5/9jDGv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/ZxB7/4tJT///////////////////////+/vr/385D/9nFIP/axib/2sYm/9rGJv/ZxB3/9O6////////////////////////v56H/2MMZ/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9nEHv/i0lD/////////////////////////////////////////////////9O69/9nEHf/axib/2sYm/9rGJv/axib/2sYm/9rGJv/ZxB7/4dFO/////////////////////////////////////////////////+/mnf/Ywxn/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2cQe/+LSU////////////////////////v76/9/OQ//ZxSD/2sYm/9rGJv/axib/2cQd//Tuv///////////////////////7+ei/9jDGf/axib/2sYm/9rGJv/axib/2sYm/9rGJv/ZxBz/5ddl//////////////////////////////////////////////////Ptuf/ZxBz/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2cQc/+XWY//////////////////////////////////////////////////z7LX/2cQb/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9nEHv/i0lP///////////////////////7++v/fzkP/2cUg/9rGJv/axib/2sYm/9nEHf/07r///////////////////////+/nov/Ywxn/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2MMb/+bZa//////////////////////////////////////////////////z7bn/2MQc/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9jDG//n2Gn/////////////////////////////////////////////////9e68/9nEHP/axib/2sYm/9rGJv/axib/2sYm/9rGJv/ZxB7/4tJT///////////////////////+/vr/385D/9nFIP/axib/2sYm/9rGJv/ZxB3/9O6////////////////////////v56L/2MMZ/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9jDG//m2Gr/////////////////////////////////////////////////8+25/9jEHP/axib/2sYm/9rGJv/axib/2sYm/9rGJv/Ywxv/5tdo//////////////////////////////////////////////////Ttu//ZxBz/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2cQe/+LSU////////////////////////v76/9/OQ//ZxSD/2sYm/9rGJv/axib/2cQd//Tuv///////////////////////7+ei/9jDGf/axib/2sYm/9rGJv/axib/2sYm/9rGJv/Ywxv/5thq//////////////////////////////////////////////////Ptuf/YxBz/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2MMb/+bXaP/////////////////////////////////////////////////07bv/2cQc/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9nEHv/i0lP///////////////////////7++v/fzkP/2cUg/9rGJv/axib/2sYm/9nEHf/07r///////////////////////+/nov/Ywxn/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2MMb/+bYav/////////////////////////////////////////////////z7bn/2MQc/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9jDG//m12j/////////////////////////////////////////////////9O27/9nEHP/axib/2sYm/9rGJv/axib/2sYm/9rGJv/ZxB7/4tJT///////////////////////+/vr/385D/9nFIP/axib/2sYm/9rGJv/ZxB3/9O6////////////////////////v56L/2MMZ/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9jDG//m2Gr/////////////////////////////////////////////////8+25/9jEHP/axib/2sYm/9rGJv/axib/2sYm/9rGJv/Ywxv/5tdo//////////////////////////////////////////////////Ttu//ZxBz/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2cQe/+LSU////////////////////////v76/9/OQ//ZxSD/2sYm/9rGJv/axib/2cQd//Tuv///////////////////////7+ei/9jDGf/axib/2sYm/9rGJv/axib/2sYm/9rGJv/Ywxv/5thq//////////////////////////////////////////////////Ptuf/YxBz/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2MMb/+bXaP/////////////////////////////////////////////////07bv/2cQc/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9nEHv/i0lP///////////////////////7++v/fzkP/2cUg/9rGJv/axib/2sYm/9nEHf/07r///////////////////////+/nov/Ywxn/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2MMb/+bYav/////////////////////////////////////////////////z7bn/2MQc/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9jDG//m12j/////////////////////////////////////////////////9O27/9nEHP/axib/2sYm/9rGJv/axib/2sYm/9rGJv/ZxB7/4tJT///////////////////////+/vr/385D/9nFIP/axib/2sYm/9rGJv/ZxB3/9O6////////////////////////v56L/2MMZ/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9jDG//m2Gr/////////////////////////////////////////////////8+25/9jEHP/axib/2sYm/9rGJv/axib/2sYm/9rGJv/Ywxv/5tdo//////////////////////////////////////////////////Ttu//ZxBz/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2cQe/+LSU////////////////////////v76/9/OQ//ZxSD/2sYm/9rGJv/axib/2cQd//Tuv///////////////////////7+ei/9jDGf/axib/2sYm/9rGJv/axib/2sYm/9rGJv/Ywxv/5thq//////////////////////////////////////////////////Ptuf/YxBz/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2MMb/+bXaP/////////////////////////////////////////////////07bv/2cQc/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9nEHv/i0lP///////////////////////7++v/fzkP/2cUg/9rGJv/axib/2sYm/9nEHf/07r///////////////////////+/nov/Ywxn/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2MMb/+bYav/////////////////////////////////////////////////z7bn/2MQc/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9jDG//m12j/////////////////////////////////////////////////9O27/9nEHP/axib/2sYm/9rGJv/axib/2sYm/9rGJv/ZxB7/4tJT///////////////////////+/vr/385D/9nFIP/axib/2sYm/9rGJv/ZxB3/9O6////////////////////////v56L/2MMZ/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9jDG//m2Gr/////////////////////////////////////////////////8+25/9jEHP/axib/2sYm/9rGJv/axib/2sYm/9rGJv/Ywxv/5tdo//////////////////////////////////////////////////Ttu//ZxBz/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2cQe/+LSU////////////////////////v76/9/OQ//ZxSD/2sYm/9rGJv/axib/2cQd//Tuv///////////////////////7+ei/9jDGf/axib/2sYm/9rGJv/axib/2sYm/9rGJv/Ywxv/5thq//////////////////////////////////////////////////Ptuf/YxBz/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2MMb/+bXaP/////////////////////////////////////////////////07bv/2cQc/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9nEHv/i0lP///////////////////////7++v/fzkP/2cUg/9rGJv/axib/2sYm/9nEHf/07r///////////////////////+/nov/Ywxn/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2MMb/+bYav/////////////////////////////////////////////////z7bn/2MQc/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9jDG//m12j/////////////////////////////////////////////////9O27/9nEHP/axib/2sYm/9rGJv/axib/2sYm/9rGJv/ZxB7/4tJT///////////////////////+/vr/385D/9nFIP/axib/2sYm/9rGJv/ZxB3/9O6////////////////////////v56L/2MMZ/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9jDG//m2Gr/////////////////////////////////////////////////8+25/9jEHP/axib/2sYm/9rGJv/axib/2sYm/9rGJv/Ywxv/5tdo//////////////////////////////////////////////////Ttu//ZxBz/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2cQe/+LSU////////////////////////v76/9/OQ//ZxSD/2sYm/9rGJv/axib/2cQd//Tuv///////////////////////7+ei/9jDGP/axiX/2sYl/9rGJf/axiX/2sYl/9rGJf/Ywxr/5thq//////////////////////////////////////////////////Ptuf/YxBv/2sYl/9rGJf/axiX/2sYl/9rGJf/axiX/2MMa/+bXaP/////////////////////////////////////////////////07bv/2cQb/9rGJf/axiX/2sYl/9rGJf/axiX/2sYl/9nEHf/i0lP///////////////////////7++v/fzkP/2cUg/9rGJv/axib/2sYm/9nEHf/078D//////////////////////+/mn//XwRL/2cQf/9nEH//ZxB//2cQf/9nEH//ZxB//18EU/+XXZv/////////////////////////////////////////////////z7bf/18IV/9nEH//ZxB//2cQf/9nEH//ZxB//2cQf/9fBFP/l1mP/////////////////////////////////////////////////9O25/9jCFf/ZxB//2cQf/9nEH//ZxB//2cQf/9nEH//Ywhf/4dFO///////////////////////+/vv/385E/9nFIP/axib/2sYm/9rGJv/ZxBz/8+25///////////////////////7+ej/9fDE//bxyP/28cj/9vHI//bxyP/28cj/9vHI//Xwxf/59dn//////////////////////////////////////////////////Pvt//Xwxf/28cj/9vHI//bxyP/28cj/9vHI//bxyP/18MX/+fXZ//////////////////////////////////////////////////z77v/28MX/9vHI//bxyP/28cj/9vHI//bxyP/28cj/9vDG//j00////////////////////////v73/9/NP//ZxSH/2sYm/9rGJv/axib/2MMZ/+zijf/////////////////////////////////////////////////////////////////////////////////////////////////+/ff//////////////////////////////////////////////////////////////////////////////////////////////////v33//////////////////////////////////////////////////////////////////////////////////////////////////n22//bxib/2sYk/9rGJv/axib/2sYm/9nEHv/i0U/////+////////////////////////////////////////////////////////////////////////////////////////////7eOT//z66////////////////////////////////////////////////////////////////////////////////////////////+7klv/7+eb////////////////////////////////////////////////////////////////////////////////////////////v5pz/2MMa/9rGJv/axib/2sYm/9rGJv/axib/2cQb/+3klf//////////////////////////////////////////////////////////////////////////////////////9fDD/9jDGf/p3Xz///////////////////////////////////////////////////////////////////////////////////////bxyP/ZxBv/6Nt1///////////////////////////////////////////////////////////////////////////////////////59tr/3Mkv/9rFIv/axib/2sYm/9rGJv/axib/2sYm/9rGJP/axSH/6+CJ//378P///////////////////////////////////////////////////////////////////vz/8uqu/9zILv/ZxSD/2cQd/+ncef/8+uz////////////////////////////////////////////////////////////////////9//Lqr//cyS//2cUg/9nEHf/o3Hj//Prr/////////////////////////////////////////////////////////////////////v/07rv/3sw5/9nEHv/axif/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYk/9jDG//ezDv/5thp/+3jkv/u5Jj/7uSY/+7kmP/u5Jj/7uSY/+7kmP/u5Jj/7uSY/+7kl//o3Hj/4M9I/9nEH//axSH/2sYn/9rGJf/Ywxv/3cs3/+XXZ//t45H/7uSY/+7kmP/u5Jj/7uSY/+7kmP/u5Jj/7uSY/+7kmP/u5Jf/6dx6/+DQSv/ZxB//2cUh/9rGJ//axiX/2MMb/93LNv/l12X/7eKQ/+7kmP/u5Jj/7uSY/+7kmP/u5Jj/7uSY/+7kmP/u5Jj/7uSY/+ndfP/h0Ez/2sUi/9nFH//axif/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2cUh/9jDG//Ywxn/2MMZ/9jDGf/Ywxn/2MMZ/9jDGf/Ywxn/2MMZ/9jDGf/Ywxn/2MMa/9nEH//axiX/2sYm/9rGJv/axib/2sYm/9rFIv/Ywxv/2MMZ/9jDGf/Ywxn/2MMZ/9jDGf/Ywxn/2MMZ/9jDGf/Ywxn/2MMZ/9jDGv/ZxB//2sYl/9rGJv/axib/2sYm/9rGJv/axSL/2cQc/9jDGf/Ywxn/2MMZ/9jDGf/Ywxn/2MMZ/9jDGf/Ywxn/2MMZ/9jDGf/Ywxr/2cQf/9rGJf/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv7axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv7axibW2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axibf2sYmX9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYmcdrGJgDaxiaH2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYmnNrGJgPaxiYA2sYmANrGJmHaxibR2sYm+trGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJv/axib/2sYm/9rGJvzaxibX2sYmb9rGJgDaxiYAgAAAAAAAAAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAIAAAAAAAAAAwAAAAAAAAAM=
+// @match        https://wikicv.org/user/*/thu-vien*
+// @match        https://wikicv.org/user/*/bookmarks*
 // @match        https://wikicv.net/user/*/thu-vien*
 // @match        https://koanchay.org/user/*/thu-vien*
 // @match        https://truyenwikidich.net/user/*/thu-vien*
@@ -22,7 +24,7 @@
     'use strict';
 
     const APP = 'wdla';
-    const VERSION = '0.2.0';
+    const VERSION = '0.3.0';
     const VERSION_STORAGE_KEY = `${APP}:version`;
     const DB_NAME = 'wdLibraryArchive';
     const DB_VERSION = 1;
@@ -30,6 +32,7 @@
     const STORE_META = 'libraryMeta';
     const PREVIEW_LIMIT = 200;
     const DEFAULT_PAGE_SIZE_ESTIMATE = 15;
+    const BOOKMARK_PAGE_SIZE = 10;
     const MAX_EMBED_COVER_CONCURRENCY = 6;
     const EMBED_COVER_START_STAGGER_MS = 90;
     const EMBED_COVER_COOLDOWN_MS = 120;
@@ -58,6 +61,7 @@
     const numberFormatter = new Intl.NumberFormat('vi-VN');
     const state = {
         currentPageUser: '',
+        sourceKind: 'library',
         viewerUser: '',
         viewerDisplayName: '',
         settings: loadSettings(),
@@ -217,8 +221,17 @@
         return value.trim();
     }
 
-    function buildDatasetKey(host, viewerUser, targetUser) {
-        return `${host}::${encodeURIComponent(viewerUser || 'anonymous')}::${encodeURIComponent(targetUser)}`;
+    function getSourceKind(pathname = window.location.pathname) {
+        return /\/bookmarks(?:\/|$)/i.test(String(pathname || '')) ? 'bookmarks' : 'library';
+    }
+
+    function sourceKindLabel(sourceKind) {
+        return sourceKind === 'bookmarks' ? 'Bookmarks' : 'Thư viện';
+    }
+
+    function buildDatasetKey(host, viewerUser, targetUser, sourceKind = state.sourceKind || 'library') {
+        const base = `${host}::${encodeURIComponent(viewerUser || 'anonymous')}::${encodeURIComponent(targetUser)}`;
+        return sourceKind === 'library' ? base : `${base}::${sourceKind}`;
     }
 
     function buildResumeKey(baseKey) {
@@ -245,8 +258,8 @@
         return inferDatasetKind(dataset) === 'resume' ? 'partial' : 'complete';
     }
 
-    function getDatasetKeysForUser(host, viewerUser, targetUser) {
-        const baseKey = buildDatasetKey(host, viewerUser, targetUser);
+    function getDatasetKeysForUser(host, viewerUser, targetUser, sourceKind = state.sourceKind || 'library') {
+        const baseKey = buildDatasetKey(host, viewerUser, targetUser, sourceKind);
         return {
             baseKey,
             resumeKey: buildResumeKey(baseKey)
@@ -259,7 +272,7 @@
     }
 
     function getCurrentPageUser() {
-        const match = window.location.pathname.match(/^\/user\/([^/]+)\/thu-vien/i);
+        const match = window.location.pathname.match(/^\/user\/([^/]+)\/(?:thu-vien|bookmarks)(?:\/|$)/i);
         return match ? normalizeUserSlug(match[1]) : '';
     }
 
@@ -278,7 +291,7 @@
         try {
             if (typeof GM_notification === 'function') {
                 GM_notification({
-                    title: 'Library Archiver',
+                    title: 'Library & Bookmarks Archiver',
                     text,
                     timeout: 4000
                 });
@@ -392,6 +405,7 @@
             baseKey,
             kind,
             status,
+            sourceKind: dataset.sourceKind || 'library',
             host: dataset.host,
             viewerUser: dataset.viewerUser,
             viewerDisplayName: dataset.viewerDisplayName || dataset.viewerUser || '',
@@ -413,14 +427,16 @@
     }
 
     function buildEmptyDataset(params) {
-        const keys = getDatasetKeysForUser(params.host, params.viewerUser, params.targetUser);
+        const sourceKind = params.sourceKind || 'library';
+        const keys = getDatasetKeysForUser(params.host, params.viewerUser, params.targetUser, sourceKind);
         return {
             key: params.key || keys.resumeKey,
             baseKey: params.baseKey || keys.baseKey,
             kind: params.kind || 'resume',
             status: params.status || 'partial',
-            schemaVersion: 1,
+            schemaVersion: 2,
             scriptVersion: VERSION,
+            sourceKind,
             host: params.host,
             viewerUser: params.viewerUser,
             viewerDisplayName: params.viewerDisplayName || '',
@@ -481,8 +497,11 @@
             declaredCount: raw.declaredCount,
             actualCount: 0,
             isPublic: raw.isPublic,
+            sourceType: raw.sourceType || 'library',
+            bookmarkType: raw.bookmarkType || '',
+            endpoint: raw.endpoint || '',
             pageCount: 0,
-            pageSize: 0,
+            pageSize: Number(raw.pageSize) || 0,
             scannedPages: 0,
             fullyScanned: false,
             bookIds: []
@@ -527,14 +546,19 @@
             titleCv: raw.title_cv || '',
             titleCn: raw.title_cn || '',
             displayTitle: raw.title_vi || raw.title_cv || raw.title_cn || raw.id,
+            authorVi: raw.author_vi || '',
             authorCv: raw.author_cv || '',
             authorCn: raw.author_cn || '',
-            displayAuthor: raw.author_cv || raw.author_cn || 'Không rõ',
+            displayAuthor: raw.author_vi || raw.author_cv || raw.author_cn || 'Không rõ',
             url: raw.link || '',
             authorUrl: raw.author_link || '',
             searchWikiUrl: raw.search_wiki || '',
             searchGoogleUrl: raw.search_gg || '',
             coverUrl: raw.cover || '',
+            bookmarkId: raw.bookmark_id || '',
+            bookmarkType: raw.bookmark_type || '',
+            bookmarkedChapterTitle: raw.bookmark_chapter?.title || '',
+            bookmarkedChapterUrl: raw.bookmark_chapter?.link ? toAbsoluteUrl(raw.bookmark_chapter.link) : '',
             statusName: raw.attr_status?.name || '',
             statusUrl: raw.attr_status?.link ? toAbsoluteUrl(raw.attr_status.link) : '',
             genderName: raw.attr_gender?.name || '',
@@ -573,8 +597,15 @@
             if (!book.titleVi && normalized.titleVi) book.titleVi = normalized.titleVi;
             if (!book.titleCv && normalized.titleCv) book.titleCv = normalized.titleCv;
             if (!book.titleCn && normalized.titleCn) book.titleCn = normalized.titleCn;
-            if (!book.displayAuthor && normalized.displayAuthor) book.displayAuthor = normalized.displayAuthor;
-            if (!book.displayTitle && normalized.displayTitle) book.displayTitle = normalized.displayTitle;
+            if (!book.authorVi && normalized.authorVi) book.authorVi = normalized.authorVi;
+            if (!book.authorCv && normalized.authorCv) book.authorCv = normalized.authorCv;
+            if (!book.authorCn && normalized.authorCn) book.authorCn = normalized.authorCn;
+            if ((!book.displayAuthor || book.displayAuthor === 'Không rõ') && normalized.displayAuthor) {
+                book.displayAuthor = normalized.displayAuthor;
+            }
+            if ((!book.displayTitle || book.displayTitle === book.id) && normalized.displayTitle) {
+                book.displayTitle = normalized.displayTitle;
+            }
             book.isPrivate = book.isPrivate || normalized.isPrivate;
             book.stats.views = Math.max(book.stats.views, normalized.stats.views);
             book.stats.likes = Math.max(book.stats.likes, normalized.stats.likes);
@@ -605,7 +636,10 @@
             listId: listRecord.listId,
             listName: listRecord.name,
             page: pageNumber,
-            indexInPage
+            indexInPage,
+            bookmarkId: normalized.bookmarkId || '',
+            bookmarkedChapterTitle: normalized.bookmarkedChapterTitle || '',
+            bookmarkedChapterUrl: normalized.bookmarkedChapterUrl || ''
         });
         if (!listRecord.bookIds.includes(book.id)) {
             listRecord.bookIds.push(book.id);
@@ -616,6 +650,7 @@
             book.titleCv,
             book.titleCn,
             book.displayAuthor,
+            book.authorVi,
             book.authorCv,
             book.authorCn,
             book.ownerName,
@@ -663,7 +698,8 @@
     function estimateListRequestCount(list) {
         if (list.pageCount && list.pageCount > 0) return list.pageCount;
         const declared = Number(list.declaredCount) || 0;
-        return Math.max(1, Math.ceil((declared || DEFAULT_PAGE_SIZE_ESTIMATE) / DEFAULT_PAGE_SIZE_ESTIMATE));
+        const pageSize = Number(list.pageSize) || DEFAULT_PAGE_SIZE_ESTIMATE;
+        return Math.max(1, Math.ceil((declared || pageSize) / pageSize));
     }
 
     function estimateDatasetRequestCount(dataset) {
@@ -736,7 +772,7 @@
     function preferredDatasetKeyForUser(targetUser, viewerUser = state.viewerUser || 'anonymous') {
         const normalizedTarget = normalizeUserSlug(targetUser);
         if (!normalizedTarget) return '';
-        const keys = getDatasetKeysForUser(location.hostname, viewerUser || 'anonymous', normalizedTarget);
+        const keys = getDatasetKeysForUser(location.hostname, viewerUser || 'anonymous', normalizedTarget, state.sourceKind);
         if (findMetaByKey(keys.resumeKey)) return keys.resumeKey;
         if (findMetaByKey(keys.baseKey)) return keys.baseKey;
         return '';
@@ -745,7 +781,7 @@
     function metaForTargetUser(targetUser, kind, viewerUser = state.viewerUser || 'anonymous') {
         const normalizedTarget = normalizeUserSlug(targetUser);
         if (!normalizedTarget) return null;
-        const keys = getDatasetKeysForUser(location.hostname, viewerUser || 'anonymous', normalizedTarget);
+        const keys = getDatasetKeysForUser(location.hostname, viewerUser || 'anonymous', normalizedTarget, state.sourceKind);
         return kind === 'resume' ? findMetaByKey(keys.resumeKey) : findMetaByKey(keys.baseKey);
     }
 
@@ -762,7 +798,8 @@
                 listId: node.getAttribute('data-id') || '',
                 name: node.querySelector('.collection-name')?.textContent.trim() || `Danh sách ${index + 1}`,
                 declaredCount,
-                isPublic: visibilityCheckbox ? visibilityCheckbox.checked : null
+                isPublic: visibilityCheckbox ? visibilityCheckbox.checked : null,
+                sourceType: 'library'
             };
         }).filter((item) => item.listId);
 
@@ -774,12 +811,190 @@
         };
     }
 
+    function parseBookmarkIndexPage(doc, targetUser) {
+        const targetDisplayName = doc.querySelector('.avatar-wrapper .name')?.textContent.trim()
+            || doc.querySelector('h1.name')?.textContent.trim()
+            || '';
+        const byType = new Map();
+
+        Array.from(doc.querySelectorAll('.top-bar-btns a[href*="/bookmarks/"]')).forEach((node) => {
+            const href = node.getAttribute('href') || '';
+            const match = href.match(/\/bookmarks\/(reading|favorite)(?:[/?#]|$)/i);
+            if (!match) return;
+            const bookmarkType = match[1].toLowerCase();
+            const text = node.textContent.replace(/\s+/g, ' ').trim();
+            const declaredCountMatch = text.match(/\(([\d.,\s]+)\)\s*$/);
+            const declaredCount = declaredCountMatch
+                ? Number(declaredCountMatch[1].replace(/[^0-9]/g, '')) || 0
+                : 0;
+            const defaultName = bookmarkType === 'reading' ? 'Đang đọc' : 'Yêu thích';
+            byType.set(bookmarkType, {
+                listId: `bookmarks:${bookmarkType}`,
+                name: text.replace(/\s*\([\d.,\s]+\)\s*$/, '').trim() || defaultName,
+                declaredCount,
+                isPublic: null,
+                sourceType: 'bookmarks',
+                bookmarkType,
+                endpoint: `/user/${encodeURIComponent(targetUser)}/bookmarks/${bookmarkType}`,
+                pageSize: BOOKMARK_PAGE_SIZE
+            });
+        });
+
+        const lists = ['reading', 'favorite'].map((type) => byType.get(type)).filter(Boolean);
+        return {
+            targetDisplayName,
+            pageTitle: doc.title || '',
+            sectionTitle: 'Bookmarks',
+            lists
+        };
+    }
+
+    function parseArchivePage(doc, targetUser, sourceKind) {
+        return sourceKind === 'bookmarks'
+            ? parseBookmarkIndexPage(doc, targetUser)
+            : parseLibraryPage(doc);
+    }
+
+    function textAfterLabel(root, label) {
+        if (!root) return '';
+        const expected = stripDiacritics(label).replace(/\s*:\s*$/, '');
+        const nodes = Array.from(root.querySelectorAll('p'));
+        for (const node of nodes) {
+            const text = node.textContent.replace(/\s+/g, ' ').trim();
+            const colonIndex = text.indexOf(':');
+            if (colonIndex < 0) continue;
+            const actualLabel = stripDiacritics(text.slice(0, colonIndex));
+            if (actualLabel === expected) {
+                return text.slice(colonIndex + 1).trim();
+            }
+        }
+        return '';
+    }
+
+    function decodeChineseAuthorFromUrl(url) {
+        if (!url) return '';
+        try {
+            const parsed = new URL(url, location.origin);
+            const encodedName = parsed.pathname.split('/').filter(Boolean).pop() || '';
+            const decodedName = decodeURIComponent(encodedName).trim();
+            return /[\u3400-\u9fff\uf900-\ufaff]/u.test(decodedName) ? decodedName : '';
+        } catch (_) {
+            return '';
+        }
+    }
+
+    function parseGoogleOriginalNames(url) {
+        if (!url) return { titleCn: '', authorCn: '' };
+        try {
+            const query = new URL(url, location.origin).searchParams.get('q') || '';
+            const parts = query.split(/\s+\+\s+/).map((item) => item.trim()).filter(Boolean);
+            return {
+                titleCn: parts[0] || '',
+                authorCn: parts.slice(1).join(' + ') || ''
+            };
+        } catch (_) {
+            return { titleCn: '', authorCn: '' };
+        }
+    }
+
+    function parseWikiSearchTitle(url) {
+        if (!url) return '';
+        try {
+            return (new URL(url, location.origin).searchParams.get('q') || '').replace(/\s+/g, ' ').trim();
+        } catch (_) {
+            return '';
+        }
+    }
+
+    function bookmarkBookId(bookUrl, bookmarkId, titleCn, authorCn) {
+        if (bookUrl) {
+            try {
+                return `bookmark:${new URL(bookUrl, location.origin).pathname}`;
+            } catch (_) {}
+        }
+        const originalKey = [titleCn, authorCn].filter(Boolean).join('::');
+        return `bookmark:${originalKey || bookmarkId}`;
+    }
+
+    function parseBookmarkBook(node, doc, bookmarkType) {
+        const bookmarkInput = node.querySelector('input[name="chapterId"]');
+        const bookmarkId = bookmarkInput?.value || '';
+        const titleNode = node.querySelector('.book-title');
+        const authorNode = node.querySelector('.book-author a');
+        const chapterNode = node.querySelector('.chapter-name a');
+        const bookLinkNode = node.querySelector('.cover-wrapper[href]');
+        const optionLink = node.querySelector('.option a[href^="#"]');
+        const modalId = optionLink?.getAttribute('href')?.slice(1) || '';
+        const modal = modalId ? doc.getElementById(modalId) : null;
+        const googleUrl = modal?.querySelector('a[href*="google."][href*="/search"]')?.getAttribute('href') || '';
+        const wikiUrl = modal?.querySelector('a[href*="/tim-kiem"]')?.getAttribute('href') || '';
+        const googleNames = parseGoogleOriginalNames(googleUrl);
+        const authorUrl = authorNode?.getAttribute('href') || '';
+        const titleCn = textAfterLabel(modal?.querySelector('.modal-content'), 'Tên truyện gốc')
+            || googleNames.titleCn;
+        const authorCn = textAfterLabel(modal?.querySelector('.modal-content'), 'Tên tác giả gốc')
+            || decodeChineseAuthorFromUrl(authorUrl)
+            || googleNames.authorCn;
+        const titleVi = titleNode?.textContent.replace(/\s+/g, ' ').trim() || titleCn || '';
+        const authorVi = authorNode?.textContent.replace(/\s+/g, ' ').trim() || authorCn || '';
+        const titleCv = parseWikiSearchTitle(wikiUrl);
+        const bookUrl = toAbsoluteUrl(bookLinkNode?.getAttribute('href') || titleNode?.getAttribute('href') || '');
+        const chapterUrl = toAbsoluteUrl(chapterNode?.getAttribute('href') || titleNode?.getAttribute('href') || '');
+        const chapterTitle = chapterNode?.textContent.replace(/\s+/g, ' ').trim() || '';
+
+        return {
+            id: bookmarkBookId(bookUrl, bookmarkId, titleCn, authorCn),
+            bookmark_id: bookmarkId,
+            bookmark_type: bookmarkType,
+            title_vi: titleVi,
+            title_cv: titleCv,
+            title_cn: titleCn,
+            author_vi: authorVi,
+            author_cv: authorVi,
+            author_cn: authorCn,
+            link: bookUrl,
+            author_link: authorUrl,
+            search_wiki: wikiUrl,
+            search_gg: googleUrl,
+            cover: node.querySelector('.book-cover img')?.getAttribute('src') || '',
+            bookmark_chapter: {
+                id: bookmarkId,
+                title: chapterTitle,
+                link: chapterUrl
+            }
+        };
+    }
+
+    function parseBookmarkListPage(doc, listRecord) {
+        const books = Array.from(doc.querySelectorAll('#formBook .book-list .book-info'))
+            .map((node) => parseBookmarkBook(node, doc, listRecord.bookmarkType))
+            .filter((book) => book.id && (book.title_vi || book.title_cn));
+        const starts = Array.from(doc.querySelectorAll('.pagination a[href*="start="]')).map((node) => {
+            try {
+                return Number(new URL(node.getAttribute('href') || '', location.origin).searchParams.get('start')) || 0;
+            } catch (_) {
+                return 0;
+            }
+        }).filter((value) => value > 0);
+        const pageSize = Number(listRecord.pageSize) || (starts.length ? Math.min(...starts) : BOOKMARK_PAGE_SIZE);
+        const pageCountFromLinks = starts.length ? Math.floor(Math.max(...starts) / pageSize) + 1 : 1;
+        const pageCountFromCount = listRecord.declaredCount
+            ? Math.max(1, Math.ceil(listRecord.declaredCount / pageSize))
+            : 1;
+
+        return {
+            books,
+            page_size: pageSize,
+            last_page: Math.max(pageCountFromLinks, pageCountFromCount)
+        };
+    }
+
     function guideTitle() {
         if (state.guideMode === 'welcome') {
-            return 'Chào mừng đến với Library Archiver';
+            return 'Chào mừng đến với Library & Bookmarks Archiver';
         }
         if (state.guideMode === 'update') {
-            return 'Bản cập nhật mới của Library Archiver';
+            return 'Bản cập nhật mới của Library & Bookmarks Archiver';
         }
         return 'Hướng dẫn nhanh';
     }
@@ -797,6 +1012,9 @@
                 <div class="guide-section">
                     <h3>Điểm mới trong bản ${escapeHtml(VERSION)}</h3>
                     <ul class="guide-list">
+                        <li>Hỗ trợ domain mới <strong>wikicv.org</strong> và trang <code>/bookmarks</code>.</li>
+                        <li>Quét đủ hai nhóm <strong>Đang đọc</strong> và <strong>Yêu thích</strong>, kể cả toàn bộ trang phân trang.</li>
+                        <li>Lưu riêng tên truyện/tác giả hiển thị và nguyên văn tiếng Trung lấy từ popup tìm kiếm của từng truyện.</li>
                         <li>Thêm popup welcome/update/helper và nút <strong>?</strong> để mở lại hướng dẫn bất kỳ lúc nào.</li>
                         <li>Checkpoint quét dở giờ được giữ riêng, vào lại đúng user sẽ tự trỏ tới dataset tạm và nút quét đổi thành <strong>Tiếp tục</strong>.</li>
                         <li>Khi đổi sang user khác trên trang thư viện, script ưu tiên dataset đúng <strong>viewer + target</strong> hiện tại để tránh trỏ nhầm và ghi đè ngoài ý muốn.</li>
@@ -818,12 +1036,13 @@
         return `
             <div class="guide-section">
                 <h3>Script này làm gì</h3>
-                <p>Library Archiver quét toàn bộ thư viện của user hiện tại hoặc user khác, lưu theo <code>host + viewer + target</code>, giữ được nhiều dataset và xuất ra JSON, TXT hoặc HTML dễ đọc.</p>
+                <p>Library & Bookmarks Archiver quét toàn bộ thư viện hoặc Bookmarks của user hiện tại, lưu theo <code>host + viewer + target + nguồn</code>, giữ được nhiều dataset và xuất ra JSON, TXT hoặc HTML dễ đọc.</p>
             </div>
             <div class="guide-section">
                 <h3>Flow gợi ý</h3>
                 <ul class="guide-list">
-                    <li>Ở trang <code>/user/.../thu-vien</code>, bấm <strong>Dùng user trang hiện tại</strong> hoặc nhập slug user cần quét.</li>
+                    <li>Ở trang <code>/user/.../thu-vien</code> hoặc <code>/user/.../bookmarks</code>, bấm <strong>Dùng user trang hiện tại</strong> hoặc nhập slug user cần quét.</li>
+                    <li>Trên trang Bookmarks, một lần quét sẽ lấy cả <strong>Đang đọc</strong> lẫn <strong>Yêu thích</strong>, cùng tên/tác giả Việt–Trung.</li>
                     <li>Nhấn <strong>Quét ngay</strong>. Nếu đã có checkpoint dở, nút sẽ đổi thành <strong>Tiếp tục</strong>.</li>
                     <li>Theo dõi khối <strong>Tiến Trình</strong> để xem request đã chạy, ETA và log retry.</li>
                     <li>Khi quét xong, nạp dataset rồi xem trước, lọc truyện theo danh sách hoặc từ khóa, sau đó xuất JSON, TXT hay HTML. Nên dùng <strong>HTML</strong> để dễ xem. </li>
@@ -1064,6 +1283,33 @@
         return json.data;
     }
 
+    async function fetchBookmarkListPage(listRecord, targetUser, start) {
+        const endpoint = listRecord.endpoint
+            || `/user/${encodeURIComponent(targetUser)}/bookmarks/${listRecord.bookmarkType}`;
+        const url = new URL(endpoint, location.origin);
+        if (start > 0) url.searchParams.set('start', String(start));
+        const label = `${listRecord.name} @ ${start}`;
+        const response = await fetchWithRetry(url.href, {
+            label,
+            headers: {
+                accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8'
+            }
+        });
+        const html = await response.text();
+        const doc = new DOMParser().parseFromString(html, 'text/html');
+        if (!doc.querySelector('.top-bar-btns a[href*="/bookmarks/"]')) {
+            throw new Error('Không đọc được Bookmarks. Hãy kiểm tra đăng nhập và quyền xem trang.');
+        }
+        completeProgressUnit(label);
+        return parseBookmarkListPage(doc, listRecord);
+    }
+
+    function fetchListPage(listRecord, targetUser, start) {
+        return listRecord.sourceType === 'bookmarks'
+            ? fetchBookmarkListPage(listRecord, targetUser, start)
+            : fetchBookListJson(listRecord.listId, start);
+    }
+
     async function startScan(targetUserInput) {
         if (state.scanning) {
             notify('Đang có một phiên quét khác.', true);
@@ -1079,7 +1325,9 @@
         const viewer = getViewerIdentity();
         state.viewerUser = viewer.slug || 'anonymous';
         state.viewerDisplayName = viewer.displayName;
-        const keys = getDatasetKeysForUser(location.hostname, state.viewerUser || 'anonymous', targetUser);
+        const sourceKind = state.sourceKind || getSourceKind();
+        const sourceLabel = sourceKindLabel(sourceKind);
+        const keys = getDatasetKeysForUser(location.hostname, state.viewerUser || 'anonymous', targetUser, sourceKind);
         const resumeMeta = findMetaByKey(keys.resumeKey);
         const completeMeta = findMetaByKey(keys.baseKey);
         const willResume = Boolean(resumeMeta);
@@ -1107,9 +1355,11 @@
             renderPreview();
         }
         renderUiState();
-        addLog(`${willResume ? 'Tiếp tục' : 'Bắt đầu'} quét thư viện cho "${targetUser}".`);
+        addLog(`${willResume ? 'Tiếp tục' : 'Bắt đầu'} quét ${sourceLabel.toLowerCase()} cho "${targetUser}".`);
 
-        const libraryUrl = `${location.origin}/user/${encodeURIComponent(targetUser)}/thu-vien`;
+        const archiveUrl = sourceKind === 'bookmarks'
+            ? `${location.origin}/user/${encodeURIComponent(targetUser)}/bookmarks`
+            : `${location.origin}/user/${encodeURIComponent(targetUser)}/thu-vien`;
         const startedAt = Date.now();
         let logicalRequests = 0;
         let dataset = null;
@@ -1137,21 +1387,25 @@
 
             if (!isResume) {
                 logicalRequests = 1;
-                initProgress('scan', logicalRequests, 'Đọc trang thư viện');
-                setProgressStage('Đọc trang thư viện', targetUser);
-                const libraryDoc = await fetchHtmlDocument(libraryUrl, 'Trang thư viện');
-                const parsedPage = parseLibraryPage(libraryDoc);
+                initProgress('scan', logicalRequests, `Đọc trang ${sourceLabel}`);
+                setProgressStage(`Đọc trang ${sourceLabel}`, targetUser);
+                const archiveDoc = await fetchHtmlDocument(archiveUrl, `Trang ${sourceLabel}`);
+                const parsedPage = parseArchivePage(archiveDoc, targetUser, sourceKind);
                 if (!parsedPage.lists.length) {
-                    throw new Error('Không tìm thấy danh sách nào. Có thể thư viện trống hoặc bạn không có quyền xem.');
+                    const detail = sourceKind === 'bookmarks'
+                        ? 'Không tìm thấy Đang đọc/Yêu thích. Hãy kiểm tra đăng nhập và quyền xem Bookmarks.'
+                        : 'Không tìm thấy danh sách nào. Có thể thư viện trống hoặc bạn không có quyền xem.';
+                    throw new Error(detail);
                 }
 
                 dataset = buildEmptyDataset({
+                    sourceKind,
                     host: location.hostname,
                     viewerUser: state.viewerUser || 'anonymous',
                     viewerDisplayName: state.viewerDisplayName || '',
                     targetUser,
                     targetDisplayName: parsedPage.targetDisplayName || targetUser,
-                    sourceUrl: libraryUrl,
+                    sourceUrl: archiveUrl,
                     pageTitle: parsedPage.pageTitle,
                     sectionTitle: parsedPage.sectionTitle,
                     settings: state.settings
@@ -1198,7 +1452,7 @@
                         `Đang quét danh sách ${listIndex + 1}/${dataset.lists.length}`,
                         `${listRecord.name} (trang 1)`
                     );
-                    const firstPage = await fetchBookListJson(listRecord.listId, 0);
+                    const firstPage = await fetchListPage(listRecord, targetUser, 0);
                     const parsedPageCount = Number(firstPage.last_page) || 1;
                     listRecord.pageCount = parsedPageCount;
                     listRecord.pageSize = Number(firstPage.page_size) || DEFAULT_PAGE_SIZE_ESTIMATE;
@@ -1229,7 +1483,7 @@
                         `${listRecord.name} (trang ${pageNumber}/${listRecord.pageCount})`
                     );
                     const start = (pageNumber - 1) * listRecord.pageSize;
-                    const pageData = await fetchBookListJson(listRecord.listId, start);
+                    const pageData = await fetchListPage(listRecord, targetUser, start);
                     const books = Array.isArray(pageData.books) ? pageData.books : [];
                     books.forEach((book, indexInPage) => {
                         mergeBook(dataset, listRecord, book, pageNumber, indexInPage);
@@ -1433,7 +1687,7 @@
 
     function buildFilePrefix(dataset) {
         const parts = [
-            'wikicv-library',
+            dataset.sourceKind === 'bookmarks' ? 'wikicv-bookmarks' : 'wikicv-library',
             dataset.host,
             dataset.targetUser,
             dataset.viewerUser || 'anonymous'
@@ -1450,7 +1704,8 @@
 
     function buildTxtExport(dataset) {
         const lines = [];
-        lines.push(`Wikicv Library Archiver v${VERSION}`);
+        lines.push(`Wikicv Library & Bookmarks Archiver v${VERSION}`);
+        lines.push(`Nguon: ${sourceKindLabel(dataset.sourceKind || 'library')}`);
         lines.push(`Host: ${dataset.host}`);
         lines.push(`Viewer: ${dataset.viewerUser || 'anonymous'}${dataset.viewerDisplayName ? ` (${dataset.viewerDisplayName})` : ''}`);
         lines.push(`Target: ${dataset.targetUser}${dataset.targetDisplayName ? ` (${dataset.targetDisplayName})` : ''}`);
@@ -1474,8 +1729,12 @@
             if (!book) return;
             lines.push(`${index + 1}. ${book.displayTitle}`);
             lines.push(`   ID: ${book.id}`);
-            lines.push(`   Tac gia: ${book.displayAuthor}`);
-            lines.push(`   Tieu de CV/CN: ${book.titleCv || '—'} | ${book.titleCn || '—'}`);
+            lines.push(`   Ten Viet: ${book.titleVi || book.titleCv || book.displayTitle || '—'}`);
+            lines.push(`   Ten Trung: ${book.titleCn || '—'}`);
+            lines.push(`   Tac gia Viet: ${book.authorVi || book.authorCv || book.displayAuthor || '—'}`);
+            lines.push(`   Tac gia Trung: ${book.authorCn || '—'}`);
+            if (book.titleCv && book.titleCv !== book.titleVi) lines.push(`   Ten CV: ${book.titleCv}`);
+            if (book.authorCv && book.authorCv !== book.authorVi) lines.push(`   Tac gia CV: ${book.authorCv}`);
             lines.push(`   Trang thai: ${book.statusName || '—'} | Gioi tinh: ${book.genderName || '—'} | Private: ${book.isPrivate ? 'yes' : 'no'}`);
             lines.push(`   Stats: views ${fmtNum(book.stats.views)} | likes ${fmtNum(book.stats.likes)} | comments ${fmtNum(book.stats.comments)} | thanks ${fmtNum(book.stats.thanks)}`);
             lines.push(`   Danh sach: ${book.listNames.join(', ') || '—'}`);
@@ -1483,6 +1742,11 @@
             lines.push(`   Cover: ${book.coverUrl || '—'}`);
             lines.push(`   Search Wiki: ${book.searchWikiUrl || '—'}`);
             lines.push(`   Search Google: ${book.searchGoogleUrl || '—'}`);
+            const bookmarkRefs = (book.appearances || []).filter((item) => item.bookmarkedChapterTitle || item.bookmarkedChapterUrl);
+            bookmarkRefs.forEach((item) => {
+                lines.push(`   Chuong bookmark [${item.listName}]: ${item.bookmarkedChapterTitle || '—'}`);
+                lines.push(`   URL chuong bookmark: ${item.bookmarkedChapterUrl || '—'}`);
+            });
             if (book.tagIds && book.tagIds.length) {
                 lines.push(`   Tag IDs: ${book.tagIds.join(', ')}`);
             }
@@ -1502,6 +1766,7 @@
         return {
             meta: {
                 version: VERSION,
+                sourceKind: dataset.sourceKind || 'library',
                 host: dataset.host,
                 viewerUser: dataset.viewerUser || 'anonymous',
                 viewerDisplayName: dataset.viewerDisplayName || '',
@@ -1535,6 +1800,7 @@
                     titleCv: book.titleCv,
                     titleCn: book.titleCn,
                     author: book.displayAuthor,
+                    authorVi: book.authorVi,
                     authorCv: book.authorCv,
                     authorCn: book.authorCn,
                     url: book.url,
@@ -1546,6 +1812,7 @@
                     stats: book.stats,
                     listIds: book.listIds,
                     listNames: book.listNames,
+                    appearances: book.appearances || [],
                     searchWikiUrl: book.searchWikiUrl,
                     searchGoogleUrl: book.searchGoogleUrl
                 };
@@ -1853,7 +2120,7 @@
         <section class="hero">
             <div class="hero-head">
                 <div>
-                    <div class="eyebrow">Library Archiver</div>
+                    <div class="eyebrow">Library &amp; Bookmarks Archiver • ${escapeHtml(sourceKindLabel(payload.meta.sourceKind || 'library'))}</div>
                     <h1>${escapeHtml(payload.meta.targetDisplayName || payload.meta.targetUser)}</h1>
                     <div class="meta-row">
                         <span>Target: ${escapeHtml(payload.meta.targetUser)}</span>
@@ -1936,6 +2203,7 @@
                     book.titleCv,
                     book.titleCn,
                     book.author,
+                    book.authorVi,
                     book.authorCv,
                     book.authorCn,
                     ...(book.listNames || [])
@@ -1965,7 +2233,11 @@
                 const chips = (book.listNames || []).map((item) => '<span>' + escapeHtml(item) + '</span>').join('');
                 const subtitle = [];
                 if (book.titleCv && book.titleCv !== book.title) subtitle.push('CV: ' + escapeHtml(book.titleCv));
-                if (book.titleCn) subtitle.push('CN: ' + escapeHtml(book.titleCn));
+                if (book.titleCn) subtitle.push('Tên Trung: ' + escapeHtml(book.titleCn));
+                const bookmarkChapters = (book.appearances || [])
+                    .filter((item) => item.bookmarkedChapterTitle || item.bookmarkedChapterUrl)
+                    .map((item) => '<a href="' + escapeHtml(item.bookmarkedChapterUrl || '#') + '" target="_blank" rel="noreferrer">' + escapeHtml((item.listName ? item.listName + ': ' : '') + (item.bookmarkedChapterTitle || 'Mở chương')) + '</a>')
+                    .join(' | ');
                 return '' +
                     '<article class="row">' +
                         '<div class="cover"><img src="' + escapeHtml(book.coverUrl || placeholder) + '" alt="" loading="lazy" decoding="async" referrerpolicy="no-referrer" onerror="this.onerror=null;this.src=\\'' + escapeHtml(placeholder) + '\\'"></div>' +
@@ -1975,7 +2247,9 @@
                                 badges +
                             '</div>' +
                             (subtitle.length ? '<div class="subline">' + subtitle.join(' | ') + '</div>' : '') +
-                            '<div class="line">Tác giả: ' + escapeHtml(book.author || 'Không rõ') + '</div>' +
+                            '<div class="line">Tác giả Việt: ' + escapeHtml(book.authorVi || book.authorCv || book.author || 'Không rõ') + '</div>' +
+                            (book.authorCn ? '<div class="line">Tác giả Trung: ' + escapeHtml(book.authorCn) + '</div>' : '') +
+                            (bookmarkChapters ? '<div class="line">Chương bookmark: ' + bookmarkChapters + '</div>' : '') +
                             '<div class="line">Views ' + fmtNum(book.stats.views) + ' | Likes ' + fmtNum(book.stats.likes) + ' | Comments ' + fmtNum(book.stats.comments) + ' | Thanks ' + fmtNum(book.stats.thanks) + '</div>' +
                             '<div class="line"><a href="' + escapeHtml(book.searchWikiUrl || '#') + '" target="_blank" rel="noreferrer">Tìm Wiki</a> | <a href="' + escapeHtml(book.searchGoogleUrl || '#') + '" target="_blank" rel="noreferrer">Tìm Google</a></div>' +
                             '<div class="chips">' + chips + '</div>' +
@@ -2147,7 +2421,8 @@
             ${state.metaList.map((meta) => {
                 const kind = meta.kind || (isResumeKey(meta.key) ? 'resume' : 'complete');
                 const tag = kind === 'resume' ? '[Tiếp tục]' : '[Full]';
-                const label = `${tag} ${meta.targetUser} <- ${meta.viewerUser || 'anonymous'} • ${fmtNum(meta.uniqueBookCount)} truyện • ${fmtDateTime(meta.scannedAt)}`;
+                const sourceTag = meta.sourceKind === 'bookmarks' ? '[BM]' : '[TV]';
+                const label = `${tag}${sourceTag} ${meta.targetUser} <- ${meta.viewerUser || 'anonymous'} • ${fmtNum(meta.uniqueBookCount)} truyện • ${fmtDateTime(meta.scannedAt)}`;
                 return `<option value="${escapeHtml(meta.key)}">${escapeHtml(label)}</option>`;
             }).join('')}
         `;
@@ -2212,6 +2487,7 @@
         const totalViews = dataset ? dataset.summary.totalViews : meta.totalViews;
         const totalLikes = dataset ? dataset.summary.totalLikes : meta.totalLikes;
         const totalComments = dataset ? dataset.summary.totalComments : meta.totalComments;
+        const sourceLabel = sourceKindLabel(dataset ? dataset.sourceKind : (meta.sourceKind || 'library'));
         const kind = dataset ? inferDatasetKind(dataset) : (meta.kind || (isResumeKey(meta.key) ? 'resume' : 'complete'));
         const checkpointText = kind === 'resume'
             ? ` • Checkpoint: ${escapeHtml(fmtDateTime(dataset?.resume?.updatedAt || meta.resumeUpdatedAt || scannedAt))}`
@@ -2221,7 +2497,7 @@
             <div class="summary-head">
                 <div>
                     <div class="summary-title">${escapeHtml(targetDisplayName || targetUser || 'Dataset')}</div>
-                    <div class="summary-meta">Viewer: ${escapeHtml(viewerUser || 'anonymous')} • Scan: ${escapeHtml(fmtDateTime(scannedAt))}${checkpointText}</div>
+                    <div class="summary-meta">Nguồn: ${escapeHtml(sourceLabel)} • Viewer: ${escapeHtml(viewerUser || 'anonymous')} • Scan: ${escapeHtml(fmtDateTime(scannedAt))}${checkpointText}</div>
                 </div>
                 <div class="summary-chip">${kind === 'resume' ? 'TIẾP TỤC' : (dataset ? 'FULL' : 'META')}</div>
             </div>
@@ -2319,7 +2595,8 @@
             ].join('');
             const subtitles = [];
             if (book.titleCv && book.titleCv !== book.displayTitle) subtitles.push(`CV: ${escapeHtml(book.titleCv)}`);
-            if (book.titleCn) subtitles.push(`CN: ${escapeHtml(book.titleCn)}`);
+            if (book.titleCn) subtitles.push(`Tên Trung: ${escapeHtml(book.titleCn)}`);
+            const bookmarkRefs = (book.appearances || []).filter((item) => item.bookmarkedChapterTitle || item.bookmarkedChapterUrl);
             const cover = escapeHtml(book.coverUrl || PLACEHOLDER_COVER);
             return `
                 <article class="book-row">
@@ -2330,7 +2607,11 @@
                             ${badges}
                         </div>
                         ${subtitles.length ? `<div class="book-subtitle">${subtitles.join(' | ')}</div>` : ''}
-                        <div class="book-meta">Tác giả: ${escapeHtml(book.displayAuthor)}</div>
+                        <div class="book-meta">Tác giả Việt: ${escapeHtml(book.authorVi || book.authorCv || book.displayAuthor)}</div>
+                        ${book.authorCn ? `<div class="book-meta">Tác giả Trung: ${escapeHtml(book.authorCn)}</div>` : ''}
+                        ${bookmarkRefs.length ? `<div class="book-meta">Chương bookmark: ${bookmarkRefs.map((item) => item.bookmarkedChapterUrl
+                            ? `<a href="${escapeHtml(item.bookmarkedChapterUrl)}" target="_blank" rel="noreferrer">${escapeHtml(`${item.listName}: ${item.bookmarkedChapterTitle || 'Mở chương'}`)}</a>`
+                            : escapeHtml(`${item.listName}: ${item.bookmarkedChapterTitle}`)).join(' | ')}</div>` : ''}
                         <div class="book-meta">Views ${fmtNum(book.stats.views)} • Likes ${fmtNum(book.stats.likes)} • Comments ${fmtNum(book.stats.comments)} • Thanks ${fmtNum(book.stats.thanks)}</div>
                         <div class="book-meta">Chủ truyện: ${escapeHtml(book.ownerName || '—')}</div>
                         <div class="chip-row">${book.listNames.map((name) => `<span>${escapeHtml(name)}</span>`).join('')}</div>
@@ -3066,13 +3347,13 @@
                 }
             </style>
 
-            <div id="${id('floating')}" class="floating">LIB</div>
+            <div id="${id('floating')}" class="floating">${state.sourceKind === 'bookmarks' ? 'BM' : 'LIB'}</div>
 
             <div id="${id('panel')}" class="panel hidden">
                 <div id="${id('header')}" class="header">
                     <div class="header-title">
-                        <strong>Library Archiver</strong>
-                        <span>Wikicv / Koanchay • v${VERSION}</span>
+                        <strong>Library & Bookmarks Archiver</strong>
+                        <span>${escapeHtml(sourceKindLabel(state.sourceKind))} • Wikicv / Koanchay • v${VERSION}</span>
                     </div>
                     <div class="header-actions">
                         <button id="${id('help')}" class="icon-btn" title="Hướng dẫn">?</button>
@@ -3083,7 +3364,7 @@
 
                 <div class="body">
                     <section class="card">
-                        <h3>Quét Thư Viện</h3>
+                        <h3>Quét ${escapeHtml(sourceKindLabel(state.sourceKind))}</h3>
                         <div class="grid-2" style="margin-top:10px;">
                             <div class="field">
                                 <label>User cần quét</label>
@@ -3104,8 +3385,8 @@
                             <button id="${id('delete-btn')}" class="btn-danger">Xóa dataset</button>
                         </div>
                         <div class="hint" style="margin-top:10px;">
-                            Quét thư viện sẽ dùng cookie phiên hiện tại.
-                            Dữ liệu được lưu theo <code>host + viewer + target</code>, vì vậy có thể giữ nhiều thư viện của nhiều user.
+                            Quét sẽ dùng cookie phiên hiện tại.${state.sourceKind === 'bookmarks' ? ' Script lấy cả <strong>Đang đọc</strong> và <strong>Yêu thích</strong>, gồm tên/tác giả Việt–Trung.' : ''}
+                            Dữ liệu được lưu theo <code>host + viewer + target + nguồn</code>, nên Bookmarks không ghi đè dataset Thư viện.
                         </div>
                         <div id="${id('scan-notice')}" class="hint" style="margin-top:8px;"></div>
                     </section>
@@ -3309,6 +3590,7 @@
     }
 
     async function bootstrap() {
+        state.sourceKind = getSourceKind();
         state.currentPageUser = getCurrentPageUser();
         const viewer = getViewerIdentity();
         state.viewerUser = viewer.slug || 'anonymous';
@@ -3329,13 +3611,13 @@
         }
 
         if (typeof GM_registerMenuCommand === 'function') {
-            GM_registerMenuCommand('Mở Library Archiver', () => {
+            GM_registerMenuCommand('Mở Library & Bookmarks Archiver', () => {
                 showPanel();
             });
-            GM_registerMenuCommand('Mở hướng dẫn Library Archiver', () => {
+            GM_registerMenuCommand('Mở hướng dẫn Archiver', () => {
                 openGuide('help');
             });
-            GM_registerMenuCommand('Quét thư viện user hiện tại', async () => {
+            GM_registerMenuCommand(`Quét ${sourceKindLabel(state.sourceKind)} user hiện tại`, async () => {
                 showPanel();
                 if (state.shadow) {
                     const input = state.shadow.getElementById(id('target-input'));
