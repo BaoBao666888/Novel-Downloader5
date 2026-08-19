@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name        nd-rule-editor
-// @version     1.0.2
+// @version     1.1.0
 // @include     *
 // ==/UserScript==
 /* eslint-env browser */
@@ -10,7 +10,7 @@
 
     if (window.NDRuleEditor && window.NDRuleEditor.__installed) return;
 
-    const VERSION = '1.0.2';
+    const VERSION = '1.1.0';
     const UI_HOST_ID = 'novel-downloader-shadow-host';
     const OVERLAY_ID = 'ndRuleEditorOverlay';
     const STYLE_ID = 'ndRuleEditorStyle';
@@ -205,6 +205,282 @@ cover: '.book-cover img',`
         return value.length > max ? `${value.slice(0, max)}...` : value;
     }
 
+    function highlightJavaScript(source, errorLine = 0) {
+        const keywordRe = /^(?:async|await|break|case|catch|class|const|continue|debugger|default|delete|do|else|export|extends|finally|for|from|function|get|if|import|in|instanceof|let|new|of|return|set|static|super|switch|throw|try|typeof|var|void|while|with|yield)$/;
+        const literalRe = /^(?:true|false|null|undefined|NaN|Infinity)$/;
+        const tokenRe = /(?:\/\/.*$|"(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*'|`(?:\\.|[^`\\])*`|\/(?![*/])(?:\\.|[^/\\\n])+\/[dgimsuvy]*|\b(?:async|await|break|case|catch|class|const|continue|debugger|default|delete|do|else|export|extends|finally|for|from|function|get|if|import|in|instanceof|let|new|of|return|set|static|super|switch|throw|try|typeof|var|void|while|with|yield|true|false|null|undefined|NaN|Infinity)\b|\b(?:0[xob][\da-f]+|\d+(?:\.\d+)?)\b)/gi;
+        const lines = String(source || '').split('\n');
+        if (!lines.length) lines.push('');
+        return lines.map((line, index) => {
+            let cursor = 0;
+            const parts = [];
+            line.replace(tokenRe, (token, offset) => {
+                parts.push(escapeHtml(line.slice(cursor, offset)));
+                let type = 'plain';
+                if (token.startsWith('//')) type = 'comment';
+                else if (/^["'`]/.test(token)) type = 'string';
+                else if (token.startsWith('/')) type = 'regex';
+                else if (/^(?:0[xob]|\d)/i.test(token)) type = 'number';
+                else if (literalRe.test(token)) type = 'literal';
+                else if (keywordRe.test(token)) type = 'keyword';
+                parts.push(`<span class="tok-${type}">${escapeHtml(token)}</span>`);
+                cursor = offset + token.length;
+                return token;
+            });
+            parts.push(escapeHtml(line.slice(cursor)) || (line ? '' : ' '));
+            return `<span class="nd-code-line${index + 1 === errorLine ? ' has-error' : ''}" data-line="${index + 1}">${parts.join('')}</span>`;
+        }).join('');
+    }
+
+    function syncCodeHighlight(textarea) {
+        if (!textarea) return;
+        const editor = textarea.closest('.nd-code-editor');
+        const code = editor && editor.querySelector('[data-role="code-highlight"] code');
+        const highlight = editor && editor.querySelector('[data-role="code-highlight"]');
+        const rule = getActiveRule();
+        if (!code || !highlight) return;
+        const errorLine = rule && rule.lastValidation && !rule.lastValidation.ok
+            ? Number(rule.lastValidation.errorLine || 0)
+            : 0;
+        code.innerHTML = highlightJavaScript(textarea.value, errorLine);
+        highlight.scrollTop = textarea.scrollTop;
+        highlight.scrollLeft = textarea.scrollLeft;
+    }
+
+    function setEditorValue(textarea, value, selectionStart, selectionEnd = selectionStart) {
+        const rule = getActiveRule();
+        if (!textarea || !rule) return;
+        textarea.value = value;
+        rule.code = value;
+        rule.updatedAt = nowIso();
+        rule.lastValidation = null;
+        textarea.selectionStart = Math.max(0, selectionStart);
+        textarea.selectionEnd = Math.max(0, selectionEnd);
+        syncCodeHighlight(textarea);
+        queueSaveState();
+    }
+
+    function formatJavaScript(source) {
+        const protectedSource = protectJavaScriptLiterals(String(source || ''));
+        source = protectedSource.source;
+        let output = '';
+        let quote = '';
+        let escaped = false;
+        let lineComment = false;
+        let blockComment = false;
+        let regex = false;
+        let regexClass = false;
+        let parenDepth = 0;
+        let squareDepth = 0;
+        let braceDepth = 0;
+        let previousCode = '';
+        const appendBreak = () => {
+            output = output.replace(/[ \t]+$/g, '');
+            if (!output.endsWith('\n')) output += '\n';
+        };
+        const canStartRegex = () => !previousCode
+            || /[({\[,:;=!?&|+\-*~^<>]/.test(previousCode)
+            || /\b(?:return|case|throw|yield|await|typeof|delete|void|new|in|of|instanceof)\s*$/.test(output);
+
+        for (let index = 0; index < source.length; index++) {
+            const char = source[index];
+            const next = source[index + 1];
+            output += char;
+            if (lineComment) {
+                if (char === '\n') lineComment = false;
+                continue;
+            }
+            if (blockComment) {
+                if (char === '*' && next === '/') {
+                    output += next;
+                    index++;
+                    blockComment = false;
+                }
+                continue;
+            }
+            if (quote) {
+                if (escaped) escaped = false;
+                else if (char === '\\') escaped = true;
+                else if (char === quote) quote = '';
+                continue;
+            }
+            if (regex) {
+                if (escaped) escaped = false;
+                else if (char === '\\') escaped = true;
+                else if (char === '[') regexClass = true;
+                else if (char === ']') regexClass = false;
+                else if (char === '/' && !regexClass) regex = false;
+                continue;
+            }
+            if (char === '/' && next === '/') {
+                output += next;
+                index++;
+                lineComment = true;
+                continue;
+            }
+            if (char === '/' && next === '*') {
+                output += next;
+                index++;
+                blockComment = true;
+                continue;
+            }
+            if (char === '/' && canStartRegex()) {
+                regex = true;
+                regexClass = false;
+                continue;
+            }
+            if (char === '"' || char === "'" || char === '`') {
+                quote = char;
+                continue;
+            }
+            if (char === '(') parenDepth++;
+            else if (char === ')') parenDepth = Math.max(0, parenDepth - 1);
+            else if (char === '[') squareDepth++;
+            else if (char === ']') squareDepth = Math.max(0, squareDepth - 1);
+            else if (char === '{') {
+                braceDepth++;
+                appendBreak();
+            } else if (char === '}') {
+                output = output.slice(0, -1);
+                appendBreak();
+                output += char;
+                braceDepth = Math.max(0, braceDepth - 1);
+            } else if (char === ';' && parenDepth <= 1) {
+                appendBreak();
+            } else if (char === ',' && braceDepth > 0 && squareDepth === 0 && parenDepth <= 1) {
+                appendBreak();
+            }
+            if (!/\s/.test(char)) previousCode = char;
+        }
+
+        const lines = output.replace(/\r\n?/g, '\n').split('\n');
+        let indent = 0;
+        const formatted = [];
+        lines.forEach((rawLine) => {
+            const line = rawLine.trim();
+            if (!line) {
+                if (formatted.length && formatted[formatted.length - 1] !== '') formatted.push('');
+                return;
+            }
+            const startsClose = /^[}\])]/.test(line);
+            if (startsClose) indent = Math.max(0, indent - 1);
+            formatted.push(`${'  '.repeat(indent)}${line}`);
+            const structural = stripLineStringsAndComments(line);
+            const opens = (structural.match(/{/g) || []).length;
+            const closes = (structural.match(/}/g) || []).length;
+            indent = Math.max(0, indent + opens - closes + (startsClose ? 1 : 0));
+        });
+        const formattedSource = formatted.join('\n').replace(/\n{3,}/g, '\n\n').trim();
+        return restoreJavaScriptLiterals(formattedSource, protectedSource.tokens);
+    }
+
+    function protectJavaScriptLiterals(source) {
+        const tokens = [];
+        let output = '';
+        let previousCode = '';
+        const canStartRegex = () => !previousCode
+            || /[({\[,:;=!?&|+\-*~^<>]/.test(previousCode)
+            || /\b(?:return|case|throw|yield|await|typeof|delete|void|new|in|of|instanceof)\s*$/.test(output);
+        const storeToken = (value) => {
+            let marker = `__ND_FMT_LITERAL_${tokens.length}__`;
+            while (source.includes(marker)) marker += '_';
+            tokens.push({ marker, value });
+            output += marker;
+        };
+
+        for (let index = 0; index < source.length;) {
+            const char = source[index];
+            const next = source[index + 1];
+            if (char === '"' || char === "'" || char === '`') {
+                const quote = char;
+                let end = index + 1;
+                let escaped = false;
+                while (end < source.length) {
+                    const current = source[end++];
+                    if (escaped) escaped = false;
+                    else if (current === '\\') escaped = true;
+                    else if (current === quote) break;
+                }
+                storeToken(source.slice(index, end));
+                previousCode = 'v';
+                index = end;
+                continue;
+            }
+            if (char === '/' && next === '/') {
+                let end = source.indexOf('\n', index);
+                if (end < 0) end = source.length;
+                storeToken(source.slice(index, end));
+                index = end;
+                continue;
+            }
+            if (char === '/' && next === '*') {
+                const close = source.indexOf('*/', index + 2);
+                const end = close < 0 ? source.length : close + 2;
+                storeToken(source.slice(index, end));
+                previousCode = 'v';
+                index = end;
+                continue;
+            }
+            if (char === '/' && canStartRegex()) {
+                let end = index + 1;
+                let escaped = false;
+                let inClass = false;
+                while (end < source.length) {
+                    const current = source[end++];
+                    if (escaped) escaped = false;
+                    else if (current === '\\') escaped = true;
+                    else if (current === '[') inClass = true;
+                    else if (current === ']') inClass = false;
+                    else if (current === '/' && !inClass) {
+                        while (/[a-z]/i.test(source[end] || '')) end++;
+                        break;
+                    }
+                }
+                storeToken(source.slice(index, end));
+                previousCode = 'v';
+                index = end;
+                continue;
+            }
+            output += char;
+            if (!/\s/.test(char)) previousCode = char;
+            index++;
+        }
+        return { source: output, tokens };
+    }
+
+    function restoreJavaScriptLiterals(source, tokens) {
+        let output = source;
+        tokens.forEach(({ marker, value }) => {
+            output = output.split(marker).join(value);
+        });
+        return output;
+    }
+
+    function stripLineStringsAndComments(line) {
+        let result = '';
+        let quote = '';
+        let escaped = false;
+        for (let index = 0; index < line.length; index++) {
+            const char = line[index];
+            const next = line[index + 1];
+            if (quote) {
+                if (escaped) escaped = false;
+                else if (char === '\\') escaped = true;
+                else if (char === quote) quote = '';
+                result += ' ';
+                continue;
+            }
+            if (char === '/' && next === '/') break;
+            if (char === '"' || char === "'" || char === '`') {
+                quote = char;
+                result += ' ';
+                continue;
+            }
+            result += char;
+        }
+        return result;
+    }
+
     function normalizeRule(rule) {
         const now = nowIso();
         return Object.assign({
@@ -234,6 +510,11 @@ cover: '.book-cover img',`
             version: 1,
             activeId: rules[0] && rules[0].id || '',
             rules,
+            ui: {
+                sidebarCollapsed: false,
+                toolsCollapsed: false,
+                fullscreen: false
+            },
             updatedAt: nowIso()
         };
     }
@@ -244,6 +525,11 @@ cover: '.book-cover img',`
             : createStateFromCustomize(customize);
         base.version = 1;
         base.rules = base.rules.map(normalizeRule);
+        base.ui = Object.assign({
+            sidebarCollapsed: false,
+            toolsCollapsed: false,
+            fullscreen: false
+        }, base.ui || {});
         if (!base.activeId || !base.rules.some(rule => rule.id === base.activeId)) {
             base.activeId = base.rules[0] && base.rules[0].id || '';
         }
@@ -337,7 +623,9 @@ cover: '.book-cover img',`
             ok: false,
             message: '',
             warnings: [],
-            rules: []
+            rules: [],
+            errorLine: 0,
+            errorColumn: 0
         };
         if (!source) {
             result.message = 'Code đang trống.';
@@ -370,11 +658,10 @@ cover: '.book-cover img',`
             let returned;
             const names = ['Rule', ...Object.keys(sandboxApis)];
             const values = [fakeRule, ...Object.values(sandboxApis)];
-            if (isExpressionCode(source)) {
-                returned = new Function(...names, `"use strict"; return (${source});`)(...values);
-            } else {
-                returned = new Function(...names, `"use strict";\n${source}`)(...values);
-            }
+            const body = isExpressionCode(source)
+                ? `"use strict"; return (\n${source}\n);\n//# sourceURL=nd-rule-validation.js`
+                : `"use strict";\n${source}\n//# sourceURL=nd-rule-validation.js`;
+            returned = new Function(...names, body)(...values);
             result.rules = normalizeReturnedRules(returned).concat(fakeRule.special).filter(Boolean);
             if (!result.rules.length) {
                 result.warnings.push('Không thấy rule object trả về hoặc Rule.special.push(...).');
@@ -391,9 +678,124 @@ cover: '.book-cover img',`
                 : 'OK cú pháp, nhưng chưa nhận diện được rule.';
         } catch (error) {
             result.ok = false;
-            result.message = error && (error.stack || error.message) || String(error);
+            result.message = error && error.message || String(error);
+            const location = getRuleErrorLocation(error, source, 3);
+            result.errorLine = location.line;
+            result.errorColumn = location.column;
         }
         return result;
+    }
+
+    function getRuleErrorLocation(error, source, generatedLineOffset = 0) {
+        const stack = String(error && error.stack || '');
+        const matches = Array.from(stack.matchAll(/nd-rule-validation\.js:(\d+):(\d+)/g));
+        if (matches.length) {
+            const match = matches[matches.length - 1];
+            return {
+                line: Math.max(1, Number(match[1]) - generatedLineOffset),
+                column: Math.max(1, Number(match[2]) || 1)
+            };
+        }
+        if (Number.isFinite(error && error.lineNumber)) {
+            return {
+                line: Math.max(1, Number(error.lineNumber) - generatedLineOffset),
+                column: Math.max(1, Number(error.columnNumber) || 1)
+            };
+        }
+        const structural = findStructuralErrorLocation(source);
+        return structural.line ? structural : findLikelySyntaxErrorLocation(source, error && error.message);
+    }
+
+    function findStructuralErrorLocation(source) {
+        const stack = [];
+        const pairs = { ')': '(', ']': '[', '}': '{' };
+        let line = 1;
+        let column = 0;
+        let quote = '';
+        let quoteLine = 0;
+        let escaped = false;
+        let lineComment = false;
+        let blockComment = false;
+        for (let index = 0; index < source.length; index++) {
+            const char = source[index];
+            const next = source[index + 1];
+            if (char === '\n') {
+                line++;
+                column = 0;
+                lineComment = false;
+                if (quote && quote !== '`') return { line: quoteLine || line - 1, column: 1 };
+                continue;
+            }
+            column++;
+            if (lineComment) continue;
+            if (blockComment) {
+                if (char === '*' && next === '/') {
+                    blockComment = false;
+                    index++;
+                    column++;
+                }
+                continue;
+            }
+            if (quote) {
+                if (escaped) escaped = false;
+                else if (char === '\\') escaped = true;
+                else if (char === quote) quote = '';
+                continue;
+            }
+            if (char === '/' && next === '/') {
+                lineComment = true;
+                index++;
+                column++;
+                continue;
+            }
+            if (char === '/' && next === '*') {
+                blockComment = true;
+                index++;
+                column++;
+                continue;
+            }
+            if (char === '"' || char === "'" || char === '`') {
+                quote = char;
+                quoteLine = line;
+                continue;
+            }
+            if (char === '(' || char === '[' || char === '{') stack.push({ char, line, column });
+            if (pairs[char]) {
+                const opener = stack.pop();
+                if (!opener || opener.char !== pairs[char]) return { line, column };
+            }
+        }
+        if (quote || blockComment) return { line: quoteLine || line, column: 1 };
+        const unclosed = stack.pop();
+        return unclosed ? { line: unclosed.line, column: unclosed.column } : { line: 0, column: 0 };
+    }
+
+    function findLikelySyntaxErrorLocation(source, message) {
+        const patterns = [
+            /,,/m,
+            /:\s*(?=[,}])/m,
+            /(?:^|[,;])\s*\.(?=[A-Za-z_$])/m
+        ];
+        let index = -1;
+        for (const pattern of patterns) {
+            const match = pattern.exec(source);
+            if (match) {
+                index = match.index + Math.max(0, match[0].length - 1);
+                break;
+            }
+        }
+        if (index < 0) {
+            const tokenMatch = String(message || '').match(/Unexpected (?:token|identifier) ['"]?([^'"\s]+)['"]?/i);
+            if (tokenMatch && tokenMatch[1]) index = source.indexOf(tokenMatch[1]);
+        }
+        if (index < 0 && /unexpected end/i.test(String(message || ''))) index = Math.max(0, source.length - 1);
+        if (index < 0) index = 0;
+        const before = source.slice(0, index);
+        const lastBreak = before.lastIndexOf('\n');
+        return {
+            line: before.split('\n').length,
+            column: index - lastBreak
+        };
     }
 
     function createHelperStubs() {
@@ -488,20 +890,40 @@ cover: '.book-cover img',`
             '*,*:before,*:after{box-sizing:border-box;}',
             `#${OVERLAY_ID}{position:fixed;inset:0;z-index:1000007;display:none;align-items:center;justify-content:center;background:rgba(15,23,42,.58);pointer-events:auto;color:#0f172a;font-family:${UI_FONT};}`,
             `#${OVERLAY_ID}.is-visible{display:flex;}`,
-            `#${OVERLAY_ID} .nd-rule-window{width:min(1180px,calc(100vw - 24px));height:min(780px,calc(100vh - 24px));display:grid;grid-template-rows:auto 1fr;background:#f8fafc;border:1px solid #cbd5e1;border-radius:10px;box-shadow:0 24px 70px rgba(15,23,42,.38);overflow:hidden;}`,
+            `#${OVERLAY_ID} .nd-rule-window{width:min(1280px,calc(100vw - 24px));height:min(840px,calc(100vh - 24px));display:grid;grid-template-rows:auto 1fr;background:#f8fafc;border:1px solid #cbd5e1;border-radius:8px;box-shadow:0 24px 70px rgba(15,23,42,.38);overflow:hidden;}`,
+            `#${OVERLAY_ID}.is-fullscreen .nd-rule-window{width:100vw;height:100vh;border:0;border-radius:0;}`,
             `#${OVERLAY_ID} .nd-rule-header{display:flex;align-items:center;gap:10px;padding:11px 14px;background:linear-gradient(135deg,#111827,#0f766e 56%,#7f1d1d);color:#fff;}`,
             `#${OVERLAY_ID} .nd-rule-title{font-size:15px;font-weight:700;}`,
             `#${OVERLAY_ID} .nd-rule-save-state{font-size:12px;color:#bfdbfe;}`,
             `#${OVERLAY_ID} .nd-rule-spacer{flex:1 1 auto;}`,
-            `#${OVERLAY_ID} .nd-rule-close{border:1px solid rgba(255,255,255,.35);background:rgba(255,255,255,.12);color:#fff;border-radius:6px;padding:5px 9px;cursor:pointer;}`,
+            `#${OVERLAY_ID} .nd-rule-header button{border:1px solid rgba(255,255,255,.35);background:rgba(255,255,255,.12);color:#fff;border-radius:6px;padding:5px 9px;cursor:pointer;}`,
             `#${OVERLAY_ID} .nd-rule-body{display:grid;grid-template-columns:260px minmax(360px,1fr) 300px;min-height:0;}`,
-            `#${OVERLAY_ID} .nd-rule-sidebar,#${OVERLAY_ID} .nd-rule-tools{border-right:1px solid #dbe3ef;background:#f1f5f9;min-height:0;overflow:auto;}`,
+            `#${OVERLAY_ID} .nd-rule-body.sidebar-collapsed{grid-template-columns:38px minmax(360px,1fr) 300px;}`,
+            `#${OVERLAY_ID} .nd-rule-body.tools-collapsed{grid-template-columns:260px minmax(360px,1fr) 38px;}`,
+            `#${OVERLAY_ID} .nd-rule-body.sidebar-collapsed.tools-collapsed{grid-template-columns:38px minmax(360px,1fr) 38px;}`,
+            `#${OVERLAY_ID} .nd-rule-sidebar,#${OVERLAY_ID} .nd-rule-tools{display:grid;grid-template-rows:auto 1fr;border-right:1px solid #dbe3ef;background:#f1f5f9;min-height:0;overflow:hidden;}`,
             `#${OVERLAY_ID} .nd-rule-tools{border-right:0;border-left:1px solid #dbe3ef;}`,
-            `#${OVERLAY_ID} .nd-rule-panel{padding:10px;display:grid;gap:9px;align-content:start;}`,
+            `#${OVERLAY_ID} .nd-rule-side-header{display:flex;align-items:center;gap:7px;min-height:36px;padding:6px 8px;border-bottom:1px solid #dbe3ef;color:#475569;font-size:11px;font-weight:800;text-transform:uppercase;}`,
+            `#${OVERLAY_ID} .nd-rule-side-header span{flex:1 1 auto;}`,
+            `#${OVERLAY_ID} .nd-rule-side-header button{width:25px;height:24px;padding:0;line-height:1;text-align:center;}`,
+            `#${OVERLAY_ID} .nd-rule-panel{padding:10px;display:grid;gap:9px;align-content:start;min-height:0;overflow:auto;}`,
+            `#${OVERLAY_ID} .sidebar-collapsed .nd-rule-sidebar .nd-rule-panel,#${OVERLAY_ID} .tools-collapsed .nd-rule-tools .nd-rule-panel{display:none;}`,
+            `#${OVERLAY_ID} .sidebar-collapsed .nd-rule-sidebar .nd-rule-side-header,#${OVERLAY_ID} .tools-collapsed .nd-rule-tools .nd-rule-side-header{height:100%;padding:6px;align-items:flex-start;}`,
+            `#${OVERLAY_ID} .sidebar-collapsed .nd-rule-sidebar .nd-rule-side-header span,#${OVERLAY_ID} .tools-collapsed .nd-rule-tools .nd-rule-side-header span{display:none;}`,
             `#${OVERLAY_ID} .nd-rule-main{display:grid;grid-template-rows:auto 1fr auto;min-height:0;background:#fff;}`,
             `#${OVERLAY_ID} .nd-rule-toolbar{display:flex;flex-wrap:wrap;gap:7px;align-items:center;padding:10px;border-bottom:1px solid #e2e8f0;background:#fff;}`,
             `#${OVERLAY_ID} input,#${OVERLAY_ID} textarea{border:1px solid #cbd5e1;border-radius:6px;background:#fff;color:#0f172a;padding:7px 8px;font:13px/1.35 ${UI_FONT};}`,
-            `#${OVERLAY_ID} textarea{resize:none;width:100%;height:100%;font-family:${MONO_FONT};font-size:12px;line-height:1.45;tab-size:2;border:0;border-radius:0;border-bottom:1px solid #e2e8f0;}`,
+            `#${OVERLAY_ID} .nd-code-editor{position:relative;min-width:0;min-height:0;overflow:hidden;background:#fff;border-bottom:1px solid #e2e8f0;}`,
+            `#${OVERLAY_ID} .nd-code-highlight,#${OVERLAY_ID} .nd-code-input{position:absolute;inset:0;margin:0;padding:10px 12px;width:100%;height:100%;border:0;border-radius:0;overflow:auto;white-space:pre;tab-size:2;font:12px/1.5 ${MONO_FONT};letter-spacing:0;}`,
+            `#${OVERLAY_ID} .nd-code-highlight{z-index:1;pointer-events:none;background:#fff;color:#1f2937;}`,
+            `#${OVERLAY_ID} .nd-code-highlight code{font:inherit;}`,
+            `#${OVERLAY_ID} .nd-code-input{z-index:2;resize:none;background:transparent;color:transparent;-webkit-text-fill-color:transparent;caret-color:#111827;outline:none;}`,
+            `#${OVERLAY_ID} .nd-code-input::selection{background:rgba(59,130,246,.28);}`,
+            `#${OVERLAY_ID} .nd-code-line{display:block;min-width:max-content;min-height:1.5em;}`,
+            `#${OVERLAY_ID} .nd-code-line.has-error{background:rgba(239,68,68,.13);text-decoration:underline wavy #dc2626;text-decoration-thickness:1px;}`,
+            `#${OVERLAY_ID} .tok-comment{color:#15803d;font-style:italic;}#${OVERLAY_ID} .tok-string{color:#a31515;}#${OVERLAY_ID} .tok-regex{color:#c2410c;}#${OVERLAY_ID} .tok-keyword{color:#1d4ed8;font-weight:700;}#${OVERLAY_ID} .tok-number{color:#7c3aed;}#${OVERLAY_ID} .tok-literal{color:#0369a1;font-weight:700;}`,
+            `#${OVERLAY_ID} .nd-code-find{position:absolute;z-index:4;top:7px;right:16px;display:none;align-items:center;gap:5px;padding:5px;background:#f8fafc;border:1px solid #cbd5e1;border-radius:6px;box-shadow:0 5px 18px rgba(15,23,42,.18);}`,
+            `#${OVERLAY_ID} .nd-code-find.is-visible{display:flex;}#${OVERLAY_ID} .nd-code-find input{width:190px;height:29px;padding:4px 7px;font-family:${MONO_FONT};font-size:12px;}#${OVERLAY_ID} .nd-code-find span{min-width:42px;color:#64748b;font-size:11px;text-align:center;}#${OVERLAY_ID} .nd-code-find button{width:28px;height:28px;padding:0;}`,
             `#${OVERLAY_ID} button{border:1px solid #cbd5e1;border-radius:6px;background:#fff;color:#0f172a;padding:6px 9px;cursor:pointer;font-size:12px;font-weight:700;}`,
             `#${OVERLAY_ID} button:hover{background:#eff6ff;border-color:#93c5fd;}`,
             `#${OVERLAY_ID} button.primary{background:#0f766e;border-color:#14b8a6;color:#fff;}`,
@@ -525,7 +947,10 @@ cover: '.book-cover img',`
             `#${OVERLAY_ID} .nd-rule-help{font-size:12px;line-height:1.45;color:#64748b;}`,
             `#${OVERLAY_ID} .nd-rule-empty{padding:10px;border:1px dashed #cbd5e1;border-radius:7px;background:#fff;color:#64748b;font-size:12px;}`,
             '@media (max-width:900px){' +
-                `#${OVERLAY_ID} .nd-rule-body{grid-template-columns:1fr;grid-template-rows:180px 1fr 260px;}` +
+                `#${OVERLAY_ID} .nd-rule-body,#${OVERLAY_ID} .nd-rule-body.sidebar-collapsed,#${OVERLAY_ID} .nd-rule-body.tools-collapsed,#${OVERLAY_ID} .nd-rule-body.sidebar-collapsed.tools-collapsed{grid-template-columns:1fr;grid-template-rows:180px minmax(320px,1fr) 240px;}` +
+                `#${OVERLAY_ID} .nd-rule-body.sidebar-collapsed{grid-template-rows:38px minmax(320px,1fr) 240px;}` +
+                `#${OVERLAY_ID} .nd-rule-body.tools-collapsed{grid-template-rows:180px minmax(320px,1fr) 38px;}` +
+                `#${OVERLAY_ID} .nd-rule-body.sidebar-collapsed.tools-collapsed{grid-template-rows:38px minmax(320px,1fr) 38px;}` +
                 `#${OVERLAY_ID} .nd-rule-sidebar,#${OVERLAY_ID} .nd-rule-tools{border:0;border-bottom:1px solid #dbe3ef;}` +
             '}'
         ].join('\n');
@@ -544,18 +969,22 @@ cover: '.book-cover img',`
             '    <span class="nd-rule-title">Quản lý quy tắc tùy chỉnh</span>',
             '    <span class="nd-rule-save-state" data-role="save-state"></span>',
             '    <span class="nd-rule-spacer"></span>',
+            '    <button type="button" data-action="toggle-fullscreen" title="Bật hoặc tắt toàn màn hình">Toàn màn hình</button>',
             '    <button type="button" class="nd-rule-close" data-action="close">Đóng</button>',
             '  </div>',
             '  <div class="nd-rule-body">',
-            '    <aside class="nd-rule-sidebar"><div class="nd-rule-panel" data-role="sidebar"></div></aside>',
+            '    <aside class="nd-rule-sidebar"><div class="nd-rule-side-header"><span>Rule tùy chỉnh</span><button type="button" data-action="toggle-sidebar" title="Thu gọn danh sách rule">&lt;</button></div><div class="nd-rule-panel" data-role="sidebar"></div></aside>',
             '    <main class="nd-rule-main" data-role="main"></main>',
-            '    <aside class="nd-rule-tools"><div class="nd-rule-panel" data-role="tools"></div></aside>',
+            '    <aside class="nd-rule-tools"><div class="nd-rule-side-header"><button type="button" data-action="toggle-tools" title="Thu gọn công cụ">&gt;</button><span>Công cụ</span></div><div class="nd-rule-panel" data-role="tools"></div></aside>',
             '  </div>',
             '</div>'
         ].join('');
         overlay.addEventListener('click', handleOverlayClick);
         overlay.addEventListener('input', handleOverlayInput);
         overlay.addEventListener('change', handleOverlayChange);
+        overlay.addEventListener('keydown', handleOverlayKeydown, true);
+        overlay.addEventListener('mousedown', stopEditorEventPropagation);
+        overlay.addEventListener('mouseup', stopEditorEventPropagation);
         root.appendChild(overlay);
         return overlay;
     }
@@ -565,6 +994,27 @@ cover: '.book-cover img',`
         renderSidebar(overlay);
         renderMain(overlay);
         renderTools(overlay);
+        applyLayoutState(overlay);
+    }
+
+    function applyLayoutState(overlay) {
+        const body = overlay.querySelector('.nd-rule-body');
+        const ui = state.ui || {};
+        body.classList.toggle('sidebar-collapsed', Boolean(ui.sidebarCollapsed));
+        body.classList.toggle('tools-collapsed', Boolean(ui.toolsCollapsed));
+        overlay.classList.toggle('is-fullscreen', Boolean(ui.fullscreen));
+        const sidebarButton = overlay.querySelector('[data-action="toggle-sidebar"]');
+        const toolsButton = overlay.querySelector('[data-action="toggle-tools"]');
+        const fullscreenButton = overlay.querySelector('[data-action="toggle-fullscreen"]');
+        if (sidebarButton) {
+            sidebarButton.innerHTML = ui.sidebarCollapsed ? '&gt;' : '&lt;';
+            sidebarButton.title = ui.sidebarCollapsed ? 'Mở danh sách rule' : 'Thu gọn danh sách rule';
+        }
+        if (toolsButton) {
+            toolsButton.innerHTML = ui.toolsCollapsed ? '&lt;' : '&gt;';
+            toolsButton.title = ui.toolsCollapsed ? 'Mở công cụ' : 'Thu gọn công cụ';
+        }
+        if (fullscreenButton) fullscreenButton.textContent = ui.fullscreen ? 'Thu nhỏ' : 'Toàn màn hình';
     }
 
     function renderSidebar(overlay, options = {}) {
@@ -608,7 +1058,7 @@ cover: '.book-cover img',`
         const validation = rule.lastValidation;
         const statusClass = validation ? validation.ok ? 'ok' : 'error' : '';
         const statusText = validation
-            ? `${validation.message}${validation.warnings && validation.warnings.length ? `\nCảnh báo:\n- ${validation.warnings.join('\n- ')}` : ''}`
+            ? `${!validation.ok && validation.errorLine ? `Dòng ${validation.errorLine}${validation.errorColumn ? `, cột ${validation.errorColumn}` : ''}: ` : ''}${validation.message}${validation.warnings && validation.warnings.length ? `\nCảnh báo:\n- ${validation.warnings.join('\n- ')}` : ''}`
             : 'Chưa kiểm tra.';
         main.innerHTML = [
             '<div class="nd-rule-toolbar">',
@@ -618,13 +1068,21 @@ cover: '.book-cover img',`
             '  </div>',
             '  <span class="nd-rule-spacer"></span>',
             '  <button type="button" data-action="validate-rule">Kiểm tra</button>',
+            '  <button type="button" data-action="format-code" title="Shift+Alt+F">Format Code</button>',
             '  <button type="button" class="primary" data-action="apply-rules">Áp dụng</button>',
             '  <button type="button" data-action="copy-rule">Copy</button>',
             '  <button type="button" class="danger" data-action="delete-rule">Xóa</button>',
             '</div>',
-            `<textarea name="rule-code" spellcheck="false">${escapeHtml(rule.code || '')}</textarea>`,
+            '  <div class="nd-code-editor" data-role="code-editor">',
+            '    <pre class="nd-code-highlight" data-role="code-highlight" aria-hidden="true"><code></code></pre>',
+            `    <textarea class="nd-code-input" name="rule-code" spellcheck="false" wrap="off" aria-label="Code rule">${escapeHtml(rule.code || '')}</textarea>`,
+            '    <div class="nd-code-find" data-role="code-find"><input type="search" name="code-find" autocomplete="off" placeholder="Tìm trong rule"><span data-role="find-count">0/0</span><button type="button" data-action="find-previous" title="Kết quả trước">&#8593;</button><button type="button" data-action="find-next" title="Kết quả sau">&#8595;</button><button type="button" data-action="close-find" title="Đóng">x</button></div>',
+            '  </div>',
             `<div class="nd-rule-status ${statusClass}" data-role="validation">${escapeHtml(statusText)}</div>`
         ].join('');
+        const textarea = main.querySelector('textarea[name="rule-code"]');
+        textarea.addEventListener('scroll', () => syncCodeHighlight(textarea));
+        syncCodeHighlight(textarea);
     }
 
     function renderTools(overlay, options = {}) {
@@ -684,6 +1142,18 @@ cover: '.book-cover img',`
         const action = button.dataset.action;
         if (action === 'close') {
             overlay.classList.remove('is-visible');
+        } else if (action === 'toggle-fullscreen') {
+            state.ui.fullscreen = !state.ui.fullscreen;
+            saveState();
+            applyLayoutState(overlay);
+        } else if (action === 'toggle-sidebar') {
+            state.ui.sidebarCollapsed = !state.ui.sidebarCollapsed;
+            saveState();
+            applyLayoutState(overlay);
+        } else if (action === 'toggle-tools') {
+            state.ui.toolsCollapsed = !state.ui.toolsCollapsed;
+            saveState();
+            applyLayoutState(overlay);
         } else if (action === 'new-rule') {
             createRule();
         } else if (action === 'delete-rule') {
@@ -694,6 +1164,14 @@ cover: '.book-cover img',`
             applyRules();
         } else if (action === 'copy-rule') {
             copyActiveRule(button);
+        } else if (action === 'format-code') {
+            formatActiveCode(button);
+        } else if (action === 'find-previous') {
+            findInEditor(overlay, -1);
+        } else if (action === 'find-next') {
+            findInEditor(overlay, 1);
+        } else if (action === 'close-find') {
+            closeEditorFind(overlay);
         } else if (action === 'template-selector') {
             replaceActiveCode(TEMPLATE_SELECTOR);
         } else if (action === 'template-getchapters') {
@@ -725,6 +1203,10 @@ cover: '.book-cover img',`
             restoreInputCaret(event.currentTarget, 'builtin-search', caret);
             return;
         }
+        if (target.name === 'code-find') {
+            findInEditor(event.currentTarget, 1, true);
+            return;
+        }
         const rule = getActiveRule();
         if (!rule) return;
         if (target.name === 'rule-name') {
@@ -737,7 +1219,253 @@ cover: '.book-cover img',`
             rule.updatedAt = nowIso();
             rule.lastValidation = null;
             queueSaveState();
+            syncCodeHighlight(target);
         }
+    }
+
+    function stopEditorEventPropagation(event) {
+        event.stopPropagation();
+    }
+
+    function handleOverlayKeydown(event) {
+        const overlay = event.currentTarget;
+        const target = event.target;
+        const isCodeEditor = target && target.name === 'rule-code';
+        const isFindInput = target && target.name === 'code-find';
+        const shortcut = event.ctrlKey || event.metaKey;
+        event.stopPropagation();
+
+        if (isFindInput) {
+            if (event.key === 'Enter') {
+                event.preventDefault();
+                findInEditor(overlay, event.shiftKey ? -1 : 1);
+            } else if (event.key === 'Escape') {
+                event.preventDefault();
+                closeEditorFind(overlay);
+            }
+            return;
+        }
+
+        if (!isCodeEditor) {
+            if (event.key === 'Escape') {
+                event.preventDefault();
+                overlay.classList.remove('is-visible');
+            }
+            return;
+        }
+
+        if (shortcut && event.key.toLowerCase() === 's') {
+            event.preventDefault();
+            saveState('Đã lưu');
+            return;
+        }
+        if (shortcut && event.key.toLowerCase() === 'f') {
+            event.preventDefault();
+            openEditorFind(overlay);
+            return;
+        }
+        if (shortcut && event.key === '/') {
+            event.preventDefault();
+            toggleLineComments(target);
+            return;
+        }
+        if (event.shiftKey && event.altKey && event.key.toLowerCase() === 'f') {
+            event.preventDefault();
+            formatActiveCode(overlay.querySelector('[data-action="format-code"]'));
+            return;
+        }
+        if (event.key === 'Tab') {
+            event.preventDefault();
+            indentEditorSelection(target, event.shiftKey);
+            return;
+        }
+        if (event.key === 'Enter') {
+            event.preventDefault();
+            insertEditorNewline(target);
+            return;
+        }
+        if (!shortcut && !event.altKey && [')', ']', '}', '"', "'", '`'].includes(event.key)
+            && target.selectionStart === target.selectionEnd
+            && target.value[target.selectionStart] === event.key) {
+            event.preventDefault();
+            target.selectionStart++;
+            target.selectionEnd = target.selectionStart;
+            return;
+        }
+        if (!shortcut && !event.altKey && ['(', '[', '{', '"', "'", '`'].includes(event.key)) {
+            event.preventDefault();
+            insertEditorPair(target, event.key);
+            return;
+        }
+        if (event.key === 'Escape') {
+            const findBox = overlay.querySelector('[data-role="code-find"]');
+            if (findBox && findBox.classList.contains('is-visible')) {
+                event.preventDefault();
+                closeEditorFind(overlay);
+            }
+        }
+    }
+
+    function indentEditorSelection(textarea, outdent = false) {
+        const value = textarea.value;
+        const selectionStart = textarea.selectionStart;
+        const selectionEnd = textarea.selectionEnd;
+        if (selectionStart === selectionEnd && !outdent) {
+            setEditorValue(textarea, `${value.slice(0, selectionStart)}  ${value.slice(selectionEnd)}`, selectionStart + 2);
+            return;
+        }
+        const lineStart = value.lastIndexOf('\n', Math.max(0, selectionStart - 1)) + 1;
+        let lineEnd = value.indexOf('\n', selectionEnd);
+        if (lineEnd < 0) lineEnd = value.length;
+        const selected = value.slice(lineStart, lineEnd);
+        let removedFromFirstLine = 0;
+        let changed;
+        if (outdent) {
+            changed = selected.split('\n').map((line, index) => {
+                const match = line.match(/^(?: {1,2}|\t)/);
+                if (index === 0) removedFromFirstLine = match ? match[0].length : 0;
+                return match ? line.slice(match[0].length) : line;
+            }).join('\n');
+        } else {
+            changed = selected.split('\n').map(line => `  ${line}`).join('\n');
+        }
+        const next = `${value.slice(0, lineStart)}${changed}${value.slice(lineEnd)}`;
+        const start = outdent
+            ? Math.max(lineStart, selectionStart - removedFromFirstLine)
+            : selectionStart + 2;
+        const delta = changed.length - selected.length;
+        setEditorValue(textarea, next, start, Math.max(start, selectionEnd + delta));
+    }
+
+    function insertEditorNewline(textarea) {
+        const value = textarea.value;
+        const start = textarea.selectionStart;
+        const end = textarea.selectionEnd;
+        const lineStart = value.lastIndexOf('\n', Math.max(0, start - 1)) + 1;
+        const lineBefore = value.slice(lineStart, start);
+        const indent = (lineBefore.match(/^\s*/) || [''])[0];
+        const opensBlock = /[{\[]\s*$/.test(lineBefore);
+        const closesBlock = /^[}\]]/.test(value.slice(end));
+        let insert = `\n${indent}${opensBlock ? '  ' : ''}`;
+        let caret = start + insert.length;
+        if (opensBlock && closesBlock) insert += `\n${indent}`;
+        setEditorValue(textarea, `${value.slice(0, start)}${insert}${value.slice(end)}`, caret);
+    }
+
+    function insertEditorPair(textarea, opening) {
+        const pairs = { '(': ')', '[': ']', '{': '}', '"': '"', "'": "'", '`': '`' };
+        const closing = pairs[opening];
+        const value = textarea.value;
+        const start = textarea.selectionStart;
+        const end = textarea.selectionEnd;
+        const selected = value.slice(start, end);
+        const next = `${value.slice(0, start)}${opening}${selected}${closing}${value.slice(end)}`;
+        setEditorValue(textarea, next, start + 1, end + 1);
+    }
+
+    function toggleLineComments(textarea) {
+        const value = textarea.value;
+        const selectionStart = textarea.selectionStart;
+        const selectionEnd = textarea.selectionEnd;
+        const lineStart = value.lastIndexOf('\n', Math.max(0, selectionStart - 1)) + 1;
+        let lineEnd = value.indexOf('\n', selectionEnd);
+        if (lineEnd < 0) lineEnd = value.length;
+        const selected = value.slice(lineStart, lineEnd);
+        const lines = selected.split('\n');
+        const uncomment = lines.filter(line => line.trim()).every(line => /^\s*\/\//.test(line));
+        const changed = lines.map(line => {
+            if (!line.trim()) return line;
+            if (uncomment) return line.replace(/^(\s*)\/\/\s?/, '$1');
+            return line.replace(/^(\s*)/, '$1// ');
+        }).join('\n');
+        const next = `${value.slice(0, lineStart)}${changed}${value.slice(lineEnd)}`;
+        const startDelta = changed.slice(0, Math.max(0, selectionStart - lineStart)).length
+            - selected.slice(0, Math.max(0, selectionStart - lineStart)).length;
+        setEditorValue(
+            textarea,
+            next,
+            Math.max(lineStart, selectionStart + startDelta),
+            Math.max(lineStart, selectionEnd + changed.length - selected.length)
+        );
+    }
+
+    function formatActiveCode(button) {
+        const root = getUiRoot(false);
+        const textarea = root && root.querySelector(`#${OVERLAY_ID} textarea[name="rule-code"]`);
+        if (!textarea) return;
+        const formatted = formatJavaScript(textarea.value);
+        setEditorValue(textarea, formatted, Math.min(textarea.selectionStart, formatted.length));
+        textarea.focus();
+        flashButton(button, 'Đã format');
+    }
+
+    function openEditorFind(overlay) {
+        const box = overlay.querySelector('[data-role="code-find"]');
+        const input = box && box.querySelector('[name="code-find"]');
+        const textarea = overlay.querySelector('textarea[name="rule-code"]');
+        if (!box || !input || !textarea) return;
+        box.classList.add('is-visible');
+        if (!input.value && textarea.selectionStart !== textarea.selectionEnd) {
+            input.value = textarea.value.slice(textarea.selectionStart, textarea.selectionEnd).replace(/\n/g, ' ');
+        }
+        input.focus();
+        input.select();
+        findInEditor(overlay, 1, true);
+    }
+
+    function findInEditor(overlay, direction = 1, reset = false) {
+        const box = overlay.querySelector('[data-role="code-find"]');
+        const input = box && box.querySelector('[name="code-find"]');
+        const count = box && box.querySelector('[data-role="find-count"]');
+        const textarea = overlay.querySelector('textarea[name="rule-code"]');
+        if (!box || !input || !count || !textarea) return;
+        const query = input.value;
+        if (!query) {
+            count.textContent = '0/0';
+            return;
+        }
+        const haystack = textarea.value.toLocaleLowerCase();
+        const needle = query.toLocaleLowerCase();
+        const matches = [];
+        let offset = 0;
+        while (offset <= haystack.length - needle.length) {
+            const found = haystack.indexOf(needle, offset);
+            if (found < 0) break;
+            matches.push(found);
+            offset = found + Math.max(1, needle.length);
+        }
+        if (!matches.length) {
+            count.textContent = '0/0';
+            return;
+        }
+        let index;
+        if (reset) {
+            index = 0;
+        } else if (direction < 0) {
+            index = -1;
+            for (let matchIndex = matches.length - 1; matchIndex >= 0; matchIndex--) {
+                if (matches[matchIndex] < textarea.selectionStart) {
+                    index = matchIndex;
+                    break;
+                }
+            }
+            if (index < 0) index = matches.length - 1;
+        } else {
+            index = matches.findIndex(position => position >= textarea.selectionEnd);
+            if (index < 0) index = 0;
+        }
+        const position = matches[index];
+        const keepFindFocus = input.matches(':focus');
+        if (!keepFindFocus) textarea.focus({ preventScroll: true });
+        textarea.setSelectionRange(position, position + query.length);
+        count.textContent = `${index + 1}/${matches.length}`;
+    }
+
+    function closeEditorFind(overlay) {
+        const box = overlay.querySelector('[data-role="code-find"]');
+        const textarea = overlay.querySelector('textarea[name="rule-code"]');
+        if (box) box.classList.remove('is-visible');
+        if (textarea) textarea.focus();
     }
 
     function getInputCaret(input) {
@@ -965,6 +1693,7 @@ cover: '.book-cover img',`
         open,
         buildCustomizeFromRules,
         validateRuleCode,
+        formatCode: formatJavaScript,
         getSummary,
         getState: () => normalizeState(safeGetValue(STORAGE_KEY, null), activeOptions.currentCustomize || '')
     };

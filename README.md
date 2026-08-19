@@ -5,13 +5,13 @@
 ## Tính năng chính
 
 *   **Hỗ trợ nhiều trang web:** Tải truyện từ các trang phổ biến như Fanqie, JJWXC, Qidian, 69shuba, PO18, và nhiều trang khác.
-*   **Định dạng đa dạng:** Lưu truyện dưới dạng file `.txt`, `.epub` (hỗ trợ ảnh bìa, CSS tùy chỉnh), hoặc `.zip` (mỗi chương một file text).
+*   **Định dạng đa dạng:** Lưu truyện dưới dạng file `.txt`, `.epub` (EPUB 2 hoặc EPUB 3, có ảnh bìa và ảnh chương), hoặc `.zip` (mỗi chương một file text).
 *   **Tùy chỉnh linh hoạt:** Cho phép cấu hình số luồng tải, thời gian chờ, định dạng tiêu đề, xử lý văn bản, v.v.
 *   **Hỗ trợ tải ảnh:** Có thể tải ảnh bìa và ảnh trong nội dung truyện khi xuất ra file EPUB.
 *   **Giao diện người dùng:** Cung cấp bảng điều khiển để dễ dàng cấu hình và bắt đầu quá trình tải.
 *   **Quản lý tải xuống:** Theo dõi queue/lịch sử, copy summary/lỗi, hủy hoặc retry task trong phiên hiện tại.
 *   **Bảng console trong UI:** Xem log/lỗi ngay trong giao diện script, có nút bật/tắt và copy.
-*   **Rule Editor:** Quản lý nhiều rule tùy chỉnh theo từng mục riêng, có tìm kiếm, template, kiểm tra cấu trúc và autosave draft.
+*   **Rule Editor:** Quản lý nhiều rule tùy chỉnh theo từng mục riêng, có toàn màn hình, panel thu gọn, tô màu code, phím tắt, format, tìm kiếm, kiểm tra dòng lỗi và autosave draft.
 *   **Danh sách web hỗ trợ:** Mở ngay trong UI, tải data từ repo và tìm nhanh theo domain hoặc tên rule.
 *   **Debug Bridge:** Dashboard local để test selector/rule, chạy `getChapters`, `deal` và eval JS ngay trong môi trường userscript thật.
 *   **Xử lý chương VIP:** Có cơ chế xử lý chương VIP cho một số trang (như JJWXC dùng token app khi có, Fanqie dùng API riêng...).
@@ -24,7 +24,7 @@
     *   Greasemonkey (Chủ yếu cho Firefox phiên bản cũ hơn)
     *   [ScriptCat](https://scriptcat.org/) (Đã dùng thử, khá mượt nhưng chưa hỗ trợ :>)
 2.  **Cài đặt script:** Nhấn vào link sau và làm theo hướng dẫn của trình quản lý userscript:
-    *   **[Cài đặt novelDownloaderVietSub (v3.5.448.15)](https://raw.githubusercontent.com/BaoBao666888/Novel-Downloader5/main/novelDownloaderVietSub.user.js)**
+    *   **[Cài đặt novelDownloaderVietSub (v3.5.448.16)](https://raw.githubusercontent.com/BaoBao666888/Novel-Downloader5/main/novelDownloaderVietSub.user.js)**
 
 ## Hướng dẫn sử dụng
 
@@ -34,12 +34,31 @@
     *   **Cách 2:** Nhấp đúp chuột vào cạnh **trái** của trang web.
     *   **Cách 3:** Nhấp vào biểu tượng của trình quản lý userscript (ví dụ: Tampermonkey) trên thanh công cụ trình duyệt, tìm đến `novelDownloaderVietSub` và chọn "Download Novel".
     *   *(Lưu ý: Xem phần "Vấn đề đã biết" nếu gặp khó khăn khi mở bảng điều khiển).*
-3.  **Kiểm tra thông tin:** Script sẽ cố gắng tự động lấy thông tin truyện (tên, tác giả, bìa, tóm tắt) nếu rule cho trang đó hỗ trợ. Ô `Tóm tắt` là vùng nhiều dòng để bạn xem và chỉnh đúng bố cục xuống dòng. Dùng `Lấy lại info` hoặc `Lấy lại DS chương` khi cần gọi lại rule mà không đóng UI.
+3.  **Kiểm tra thông tin:** Script sẽ cố gắng tự động lấy thông tin truyện (tên, tác giả, bìa, tóm tắt) nếu rule cho trang đó hỗ trợ. Ô `Tóm tắt` là vùng nhiều dòng để bạn xem và chỉnh đúng bố cục xuống dòng. Dùng `Lấy lại info` hoặc `Lấy lại DS chương` khi cần gọi lại rule mà không đóng UI. Nút `Yêu cầu rule` mở form tạo sẵn GitHub issue; bạn vẫn cần kiểm tra và tự nhấn `Create issue` trên GitHub.
 4.  **Cấu hình (Tùy chọn):** Điều chỉnh các tùy chọn tải xuống như định dạng file, số luồng, thời gian chờ, có tải chương VIP hay không, v.v.
 5.  **Chọn chương:** Bấm `Chọn chương tải` để mở danh sách chương trong popup. Nhập phạm vi như `1-25, 35, 50`; dòng trạng thái sẽ báo số chương hợp lệ, còn thẻ chương thường/VIP được phân màu riêng. Bấm một thẻ rồi chọn `Lấy thử chap`, hoặc nhấp đúp thẻ để xem ngay title và nội dung. Nội dung xem thử được làm sạch giống file xuất; nút `Copy chương` sao chép theo dạng `title\ncontent`.
-6.  **Bắt đầu tải:** Nhấn `Tải xuống - TXT`, `Tải xuống - ZIP` hoặc `Tải xuống - EPUB`. Cả ba định dạng dùng tên file theo dạng `tên truyện__tác giả`.
+6.  **Bắt đầu tải:** Nhấn `Tải xuống - TXT`, `Tải xuống - ZIP` hoặc `Tải xuống - EPUB`. Khi tải EPUB, chọn EPUB 2 để tương thích máy đọc cũ hoặc EPUB 3 cho metadata/nav hiện đại. Cả ba định dạng dùng tên file theo dạng `tên truyện__tác giả`.
 7.  **Theo dõi:** Theo dõi thanh tiến trình trên bảng điều khiển hoặc mở `Quản lý tải xuống` để xem queue/lịch sử. Bảng này có nút copy summary/lỗi, xóa lịch sử, xóa task treo và nạp lại task đã lưu khi tab bị đóng giữa chừng. Sau khi nạp, chọn lại phạm vi rồi bấm định dạng tải; script không tự chạy phạm vi cũ.
 8.  **Lưu file:** Có thể dùng nút `Chọn thư mục lưu` để ghi trực tiếp bằng File System Access API. Nếu trình duyệt không hỗ trợ hoặc không cấp quyền, script tự fallback về hộp lưu mặc định của trình duyệt.
+
+### Cấu trúc file EPUB
+
+File EPUB thực chất là một ZIP chuẩn, trong đó `mimetype` phải nằm đầu và không nén. Script xuất cấu trúc chính như sau:
+
+```text
+mimetype
+META-INF/container.xml
+OEBPS/content.opf
+OEBPS/toc.ncx              # EPUB 2
+OEBPS/Text/toc.xhtml       # mục lục hiển thị; là nav bắt buộc của EPUB 3
+OEBPS/Text/cover.xhtml
+OEBPS/Text/intro.xhtml
+OEBPS/Text/chapter-*.xhtml
+OEBPS/Styles/stylesheet.css
+OEBPS/Images/*
+```
+
+`content.opf` chứa metadata, manifest và thứ tự đọc. EPUB 2 dùng thêm `toc.ncx`; EPUB 3 dùng `toc.xhtml` có thuộc tính `epub:type="toc"` và metadata `dcterms:modified`.
 
 ## Cấu hình nâng cao (Tùy chọn)
 
@@ -128,13 +147,17 @@ Script hỗ trợ một danh sách lớn các trang web. Trong UI tải chính h
 *   Afdian (afdian.com)
 *   Ihuaben (ihuaben.com)
 *   Novel543 (Novel543.com)
+*   久久小说网 (xjjxs.com)
+*   晚安小说网 (azxxs.com)
 *   Và nhiều trang khác...
 
 *(Bạn có thể tự thêm hoặc sửa rule trong `src/rules`, sau đó chạy build để sinh lại userscript chính).*
 
 ## Tự viết Rule mới
 
-Bạn nên dùng `Quản lý rule` trong phần cài đặt nâng cao của UI tải chính hoặc tab `Cài đặt` của `Quản lý tải xuống`. Rule Editor cho phép tạo nhiều rule riêng, đặt tên, bật/tắt, tìm kiếm, copy rule gốc để sửa, chèn template/hàm nhanh, kiểm tra cấu trúc, export/import và autosave draft.
+Bạn nên dùng `Quản lý rule` trong phần cài đặt nâng cao của UI tải chính hoặc tab `Cài đặt` của `Quản lý tải xuống`. Rule Editor cho phép tạo nhiều rule riêng, đặt tên, bật/tắt, tìm kiếm, copy rule gốc để sửa, chèn template/hàm nhanh, kiểm tra cấu trúc, export/import và autosave draft. Editor có thể bật toàn màn hình, thu gọn hai panel, tô màu JavaScript và gạch đỏ dòng lỗi sau khi kiểm tra.
+
+Trong vùng code có thể dùng `Tab`/`Shift+Tab`, `Enter` để tự thụt lề, `Ctrl+/` để bật/tắt comment, `Ctrl+F` để tìm, `Ctrl+S` để lưu draft và `Shift+Alt+F` để format. Nút `Format Code` thực hiện cùng thao tác format bằng chuột.
 
 Khi bấm `Áp dụng`, Rule Editor sẽ sinh lại `Config.customize` nên vẫn tương thích cơ chế cũ. Nếu cần dán thủ công, `Config.customize` vẫn nhận một object, một mảng object, hoặc một lệnh JS kiểu `Rule.special.push({...})`; sau khi áp dụng hãy tải lại trang nếu muốn rule mới được nạp lại từ đầu.
 
@@ -248,7 +271,7 @@ Mọi đóng góp để cải thiện script (sửa lỗi, thêm rule mới, t�
 
 ## Phản hồi & Báo lỗi
 
-Nếu bạn gặp lỗi (ngoài các vấn đề đã biết) hoặc có đề xuất tính năng mới, vui lòng tạo **Issue** trên trang GitHub của dự án:
+Nếu bạn gặp lỗi hoặc cần thêm/sửa rule, có thể bấm `Yêu cầu rule` cạnh `Lấy lại info` trong UI để điền form và mở sẵn trang tạo issue. Hãy kiểm tra nội dung, bổ sung ảnh nếu cần rồi tự nhấn **Create issue**. Bạn cũng có thể mở trực tiếp trang GitHub của dự án:
 [https://github.com/BaoBao666888/Novel-Downloader5/issues](https://github.com/BaoBao666888/Novel-Downloader5/issues)
 
 Khi báo lỗi, vui lòng cung cấp các thông tin sau:

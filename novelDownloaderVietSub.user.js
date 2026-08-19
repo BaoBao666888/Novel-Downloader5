@@ -2,7 +2,7 @@
 // ==UserScript==
 // @name        novelDownloaderVietSub
 // @description Menu Download Novel hoặc nhấp đúp vào cạnh trái của trang để hiển thị bảng điều khiển
-// @version     3.5.448.15
+// @version     3.5.448.16
 // @author      dodying | BaoBao
 // @namespace   https://github.com/BaoBao666888/Novel-Downloader5
 // @supportURL  https://github.com/BaoBao666888/Novel-Downloader5/issues
@@ -15,7 +15,7 @@
 // @require     https://raw.githubusercontent.com/BaoBao666888/Novel-Downloader5/main/nd-console-panel.js?v=1.0.4
 // @require     https://raw.githubusercontent.com/BaoBao666888/Novel-Downloader5/main/nd-download-manager.js?v=1.0.8
 // @require     https://raw.githubusercontent.com/BaoBao666888/Novel-Downloader5/main/nd-file-save.js?v=1.0.0
-// @require     https://raw.githubusercontent.com/BaoBao666888/Novel-Downloader5/main/tools/nd-rule-editor/nd-rule-editor.js?v=1.0.2
+// @require     https://raw.githubusercontent.com/BaoBao666888/Novel-Downloader5/main/tools/nd-rule-editor/nd-rule-editor.js?v=1.1.0
 
 // @require     https://raw.githubusercontent.com/BaoBao666888/Novel-Downloader5/main/chs2cht.js
 // @require     https://cdnjs.cloudflare.com/ajax/libs/jszip/3.0.0/jszip.min.js
@@ -134,6 +134,8 @@ function decryptDES(encrypted, key, iv) {
     const ND_UI_HOST_ID = 'novel-downloader-shadow-host';
     const ND_DOC_MODAL_ID = 'ndNovelDownloaderDocs';
     const ND_SUPPORTED_SITES_MODAL_ID = 'ndNovelDownloaderSupportedSites';
+    const ND_RULE_REQUEST_MODAL_ID = 'ndNovelDownloaderRuleRequest';
+    const ND_EPUB_VERSION_MODAL_ID = 'ndNovelDownloaderEpubVersion';
     const ND_VERIFY_MODAL_ID = 'ndNovelDownloaderVerify';
     const ND_RESUME_CHOICE_MODAL_ID = 'ndNovelDownloaderResumeChoice';
     const ND_NOTICE_MODAL_ID = 'ndNovelDownloaderNotice';
@@ -143,7 +145,7 @@ function decryptDES(encrypted, key, iv) {
     const ND_LAUNCHER_POSITION_KEY = 'ND_LAUNCHER_POSITION';
     const ND_DEBUG_BRIDGE_CLIENT_URL = 'http://127.0.0.1:17888/nd-debug-bridge.js?v=1.3.0';
     const ND_RULE_EDITOR_CLIENT_URL = 'http://127.0.0.1:17888/nd-rule-editor.js';
-    const ND_RULE_EDITOR_REMOTE_URL = 'https://raw.githubusercontent.com/BaoBao666888/Novel-Downloader5/main/tools/nd-rule-editor/nd-rule-editor.js?v=1.0.2';
+    const ND_RULE_EDITOR_REMOTE_URL = 'https://raw.githubusercontent.com/BaoBao666888/Novel-Downloader5/main/tools/nd-rule-editor/nd-rule-editor.js?v=1.1.0';
     const ND_SUPPORTED_SITES_REMOTE_URL = 'https://raw.githubusercontent.com/BaoBao666888/Novel-Downloader5/main/src/rules/supported-sites.json?v=1';
     const ND_SUPPORTED_SITES_CACHE_KEY = 'ND_SUPPORTED_SITES_CACHE_V1';
     function getNovelDownloaderUIRoot(create = false) {
@@ -209,7 +211,7 @@ function decryptDES(encrypted, key, iv) {
     // ============================================================================
 
     function getNovelDownloaderScriptVersion() {
-        return GM_info && GM_info.script && GM_info.script.version ? GM_info.script.version : '3.5.448.15';
+        return GM_info && GM_info.script && GM_info.script.version ? GM_info.script.version : '3.5.448.16';
     }
 
     function docList(items) {
@@ -221,8 +223,9 @@ function decryptDES(encrypted, key, iv) {
             '<h3>Luồng thao tác cơ bản</h3>',
             docList([
                 'Mở UI bằng nút nổi <b>Novel Downloader</b>, menu Tampermonkey <b>Download Novel</b>, hoặc nhấp đúp cạnh trái trang.',
-                'Chọn <b>Tải xuống - TXT</b>, <b>Tải xuống - ZIP</b> hoặc <b>Tải xuống - EPUB</b> để bắt đầu tải.',
+                'Chọn <b>Tải xuống - TXT</b>, <b>Tải xuống - ZIP</b> hoặc <b>Tải xuống - EPUB</b> để bắt đầu tải. Khi chọn EPUB, script sẽ hỏi dùng EPUB 2 hay EPUB 3.',
                 'Dùng <b>Lấy lại info</b> hoặc <b>Lấy lại DS chương</b> để gọi lại rule và cập nhật dữ liệu ngay trong UI.',
+                'Dùng <b>Yêu cầu rule</b> để điền thông tin website/lỗi rồi mở sẵn GitHub issue. Kiểm tra nội dung và tự nhấn <b>Create issue</b> trên GitHub.',
                 'Bấm <b>Chọn chương tải</b> để mở danh sách chương. Nhập phạm vi như <code>1-25, 35, 50</code>; trạng thái bên dưới sẽ báo số chương hợp lệ được chọn.',
                 'Trong danh sách, chương thường và VIP có màu riêng. Bấm một thẻ rồi chọn <b>Lấy thử chap</b>, hoặc nhấp đúp thẻ để xem ngay title/nội dung và copy nguyên chương.',
                 '<b>Tải xuống hàng loạt</b> vẫn dùng khi muốn dán danh sách URL riêng và được ưu tiên hơn phạm vi đã chọn.',
@@ -262,7 +265,8 @@ function decryptDES(encrypted, key, iv) {
             docList([
                 'Bấm <b>Quản lý rule</b> trong phần cài đặt nâng cao hoặc tab Cài đặt của Quản lý tải xuống để mở Rule Editor.',
                 'Mỗi rule có tên riêng, trạng thái bật/tắt, vùng code riêng, autosave draft, nút kiểm tra cấu trúc và nút áp dụng vào <code>Config.customize</code>.',
-                'Rule Editor có template selector/getChapters/deal, chèn nhanh các hàm thường dùng, tìm rule tự tạo và tìm/copy rule gốc để sửa lại.',
+                'Rule Editor có chế độ toàn màn hình, hai panel thu gọn, tô màu code, tìm kiếm, Format Code, Tab/Shift+Tab, Ctrl+/ và tự thụt lề khi Enter.',
+                'Nút <b>Kiểm tra</b> báo dòng/cột và gạch đỏ dòng lỗi ngay trong editor; template selector/getChapters/deal và thao tác copy rule gốc vẫn có sẵn.',
                 'Dữ liệu áp dụng vẫn tương thích cơ chế cũ: nhận <code>{...}</code>, <code>[{...}]</code>, nguyên file rule có <code>@rule-begin/@rule-end</code> hoặc lệnh <code>Rule.special.push({...});</code>.',
                 'Có thể dùng lại helper như <code>helpers.requestDoc</code>, <code>helpers.requestJson</code>, <code>helpers.mapChapters</code>, <code>helpers.absoluteUrl</code> để viết rule nhanh hơn.',
                 'Nếu rule cần Cloudflare/cookie, ưu tiên dùng helper tải trang có sẵn thay vì tự viết fetch rời rạc.'
@@ -270,7 +274,7 @@ function decryptDES(encrypted, key, iv) {
             '<h3>Khi gặp lỗi</h3>',
             docList([
                 'Mở Quản lý tải xuống để copy summary/lỗi, đồng thời mở bảng Console để xem log chi tiết.',
-                'Với lỗi web đổi HTML, chạy <b>Kiểm tra</b> trước để biết đang hỏng mục lục, thông tin sách hay nội dung chương.',
+                'Với lỗi web đổi HTML, thử <b>Lấy lại info</b>/<b>Lấy lại DS chương</b>, lấy thử một chương rồi gửi log bằng <b>Yêu cầu rule</b>.',
                 'Với web chặn request, thử tăng delay giữa chương hoặc tải qua chế độ thủ công nếu rule hỗ trợ.'
             ])
         ].join('');
@@ -280,19 +284,14 @@ function decryptDES(encrypted, key, iv) {
         return [
             `<h3>v${getNovelDownloaderScriptVersion()}</h3>`,
             docList([
-                'Thay ô phạm vi cũ bằng popup <b>Chọn chương tải</b> trong Shadow DOM, có danh sách số thứ tự/title và phân màu chương thường, chương VIP.',
-                'Kiểm tra phạm vi ngay khi nhập, báo số chương được chọn và đánh dấu trực tiếp các thẻ tương ứng.',
-                'Cho phép chọn một thẻ rồi <b>Lấy thử chap</b>, hoặc nhấp đúp thẻ để xem và copy title/nội dung chương trước khi tải.',
-                'Không tự khởi chạy phạm vi cũ khi nạp dữ liệu tải dở; phạm vi vừa chọn luôn được ưu tiên.',
-                'Đổi ô <b>Tóm tắt</b> sang dạng nhiều dòng để nhìn và chỉnh đúng vị trí xuống dòng.',
-                'Thêm nút lấy lại thông tin sách và danh sách chương ngay trong UI tải chính.',
-                'Nâng cấp rule <b>POPO原創市集</b>: nhận trang sách/trang mục lục, tự tải toàn bộ các trang chương và hỗ trợ chương đã mua.',
-                'Đồng bộ tên file TXT/ZIP/EPUB theo dạng <b>tên truyện__tác giả</b> và cập nhật credit trong ZIP/EPUB.',
-                'Thêm tùy chọn tự kết nối, tin tưởng code từ xa và thông báo trên tab khi Debug Bridge chạy eval JS.',
-                'Popup xem thử chương dùng chung pipeline làm sạch với file xuất để loại ký tự/HTML thừa trước khi hiển thị và copy.'
+                'Thêm rule public cho <b>久久小说网 (xjjxs.com)</b> và <b>晚安小说网 (azxxs.com)</b>, hỗ trợ cửa sổ xác minh, mục lục phân trang và chương chia trang.',
+                'Thêm form <b>Yêu cầu rule</b>, tự điền môi trường và mở GitHub issue mới nhưng để user kiểm tra rồi tự gửi.',
+                'Xuất EPUB theo cấu trúc mới: hỏi EPUB 2/3, có cover, metadata, mục lục hiển thị, NCX cho EPUB 2 và nav cho EPUB 3; dọn các setting EPUB cũ.',
+                'Nâng cấp Rule Editor với toàn màn hình, panel thu gọn, tô màu code, tìm kiếm/phím tắt, Format Code và đánh dấu dòng lỗi.'
             ]),
             '<h3>Các bản trước (tóm tắt)</h3>',
             docList([
+                'v3.5.448.15: nâng UX chọn/xem thử chương, refresh info/mục lục, rule POPO, tên file/credit và cơ chế an toàn Debug Bridge.',
                 'v3.5.448.12: thêm Rule Editor, Danh sách hỗ trợ, Debug Bridge, khôi phục task tải dở và cải thiện Console/Quản lý tải xuống.',
                 'v3.5.448.x: bỏ phụ thuộc AntiClear, thêm nút nổi Novel Downloader, Hướng dẫn/Changelog trong script, tab Cài đặt và thanh tiến độ sticky <b>x / y</b>.',
                 'v3.5.447.x: đưa UI vào Shadow Root, thêm bảng Console trong UI, cải thiện Quản lý tải xuống, queue/history/resume, dọn thẻ cũ sau 30 ngày.',
@@ -547,6 +546,188 @@ function decryptDES(encrypted, key, iv) {
         }
     }
 
+    function ensureNovelDownloaderRuleRequestModal() {
+        const root = getNovelDownloaderUIRoot(true) || document.body;
+        ensureNovelDownloaderUIStyle('ndNovelDownloaderRuleRequestStyle', [
+            `#${ND_RULE_REQUEST_MODAL_ID}{position:fixed;inset:0;z-index:1000014;display:none;align-items:center;justify-content:center;padding:16px;background:rgba(15,23,42,.58);pointer-events:auto;font-family:"Segoe UI",Arial,"Noto Sans",sans-serif;color:#0f172a;}`,
+            `#${ND_RULE_REQUEST_MODAL_ID}.is-visible{display:flex;}`,
+            `#${ND_RULE_REQUEST_MODAL_ID} .nd-rule-request-window{width:min(760px,calc(100vw - 28px));max-height:min(820px,calc(100vh - 28px));display:grid;grid-template-rows:auto 1fr;background:#f8fafc;border:1px solid #cbd5e1;border-radius:10px;box-shadow:0 24px 70px rgba(15,23,42,.38);overflow:hidden;}`,
+            `#${ND_RULE_REQUEST_MODAL_ID} .nd-rule-request-header{display:flex;align-items:center;gap:10px;padding:12px 15px;background:#172554;color:#fff;}`,
+            `#${ND_RULE_REQUEST_MODAL_ID} .nd-rule-request-title{font-size:15px;font-weight:800;}`,
+            `#${ND_RULE_REQUEST_MODAL_ID} .nd-rule-request-spacer{flex:1 1 auto;}`,
+            `#${ND_RULE_REQUEST_MODAL_ID} .nd-rule-request-body{overflow:auto;padding:15px;}`,
+            `#${ND_RULE_REQUEST_MODAL_ID} form{display:grid;grid-template-columns:1fr 1fr;gap:11px 12px;}`,
+            `#${ND_RULE_REQUEST_MODAL_ID} label{display:grid;gap:5px;font-size:12px;font-weight:700;color:#334155;}`,
+            `#${ND_RULE_REQUEST_MODAL_ID} label.wide,#${ND_RULE_REQUEST_MODAL_ID} .nd-rule-request-note,#${ND_RULE_REQUEST_MODAL_ID} .nd-rule-request-status,#${ND_RULE_REQUEST_MODAL_ID} .nd-rule-request-actions{grid-column:1/-1;}`,
+            `#${ND_RULE_REQUEST_MODAL_ID} input,#${ND_RULE_REQUEST_MODAL_ID} select,#${ND_RULE_REQUEST_MODAL_ID} textarea{width:100%;border:1px solid #cbd5e1;border-radius:6px;background:#fff;color:#0f172a;padding:8px 9px;font:13px/1.4 "Segoe UI",Arial,sans-serif;}`,
+            `#${ND_RULE_REQUEST_MODAL_ID} textarea{min-height:76px;resize:vertical;}`,
+            `#${ND_RULE_REQUEST_MODAL_ID} .nd-rule-request-note{font-size:12px;line-height:1.5;color:#475569;padding:9px 10px;border-left:3px solid #2563eb;background:#eff6ff;}`,
+            `#${ND_RULE_REQUEST_MODAL_ID} .nd-rule-request-confirm{display:flex;grid-column:1/-1;align-items:flex-start;gap:7px;font-size:12px;font-weight:600;color:#334155;}`,
+            `#${ND_RULE_REQUEST_MODAL_ID} .nd-rule-request-confirm input{width:auto;margin-top:2px;}`,
+            `#${ND_RULE_REQUEST_MODAL_ID} .nd-rule-request-status{min-height:18px;font-size:12px;line-height:1.4;color:#64748b;}`,
+            `#${ND_RULE_REQUEST_MODAL_ID} .nd-rule-request-status.error{color:#b91c1c;font-weight:700;}`,
+            `#${ND_RULE_REQUEST_MODAL_ID} .nd-rule-request-status.ok{color:#166534;font-weight:700;}`,
+            `#${ND_RULE_REQUEST_MODAL_ID} .nd-rule-request-actions{display:flex;justify-content:flex-end;gap:8px;}`,
+            `#${ND_RULE_REQUEST_MODAL_ID} button{border:1px solid #cbd5e1;border-radius:6px;background:#fff;color:#0f172a;padding:7px 10px;cursor:pointer;font-size:12px;font-weight:800;}`,
+            `#${ND_RULE_REQUEST_MODAL_ID} button:hover{background:#eff6ff;border-color:#93c5fd;}`,
+            `#${ND_RULE_REQUEST_MODAL_ID} button.primary{background:#2563eb;border-color:#2563eb;color:#fff;}`,
+            `#${ND_RULE_REQUEST_MODAL_ID} .nd-rule-request-header button{border-color:rgba(255,255,255,.35);background:rgba(255,255,255,.12);color:#fff;}`,
+            `@media(max-width:640px){#${ND_RULE_REQUEST_MODAL_ID} form{grid-template-columns:1fr;}#${ND_RULE_REQUEST_MODAL_ID} label.wide,#${ND_RULE_REQUEST_MODAL_ID} .nd-rule-request-note,#${ND_RULE_REQUEST_MODAL_ID} .nd-rule-request-status,#${ND_RULE_REQUEST_MODAL_ID} .nd-rule-request-actions{grid-column:1;}}`
+        ].join(''));
+
+        let modal = root.querySelector(`#${ND_RULE_REQUEST_MODAL_ID}`);
+        if (modal) return modal;
+        modal = document.createElement('div');
+        modal.id = ND_RULE_REQUEST_MODAL_ID;
+        modal.innerHTML = [
+            '<section class="nd-rule-request-window" role="dialog" aria-modal="true" aria-label="Yêu cầu thêm hoặc sửa rule">',
+            '  <header class="nd-rule-request-header">',
+            '    <span class="nd-rule-request-title">Yêu cầu thêm hoặc sửa rule</span>',
+            '    <span class="nd-rule-request-spacer"></span>',
+            '    <button type="button" data-action="close-rule-request">Đóng</button>',
+            '  </header>',
+            '  <div class="nd-rule-request-body">',
+            '    <form data-role="rule-request-form">',
+            '      <label>Loại yêu cầu<select name="requestType"><option value="add">Thêm website mới</option><option value="fix">Sửa rule hiện có</option></select></label>',
+            '      <label>Tên website<input name="siteName" autocomplete="off" placeholder="Tên website"></label>',
+            '      <label class="wide">URL trang truyện *<input name="storyUrl" type="url" required autocomplete="off" placeholder="https://example.com/book/123"></label>',
+            '      <label class="wide">URL chương mẫu<input name="chapterUrl" type="url" autocomplete="off" placeholder="Một chương đọc được hoặc đang lỗi"></label>',
+            '      <label class="wide">Mô tả ngắn *<input name="summary" required autocomplete="off" placeholder="Ví dụ: Không lấy được mục lục sau khi website đổi giao diện"></label>',
+            '      <label>Hiện trạng<textarea name="actual" placeholder="Kết quả hiện tại, thông báo lỗi, bước tái hiện"></textarea></label>',
+            '      <label>Kết quả mong muốn<textarea name="expected" placeholder="Script cần lấy được thông tin/chương như thế nào"></textarea></label>',
+            '      <label class="wide">Xác minh, đăng nhập, VIP và ghi chú khác<textarea name="accessNotes" placeholder="Có Cloudflare/captcha, cần đăng nhập, chương VIP đã mua..."></textarea></label>',
+            '      <label class="wide">Log lỗi<textarea name="logs" placeholder="Dán phần ERROR liên quan; có thể bổ sung ảnh trên GitHub"></textarea></label>',
+            '      <div class="nd-rule-request-note">GitHub sẽ mở trang tạo issue với nội dung đã điền. Hãy kiểm tra lại, bổ sung ảnh nếu cần rồi tự nhấn <b>Create issue</b>. Script không tự đăng issue.</div>',
+            '      <label class="nd-rule-request-confirm"><input name="safeData" type="checkbox">Tôi đã xóa cookie, token, mật khẩu và dữ liệu đăng nhập khỏi nội dung gửi.</label>',
+            '      <div class="nd-rule-request-status" data-role="status"></div>',
+            '      <div class="nd-rule-request-actions"><button type="button" data-action="close-rule-request">Hủy</button><button type="submit" class="primary">Mở GitHub issue</button></div>',
+            '    </form>',
+            '  </div>',
+            '</section>'
+        ].join('');
+
+        modal.addEventListener('click', (event) => {
+            if (event.target === modal || event.target.closest('[data-action="close-rule-request"]')) {
+                modal.classList.remove('is-visible');
+            }
+        });
+        modal.querySelector('[data-role="rule-request-form"]').addEventListener('submit', (event) => {
+            event.preventDefault();
+            const form = event.currentTarget;
+            const values = Object.fromEntries(new FormData(form).entries());
+            const status = modal.querySelector('[data-role="status"]');
+            status.className = 'nd-rule-request-status';
+            if (!String(values.storyUrl || '').trim() || !String(values.summary || '').trim()) {
+                status.classList.add('error');
+                status.textContent = 'Cần nhập URL trang truyện và mô tả ngắn.';
+                return;
+            }
+            if (!form.elements.safeData.checked) {
+                status.classList.add('error');
+                status.textContent = 'Hãy xác nhận đã xóa dữ liệu nhạy cảm trước khi mở GitHub.';
+                return;
+            }
+
+            const isFix = values.requestType === 'fix';
+            const issueTitle = `${isFix ? '[Sửa rule]' : '[Thêm rule]'} ${String(values.siteName || new URL(values.storyUrl).hostname).trim()} - ${String(values.summary).trim()}`;
+            const currentRule = Storage && Storage.rule && Storage.rule.siteName ? Storage.rule.siteName : 'Chưa nhận diện';
+            const platform = GM_info.platform || {};
+            const issueBody = [
+                `## Loại yêu cầu\n${isFix ? 'Sửa rule hiện có' : 'Thêm website mới'}`,
+                `## Website\n- Tên: ${String(values.siteName || '').trim() || 'Chưa ghi'}\n- Trang truyện: ${String(values.storyUrl).trim()}\n- Chương mẫu: ${String(values.chapterUrl || '').trim() || 'Chưa có'}\n- Rule đang nhận: ${currentRule}`,
+                `## Hiện trạng\n${String(values.actual || '').trim() || 'Chưa ghi'}`,
+                `## Kết quả mong muốn\n${String(values.expected || '').trim() || String(values.summary).trim()}`,
+                `## Xác minh / quyền truy cập\n${String(values.accessNotes || '').trim() || 'Không có ghi chú'}`,
+                `## Log lỗi\n\`\`\`text\n${String(values.logs || '').trim() || 'Không có log'}\n\`\`\``,
+                `## Môi trường\n- Novel Downloader: v${getNovelDownloaderScriptVersion()}\n- Trình duyệt: ${platform.browserName || 'Không rõ'} ${platform.browserVersion || ''}\n- Userscript manager: ${GM_info.scriptHandler || 'Không rõ'} ${GM_info.version || ''}`,
+                '_Đã xác nhận nội dung không chứa cookie, token hoặc mật khẩu._'
+            ].join('\n\n');
+            const issueUrl = `https://github.com/BaoBao666888/Novel-Downloader5/issues/new?title=${encodeURIComponent(issueTitle.slice(0, 180))}&body=${encodeURIComponent(issueBody)}`;
+            if (typeof GM_openInTab === 'function') GM_openInTab(issueUrl, { active: true, insert: true });
+            else window.open(issueUrl, '_blank', 'noopener');
+            status.classList.add('ok');
+            status.textContent = 'Đã mở GitHub. Kiểm tra nội dung rồi tự nhấn Create issue.';
+            if (typeof window.ndShowToast === 'function') {
+                window.ndShowToast('Đã điền GitHub issue. Hãy kiểm tra rồi nhấn Create issue.', 'success', 5000);
+            }
+        });
+        root.appendChild(modal);
+        return modal;
+    }
+
+    function openNovelDownloaderRuleRequest() {
+        const modal = ensureNovelDownloaderRuleRequestModal();
+        const form = modal.querySelector('[data-role="rule-request-form"]');
+        const currentRule = Storage && Storage.rule && Storage.rule.siteName ? Storage.rule.siteName : '';
+        form.reset();
+        form.elements.requestType.value = currentRule ? 'fix' : 'add';
+        form.elements.siteName.value = currentRule || document.title.split(/[|_\-]/)[0].trim();
+        form.elements.storyUrl.value = location.href;
+        if (Storage && Storage.mode === 2) form.elements.chapterUrl.value = location.href;
+        modal.querySelector('[data-role="status"]').textContent = '';
+        modal.querySelector('[data-role="status"]').className = 'nd-rule-request-status';
+        modal.classList.add('is-visible');
+        window.setTimeout(() => form.elements.summary.focus(), 0);
+    }
+
+    function ensureNovelDownloaderEpubVersionModal() {
+        const root = getNovelDownloaderUIRoot(true) || document.body;
+        ensureNovelDownloaderUIStyle('ndNovelDownloaderEpubVersionStyle', [
+            `#${ND_EPUB_VERSION_MODAL_ID}{position:fixed;inset:0;z-index:1000015;display:none;align-items:center;justify-content:center;padding:16px;background:rgba(15,23,42,.58);pointer-events:auto;font-family:"Segoe UI",Arial,sans-serif;color:#0f172a;}`,
+            `#${ND_EPUB_VERSION_MODAL_ID}.is-visible{display:flex;}`,
+            `#${ND_EPUB_VERSION_MODAL_ID} .nd-epub-version-window{width:min(520px,calc(100vw - 28px));background:#f8fafc;border:1px solid #cbd5e1;border-radius:10px;box-shadow:0 24px 70px rgba(15,23,42,.38);overflow:hidden;}`,
+            `#${ND_EPUB_VERSION_MODAL_ID} .nd-epub-version-header{padding:12px 15px;background:#134e4a;color:#fff;font-size:15px;font-weight:800;}`,
+            `#${ND_EPUB_VERSION_MODAL_ID} .nd-epub-version-body{display:grid;gap:10px;padding:15px;}`,
+            `#${ND_EPUB_VERSION_MODAL_ID} .nd-epub-version-help{font-size:12px;line-height:1.5;color:#475569;}`,
+            `#${ND_EPUB_VERSION_MODAL_ID} .nd-epub-version-options{display:grid;grid-template-columns:1fr 1fr;gap:10px;}`,
+            `#${ND_EPUB_VERSION_MODAL_ID} button{border:1px solid #cbd5e1;border-radius:7px;background:#fff;color:#0f172a;padding:10px;cursor:pointer;text-align:left;font-size:13px;font-weight:800;}`,
+            `#${ND_EPUB_VERSION_MODAL_ID} button:hover{background:#ecfdf5;border-color:#14b8a6;}`,
+            `#${ND_EPUB_VERSION_MODAL_ID} button span{display:block;margin-top:4px;color:#64748b;font-size:11px;font-weight:500;line-height:1.4;}`,
+            `#${ND_EPUB_VERSION_MODAL_ID} .nd-epub-version-cancel{justify-self:end;padding:7px 10px;text-align:center;}`,
+            `@media(max-width:480px){#${ND_EPUB_VERSION_MODAL_ID} .nd-epub-version-options{grid-template-columns:1fr;}}`
+        ].join(''));
+        let modal = root.querySelector(`#${ND_EPUB_VERSION_MODAL_ID}`);
+        if (modal) return modal;
+        modal = document.createElement('div');
+        modal.id = ND_EPUB_VERSION_MODAL_ID;
+        modal.innerHTML = [
+            '<section class="nd-epub-version-window" role="dialog" aria-modal="true" aria-label="Chọn phiên bản EPUB">',
+            '  <header class="nd-epub-version-header">Chọn phiên bản EPUB</header>',
+            '  <div class="nd-epub-version-body">',
+            '    <div class="nd-epub-version-help">EPUB 2 tương thích rộng với máy đọc cũ. EPUB 3 dùng HTML5 và mục lục nav hiện đại.</div>',
+            '    <div class="nd-epub-version-options">',
+            '      <button type="button" data-version="2">EPUB 2<span>Tương thích tốt với thiết bị và ứng dụng cũ.</span></button>',
+            '      <button type="button" data-version="3">EPUB 3<span>Cấu trúc hiện đại, mục lục nav và metadata mới.</span></button>',
+            '    </div>',
+            '    <button type="button" class="nd-epub-version-cancel" data-action="cancel">Hủy</button>',
+            '  </div>',
+            '</section>'
+        ].join('');
+        root.appendChild(modal);
+        return modal;
+    }
+
+    function chooseNovelDownloaderEpubVersion() {
+        return new Promise((resolve) => {
+            const modal = ensureNovelDownloaderEpubVersionModal();
+            const finish = (version) => {
+                modal.removeEventListener('click', onClick);
+                modal.classList.remove('is-visible');
+                resolve(version);
+            };
+            const onClick = (event) => {
+                const versionButton = event.target.closest('[data-version]');
+                if (versionButton) {
+                    finish(versionButton.dataset.version);
+                    return;
+                }
+                if (event.target === modal || event.target.closest('[data-action="cancel"]')) finish(null);
+            };
+            modal.addEventListener('click', onClick);
+            modal.classList.add('is-visible');
+        });
+    }
+
     function ensureNovelDownloaderVerifyModal() {
         const root = getNovelDownloaderUIRoot(true) || document.body;
         ensureNovelDownloaderUIStyle('ndNovelDownloaderVerifyStyle', [
@@ -611,6 +792,7 @@ function decryptDES(encrypted, key, iv) {
             const message = modal.querySelector('[data-role="message"]');
             const img = modal.querySelector('[data-role="image"]');
             const input = modal.querySelector('[data-role="code"]');
+            const submitButton = form.querySelector('button[type="submit"]');
             const imageUrl = options.imageUrl || '';
             const cleanup = () => {
                 form.removeEventListener('submit', onSubmit);
@@ -643,12 +825,66 @@ function decryptDES(encrypted, key, iv) {
             };
             title.textContent = options.title || 'Xác minh truy cập';
             message.textContent = options.message || 'Trang yêu cầu nhập mã xác minh trước khi tiếp tục tải.';
+            modal.querySelector('.nd-verify-image-row').style.display = '';
+            input.style.display = '';
+            submitButton.textContent = 'Tiếp tục';
             input.value = '';
             refreshNovelDownloaderVerifyImage(img, imageUrl);
             form.addEventListener('submit', onSubmit);
             modal.addEventListener('click', onClick);
             modal.classList.add('is-visible');
             window.setTimeout(() => input.focus(), 0);
+        });
+    }
+
+    function requestNovelDownloaderVerificationWindow(options = {}) {
+        return new Promise((resolve, reject) => {
+            const modal = ensureNovelDownloaderVerifyModal();
+            const form = modal.querySelector('[data-role="form"]');
+            const title = modal.querySelector('[data-role="title"]');
+            const message = modal.querySelector('[data-role="message"]');
+            const imageRow = modal.querySelector('.nd-verify-image-row');
+            const input = modal.querySelector('[data-role="code"]');
+            const submitButton = form.querySelector('button[type="submit"]');
+            const cleanup = () => {
+                form.removeEventListener('submit', onSubmit);
+                modal.removeEventListener('click', onClick);
+                modal.classList.remove('is-visible');
+            };
+            const onSubmit = (event) => {
+                event.preventDefault();
+                const popup = window.open(
+                    options.url,
+                    options.windowName || '__ND_Verify__',
+                    options.features || 'width=620,height=760,resizable=yes,scrollbars=yes'
+                );
+                if (!popup) {
+                    message.textContent = 'Pop-up bị chặn. Hãy cho phép pop-up cho website này rồi bấm lại.';
+                    return;
+                }
+                try { popup.focus(); } catch (error) { /* ignore */ }
+                cleanup();
+                resolve(popup);
+            };
+            const onClick = (event) => {
+                const action = event.target && event.target.closest ? event.target.closest('[data-action="cancel"]') : null;
+                if (!action || !modal.contains(action)) return;
+                event.preventDefault();
+                cleanup();
+                const error = new Error('Đã hủy mở cửa sổ xác minh.');
+                error.ndVerificationCancelled = true;
+                reject(error);
+            };
+
+            title.textContent = options.title || 'Website cần xác minh';
+            message.textContent = options.message || 'Mở cửa sổ xác minh, hoàn tất yêu cầu của website và giữ cửa sổ đó để script tiếp tục.';
+            imageRow.style.display = 'none';
+            input.style.display = 'none';
+            submitButton.textContent = options.buttonText || 'Mở cửa sổ xác minh';
+            form.addEventListener('submit', onSubmit);
+            modal.addEventListener('click', onClick);
+            modal.classList.add('is-visible');
+            window.setTimeout(() => submitButton.focus(), 0);
         });
     }
 
@@ -1239,11 +1475,15 @@ function decryptDES(encrypted, key, iv) {
         modelPredictionsLog: [],
         mode: null, // 1=index 2=chapter
         rule: null, // 当前规则
-        book: {
-            image: [],
-        },
+        book: {},
         xhr,
     };
+    const savedConfig = { ...GM_getValue('config', {}) };
+    const obsoleteEpubSettingKeys = ['image', 'css', 'tocIndent', 'epubVersion'];
+    if (obsoleteEpubSettingKeys.some((key) => Object.prototype.hasOwnProperty.call(savedConfig, key))) {
+        obsoleteEpubSettingKeys.forEach((key) => delete savedConfig[key]);
+        GM_setValue('config', savedConfig);
+    }
     const Config = {
         thread: 5,
         retry: 3,
@@ -1257,12 +1497,10 @@ function decryptDES(encrypted, key, iv) {
         delayBetweenChapters: 2000,
         failedCount: 5,
         failedWait: 60,
-        image: true,
         addChapterNext: true,
         removeEmptyLine: 'auto',
-        css: 'body {\n  line-height: 130%;\n  text-align: justify;\n  font-family: \\"Microsoft YaHei\\";\n  font-size: 22px;\n  margin: 0 auto;\n  background-color: #CCE8CF;\n  color: #000;\n}\n\nh1 {\n  text-align: center;\n  font-weight: bold;\n  font-size: 28px;\n}\n\nh2 {\n  text-align: center;\n  font-weight: bold;\n  font-size: 26px;\n}\n\nh3 {\n  text-align: center;\n  font-weight: bold;\n  font-size: 24px;\n}\n\np {\n  text-indent: 2em;\n}',
         customize: '[]',
-        ...GM_getValue('config', {}),
+        ...savedConfig,
     };
 
     // ============================================================================
@@ -11303,6 +11541,375 @@ function decryptDES(encrypted, key, iv) {
             },
             thread: 1,
         },
+        (() => {
+            const host = 'www.xjjxs.com';
+            const stateKey = '__ND_XJJXS_Verify_State__';
+            const blockedRe = /(challenge-platform|cdn-cgi\/challenge|cf-(?:turnstile|challenge|chl)|Just a moment|Attention Required|Cloudflare)/i;
+
+            const getState = () => {
+                const root = typeof unsafeWindow !== 'undefined' ? unsafeWindow : window;
+                if (!root[stateKey]) root[stateKey] = { popup: null, warned: false, loading: null };
+                return root[stateKey];
+            };
+
+            const parseHtml = (html) => new DOMParser().parseFromString(String(html || ''), 'text/html');
+            const isReady = (doc, selector) => Boolean(doc && !blockedRe.test(doc.documentElement?.outerHTML || '') && doc.querySelector(selector));
+
+            const readPopupPage = async (url, selector) => {
+                const state = getState();
+                if (state.loading) await state.loading.catch(() => {});
+
+                let resolveLoading;
+                state.loading = new Promise((resolve) => { resolveLoading = resolve; });
+                try {
+                    if (!state.warned) {
+                        state.warned = true;
+                        if (typeof window.ndShowToast === 'function') {
+                            window.ndShowToast('XJJXS cần xác minh. Hoàn tất trong cửa sổ vừa mở, script sẽ tự tiếp tục.', 'warning', 8000);
+                        }
+                    }
+
+                    let popup = state.popup;
+                    if (!popup || popup.closed) {
+                        popup = typeof requestNovelDownloaderVerificationWindow === 'function'
+                            ? await requestNovelDownloaderVerificationWindow({
+                                title: 'XJJXS cần xác minh',
+                                message: 'Mở cửa sổ XJJXS, hoàn tất Cloudflare nếu được hỏi và giữ cửa sổ để script tiếp tục tải.',
+                                url,
+                                windowName: '__ND_XJJXS_Verify__',
+                            })
+                            : window.open(url, '__ND_XJJXS_Verify__', 'width=620,height=760,resizable=yes,scrollbars=yes');
+                    } else {
+                        try {
+                            if (popup.location.href !== url) popup.location.href = url;
+                        } catch (error) {
+                            popup.location.href = url;
+                        }
+                    }
+                    state.popup = popup;
+                    if (!popup) throw new Error('XJJXS: Pop-up bị chặn. Hãy cho phép pop-up rồi thử lại.');
+                    try { popup.focus(); } catch (error) { /* ignore */ }
+
+                    const startedAt = Date.now();
+                    while (Date.now() - startedAt < 180000) {
+                        if (popup.closed) {
+                            throw new Error('XJJXS: Cửa sổ xác minh đã bị đóng. Đã dừng để không mở tab liên tục.');
+                        }
+                        try {
+                            const popupUrl = new URL(popup.location.href);
+                            const targetUrl = new URL(url);
+                            if (popupUrl.origin === targetUrl.origin && popupUrl.pathname === targetUrl.pathname && isReady(popup.document, selector)) {
+                                return parseHtml(popup.document.documentElement.outerHTML);
+                            }
+                        } catch (error) {
+                            // Cloudflare may temporarily move the popup to a challenge origin.
+                        }
+                        await new Promise((resolve) => setTimeout(resolve, 700));
+                    }
+                    throw new Error('XJJXS: Hết 180 giây chờ xác minh. Hãy xác minh xong rồi tải lại.');
+                } finally {
+                    resolveLoading();
+                    state.loading = null;
+                }
+            };
+
+            const loadPage = async (url, selector) => {
+                const absoluteUrl = new URL(url, location.href).href;
+                if (absoluteUrl === location.href && isReady(document, selector)) return document;
+                try {
+                    const response = await fetch(absoluteUrl, { credentials: 'include', redirect: 'follow' });
+                    const html = new TextDecoder('gb18030').decode(await response.arrayBuffer());
+                    const doc = parseHtml(html);
+                    if (response.ok && isReady(doc, selector)) return doc;
+                } catch (error) {
+                    console.warn('[XJJXS] Request thường thất bại, chuyển sang cửa sổ xác minh:', error);
+                }
+                return readPopupPage(absoluteUrl, selector);
+            };
+
+            const cleanTitle = (title) => String(title || '')
+                .replace(/\s*\(\s*\d+\s*\/\s*\d+\s*\)\s*$/, '')
+                .replace(/[\u0000-\u001f]+/g, '')
+                .trim();
+
+            return {
+                siteName: '久久小说网',
+                charset: 'gbk',
+                url: /:\/\/www\.xjjxs\.com\/(?:txt\d+\.html|\d+\/\d+\/(?:\d+\/?)?)(?:[?#].*)?$/,
+                chapterUrl: /:\/\/www\.xjjxs\.com\/\d+\/\d+\/\d+(?:_\d+)?\.html(?:[?#].*)?$/,
+                filter: () => {
+                    if (location.host !== host) return 0;
+                    if (document.querySelector('#chaptercontent')) return 2;
+                    if (document.querySelector('.book .right h1, .list-chapter')) return 1;
+                    return 0;
+                },
+                infoPage: () => {
+                    const link = document.querySelector('#info_url, a[href^="/txt"]');
+                    if (link && /\/txt\d+\.html/.test(link.getAttribute('href') || '')) return new URL(link.getAttribute('href'), location.href).href;
+                    const bookId = (location.pathname.match(/^\/\d+\/(\d+)/) || [])[1];
+                    return bookId ? `${location.origin}/txt${bookId}.html` : location.href;
+                },
+                title: '.book .right h1',
+                writer: '.book .right h2 span:first-child a',
+                intro: (doc) => {
+                    const intro = $('.book .intro', doc).first().clone();
+                    intro.contents().first().replaceWith(String(intro.contents().first().text() || '').replace(/^\s*小说简介[:：]?\s*/, ''));
+                    return intro.html() || '';
+                },
+                cover: '.book .cover img',
+                getChapters: async () => {
+                    const helpers = Rule.helpers;
+                    const infoMatch = location.pathname.match(/^\/txt(\d+)\.html/);
+                    const pathMatch = location.pathname.match(/^\/\d+\/(\d+)/);
+                    const bookId = (infoMatch || pathMatch || [])[1];
+                    if (!bookId) throw new Error('XJJXS: Không xác định được ID truyện.');
+                    const currentListMatch = location.pathname.match(/^\/(\d+)\/(\d+)\/(?:\d+\/?)?$/);
+                    const firstUrl = currentListMatch
+                        ? `${location.origin}/${currentListMatch[1]}/${bookId}/`
+                        : '';
+                    const infoListLink = document.querySelector('a.chapterlist[href]');
+                    const listUrl = infoListLink
+                        ? new URL(infoListLink.getAttribute('href'), location.href).href
+                        : (firstUrl || `${location.origin}/${String(bookId).slice(0, -3) || '0'}/${bookId}/`);
+                    const firstDoc = await loadPage(listUrl, '.list-chapter, #indexselect');
+                    const pageUrls = Array.from(firstDoc.querySelectorAll('#indexselect option[value]'))
+                        .map((option) => new URL(option.getAttribute('value'), listUrl).href);
+                    if (!pageUrls.length) pageUrls.push(listUrl);
+
+                    const chapters = [];
+                    for (const pageUrl of [...new Set(pageUrls)]) {
+                        const doc = pageUrl === listUrl ? firstDoc : await loadPage(pageUrl, '.list-chapter, #indexselect');
+                        Array.from(doc.querySelectorAll('.list-chapter .booklist a[href], .list-chapter a[href]')).forEach((link) => {
+                            const url = new URL(link.getAttribute('href'), pageUrl).href;
+                            if (!new RegExp(`/${bookId}/\\d+(?:_\\d+)?\\.html(?:$|[?#])`).test(url)) return;
+                            const title = cleanTitle(link.textContent);
+                            if (title) chapters.push({ title, url });
+                        });
+                    }
+                    return helpers.uniqueBy(chapters, (chapter) => chapter.url);
+                },
+                chapterTitle: (doc) => cleanTitle($('#chaptercontent', doc).closest('.book.read').find('h1').first().text() || $('h1', doc).first().text()),
+                deal: async (chapter) => {
+                    const parts = [];
+                    const visited = new Set();
+                    const baseId = (chapter.url.match(/\/(\d+)(?:_\d+)?\.html(?:$|[?#])/) || [])[1];
+                    let pageUrl = chapter.url;
+                    let title = chapter.title || '';
+
+                    for (let page = 0; pageUrl && !visited.has(pageUrl) && page < 30; page++) {
+                        visited.add(pageUrl);
+                        const doc = await loadPage(pageUrl, '#chaptercontent');
+                        title = cleanTitle(doc.querySelector('.book.read h1, h1')?.textContent || title);
+                        const content = doc.querySelector('#chaptercontent')?.cloneNode(true);
+                        if (!content || !content.textContent.trim()) throw new Error(`XJJXS: Không tìm thấy nội dung chương tại ${pageUrl}`);
+                        content.querySelectorAll('script,style,iframe,ins').forEach((node) => node.remove());
+                        parts.push(content.innerHTML.trim());
+
+                        const next = doc.querySelector('#next_url[href]');
+                        const nextUrl = next ? new URL(next.getAttribute('href'), pageUrl).href : '';
+                        pageUrl = baseId && new RegExp(`/${baseId}_\\d+\\.html(?:$|[?#])`).test(nextUrl) ? nextUrl : '';
+                    }
+                    return { title, content: parts.join('<br />') };
+                },
+                thread: 1,
+            };
+        })(),
+        (() => {
+            const host = 'www.azxxs.com';
+            const stateKey = '__ND_AZXXS_Verify_State__';
+            const blockedRe = /(challenge-platform|cdn-cgi\/challenge|cf-(?:turnstile|challenge|chl)|Just a moment|Attention Required|Cloudflare)/i;
+
+            const getState = () => {
+                const root = typeof unsafeWindow !== 'undefined' ? unsafeWindow : window;
+                if (!root[stateKey]) root[stateKey] = { popup: null, warned: false, loading: null };
+                return root[stateKey];
+            };
+
+            const parseHtml = (html) => new DOMParser().parseFromString(String(html || ''), 'text/html');
+            const isReady = (doc, selector) => Boolean(doc && !blockedRe.test(doc.documentElement?.outerHTML || '') && doc.querySelector(selector));
+
+            const readPopupPage = async (url, selector) => {
+                const state = getState();
+                if (state.loading) await state.loading.catch(() => {});
+
+                let resolveLoading;
+                state.loading = new Promise((resolve) => { resolveLoading = resolve; });
+                try {
+                    if (!state.warned) {
+                        state.warned = true;
+                        if (typeof window.ndShowToast === 'function') {
+                            window.ndShowToast('AZXXS cần xác minh. Hoàn tất trong cửa sổ vừa mở, script sẽ tự tiếp tục.', 'warning', 8000);
+                        }
+                    }
+
+                    let popup = state.popup;
+                    if (!popup || popup.closed) {
+                        popup = typeof requestNovelDownloaderVerificationWindow === 'function'
+                            ? await requestNovelDownloaderVerificationWindow({
+                                title: 'AZXXS cần xác minh',
+                                message: 'Mở cửa sổ AZXXS, hoàn tất Cloudflare nếu được hỏi và giữ cửa sổ để script tiếp tục tải.',
+                                url,
+                                windowName: '__ND_AZXXS_Verify__',
+                            })
+                            : window.open(url, '__ND_AZXXS_Verify__', 'width=620,height=760,resizable=yes,scrollbars=yes');
+                    } else {
+                        try {
+                            if (popup.location.href !== url) popup.location.href = url;
+                        } catch (error) {
+                            popup.location.href = url;
+                        }
+                    }
+                    state.popup = popup;
+                    if (!popup) throw new Error('AZXXS: Pop-up bị chặn. Hãy cho phép pop-up rồi thử lại.');
+                    try { popup.focus(); } catch (error) { /* ignore */ }
+
+                    const startedAt = Date.now();
+                    while (Date.now() - startedAt < 180000) {
+                        if (popup.closed) {
+                            throw new Error('AZXXS: Cửa sổ xác minh đã bị đóng. Đã dừng để không mở tab liên tục.');
+                        }
+                        try {
+                            const popupUrl = new URL(popup.location.href);
+                            const targetUrl = new URL(url);
+                            if (popupUrl.origin === targetUrl.origin && popupUrl.pathname === targetUrl.pathname && isReady(popup.document, selector)) {
+                                return parseHtml(popup.document.documentElement.outerHTML);
+                            }
+                        } catch (error) {
+                            // Cloudflare may temporarily move the popup to a challenge origin.
+                        }
+                        await new Promise((resolve) => setTimeout(resolve, 700));
+                    }
+                    throw new Error('AZXXS: Hết 180 giây chờ xác minh. Hãy xác minh xong rồi tải lại.');
+                } finally {
+                    resolveLoading();
+                    state.loading = null;
+                }
+            };
+
+            const loadPage = async (url, selector) => {
+                const absoluteUrl = new URL(url, location.href).href;
+                if (absoluteUrl === location.href && isReady(document, selector)) return document;
+                try {
+                    const response = await fetch(absoluteUrl, { credentials: 'include', redirect: 'follow' });
+                    const html = new TextDecoder('gb18030').decode(await response.arrayBuffer());
+                    const doc = parseHtml(html);
+                    if (response.ok && isReady(doc, selector)) return doc;
+                } catch (error) {
+                    console.warn('[AZXXS] Request thường thất bại, chuyển sang cửa sổ xác minh:', error);
+                }
+                return readPopupPage(absoluteUrl, selector);
+            };
+
+            const decodeCssContent = (value) => String(value || '')
+                .replace(/\\([0-9a-f]{1,6})\s?/gi, (all, hex) => String.fromCodePoint(parseInt(hex, 16)))
+                .replace(/\\a\s?/gi, '\n')
+                .replace(/\\(['"\\])/g, '$1');
+
+            const getPseudoContentMap = (doc) => {
+                const map = new Map();
+                Array.from(doc.querySelectorAll('style')).forEach((style) => {
+                    const css = style.textContent || '';
+                    const regex = /\.([\w-]+)::after\s*\{\s*content\s*:\s*(['"])((?:\\.|(?!\2)[\s\S])*?)\2\s*;?\s*\}/g;
+                    let match;
+                    while ((match = regex.exec(css))) map.set(match[1], decodeCssContent(match[3]));
+                });
+                return map;
+            };
+
+            const pseudoText = (element, map) => {
+                const plain = String(element.textContent || '').replace(/\u00a0/g, ' ').trim();
+                if (plain) return plain;
+                for (const className of Array.from(element.classList || [])) {
+                    if (map.has(className)) return String(map.get(className) || '').trim();
+                }
+                return '';
+            };
+
+            const cleanTitle = (title) => String(title || '')
+                .replace(/\s*\(\s*\d+\s*\/\s*\d+\s*\)\s*$/, '')
+                .trim();
+
+            return {
+                siteName: '晚安小说网',
+                charset: 'gbk',
+                url: /:\/\/www\.azxxs\.com\/gobook\/\d+(?:_\d+)?\/?(?:[?#].*)?$/,
+                chapterUrl: /:\/\/www\.azxxs\.com\/gobook\/\d+\/\d+(?:_\d+)?\.html(?:[?#].*)?$/,
+                filter: () => {
+                    if (location.host !== host) return 0;
+                    if (document.querySelector('#chapter-content')) return 2;
+                    if (document.querySelector('.book-info-header, .volume-title + .chapter-list')) return 1;
+                    return 0;
+                },
+                infoPage: () => {
+                    const match = location.pathname.match(/^\/gobook\/(\d+)/);
+                    return match ? `${location.origin}/gobook/${match[1]}/` : location.href;
+                },
+                title: '.book-title',
+                writer: (doc) => $('.book-author', doc).first().text().replace(/^\s*作者[:：]\s*/, '').trim(),
+                intro: '.book-tags',
+                cover: '.book-cover-large',
+                getChapters: async () => {
+                    const helpers = Rule.helpers;
+                    const bookId = (location.pathname.match(/^\/gobook\/(\d+)/) || [])[1];
+                    if (!bookId) throw new Error('AZXXS: Không xác định được ID truyện.');
+                    let pageUrl = `${location.origin}/gobook/${bookId}/`;
+                    const visitedPages = new Set();
+                    const chapters = [];
+
+                    for (let page = 0; pageUrl && !visitedPages.has(pageUrl) && page < 100; page++) {
+                        visitedPages.add(pageUrl);
+                        const doc = await loadPage(pageUrl, '.volume-title + .chapter-list');
+                        const contentMap = getPseudoContentMap(doc);
+                        Array.from(doc.querySelectorAll('.volume-title + .chapter-list a[class^="p_"][href]')).forEach((link) => {
+                            const url = new URL(link.getAttribute('href'), pageUrl).href;
+                            if (!new RegExp(`/gobook/${bookId}/\\d+(?:_\\d+)?\\.html(?:$|[?#])`).test(url)) return;
+                            const title = cleanTitle(pseudoText(link, contentMap));
+                            if (title) chapters.push({ title, url });
+                        });
+                        const next = Array.from(doc.querySelectorAll('a.onclick[href]'))
+                            .find((link) => /下一页/.test(link.textContent || ''));
+                        pageUrl = next ? new URL(next.getAttribute('href'), pageUrl).href : '';
+                    }
+                    return helpers.uniqueBy(chapters, (chapter) => chapter.url).sort((a, b) => {
+                        const aId = Number((a.url.match(/\/(\d+)(?:_\d+)?\.html/) || [])[1]);
+                        const bId = Number((b.url.match(/\/(\d+)(?:_\d+)?\.html/) || [])[1]);
+                        return aId - bId;
+                    });
+                },
+                chapterTitle: (doc) => cleanTitle($('.chapter-title', doc).first().text()),
+                deal: async (chapter) => {
+                    const parts = [];
+                    const visited = new Set();
+                    const baseId = (chapter.url.match(/\/(\d+)(?:_\d+)?\.html(?:$|[?#])/) || [])[1];
+                    let pageUrl = chapter.url;
+                    let title = chapter.title || '';
+
+                    for (let page = 0; pageUrl && !visited.has(pageUrl) && page < 30; page++) {
+                        visited.add(pageUrl);
+                        const doc = await loadPage(pageUrl, '#chapter-content');
+                        title = cleanTitle(doc.querySelector('.chapter-title')?.textContent || title);
+                        const content = doc.querySelector('#chapter-content');
+                        const contentMap = getPseudoContentMap(doc);
+                        const lines = Array.from(content.querySelectorAll(':scope > span'))
+                            .map((span) => pseudoText(span, contentMap))
+                            .filter(Boolean);
+                        if (!lines.length) {
+                            const fallback = String(content.textContent || '').replace(/\u00a0/g, ' ').trim();
+                            if (fallback) lines.push(fallback);
+                        }
+                        if (!lines.length) throw new Error(`AZXXS: Không giải mã được nội dung chương tại ${pageUrl}`);
+                        parts.push(lines.map((line) => $('<div>').text(line).html()).join('<br />'));
+
+                        const next = Array.from(doc.querySelectorAll('.chapter-nav a[href]'))
+                            .find((link) => /下一页|下一章/.test(link.textContent || ''));
+                        const nextUrl = next ? new URL(next.getAttribute('href'), pageUrl).href : '';
+                        pageUrl = baseId && new RegExp(`/${baseId}_\\d+\\.html(?:$|[?#])`).test(nextUrl) ? nextUrl : '';
+                    }
+                    return { title, content: parts.join('<br />') };
+                },
+                thread: 1,
+            };
+        })(),
     ];
     Rule.template = [ // 模板网站
         { // http://www.xbiquge.la/54/54439/
@@ -11772,7 +12379,7 @@ function decryptDES(encrypted, key, iv) {
             '  <br>',
             '  Bìa sách: <input type="text" name="cover">',
             '  <br>',
-            '  <span class="nd-info-actions"><button type="button" name="refresh-info" data-nd-action="refresh-info" disabled>Lấy lại info</button><button type="button" name="refresh-chapters" data-nd-action="refresh-chapters" disabled>Lấy lại DS chương</button></span>',
+            '  <span class="nd-info-actions"><button type="button" name="refresh-info" data-nd-action="refresh-info" disabled>Lấy lại info</button><button type="button" name="refresh-chapters" data-nd-action="refresh-chapters" disabled>Lấy lại DS chương</button><button type="button" name="request-rule" data-nd-action="request-rule">Yêu cầu rule</button></span>',
             '</div>',
 
             '<div name="config">',
@@ -11804,8 +12411,6 @@ function decryptDES(encrypted, key, iv) {
             '  <input type="checkbox" name="volume">Phân chia chương theo quyển',
             '  <br>',
             '  <span title="{title} Đại diện cho tiêu đề ban đầu\n{order} đại diện cho chương\neg:#{order} {title}\n Để trống để không đổi tên nó">Đối với TEXT: Đổi tên tiêu đề chương</span> <input type="text" name="titleRename">',
-            '  <br>',
-            '  <input type="checkbox" name="tocIndent">Đối với EPUB: Thụt lề theo tập trong mục lục',
             '  <br><span title="Lưu ý về Auto: Nếu chỉ có một đoạn văn bản giữa tất cả các dòng trống thì loại bỏ các dòng trống, nếu không thì giữ nguyên">Loại bỏ dòng trống</span>: <select name="removeEmptyLine">',
             '    <option value="auto">Auto</option>',
             '    <option value="remove">Loại bỏ tất cả dòng trống</option>',
@@ -11814,15 +12419,12 @@ function decryptDES(encrypted, key, iv) {
             '  <br>',
             '  Tải xuống liên tục thất bại<input type="number" name="failedCount" min="0" title="0为禁用"> lần, tạm dừng <input type="number" name="failedWait" min="0" title="0为手动继续"> giây sau đó tiếp tục tải xuống',
             '  <br>',
-            '  Epub CSS: <textarea name="css" placeholder="" style="line-height:1;resize:both;"></textarea>',
-            '  <br>',
             '  Quy tắc tùy chỉnh: <button type="button" name="open-rule-editor" data-nd-action="open-rule-editor">Quản lý rule</button>',
             '  <span name="customize-summary" class="nd-customize-summary">Chưa có rule tùy chỉnh</span>',
             '  <input type="hidden" name="customize">',
             '</div>',
 
             '<div name="config">',
-            '  <input type="checkbox" name="image"><span title="Nó chỉ có hiệu lực khi tải xuống EPUB và chỉ hỗ trợ các file img">Tải xuống hình ảnh</span>',
             '  <input type="checkbox" name="vip" confirm="Cần phải mua các chương VIP trước khi tải xuống\nNếu tính năng mua tự động được bật, tôi sẽ không chịu trách nhiệm về những tổn thất do tập lệnh này gây ra"><span>Tải xuống chương VIP</span>',
             '  <br>',
             '  <input type="checkbox" name="addChapterPrev"><span title="Dùng cho các trang web chia một chương thành nhiều trang\nTập lệnh sẽ lọc các chương đã tải xuống theo URL\nĐối với 1 số web, nó có thể khiến lặp lại việc tải xuống\nSẽ dẫn tới【Phạm vi tải xuống】、【Tải xuống hàng loạt】không hợp lệ">Tự động tăng thêm trước chương</span>',
@@ -11882,6 +12484,7 @@ function decryptDES(encrypted, key, iv) {
                 if (actionButton.dataset.ndAction === 'open-rule-editor') openNovelDownloaderRuleEditor({ container });
                 if (actionButton.dataset.ndAction === 'refresh-info') await reloadBookInfo(actionButton);
                 if (actionButton.dataset.ndAction === 'refresh-chapters') await reloadChapterList(actionButton);
+                if (actionButton.dataset.ndAction === 'request-rule') openNovelDownloaderRuleRequest();
                 return;
             }
             const button = event.target && event.target.closest ? event.target.closest('button[name="toggle"]') : null;
@@ -12327,6 +12930,7 @@ function decryptDES(encrypted, key, iv) {
         updateDownloadDirUI();
 
         container.find('[name="buttons"]').find('[name="download"]').on('click', async (e) => {
+            const format = $(e.target).attr('format');
             const rangeValue = String(container.find('[name="limit"]>[name="range"]').val() || '').trim();
             const batchValue = String(container.find('[name="limit"]>[name="batch"]').val() || '').trim();
             if (!batchValue && rangeValue) {
@@ -12341,6 +12945,8 @@ function decryptDES(encrypted, key, iv) {
                     return;
                 }
             }
+            const epubVersion = format === 'epub' ? await chooseNovelDownloaderEpubVersion() : null;
+            if (format === 'epub' && !epubVersion) return;
             container.find('[name="progress"]').show();
             //xhr.showDialog();
             container.find('[name="buttons"]').find('[name="download"]').attr('disabled', 'disabled');
@@ -12375,7 +12981,6 @@ function decryptDES(encrypted, key, iv) {
             }
             chaptersArr = Storage.book.chapters.map((i) => i.url);
 
-            const format = $(e.target).attr('format');
             const activeResumeTaskId = pendingResumeTaskId && pendingResumeData ? pendingResumeTaskId : null;
             if (activeResumeTaskId && typeof TaskManager.consumeResumeRequest === 'function') {
                 await TaskManager.consumeResumeRequest(activeResumeTaskId);
@@ -12660,7 +13265,7 @@ function decryptDES(encrypted, key, iv) {
                 }
 
                 //hết
-                await downloadTo[format](chapters);
+                await downloadTo[format](chapters, { epubVersion });
                 if (force) {
                     await archiveDownloadManagerTask('forced_saved', {
                         forcedSavedAt: new Date().toISOString(),
@@ -13583,6 +14188,45 @@ function decryptDES(encrypted, key, iv) {
     const getDownloadCreditLines = (credit) => [
         `Tạo bởi ${credit.projectName} v${credit.scriptVersion} (${credit.maintainer}) | ${credit.projectUrl} | Nguồn: ${credit.sourceUrl}`,
     ];
+    const ND_EPUB_STYLESHEET = [
+        'html { color-scheme: light dark; }',
+        'body { margin: 5%; line-height: 1.72; text-align: justify; font-family: serif; letter-spacing: 0; }',
+        'h1, h2, h3 { text-align: center; line-height: 1.35; page-break-after: avoid; }',
+        'h1 { font-size: 1.65em; margin: 1.2em 0 .7em; }',
+        'h2 { font-size: 1.2em; margin: .7em 0 1.2em; font-weight: normal; }',
+        'h3 { font-size: 1.25em; margin: .8em 0 1.5em; }',
+        'p { margin: .55em 0; text-indent: 2em; }',
+        'img { display: block; max-width: 100%; max-height: 90vh; height: auto; margin: 1em auto; }',
+        '.cover-page { text-align: center; page-break-after: always; }',
+        '.cover-page img { max-height: 72vh; margin: 1.5em auto; }',
+        '.book-intro { white-space: pre-wrap; text-align: left; }',
+        '.chapter-content { white-space: pre-line; }',
+        '.nd-credit { margin-top: 2em; padding-top: .8em; border-top: 1px solid #999; font-size: .78em; color: #666; text-align: left; }',
+        'nav ol { padding-left: 1.5em; }',
+        'nav li { margin: .45em 0; }',
+        'a { color: inherit; text-decoration: none; }'
+    ].join('\n');
+
+    function getEpubImageMeta(blob, fallback = 'image/jpeg') {
+        const mime = String(blob && blob.type || fallback).split(';')[0].toLowerCase();
+        const known = {
+            'image/jpeg': 'jpg',
+            'image/jpg': 'jpg',
+            'image/png': 'png',
+            'image/gif': 'gif',
+            'image/svg+xml': 'svg',
+            'image/webp': 'webp'
+        };
+        return { mime: known[mime] ? (mime === 'image/jpg' ? 'image/jpeg' : mime) : fallback, extension: known[mime] || 'jpg' };
+    }
+
+    function serializeEpubFragment(content) {
+        const holder = document.createElement('div');
+        holder.className = 'chapter-content';
+        holder.innerHTML = String(content || '').replace(/\r\n?/g, '\n').replace(/\n/g, '<br>');
+        holder.querySelectorAll('script,style,iframe,noscript').forEach((node) => node.remove());
+        return new XMLSerializer().serializeToString(holder);
+    }
 
     const downloadTo = {
         debug: async (chapters) => { // TODO
@@ -13620,175 +14264,175 @@ function decryptDES(encrypted, key, iv) {
             });
             download(blob, `${title}__${writer}.txt`);
         },
-        epub: async (chapters) => {
-            const { length } = String(chapters.length);
-            const title = Storage.book.title || Storage.book.chapters[0].title;
+        epub: async (chapters, options = {}) => {
+            const epubVersion = String(options.epubVersion || '2') === '3' ? '3' : '2';
+            const orderWidth = String(Math.max(chapters.length, 1)).length;
+            const title = Storage.book.title || chapters[0]?.title || 'Novel Downloader';
             const writer = Storage.book.writer || 'novelDownloader';
+            const language = $('html').attr('xml:lang') || $('html').attr('lang') || 'zh-CN';
             const credit = getDownloadCredit();
-            const uuid = `ndv3-${window.location.href.match(/[a-z0-9-]+/ig).join('-')}${ndUI$('.novel-downloader-v3').find('[name="limit"]>[name="range"]').val()}`;
-            const href = $('<div>').text(window.location.href).html();
-            const date = new Date().toISOString();
-            const creditSummary = getDownloadCreditLines(credit).join(' | ');
-            const epubDescription = [
-                Storage.book.intro || '',
-                Config.reference ? creditSummary : '',
-            ].filter(Boolean).join(' | ');
-            const creditHtml = getDownloadCreditLines(credit)
-                .map((line) => `<div>${escapeDownloadXml(line)}</div>`)
-                .join('');
+            const creditSummary = getDownloadCreditLines(credit)[0];
+            const sourceUrl = window.location.href;
+            const identifier = `urn:uuid:${window.crypto && window.crypto.randomUUID ? window.crypto.randomUUID() : `nd-${Date.now()}-${Math.random().toString(16).slice(2)}`}`;
+            const modified = new Date().toISOString().replace(/\.\d{3}Z$/, 'Z');
+            const introText = String(Storage.book.intro || '').trim();
+            const description = [introText, Config.reference ? creditSummary : ''].filter(Boolean).join(' | ');
 
             let cover = Storage.book.coverBlob;
-            if (!Storage.book.coverBlob && Storage.book.cover) {
+            if (!cover && Storage.book.cover) {
                 try {
-                    const res = await xhr.sync(Storage.book.cover, null, {
+                    const response = await xhr.sync(Storage.book.cover, null, {
                         responseType: 'arraybuffer',
                         timeout: Config.timeout * 10,
                     });
-                    Storage.book.coverBlob = new window.Blob([res.response], {
-                        type: res.responseHeaders.match(/content-type:\s*(image.*)/i) ? res.responseHeaders.match(/content-type:\s*(image.*)/i)[1] : 'image/png',
-                    });
-                    cover = Storage.book.coverBlob;
+                    const typeMatch = String(response.responseHeaders || '').match(/content-type:\s*([^;\r\n]+)/i);
+                    cover = new window.Blob([response.response], { type: typeMatch ? typeMatch[1] : 'image/jpeg' });
+                    Storage.book.coverBlob = cover;
                 } catch (error) {
-                    console.error(error);
+                    console.warn('[ND EPUB] Không tải được bìa gốc, dùng bìa tạo tự động:', error);
                 }
             }
             if (!cover) cover = await getCover(title);
+            const coverMeta = getEpubImageMeta(cover);
+            const coverName = `cover.${coverMeta.extension}`;
+
+            const imageAssets = [];
+            const preparedContents = [];
+            for (const chapter of chapters) {
+                const contentDom = $('<div>').html(chapter.content || '');
+                for (const imageNode of contentDom.find('img').toArray()) {
+                    const rawUrl = $(imageNode).attr('src') || $(imageNode).attr('data-src') || '';
+                    if (!rawUrl) continue;
+                    let absoluteUrl;
+                    try {
+                        absoluteUrl = new URL(rawUrl, chapter.url || sourceUrl).href;
+                    } catch (error) {
+                        console.warn(`[ND EPUB] Bỏ qua URL ảnh không hợp lệ: ${rawUrl}`);
+                        $(imageNode).remove();
+                        continue;
+                    }
+                    let asset = imageAssets.find((item) => item.url === absoluteUrl);
+                    if (!asset) {
+                        try {
+                            const response = await xhr.sync(absoluteUrl, null, {
+                                responseType: 'arraybuffer',
+                                timeout: Config.timeout * 10,
+                            });
+                            const typeMatch = String(response.responseHeaders || '').match(/content-type:\s*([^;\r\n]+)/i);
+                            const blob = new window.Blob([response.response], { type: typeMatch ? typeMatch[1] : 'image/jpeg' });
+                            const meta = getEpubImageMeta(blob);
+                            const number = String(imageAssets.length + 1).padStart(4, '0');
+                            asset = { id: `image-${number}`, name: `image-${number}.${meta.extension}`, url: absoluteUrl, blob, mime: meta.mime };
+                            imageAssets.push(asset);
+                        } catch (error) {
+                            console.warn(`[ND EPUB] Bỏ qua ảnh không tải được: ${absoluteUrl}`, error);
+                        }
+                    }
+                    if (asset) {
+                        $(imageNode)
+                            .attr('src', `../Images/${asset.name}`)
+                            .attr('alt', $(imageNode).attr('alt') || '')
+                            .removeAttr('srcset data-src data-original loading');
+                    } else {
+                        $(imageNode).remove();
+                    }
+                }
+                preparedContents.push(contentDom.html() || '');
+            }
 
             const files = {
-                mimetype: 'application/epub+zip',
-                'META-INF/container.xml': '<?xml version="1.0" encoding="UTF-8"?><container version="1.0" xmlns="urn:oasis:names:tc:opendocument:xmlns:container"><rootfiles><rootfile full-path="OEBPS/content.opf" media-type="application/oebps-package+xml" /></rootfiles></container>',
-                'OEBPS/stylesheet.css': Config.css,
-                'OEBPS/cover.jpg': cover,
-                'OEBPS/content.opf': [
-                    `<?xml version="1.0" encoding="UTF-8"?><package version="2.0" unique-identifier="${uuid}" xmlns="http://www.idpf.org/2007/opf"><metadata xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:opf="http://www.idpf.org/2007/opf">`,
-                    `<dc:title>${escapeDownloadXml(title)}</dc:title>`,
-                    `<dc:creator>${escapeDownloadXml(writer)}</dc:creator>`,
-                    `<dc:publisher>${escapeDownloadXml(credit.projectName)}</dc:publisher>`,
-                    `<dc:description>${escapeDownloadXml(epubDescription)}</dc:description>`,
-                    Config.reference ? `<dc:rights>${escapeDownloadXml(creditSummary)}</dc:rights>` : '',
-                    `<dc:date>${date}</dc:date>`,
-                    `<dc:source>${href}</dc:source>`,
-                    `<dc:identifier id="${uuid}">urn:uuid:${uuid}</dc:identifier>`,
-                    `<dc:language>${$('html').attr('xml:lang') || $('html').attr('lang') || 'zh-CN'}</dc:language>`,
-                    '<meta name="cover" content="cover-image" /></metadata><manifest><item id="ncx" href="toc.ncx" media-type="application/x-dtbncx+xml"/><item id="cover" href="cover.html" media-type="application/xhtml+xml"/><item id="css" href="stylesheet.css" media-type="text/css"/>',
-                ].join(''),
-                'OEBPS/toc.ncx': `<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE ncx PUBLIC "-//NISO//DTD ncx 2005-1//EN" "http://www.daisy.org/z3986/2005/ncx-2005-1.dtd"><ncx xmlns="http://www.daisy.org/z3986/2005/ncx/" version="2005-1"><head><meta name="dtb:uid" content="urn:uuid:${uuid}"/><meta name="dtb:depth" content="1"/><meta name="dtb:totalPageCount" content="0"/><meta name="dtb:maxPageNumber" content="0"/></head><docTitle><text>${title}</text></docTitle><navMap><navPoint id="navpoint-1" playOrder="1"><navLabel><text>首页</text></navLabel><content src="cover.html"/></navPoint>`,
-                'OEBPS/cover.html': `<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.1//EN" "http://www.w3.org/TR/xhtml11/DTD/xhtml11.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><title>${title}</title><link type="text/css" rel="stylesheet" href="stylesheet.css" /><meta http-equiv="Content-Type" content="text/html; charset=utf-8" /></head><body>${[
-                    `<h1>${escapeDownloadXml(title)}</h1>`,
-                    Storage.book.writer ? `<h2>Tác giả: ${escapeDownloadXml(Storage.book.writer)}</h2>` : '',
-                    Storage.book.intro ? `<div><strong>Giới thiệu:</strong> ${escapeDownloadXml(Storage.book.intro)}</div>` : '',
-                    Config.reference ? `<hr /><div class="nd-credit"><strong>Thông tin tệp</strong>${creditHtml}</div>` : '',
-                ].filter((i) => i).join('')}</body></html>`,
+                'META-INF/container.xml': '<?xml version="1.0" encoding="UTF-8"?>\n<container version="1.0" xmlns="urn:oasis:names:tc:opendocument:xmlns:container"><rootfiles><rootfile full-path="OEBPS/content.opf" media-type="application/oebps-package+xml"/></rootfiles></container>',
+                'OEBPS/Styles/stylesheet.css': ND_EPUB_STYLESHEET,
+                [`OEBPS/Images/${coverName}`]: cover,
             };
 
-            if (Config.image) {
-                for (const chapter of Storage.book.chapters) {
-                    const contentDom = $('<div>').html(chapter.content);
-                    for (const url of $('img', contentDom).toArray().map((i) => $(i).attr('src'))) {
-                        if (!Storage.book.image.find((i) => i.raw === url)) {
-                            Storage.book.image.push({
-                                raw: url,
-                                url: new URL(url, chapter.url).href,
-                            });
-                        }
-                    }
-                }
+            const xhtmlPage = (pageTitle, body) => epubVersion === '3'
+                ? `<?xml version="1.0" encoding="UTF-8"?>\n<!DOCTYPE html><html xmlns="http://www.w3.org/1999/xhtml" xmlns:epub="http://www.idpf.org/2007/ops" lang="${escapeDownloadXml(language)}" xml:lang="${escapeDownloadXml(language)}"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/><title>${escapeDownloadXml(pageTitle)}</title><link rel="stylesheet" type="text/css" href="../Styles/stylesheet.css"/></head><body>${body}</body></html>`
+                : `<?xml version="1.0" encoding="UTF-8"?>\n<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.1//EN" "http://www.w3.org/TR/xhtml11/DTD/xhtml11.dtd"><html xmlns="http://www.w3.org/1999/xhtml" xml:lang="${escapeDownloadXml(language)}"><head><meta http-equiv="Content-Type" content="application/xhtml+xml; charset=UTF-8"/><title>${escapeDownloadXml(pageTitle)}</title><link rel="stylesheet" type="text/css" href="../Styles/stylesheet.css"/></head><body>${body}</body></html>`;
 
-                if (Storage.book.image.filter((i) => !i.content).length) {
-                    await new Promise((resolve, reject) => {
-                        xhr.init({
-                            retry: Config.retry,
-                            thread: Storage.rule.thread && Storage.rule.thread < Config.thread ? Storage.rule.thread : Config.thread,
-                            timeout: Config.timeout * 10,
-                            onComplete: () => {
-                                resolve();
-                            },
-                            checkLoad: async (res) => {
-                                if ((res.status > 0 && res.status < 200) || res.status >= 300) {
-                                    return false;
-                                }
-                                return true;
-                            },
-                        });
-                        xhr.showDialog();
-                        xhr.list(Storage.book.image.filter((i) => !i.content), {
-                            responseType: 'arraybuffer',
-                            onload: (res, reuqest) => {
-                                const index = Storage.book.image.indexOf(reuqest.raw);
-                                Storage.book.image[index].content = res.response;
-                                Storage.book.image[index].type = res.responseHeaders.match(/content-type:\s*image\/(.*)/i) ? res.responseHeaders.match(/content-type:\s*image\/(.*)/i)[1] : 'image/png';
-                            },
-                        });
-                        xhr.start();
-                    });
-                }
-
-                const { length } = String(Storage.book.image.length);
-                for (let i = 0; i < Storage.book.image.length; i++) {
-                    const imgOrder = String(i + 1).padStart(length, '0');
-                    const type = Storage.book.image[i].type ? Storage.book.image[i].type.split(';')[0] : 'png';
-                    const imgName = `img/img-${imgOrder}.${type}`;
-                    Storage.book.image[i].name = imgName;
-                    files['OEBPS/content.opf'] = `${files['OEBPS/content.opf']}<item id="img-${imgOrder}" href="${imgName}" media-type="image/jpeg"/>`;
-                    files[`OEBPS/${imgName}`] = Storage.book.image[i].content;
-                }
-
-                for (const chapter of Storage.book.chapters) {
-                    const contentDom = $('<div>').html(chapter.content);
-                    for (const elem of $('img', contentDom).toArray()) {
-                        if (Storage.book.image.find((i) => i.raw === $(elem).attr('src'))) {
-                            contentDom.find(elem).attr('src', Storage.book.image.find((i) => i.raw === $(elem).attr('src')).name);
-                        }
-                    }
-                    chapter.content = contentDom.html();
-                }
+            files['OEBPS/Text/cover.xhtml'] = xhtmlPage(title, [
+                '<div class="cover-page">',
+                `<img src="../Images/${coverName}" alt="${escapeDownloadXml(title)}"/>`,
+                `<h1>${escapeDownloadXml(title)}</h1>`,
+                Storage.book.writer ? `<h2>${escapeDownloadXml(writer)}</h2>` : '',
+                '</div>'
+            ].filter(Boolean).join(''));
+            if (introText) {
+                files['OEBPS/Text/intro.xhtml'] = xhtmlPage('Giới thiệu', [
+                    '<div><h1>Giới thiệu</h1>',
+                    `<div class="book-intro">${escapeDownloadXml(introText)}</div>`,
+                    Config.reference ? `<div class="nd-credit">${escapeDownloadXml(creditSummary)}</div>` : '',
+                    '</div>'
+                ].filter(Boolean).join(''));
             }
 
-            let itemref = '<itemref idref="cover" linear="yes"/>';
-            let volumeCurrent;
-            for (let i = 0; i < chapters.length; i++) {
-                const chapter = chapters[i];
-                const chapterName = chapter.title;
-                const chapterOrder = String(i + 1).padStart(length, '0');
-                const chapterContent = replaceWithDict(chapter.content.trim(), [
-                    [/\n/g, '</p><p>'], [/<p>\s+/g, '<p>'],
-                    [/&[a-z]+;/g, (match) => {
-                        const text = $('<a>').html(match).text();
-                        if (text.length > 1) return match;
-                        return `&#${text.charCodeAt(0)};`;
-                    }],
-                ]);
+            const chapterManifest = [];
+            const chapterSpine = [];
+            const tocItems = [];
+            const ncxItems = [];
+            const ncxChapterStart = introText ? 4 : 3;
+            chapters.forEach((chapter, index) => {
+                const order = String(index + 1).padStart(orderWidth, '0');
+                const chapterId = `chapter-${order}`;
+                const chapterFile = `${chapterId}.xhtml`;
+                const chapterTitle = String(chapter.title || `Chương ${index + 1}`).trim();
+                files[`OEBPS/Text/${chapterFile}`] = xhtmlPage(chapterTitle, `<div><h3>${escapeDownloadXml(chapterTitle)}</h3>${serializeEpubFragment(preparedContents[index])}</div>`);
+                chapterManifest.push(`<item id="${chapterId}" href="Text/${chapterFile}" media-type="application/xhtml+xml"/>`);
+                chapterSpine.push(`<itemref idref="${chapterId}"/>`);
+                tocItems.push(`<li><a href="Text/${chapterFile}">${escapeDownloadXml(chapterTitle)}</a></li>`);
+                ncxItems.push(`<navPoint id="nav-${index + ncxChapterStart}" playOrder="${index + ncxChapterStart}"><navLabel><text>${escapeDownloadXml(chapterTitle)}</text></navLabel><content src="Text/${chapterFile}"/></navPoint>`);
+            });
 
-                if (Config.tocIndent) {
-                    if (Config.volume && chapter.volume && chapter.volume !== volumeCurrent) {
-                        if (volumeCurrent) files['OEBPS/toc.ncx'] = `${files['OEBPS/toc.ncx']}</navPoint>`;
-                        volumeCurrent = chapter.volume;
-                        files['OEBPS/toc.ncx'] = `${files['OEBPS/toc.ncx']}<navPoint id="chapter${chapterOrder}" playOrder="${i + 2}"><navLabel><text>${chapterName}</text></navLabel><content src="${chapterOrder}.html"/>`;
-                    } else {
-                        files['OEBPS/toc.ncx'] = `${files['OEBPS/toc.ncx']}<navPoint id="chapter${chapterOrder}" playOrder="${i + 2}"><navLabel><text>${chapterName}</text></navLabel><content src="${chapterOrder}.html"/></navPoint>`;
-                    }
-                    if (Config.volume && chapter.volume && i === chapters.length - 1) files['OEBPS/toc.ncx'] = `${files['OEBPS/toc.ncx']}</navPoint>`;
-                } else {
-                    files['OEBPS/toc.ncx'] = `${files['OEBPS/toc.ncx']}<navPoint id="chapter${chapterOrder}" playOrder="${i + 2}"><navLabel><text>${chapterName}</text></navLabel><content src="${chapterOrder}.html"/></navPoint>`;
-                }
+            const tocEntries = [introText ? '<li><a href="intro.xhtml">Giới thiệu</a></li>' : '', ...tocItems].join('');
+            const navBody = epubVersion === '3'
+                ? `<nav epub:type="toc" id="toc"><h1>Mục lục</h1><ol>${tocEntries}</ol></nav><nav epub:type="landmarks" hidden="hidden"><ol><li><a epub:type="cover" href="cover.xhtml">Bìa</a></li><li><a epub:type="toc" href="toc.xhtml">Mục lục</a></li></ol></nav>`
+                : `<div id="toc"><h1>Mục lục</h1><ol>${tocEntries}</ol></div>`;
+            files['OEBPS/Text/toc.xhtml'] = xhtmlPage('Mục lục', navBody);
 
-                files['OEBPS/content.opf'] = `${files['OEBPS/content.opf']}<item id="chapter${chapterOrder}" href="${chapterOrder}.html" media-type="application/xhtml+xml"/>`;
-                itemref = `${itemref}<itemref idref="chapter${chapterOrder}" linear="yes"/>`;
-                files[`OEBPS/${chapterOrder}.html`] = `<html xmlns="http://www.w3.org/1999/xhtml"><head><title>${chapterName}</title><link type="text/css" rel="stylesheet" media="all" href="stylesheet.css" /><meta http-equiv="Content-Type" content="text/html; charset=utf-8" /></head><body><h3>${chapterName}</h3>` + `<div><p>${chapterContent}</p></div></body></html>`;
+            const imageManifest = imageAssets.map((asset) => `<item id="${asset.id}" href="Images/${asset.name}" media-type="${asset.mime}"/>`);
+            imageAssets.forEach((asset) => { files[`OEBPS/Images/${asset.name}`] = asset.blob; });
+            const commonMetadata = [
+                '<metadata xmlns:dc="http://purl.org/dc/elements/1.1/">',
+                `<dc:identifier id="BookId">${escapeDownloadXml(identifier)}</dc:identifier>`,
+                `<dc:title>${escapeDownloadXml(title)}</dc:title>`,
+                `<dc:creator>${escapeDownloadXml(writer)}</dc:creator>`,
+                `<dc:language>${escapeDownloadXml(language)}</dc:language>`,
+                `<dc:publisher>${escapeDownloadXml(credit.projectName)}</dc:publisher>`,
+                `<dc:description>${escapeDownloadXml(description)}</dc:description>`,
+                `<dc:source>${escapeDownloadXml(sourceUrl)}</dc:source>`,
+                `<dc:date>${modified}</dc:date>`,
+                Config.reference ? `<dc:rights>${escapeDownloadXml(creditSummary)}</dc:rights>` : '',
+                epubVersion === '3' ? `<meta property="dcterms:modified">${modified}</meta>` : '<meta name="cover" content="cover-image"/>',
+                '</metadata>'
+            ].filter(Boolean).join('');
+            const manifest = [
+                '<manifest>',
+                epubVersion === '2' ? '<item id="ncx" href="toc.ncx" media-type="application/x-dtbncx+xml"/>' : '',
+                `<item id="nav" href="Text/toc.xhtml" media-type="application/xhtml+xml"${epubVersion === '3' ? ' properties="nav"' : ''}/>` ,
+                '<item id="cover" href="Text/cover.xhtml" media-type="application/xhtml+xml"/>',
+                introText ? '<item id="intro" href="Text/intro.xhtml" media-type="application/xhtml+xml"/>' : '',
+                '<item id="stylesheet" href="Styles/stylesheet.css" media-type="text/css"/>',
+                `<item id="cover-image" href="Images/${coverName}" media-type="${coverMeta.mime}"${epubVersion === '3' ? ' properties="cover-image"' : ''}/>` ,
+                ...imageManifest,
+                ...chapterManifest,
+                '</manifest>'
+            ].filter(Boolean).join('');
+            const spine = `<spine${epubVersion === '2' ? ' toc="ncx"' : ''}><itemref idref="cover"/>${introText ? '<itemref idref="intro"/>' : ''}<itemref idref="nav"/>${chapterSpine.join('')}</spine>`;
+            const guide = epubVersion === '2' ? '<guide><reference type="cover" title="Bìa" href="Text/cover.xhtml"/><reference type="toc" title="Mục lục" href="Text/toc.xhtml"/></guide>' : '';
+            files['OEBPS/content.opf'] = `<?xml version="1.0" encoding="UTF-8"?>\n<package xmlns="http://www.idpf.org/2007/opf" version="${epubVersion}.0" unique-identifier="BookId">${commonMetadata}${manifest}${spine}${guide}</package>`;
+
+            if (epubVersion === '2') {
+                const tocPlayOrder = introText ? 3 : 2;
+                files['OEBPS/toc.ncx'] = `<?xml version="1.0" encoding="UTF-8"?>\n<!DOCTYPE ncx PUBLIC "-//NISO//DTD ncx 2005-1//EN" "http://www.daisy.org/z3986/2005/ncx-2005-1.dtd"><ncx xmlns="http://www.daisy.org/z3986/2005/ncx/" version="2005-1"><head><meta name="dtb:uid" content="${escapeDownloadXml(identifier)}"/><meta name="dtb:depth" content="1"/><meta name="dtb:totalPageCount" content="0"/><meta name="dtb:maxPageNumber" content="0"/></head><docTitle><text>${escapeDownloadXml(title)}</text></docTitle><navMap><navPoint id="nav-1" playOrder="1"><navLabel><text>Bìa</text></navLabel><content src="Text/cover.xhtml"/></navPoint>${introText ? '<navPoint id="nav-2" playOrder="2"><navLabel><text>Giới thiệu</text></navLabel><content src="Text/intro.xhtml"/></navPoint>' : ''}<navPoint id="nav-toc" playOrder="${tocPlayOrder}"><navLabel><text>Mục lục</text></navLabel><content src="Text/toc.xhtml"/></navPoint>${ncxItems.join('')}</navMap></ncx>`;
             }
-            files['OEBPS/content.opf'] = `${files['OEBPS/content.opf']}<item id="cover-image" href="cover.jpg" media-type="image/jpeg"/></manifest><spine toc="ncx">${itemref}</spine><guide><reference href="cover.html" type="cover" title="Cover"/></guide></package>`;
-            files['OEBPS/toc.ncx'] = `${files['OEBPS/toc.ncx']}</navMap></ncx>`;
 
             const zip = new JSZip();
-            for (const file in files) {
-                zip.file(file, files[file]);
-            }
+            zip.file('mimetype', 'application/epub+zip', { compression: 'STORE' });
+            Object.entries(files).forEach(([name, content]) => zip.file(name, content));
             const file = await zip.generateAsync({
                 type: 'blob',
                 compression: 'DEFLATE',
-                compressionOptions: {
-                    level: 9,
-                },
+                compressionOptions: { level: 9 },
             });
             download(file, `${title}__${writer}.epub`);
         },

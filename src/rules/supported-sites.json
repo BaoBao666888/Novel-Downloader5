@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "updatedAt": "2026-06-11",
+  "updatedAt": "2026-08-19",
   "source": "src/rules/special",
   "sites": [
     {
@@ -1666,6 +1666,24 @@
       "kind": "special",
       "domains": [
         "m.bangliaojian.com"
+      ]
+    },
+    {
+      "name": "久久小说网",
+      "ruleName": "久久小说网",
+      "file": "src/rules/special/0185-xjjxs-com.rule.js",
+      "kind": "special",
+      "domains": [
+        "www.xjjxs.com"
+      ]
+    },
+    {
+      "name": "晚安小说网",
+      "ruleName": "晚安小说网",
+      "file": "src/rules/special/0186-azxxs-com.rule.js",
+      "kind": "special",
+      "domains": [
+        "www.azxxs.com"
       ]
     }
   ]
