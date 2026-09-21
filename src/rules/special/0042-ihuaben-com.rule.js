@@ -1,166 +1,176 @@
-// @rule-name: 画本 (ihuaben)
+// @rule-name: 话本小说 (ihuaben)
 // @rule-source: special
 (
 // @rule-begin
 
-        //https://www.ihuaben.com/
+        // https://www.ihuaben.com/
         {
-            siteName: '画本 (ihuaben)',
-            filter: () => window.location.host === 'www.ihuaben.com',
+            siteName: '话本小说 (ihuaben)',
+            filter: () => {
+                if (!/(^|\.)ihuaben\.com$/i.test(window.location.hostname)) return false;
+                if (/^\/book\/\d+\/\d+\.html$/i.test(window.location.pathname)) return 2;
+                if (/^\/(?:book|list)\/\d+(?:\.html)?\/?$/i.test(window.location.pathname)) return 1;
+                return false;
+            },
+
+            _extractBookId: (url = window.location.href) => {
+                const match = String(url || '').match(/\/(?:book|list)\/(\d+)/i);
+                return match ? match[1] : '';
+            },
+
+            _fetchJson: async (url) => {
+                let fetchError = null;
+                try {
+                    const response = await fetch(url, {
+                        credentials: 'include',
+                        headers: { Accept: 'application/json, text/javascript, */*; q=0.01' }
+                    });
+                    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+                    return await response.json();
+                } catch (error) {
+                    fetchError = error;
+                }
+
+                try {
+                    const response = await xhr.sync(url, null, {
+                        method: 'GET',
+                        responseType: 'text',
+                        timeout: Config.timeout
+                    });
+                    const text = String(response.responseText || response.response || '').trim();
+                    if (!text) throw fetchError || new Error('Phản hồi rỗng');
+                    try {
+                        return JSON.parse(text);
+                    } catch (error) {
+                        const jsonp = text.match(/^[^(]*\(([\s\S]*)\)\s*;?$/);
+                        if (!jsonp) throw error;
+                        return JSON.parse(jsonp[1]);
+                    }
+                } catch (error) {
+                    throw new Error(`Không gọi được API iHuaben: ${(fetchError || error).message || error}`);
+                }
+            },
+
+            _normalizeMediaUrl: (url) => {
+                const value = String(url || '').trim();
+                if (!value) return '';
+                if (/^https?:\/\//i.test(value)) return value.replace(/^http:\/\//i, 'https://');
+                if (value.startsWith('//')) return `https:${value}`;
+                return `https://piccn.ihuaben.com/${value.replace(/^\/+/, '')}`;
+            },
+
+            _formatContent: function (rawContent) {
+                let text = Array.isArray(rawContent)
+                    ? rawContent.filter(item => item != null).join('\n')
+                    : String(rawContent || '');
+
+                text = text.replace(/\[img:([^\]]+)\]/gi, (_, src) => {
+                    const imageUrl = this._normalizeMediaUrl(src);
+                    return imageUrl ? `[img:${imageUrl}]` : '';
+                });
+
+                if (/<\/?(?:p|div|br|span|i|a|img)\b/i.test(text) || /&(?:nbsp|amp|lt|gt|quot|#\d+);/i.test(text)) {
+                    const box = document.createElement('div');
+                    box.innerHTML = text;
+                    box.querySelectorAll('img').forEach((img) => {
+                        const imageUrl = this._normalizeMediaUrl(img.getAttribute('src') || img.getAttribute('data-src'));
+                        img.replaceWith(document.createTextNode(imageUrl ? `\n[img:${imageUrl}]\n` : ''));
+                    });
+                    box.querySelectorAll('br').forEach(br => br.replaceWith(document.createTextNode('\n')));
+                    box.querySelectorAll('p,div').forEach(el => el.appendChild(document.createTextNode('\n')));
+                    text = box.textContent || '';
+                }
+
+                return text
+                    .replace(/\r\n?/g, '\n')
+                    .split('\n')
+                    .map(line => line.trim())
+                    .filter(line => line && line !== '.')
+                    .map((line) => {
+                        const dialogue = line.match(/^#{1,2}\s*([^\s#]+)\s+(.+)$/);
+                        return dialogue ? `${dialogue[1]}：“${dialogue[2]}”` : line;
+                    })
+                    .join('\n\n')
+                    .trim();
+            },
 
             infoPage: () => {
-                const match = location.pathname.match(/\/book\/(\d+)\/\d+\.html/);
-                if (match && match[1]) {
-                    return `https://www.ihuaben.com/book/${match[1]}.html`;
-                }
-                return location.href;
+                const match = window.location.href.match(/\/(?:book|list)\/(\d+)/i);
+                const bookId = match ? match[1] : '';
+                return bookId ? `https://www.ihuaben.com/book/${bookId}.html` : window.location.href;
             },
 
-            title: '.infodetail .simpleinfo h1.text-danger',
-            writer: '.infodetail .simpleinfo a.text-muted',
-            intro: '.infodetail .text-muted.aboutbook.hidden-xs.hidden-sm',
+            title: (doc) => {
+                const element = doc.querySelector('.infodetail .simpleinfo h1.text-danger, .infodetail .simpleinfo h1');
+                const meta = doc.querySelector('meta[property="og:novel:book_name"], meta[property="og:title"]');
+                return element && element.textContent.trim() || meta && meta.getAttribute('content') || '';
+            },
+            writer: (doc) => {
+                const element = doc.querySelector('.infodetail .simpleinfo a.text-muted, .infodetail .simpleinfo a');
+                const meta = doc.querySelector('meta[property="og:novel:author"]');
+                return element && element.textContent.trim() || meta && meta.getAttribute('content') || '';
+            },
+            intro: (doc) => {
+                const element = doc.querySelector('.infodetail .aboutbook');
+                const meta = doc.querySelector('meta[property="og:description"], meta[name="description"]');
+                return element && element.innerHTML || meta && meta.getAttribute('content') || '';
+            },
             cover: (doc) => {
-                const img = doc.querySelector('.biginfo .cover img');
-                if (!img) return null;
-                const src = img.getAttribute('src');
-                return src ? 'https:' + src.split('?')[0] : null;
-            },
-            getChapters: async () => {
-                const bookIdMatch = window.location.pathname.match(/book\/(\d+)/);
-                if (!bookIdMatch) {
-                    console.error("Ihuaben Rule: Không thể lấy bookId từ URL.");
-                    return [];
-                }
-                const bookId = bookIdMatch[1];
-                const apiUrl = `https://www.ihuaben.com/book/chapters/${bookId}`;
-                const apiHeaders = { 'User-Agent': 'Mozilla/5.0 (Linux; Android 10; Mobile) Chrome/90.0.0.0 Mobile Safari/537.36' };
-
-                try {
-                    const res = await xhr.sync(apiUrl, null, { method: 'GET', headers: apiHeaders });
-
-                    let data;
-                    try {
-                        data = JSON.parse(res.responseText);
-                    } catch (e) {
-                        console.warn("Parse JSON thất bại, thử fallback sang JSONP...");
-                        const jsonpMatch = res.responseText.match(/\(([\s\S]*)\)/);
-                        if (jsonpMatch && jsonpMatch[1]) {
-                            data = JSON.parse(jsonpMatch[1]);
-                        } else {
-                            console.error("Phản hồi API không phải JSON hay JSONP:", res.responseText);
-                            throw new Error("Phản hồi API không phải là JSON hoặc JSONP hợp lệ.");
-                        }
-                    }
-
-                    if (!data || data.code !== 0 || !Array.isArray(data.chapters)) {
-                        throw new Error("Dữ liệu API không hợp lệ hoặc không có chương nào.");
-                    }
-
-                    data.chapters.forEach((chap, index) => {
-                        if (index > 0 && chap.marks.preChapterId && chap.marks.preChapterId !== data.chapters[index - 1].chapterId) {
-                            console.warn(`%cCảnh báo thứ tự chương: Chương "${chap.title}" có preChapterId không khớp.`, 'color: orange');
-                        }
-                    });
-
-                    const container = document.createElement("div");
-                    container.id = "ihuaben-chapter-container";
-                    container.style = "padding: 16px; border: 1px solid #ddd; border-radius: 8px; background: #f9f9f9; max-width: 800px; margin: 20px auto; box-shadow: 0 2px 5px rgba(0,0,0,0.1);";
-                    container.innerHTML = `<h2 style="text-align:center; color: #d9534f; margin-bottom: 15px;">📖 Danh sách chương (tải từ API)</h2>`;
-
-                    const chapterList = data.chapters.map((chap, index) => {
-                        let finalTitle = chap.title.trim();
-                        if (!/^第\d+章/.test(finalTitle)) {
-                            finalTitle = `第${index + 1}章 ${finalTitle}`;
-                        }
-
-                        const chapterInfo = {
-                            title: finalTitle,
-                            url: `https://www.ihuaben.com/book/${bookId}/${chap.chapterId}.html`,
-                            vip: false,
-                        };
-
-                        const link = document.createElement("a");
-                        link.href = chapterInfo.url;
-                        link.innerText = chapterInfo.title;
-                        link.setAttribute("novel-downloader-chapter", "");
-                        link.setAttribute("order", index + 1);
-                        link.style = "display: block; padding: 8px 12px; margin: 4px 0; border-left: 4px solid #5cb85c; background-color: #fff; color: #333; text-decoration: none; border-radius: 4px; transition: background-color 0.2s, transform 0.2s;";
-                        link.onmouseover = () => { link.style.backgroundColor = '#f0f0f0'; link.style.transform = 'translateX(5px)'; };
-                        link.onmouseout = () => { link.style.backgroundColor = '#fff'; link.style.transform = 'translateX(0px)'; };
-
-                        container.appendChild(link);
-                        return chapterInfo;
-                    });
-
-                    document.body.prepend(container);
-
-                    container.scrollIntoView({ behavior: 'smooth', block: 'start' });
-
-                    setTimeout(() => {
-                        document.querySelectorAll('a[order]').forEach(a => {
-                            if (!container.contains(a)) {
-                                a.removeAttribute('order');
-                                a.removeAttribute('novel-downloader-chapter');
-                            }
-                        });
-                    }, 500);
-
-                    console.log(`✅ Ihuaben Rule: Đã xử lý ${chapterList.length} chương.`);
-                    return chapterList;
-
-                } catch (err) {
-                    console.error('Ihuaben Rule: Lỗi khi lấy danh sách chương từ API:', err);
-                    alert('Lỗi khi tải danh sách chương từ API của ihuaben. Vui lòng xem console (F12) để biết chi tiết.');
-                    return [];
-                }
+                const image = doc.querySelector('.biginfo .cover img, .cover img');
+                const meta = doc.querySelector('meta[property="og:image"], meta[property="og:img"]');
+                const src = image && (image.getAttribute('src') || image.getAttribute('data-src'))
+                    || meta && meta.getAttribute('content');
+                const value = String(src || '').split('?')[0].split('@')[0].trim();
+                if (/^https?:\/\//i.test(value)) return value.replace(/^http:\/\//i, 'https://');
+                if (value.startsWith('//')) return `https:${value}`;
+                return value ? `https://piccn.ihuaben.com/${value.replace(/^\/+/, '')}` : '';
             },
 
-            deal: async (chapter) => {
-                try {
-                    const apiHeaders = { 'User-Agent': 'Mozilla/5.0 (Linux; Android 10; Mobile) Chrome/90.0.0.0 Mobile Safari/537.36' };
-                    const res = await xhr.sync(chapter.url, null, { method: 'GET', responseType: 'document', headers: apiHeaders });
-                    console.log(`Gọi api thành công: ${chapter.url}`)
-                    const doc = res.response;
+            getChapters: async function () {
+                const bookId = this._extractBookId(window.location.href);
+                if (!bookId) throw new Error('iHuaben: Không tìm thấy bookId trong URL hiện tại');
 
-                    const chapterTitle = chapter.title;
-                    const contentSource = $(doc).find('#contentsource');
+                const data = await this._fetchJson(`https://www.ihuaben.com/book/chapters/${bookId}`);
+                if (!data || data.code !== 0 || !Array.isArray(data.chapters) || !data.chapters.length) {
+                    throw new Error('iHuaben: API không trả về danh sách chương hợp lệ');
+                }
 
-                    if (!contentSource.length) {
-                        throw new Error("Không tìm thấy element #contentsource chứa nội dung.");
-                    }
-
-                    const processedLines = [];
-
-                    contentSource.children('p').each((_, p_element) => {
-                        const p = $(p_element);
-                        const firstChild = p.children().first();
-
-                        if (firstChild.length > 0 && (firstChild.is('i') || (firstChild.is('span') && firstChild.has('a')))) {
-                            const speaker = firstChild.text().trim();
-                            firstChild.remove();
-                            const dialogue = p.text().trim();
-
-                            if (dialogue) {
-                                processedLines.push(`${speaker}：“${dialogue}”`);
-                            }
-                        } else {
-                            const narrativeText = p.text().trim();
-                            if (narrativeText) {
-                                processedLines.push(narrativeText);
-                            }
-                        }
-                    });
-
+                return data.chapters.map((chapter, index) => {
+                    const rawTitle = String(chapter.title || '').trim() || `Chương ${index + 1}`;
+                    const title = /^第\d+[章话节卷篇]/.test(rawTitle)
+                        ? rawTitle
+                        : `第${index + 1}章 ${rawTitle}`;
                     return {
-                        title: chapterTitle,
-                        content: processedLines.join('\n\n')
+                        title,
+                        url: `https://www.ihuaben.com/book/${bookId}/${chapter.chapterId}.html`,
+                        vip: Boolean(chapter.chapterType && chapter.chapterType !== 'FREE')
                     };
-
-                } catch (err) {
-                    console.error(`Ihuaben Deal Error for ${chapter.url}:`, err);
-                    throw new Error(`Lỗi khi xử lý chương từ ihuaben: ${err.message || err}`);
-                }
+                }).filter(chapter => !/\/undefined\.html$/.test(chapter.url));
             },
+
+            deal: async function (chapter) {
+                const match = String(chapter && chapter.url || '').match(/\/book\/(\d+)\/(\d+)\.html/i);
+                if (!match) throw new Error(`iHuaben: URL chương không hợp lệ: ${chapter && chapter.url || ''}`);
+
+                const data = await this._fetchJson(
+                    `https://www.ihuaben.com/book/app/chapter?bookId=${encodeURIComponent(match[1])}&chapterId=${encodeURIComponent(match[2])}`
+                );
+                const chapterData = data && data.chapter;
+                if (!data || data.code !== 0 || !chapterData) {
+                    throw new Error(`iHuaben: API không trả về chương ${match[2]}`);
+                }
+
+                const marks = chapterData.marks && typeof chapterData.marks === 'object' ? chapterData.marks : {};
+                const content = this._formatContent(
+                    chapterData.content || marks.content || marks.contentText || marks.content_text || ''
+                );
+                if (!content) throw new Error(`iHuaben: Nội dung chương ${match[2]} rỗng hoặc chưa được cấp quyền`);
+
+                return {
+                    title: String(chapterData.title || chapter.title || '').trim(),
+                    content
+                };
+            }
         }
 // @rule-end
 )

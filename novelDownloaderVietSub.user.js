@@ -2,7 +2,7 @@
 // ==UserScript==
 // @name        novelDownloaderVietSub
 // @description Menu Download Novel hoặc nhấp đúp vào cạnh trái của trang để hiển thị bảng điều khiển
-// @version     3.5.448.16
+// @version     3.5.448.17
 // @author      dodying | BaoBao
 // @namespace   https://github.com/BaoBao666888/Novel-Downloader5
 // @supportURL  https://github.com/BaoBao666888/Novel-Downloader5/issues
@@ -13,7 +13,7 @@
 
 // @require     https://raw.githubusercontent.com/BaoBao666888/Novel-Downloader5/main/download-vietnamese.js?v=1.3.3
 // @require     https://raw.githubusercontent.com/BaoBao666888/Novel-Downloader5/main/nd-console-panel.js?v=1.0.4
-// @require     https://raw.githubusercontent.com/BaoBao666888/Novel-Downloader5/main/nd-download-manager.js?v=1.0.8
+// @require     https://raw.githubusercontent.com/BaoBao666888/Novel-Downloader5/main/nd-download-manager.js?v=1.0.9
 // @require     https://raw.githubusercontent.com/BaoBao666888/Novel-Downloader5/main/nd-file-save.js?v=1.0.0
 // @require     https://raw.githubusercontent.com/BaoBao666888/Novel-Downloader5/main/tools/nd-rule-editor/nd-rule-editor.js?v=1.1.0
 
@@ -211,7 +211,7 @@ function decryptDES(encrypted, key, iv) {
     // ============================================================================
 
     function getNovelDownloaderScriptVersion() {
-        return GM_info && GM_info.script && GM_info.script.version ? GM_info.script.version : '3.5.448.16';
+        return GM_info && GM_info.script && GM_info.script.version ? GM_info.script.version : '3.5.448.17';
     }
 
     function docList(items) {
@@ -224,6 +224,7 @@ function decryptDES(encrypted, key, iv) {
             docList([
                 'Mở UI bằng nút nổi <b>Novel Downloader</b>, menu Tampermonkey <b>Download Novel</b>, hoặc nhấp đúp cạnh trái trang.',
                 'Chọn <b>Tải xuống - TXT</b>, <b>Tải xuống - ZIP</b> hoặc <b>Tải xuống - EPUB</b> để bắt đầu tải. Khi chọn EPUB, script sẽ hỏi dùng EPUB 2 hay EPUB 3.',
+                'Nếu một tab khác đang tải trong cùng phiên trình duyệt, script sẽ đề nghị thêm truyện mới vào hàng chờ để giảm nguy cơ website giới hạn truy cập; vẫn có thể chọn tải song song.',
                 'Dùng <b>Lấy lại info</b> hoặc <b>Lấy lại DS chương</b> để gọi lại rule và cập nhật dữ liệu ngay trong UI.',
                 'Dùng <b>Yêu cầu rule</b> để điền thông tin website/lỗi rồi mở sẵn GitHub issue. Kiểm tra nội dung và tự nhấn <b>Create issue</b> trên GitHub.',
                 'Bấm <b>Chọn chương tải</b> để mở danh sách chương. Nhập phạm vi như <code>1-25, 35, 50</code>; trạng thái bên dưới sẽ báo số chương hợp lệ được chọn.',
@@ -284,6 +285,10 @@ function decryptDES(encrypted, key, iv) {
         return [
             `<h3>v${getNovelDownloaderScriptVersion()}</h3>`,
             docList([
+                'Thêm hàng chờ tải dùng chung giữa các tab trong cùng phiên trình duyệt: khi đã có truyện đang tải, popup ưu tiên <b>Thêm vào hàng chờ</b> nhưng vẫn cho phép <b>Tải song song</b>.',
+                'Task chờ được lưu trong Quản lý tải xuống, tự chạy theo thứ tự khi tới lượt và vẫn có thể tải lại; heartbeat hết hạn giúp tab đã đóng không khóa các lượt tải sau.',
+                'Sửa rule <b>话本小说 (ihuaben.com)</b>: nhận URL mục lục <code>/list/&lt;bookId&gt;.html</code>, nhận đúng trang sách/chương và lấy nội dung từ API hiện tại.',
+                'Giảm log lặp khi tải nhiều chương: bỏ log đồng bộ Quản lý tải xuống giữa các tab và chỉ hiện chi tiết từng chương/lô khi bật debug nội dung.',
                 'Thêm rule public cho <b>久久小说网 (xjjxs.com)</b> và <b>晚安小说网 (azxxs.com)</b>, hỗ trợ cửa sổ xác minh, mục lục phân trang và chương chia trang.',
                 'Thêm form <b>Yêu cầu rule</b>, tự điền môi trường và mở GitHub issue mới nhưng để user kiểm tra rồi tự gửi.',
                 'Xuất EPUB theo cấu trúc mới: hỏi EPUB 2/3, có cover, metadata, mục lục hiển thị, NCX cho EPUB 2 và nav cho EPUB 3; dọn các setting EPUB cũ.',
@@ -6314,164 +6319,174 @@ function decryptDES(encrypted, key, iv) {
 
         },
 
-        //https://www.ihuaben.com/
+        // https://www.ihuaben.com/
         {
-            siteName: '画本 (ihuaben)',
-            filter: () => window.location.host === 'www.ihuaben.com',
+            siteName: '话本小说 (ihuaben)',
+            filter: () => {
+                if (!/(^|\.)ihuaben\.com$/i.test(window.location.hostname)) return false;
+                if (/^\/book\/\d+\/\d+\.html$/i.test(window.location.pathname)) return 2;
+                if (/^\/(?:book|list)\/\d+(?:\.html)?\/?$/i.test(window.location.pathname)) return 1;
+                return false;
+            },
+
+            _extractBookId: (url = window.location.href) => {
+                const match = String(url || '').match(/\/(?:book|list)\/(\d+)/i);
+                return match ? match[1] : '';
+            },
+
+            _fetchJson: async (url) => {
+                let fetchError = null;
+                try {
+                    const response = await fetch(url, {
+                        credentials: 'include',
+                        headers: { Accept: 'application/json, text/javascript, */*; q=0.01' }
+                    });
+                    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+                    return await response.json();
+                } catch (error) {
+                    fetchError = error;
+                }
+
+                try {
+                    const response = await xhr.sync(url, null, {
+                        method: 'GET',
+                        responseType: 'text',
+                        timeout: Config.timeout
+                    });
+                    const text = String(response.responseText || response.response || '').trim();
+                    if (!text) throw fetchError || new Error('Phản hồi rỗng');
+                    try {
+                        return JSON.parse(text);
+                    } catch (error) {
+                        const jsonp = text.match(/^[^(]*\(([\s\S]*)\)\s*;?$/);
+                        if (!jsonp) throw error;
+                        return JSON.parse(jsonp[1]);
+                    }
+                } catch (error) {
+                    throw new Error(`Không gọi được API iHuaben: ${(fetchError || error).message || error}`);
+                }
+            },
+
+            _normalizeMediaUrl: (url) => {
+                const value = String(url || '').trim();
+                if (!value) return '';
+                if (/^https?:\/\//i.test(value)) return value.replace(/^http:\/\//i, 'https://');
+                if (value.startsWith('//')) return `https:${value}`;
+                return `https://piccn.ihuaben.com/${value.replace(/^\/+/, '')}`;
+            },
+
+            _formatContent: function (rawContent) {
+                let text = Array.isArray(rawContent)
+                    ? rawContent.filter(item => item != null).join('\n')
+                    : String(rawContent || '');
+
+                text = text.replace(/\[img:([^\]]+)\]/gi, (_, src) => {
+                    const imageUrl = this._normalizeMediaUrl(src);
+                    return imageUrl ? `[img:${imageUrl}]` : '';
+                });
+
+                if (/<\/?(?:p|div|br|span|i|a|img)\b/i.test(text) || /&(?:nbsp|amp|lt|gt|quot|#\d+);/i.test(text)) {
+                    const box = document.createElement('div');
+                    box.innerHTML = text;
+                    box.querySelectorAll('img').forEach((img) => {
+                        const imageUrl = this._normalizeMediaUrl(img.getAttribute('src') || img.getAttribute('data-src'));
+                        img.replaceWith(document.createTextNode(imageUrl ? `\n[img:${imageUrl}]\n` : ''));
+                    });
+                    box.querySelectorAll('br').forEach(br => br.replaceWith(document.createTextNode('\n')));
+                    box.querySelectorAll('p,div').forEach(el => el.appendChild(document.createTextNode('\n')));
+                    text = box.textContent || '';
+                }
+
+                return text
+                    .replace(/\r\n?/g, '\n')
+                    .split('\n')
+                    .map(line => line.trim())
+                    .filter(line => line && line !== '.')
+                    .map((line) => {
+                        const dialogue = line.match(/^#{1,2}\s*([^\s#]+)\s+(.+)$/);
+                        return dialogue ? `${dialogue[1]}：“${dialogue[2]}”` : line;
+                    })
+                    .join('\n\n')
+                    .trim();
+            },
 
             infoPage: () => {
-                const match = location.pathname.match(/\/book\/(\d+)\/\d+\.html/);
-                if (match && match[1]) {
-                    return `https://www.ihuaben.com/book/${match[1]}.html`;
-                }
-                return location.href;
+                const match = window.location.href.match(/\/(?:book|list)\/(\d+)/i);
+                const bookId = match ? match[1] : '';
+                return bookId ? `https://www.ihuaben.com/book/${bookId}.html` : window.location.href;
             },
 
-            title: '.infodetail .simpleinfo h1.text-danger',
-            writer: '.infodetail .simpleinfo a.text-muted',
-            intro: '.infodetail .text-muted.aboutbook.hidden-xs.hidden-sm',
+            title: (doc) => {
+                const element = doc.querySelector('.infodetail .simpleinfo h1.text-danger, .infodetail .simpleinfo h1');
+                const meta = doc.querySelector('meta[property="og:novel:book_name"], meta[property="og:title"]');
+                return element && element.textContent.trim() || meta && meta.getAttribute('content') || '';
+            },
+            writer: (doc) => {
+                const element = doc.querySelector('.infodetail .simpleinfo a.text-muted, .infodetail .simpleinfo a');
+                const meta = doc.querySelector('meta[property="og:novel:author"]');
+                return element && element.textContent.trim() || meta && meta.getAttribute('content') || '';
+            },
+            intro: (doc) => {
+                const element = doc.querySelector('.infodetail .aboutbook');
+                const meta = doc.querySelector('meta[property="og:description"], meta[name="description"]');
+                return element && element.innerHTML || meta && meta.getAttribute('content') || '';
+            },
             cover: (doc) => {
-                const img = doc.querySelector('.biginfo .cover img');
-                if (!img) return null;
-                const src = img.getAttribute('src');
-                return src ? 'https:' + src.split('?')[0] : null;
-            },
-            getChapters: async () => {
-                const bookIdMatch = window.location.pathname.match(/book\/(\d+)/);
-                if (!bookIdMatch) {
-                    console.error("Ihuaben Rule: Không thể lấy bookId từ URL.");
-                    return [];
-                }
-                const bookId = bookIdMatch[1];
-                const apiUrl = `https://www.ihuaben.com/book/chapters/${bookId}`;
-                const apiHeaders = { 'User-Agent': 'Mozilla/5.0 (Linux; Android 10; Mobile) Chrome/90.0.0.0 Mobile Safari/537.36' };
-
-                try {
-                    const res = await xhr.sync(apiUrl, null, { method: 'GET', headers: apiHeaders });
-
-                    let data;
-                    try {
-                        data = JSON.parse(res.responseText);
-                    } catch (e) {
-                        console.warn("Parse JSON thất bại, thử fallback sang JSONP...");
-                        const jsonpMatch = res.responseText.match(/\(([\s\S]*)\)/);
-                        if (jsonpMatch && jsonpMatch[1]) {
-                            data = JSON.parse(jsonpMatch[1]);
-                        } else {
-                            console.error("Phản hồi API không phải JSON hay JSONP:", res.responseText);
-                            throw new Error("Phản hồi API không phải là JSON hoặc JSONP hợp lệ.");
-                        }
-                    }
-
-                    if (!data || data.code !== 0 || !Array.isArray(data.chapters)) {
-                        throw new Error("Dữ liệu API không hợp lệ hoặc không có chương nào.");
-                    }
-
-                    data.chapters.forEach((chap, index) => {
-                        if (index > 0 && chap.marks.preChapterId && chap.marks.preChapterId !== data.chapters[index - 1].chapterId) {
-                            console.warn(`%cCảnh báo thứ tự chương: Chương "${chap.title}" có preChapterId không khớp.`, 'color: orange');
-                        }
-                    });
-
-                    const container = document.createElement("div");
-                    container.id = "ihuaben-chapter-container";
-                    container.style = "padding: 16px; border: 1px solid #ddd; border-radius: 8px; background: #f9f9f9; max-width: 800px; margin: 20px auto; box-shadow: 0 2px 5px rgba(0,0,0,0.1);";
-                    container.innerHTML = `<h2 style="text-align:center; color: #d9534f; margin-bottom: 15px;">📖 Danh sách chương (tải từ API)</h2>`;
-
-                    const chapterList = data.chapters.map((chap, index) => {
-                        let finalTitle = chap.title.trim();
-                        if (!/^第\d+章/.test(finalTitle)) {
-                            finalTitle = `第${index + 1}章 ${finalTitle}`;
-                        }
-
-                        const chapterInfo = {
-                            title: finalTitle,
-                            url: `https://www.ihuaben.com/book/${bookId}/${chap.chapterId}.html`,
-                            vip: false,
-                        };
-
-                        const link = document.createElement("a");
-                        link.href = chapterInfo.url;
-                        link.innerText = chapterInfo.title;
-                        link.setAttribute("novel-downloader-chapter", "");
-                        link.setAttribute("order", index + 1);
-                        link.style = "display: block; padding: 8px 12px; margin: 4px 0; border-left: 4px solid #5cb85c; background-color: #fff; color: #333; text-decoration: none; border-radius: 4px; transition: background-color 0.2s, transform 0.2s;";
-                        link.onmouseover = () => { link.style.backgroundColor = '#f0f0f0'; link.style.transform = 'translateX(5px)'; };
-                        link.onmouseout = () => { link.style.backgroundColor = '#fff'; link.style.transform = 'translateX(0px)'; };
-
-                        container.appendChild(link);
-                        return chapterInfo;
-                    });
-
-                    document.body.prepend(container);
-
-                    container.scrollIntoView({ behavior: 'smooth', block: 'start' });
-
-                    setTimeout(() => {
-                        document.querySelectorAll('a[order]').forEach(a => {
-                            if (!container.contains(a)) {
-                                a.removeAttribute('order');
-                                a.removeAttribute('novel-downloader-chapter');
-                            }
-                        });
-                    }, 500);
-
-                    console.log(`✅ Ihuaben Rule: Đã xử lý ${chapterList.length} chương.`);
-                    return chapterList;
-
-                } catch (err) {
-                    console.error('Ihuaben Rule: Lỗi khi lấy danh sách chương từ API:', err);
-                    alert('Lỗi khi tải danh sách chương từ API của ihuaben. Vui lòng xem console (F12) để biết chi tiết.');
-                    return [];
-                }
+                const image = doc.querySelector('.biginfo .cover img, .cover img');
+                const meta = doc.querySelector('meta[property="og:image"], meta[property="og:img"]');
+                const src = image && (image.getAttribute('src') || image.getAttribute('data-src'))
+                    || meta && meta.getAttribute('content');
+                const value = String(src || '').split('?')[0].split('@')[0].trim();
+                if (/^https?:\/\//i.test(value)) return value.replace(/^http:\/\//i, 'https://');
+                if (value.startsWith('//')) return `https:${value}`;
+                return value ? `https://piccn.ihuaben.com/${value.replace(/^\/+/, '')}` : '';
             },
 
-            deal: async (chapter) => {
-                try {
-                    const apiHeaders = { 'User-Agent': 'Mozilla/5.0 (Linux; Android 10; Mobile) Chrome/90.0.0.0 Mobile Safari/537.36' };
-                    const res = await xhr.sync(chapter.url, null, { method: 'GET', responseType: 'document', headers: apiHeaders });
-                    console.log(`Gọi api thành công: ${chapter.url}`)
-                    const doc = res.response;
+            getChapters: async function () {
+                const bookId = this._extractBookId(window.location.href);
+                if (!bookId) throw new Error('iHuaben: Không tìm thấy bookId trong URL hiện tại');
 
-                    const chapterTitle = chapter.title;
-                    const contentSource = $(doc).find('#contentsource');
+                const data = await this._fetchJson(`https://www.ihuaben.com/book/chapters/${bookId}`);
+                if (!data || data.code !== 0 || !Array.isArray(data.chapters) || !data.chapters.length) {
+                    throw new Error('iHuaben: API không trả về danh sách chương hợp lệ');
+                }
 
-                    if (!contentSource.length) {
-                        throw new Error("Không tìm thấy element #contentsource chứa nội dung.");
-                    }
-
-                    const processedLines = [];
-
-                    contentSource.children('p').each((_, p_element) => {
-                        const p = $(p_element);
-                        const firstChild = p.children().first();
-
-                        if (firstChild.length > 0 && (firstChild.is('i') || (firstChild.is('span') && firstChild.has('a')))) {
-                            const speaker = firstChild.text().trim();
-                            firstChild.remove();
-                            const dialogue = p.text().trim();
-
-                            if (dialogue) {
-                                processedLines.push(`${speaker}：“${dialogue}”`);
-                            }
-                        } else {
-                            const narrativeText = p.text().trim();
-                            if (narrativeText) {
-                                processedLines.push(narrativeText);
-                            }
-                        }
-                    });
-
+                return data.chapters.map((chapter, index) => {
+                    const rawTitle = String(chapter.title || '').trim() || `Chương ${index + 1}`;
+                    const title = /^第\d+[章话节卷篇]/.test(rawTitle)
+                        ? rawTitle
+                        : `第${index + 1}章 ${rawTitle}`;
                     return {
-                        title: chapterTitle,
-                        content: processedLines.join('\n\n')
+                        title,
+                        url: `https://www.ihuaben.com/book/${bookId}/${chapter.chapterId}.html`,
+                        vip: Boolean(chapter.chapterType && chapter.chapterType !== 'FREE')
                     };
-
-                } catch (err) {
-                    console.error(`Ihuaben Deal Error for ${chapter.url}:`, err);
-                    throw new Error(`Lỗi khi xử lý chương từ ihuaben: ${err.message || err}`);
-                }
+                }).filter(chapter => !/\/undefined\.html$/.test(chapter.url));
             },
+
+            deal: async function (chapter) {
+                const match = String(chapter && chapter.url || '').match(/\/book\/(\d+)\/(\d+)\.html/i);
+                if (!match) throw new Error(`iHuaben: URL chương không hợp lệ: ${chapter && chapter.url || ''}`);
+
+                const data = await this._fetchJson(
+                    `https://www.ihuaben.com/book/app/chapter?bookId=${encodeURIComponent(match[1])}&chapterId=${encodeURIComponent(match[2])}`
+                );
+                const chapterData = data && data.chapter;
+                if (!data || data.code !== 0 || !chapterData) {
+                    throw new Error(`iHuaben: API không trả về chương ${match[2]}`);
+                }
+
+                const marks = chapterData.marks && typeof chapterData.marks === 'object' ? chapterData.marks : {};
+                const content = this._formatContent(
+                    chapterData.content || marks.content || marks.contentText || marks.content_text || ''
+                );
+                if (!content) throw new Error(`iHuaben: Nội dung chương ${match[2]} rỗng hoặc chưa được cấp quyền`);
+
+                return {
+                    title: String(chapterData.title || chapter.title || '').trim(),
+                    content
+                };
+            }
         },
 
         { // https://sangtacviet.com/truyen/ | https://sangtacviet.app/truyen/
@@ -12990,6 +13005,14 @@ function decryptDES(encrypted, key, iv) {
             let downloadManagerTaskId = null;
             let downloadManagerCancelled = false;
             let resolveDownloadManagerWait = null;
+            let downloadSessionHeartbeatTimer = null;
+            let downloadSessionHeartbeatBusy = false;
+            let downloadSessionStatus = 'queued';
+            let downloadSessionTaskStatus = null;
+            const downloadRuntimeSessionId = `nd-runtime-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
+            const downloadSessionHeartbeatInterval = 5000;
+            const downloadSessionHeartbeatTtl = 90000;
+            const getDownloadRuntimeKey = taskId => `nd_manager_runtime_${taskId}`;
             const getDownloadManagerProgress = () => {
                 const chapterList = Storage.book.chapters || [];
                 const completed = chapterList.filter(chapter => Boolean(chapter.contentRaw || chapter.content)).length;
@@ -13058,6 +13081,114 @@ function decryptDES(encrypted, key, iv) {
                     console.warn('[ND] Không thể cập nhật download manager:', error);
                 }
             };
+            const getDownloadRuntimeState = async (taskId) => {
+                if (!taskId) return null;
+                const runtime = await GM_getValue(getDownloadRuntimeKey(taskId));
+                if (!runtime || typeof runtime !== 'object') return null;
+                const heartbeatTime = new Date(runtime.heartbeatAt || 0).getTime();
+                if (!heartbeatTime || Date.now() - heartbeatTime > downloadSessionHeartbeatTtl) return null;
+                return runtime;
+            };
+            const getLiveDownloadSessionTasks = async (options = {}) => {
+                if (!TaskManager || typeof TaskManager.getState !== 'function') return [];
+                const state = await TaskManager.getState();
+                const statuses = options.statuses || ['downloading'];
+                const tasks = (state.queue || []).filter(task => task && task.id !== options.excludeTaskId);
+                const runtimePairs = await Promise.all(tasks.map(async task => ({
+                    task,
+                    runtime: await getDownloadRuntimeState(task.id)
+                })));
+                return runtimePairs
+                    .filter(item => item.runtime && statuses.includes(item.runtime.status))
+                    .map(item => Object.assign({}, item.task, { runtime: item.runtime }));
+            };
+            const touchDownloadSessionHeartbeat = async (status = downloadSessionStatus, meta = {}) => {
+                downloadSessionStatus = status;
+                while (downloadSessionHeartbeatBusy) {
+                    await new Promise(resolve => setTimeout(resolve, 25));
+                }
+                if (!downloadManagerTaskId) return;
+                downloadSessionHeartbeatBusy = true;
+                try {
+                    await GM_setValue(getDownloadRuntimeKey(downloadManagerTaskId), Object.assign({
+                        taskId: downloadManagerTaskId,
+                        sessionId: downloadRuntimeSessionId,
+                        status,
+                        heartbeatAt: new Date().toISOString(),
+                        waitingForSlot: status === 'queued'
+                    }, meta));
+                    if (downloadSessionTaskStatus !== status && typeof TaskManager.updateTask === 'function') {
+                        await TaskManager.updateTask(downloadManagerTaskId, {
+                            status,
+                            meta: Object.assign({
+                                runtimeSessionId: downloadRuntimeSessionId,
+                                waitingForSlot: status === 'queued'
+                            }, meta)
+                        });
+                        downloadSessionTaskStatus = status;
+                    }
+                } finally {
+                    downloadSessionHeartbeatBusy = false;
+                }
+            };
+            const startDownloadSessionHeartbeat = async (status = 'queued', meta = {}) => {
+                if (downloadSessionHeartbeatTimer) clearInterval(downloadSessionHeartbeatTimer);
+                await touchDownloadSessionHeartbeat(status, meta);
+                downloadSessionHeartbeatTimer = setInterval(() => {
+                    touchDownloadSessionHeartbeat(downloadSessionStatus).catch(() => {});
+                }, downloadSessionHeartbeatInterval);
+            };
+            const stopDownloadSessionHeartbeat = async () => {
+                if (downloadSessionHeartbeatTimer) clearInterval(downloadSessionHeartbeatTimer);
+                downloadSessionHeartbeatTimer = null;
+                while (downloadSessionHeartbeatBusy) {
+                    await new Promise(resolve => setTimeout(resolve, 25));
+                }
+                if (downloadManagerTaskId) await GM_setValue(getDownloadRuntimeKey(downloadManagerTaskId), null);
+            };
+            const waitForDownloadSessionTurn = async () => {
+                while (!downloadManagerCancelled && downloadManagerTaskId) {
+                    await touchDownloadSessionHeartbeat('queued', { queuedAt: new Date().toISOString() });
+                    const state = await TaskManager.getState();
+                    const currentTaskExists = (state.queue || []).some(task => task && task.id === downloadManagerTaskId);
+                    if (!currentTaskExists) return false;
+
+                    const runtimePairs = await Promise.all((state.queue || []).map(async task => ({
+                        task,
+                        runtime: task && await getDownloadRuntimeState(task.id)
+                    })));
+                    const activeTasks = runtimePairs.filter(item => (
+                        item.task
+                        && item.task.id !== downloadManagerTaskId
+                        && item.runtime
+                        && item.runtime.status === 'downloading'
+                    ));
+                    const waitingTasks = runtimePairs
+                        .filter(item => item.task && item.runtime && item.runtime.status === 'queued' && item.runtime.waitingForSlot)
+                        .map(item => item.task)
+                        .sort((a, b) => {
+                            const timeA = new Date(a.createdAt || 0).getTime();
+                            const timeB = new Date(b.createdAt || 0).getTime();
+                            return timeA - timeB || String(a.id).localeCompare(String(b.id));
+                        });
+
+                    if (!activeTasks.length && (!waitingTasks.length || waitingTasks[0].id === downloadManagerTaskId)) {
+                        await touchDownloadSessionHeartbeat('downloading', {
+                            waitingForSlot: false,
+                            downloadStartedAt: new Date().toISOString()
+                        });
+                        await new Promise(resolve => setTimeout(resolve, 250));
+                        const competingTasks = await getLiveDownloadSessionTasks({
+                            excludeTaskId: downloadManagerTaskId,
+                            statuses: ['downloading']
+                        });
+                        if (!competingTasks.length) return true;
+                        await touchDownloadSessionHeartbeat('queued', { waitingForSlot: true });
+                    }
+                    await new Promise(resolve => setTimeout(resolve, 1000));
+                }
+                return false;
+            };
             const recordDownloadManagerError = async (chapter, error, type = 'download') => {
                 if (!downloadManagerTaskId || typeof TaskManager.recordError !== 'function') return;
                 const stringifyError = (value) => {
@@ -13093,6 +13224,7 @@ function decryptDES(encrypted, key, iv) {
             const finishDownloadManagerTask = async (status, patch = {}) => {
                 if (!downloadManagerTaskId || typeof TaskManager.finishTask !== 'function') return;
                 try {
+                    await stopDownloadSessionHeartbeat();
                     await TaskManager.finishTask(downloadManagerTaskId, status, Object.assign({
                         progress: getDownloadManagerProgress()
                     }, patch));
@@ -13119,7 +13251,7 @@ function decryptDES(encrypted, key, iv) {
                         domain: window.location.hostname,
                         sourceUrl: window.location.href,
                         format,
-                        status: 'downloading',
+                        status: 'queued',
                         progress: getDownloadManagerProgress(),
                         meta: {
                             rule: Storage.rule && Storage.rule.name || '',
@@ -13132,7 +13264,7 @@ function decryptDES(encrypted, key, iv) {
                         domain: window.location.hostname,
                         sourceUrl: window.location.href,
                         format,
-                        status: 'downloading',
+                        status: 'queued',
                         progress: getDownloadManagerProgress(),
                         meta: {
                             rule: Storage.rule && Storage.rule.name || '',
@@ -13140,6 +13272,12 @@ function decryptDES(encrypted, key, iv) {
                         }
                     });
                     downloadManagerTaskId = managerTask && managerTask.id;
+                }
+                if (downloadManagerTaskId) {
+                    await startDownloadSessionHeartbeat('queued', {
+                        waitingForSlot: true,
+                        queuedAt: new Date().toISOString()
+                    });
                 }
                 if (downloadManagerTaskId && typeof TaskManager.registerRuntimeActions === 'function') {
                     TaskManager.registerRuntimeActions(downloadManagerTaskId, {
@@ -13173,8 +13311,56 @@ function decryptDES(encrypted, key, iv) {
                     });
                 }
                 await persistDownloadResumeData();
+
+                const activeSessionTasks = await getLiveDownloadSessionTasks({
+                    excludeTaskId: downloadManagerTaskId,
+                    statuses: ['downloading']
+                });
+                let downloadInParallel = false;
+                if (activeSessionTasks.length) {
+                    const activeTitle = activeSessionTasks[0].bookTitle || activeSessionTasks[0].domain || 'một truyện khác';
+                    const choice = await showCustomConfirm(
+                        `Đang tải "${activeTitle}" trong tab khác.\n\nNên thêm truyện này vào hàng chờ để giảm nguy cơ website giới hạn hoặc khóa truy cập.`,
+                        ['Thêm vào hàng chờ', 'Tải song song'],
+                        { buttonClasses: ['safe', 'primary'] }
+                    );
+                    downloadInParallel = choice === 'tải song song';
+                }
+
+                if (downloadInParallel) {
+                    await touchDownloadSessionHeartbeat('downloading', {
+                        waitingForSlot: false,
+                        parallelDownload: true,
+                        downloadStartedAt: new Date().toISOString()
+                    });
+                    ndShowToast('Đã chọn tải song song với task đang chạy.', 'warning', 3500);
+                } else {
+                    if (activeSessionTasks.length) {
+                        ndShowToast('Đã thêm truyện vào hàng chờ. Tab này sẽ tự tải khi tới lượt.', 'info', 4500);
+                    }
+                    const acquiredTurn = await waitForDownloadSessionTurn();
+                    if (!acquiredTurn) {
+                        await stopDownloadSessionHeartbeat();
+                        container.find('[name="buttons"]').find('[name="download"]').attr('disabled', null);
+                        return;
+                    }
+                    if (activeSessionTasks.length) {
+                        ndShowToast('Đã tới lượt, bắt đầu tải truyện.', 'success', 3000);
+                    }
+                }
             } catch (error) {
+                await stopDownloadSessionHeartbeat();
                 console.warn('[ND] Không thể tạo task download manager:', error);
+                if (downloadManagerTaskId) {
+                    try {
+                        await startDownloadSessionHeartbeat('downloading', {
+                            waitingForSlot: false,
+                            coordinationFallback: true
+                        });
+                    } catch (heartbeatError) {
+                        console.warn('[ND] Không thể khởi động heartbeat dự phòng:', heartbeatError);
+                    }
+                }
             }
             const onComplete = async (force) => {
                 const failedChapters = Storage.book.chapters.filter(c => !(c.contentRaw || c.content));
@@ -13396,6 +13582,10 @@ function decryptDES(encrypted, key, iv) {
                 syncDownloadManagerTask('downloading');
             }
 
+            const logDownloadDetail = (...args) => {
+                if (Storage.debug.content) console.log(...args);
+            };
+
             // --- Hàm sleep ---
             function sleep(ms) {
                 return new Promise(resolve => setTimeout(resolve, ms));
@@ -13569,10 +13759,10 @@ function decryptDES(encrypted, key, iv) {
                         if (chapter.contentRaw) continue; // Bỏ qua nếu đã được xử lý bởi logic khác trong cùng lần chạy
                         await waitIfPaused();
                         if (Config.delayBetweenChapters > 0) {
-                            console.log(`%cĐang chờ ${Config.delayBetweenChapters / 1000} giây... trước khi tiếp tục.`, "color: orange");
+                            logDownloadDetail(`%cĐang chờ ${Config.delayBetweenChapters / 1000} giây... trước khi tiếp tục.`, "color: orange");
                             await sleepWithPause(Config.delayBetweenChapters);
                         }
-                        console.log(`%cBắt đầu xử lý (deal) chương: ${chapter.title || chapter.url}`, "color: purple;");
+                        logDownloadDetail(`%cBắt đầu xử lý (deal) chương: ${chapter.title || chapter.url}`, "color: purple;");
                         let taskIndex = null;
                         try {
                             if (xhr.manual && typeof xhr.manual.add === 'function') {
@@ -13635,14 +13825,14 @@ function decryptDES(encrypted, key, iv) {
                         if (downloadManagerCancelled) break;
                         const chunk = currentRunList.download.slice(i, i + chunkSize);
                         const currentChunkNum = (i / chunkSize) + 1;
-                        console.log(`%cĐang xử lý lô ${currentChunkNum} (gồm ${chunk.length} chương)`, "color: blue; font-weight: bold;");
+                        logDownloadDetail(`%cĐang xử lý lô ${currentChunkNum} (gồm ${chunk.length} chương)`, "color: blue; font-weight: bold;");
 
                         // Đồng bộ: đợi đến khi thư viện hoàn tất xử lý xong (đã await onload handler)
                         xhr.storage.config.set('thread', Math.min(chunkSize, chunk.length));
                         await new Promise(resolveChunk => {
                             resolveDownloadManagerWait = resolveChunk;
                             xhr.storage.config.set('onComplete', async () => {
-                                console.log(`%cĐã hoàn thành lô ${currentChunkNum}.`, "color: green;");
+                                logDownloadDetail(`%cĐã hoàn thành lô ${currentChunkNum}.`, "color: green;");
                                 resolveDownloadManagerWait = null;
                                 resolveChunk();
                             });
@@ -13658,7 +13848,7 @@ function decryptDES(encrypted, key, iv) {
                         if (downloadManagerCancelled) break;
 
                         if (i + chunkSize < currentRunList.download.length && Config.delayBetweenChapters > 0) {
-                            console.log(`%cĐang chờ ${Config.delayBetweenChapters / 1000} giây... trước khi tiếp tục.`, "color: orange");
+                            logDownloadDetail(`%cĐang chờ ${Config.delayBetweenChapters / 1000} giây... trước khi tiếp tục.`, "color: orange");
                             await sleepWithPause(Config.delayBetweenChapters);
                         }
                     }
@@ -13758,7 +13948,20 @@ function decryptDES(encrypted, key, iv) {
             } // Kết thúc vòng lặp for (retry)
 
             // Sau khi tất cả các lần thử lại kết thúc, gọi onComplete lần cuối
-            if (downloadManagerCancelled) return;
+            if (downloadManagerCancelled) {
+                if (downloadManagerTaskId) {
+                    await stopDownloadSessionHeartbeat();
+                    await syncDownloadManagerTask('queued', {
+                        meta: {
+                            runtimeHeartbeatAt: null,
+                            waitingForSlot: false,
+                            waitingForManualResume: true
+                        }
+                    });
+                    await persistDownloadResumeData();
+                }
+                return;
+            }
             console.log("Tất cả các lần tải và thử lại đã hoàn tất. Chuẩn bị lưu file...");
             await onComplete(); // Luôn gọi onComplete, nó sẽ tự xử lý các chương lỗi bên trong.
         });
@@ -14655,7 +14858,7 @@ function decryptDES(encrypted, key, iv) {
     // File Save & Dialog Helpers
     // ============================================================================
 
-    async function showCustomConfirm(message, buttons) {
+    async function showCustomConfirm(message, buttons, options = {}) {
         const uiRoot = getNovelDownloaderUIRoot(true) || document.body;
         // Tạo style nếu chưa có
         if (!uiRoot.querySelector('#nd-custom-confirm-style')) {
@@ -14666,10 +14869,11 @@ function decryptDES(encrypted, key, iv) {
                 *,*:before,*:after{box-sizing:border-box;}
                 .nd-confirm-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000000; display: flex; align-items: center; justify-content: center; pointer-events:auto; }
                 .nd-confirm-box { background: white; padding: 25px; border-radius: 8px; box-shadow: 0 5px 15px rgba(0,0,0,0.3); text-align: center; max-width: 400px; font-family: sans-serif; }
-                .nd-confirm-message { margin-bottom: 20px; font-size: 16px; color: #333; }
+                .nd-confirm-message { margin-bottom: 20px; font-size: 16px; color: #333; white-space: pre-line; }
                 .nd-confirm-buttons button { border: none; padding: 10px 18px; margin: 0 8px; border-radius: 5px; cursor: pointer; font-size: 14px; font-weight: bold; }
                 .nd-confirm-buttons button.primary { background-color: #e74c3c; color: white; }
                 .nd-confirm-buttons button.secondary { background-color: #3498db; color: white; }
+                .nd-confirm-buttons button.safe { background-color: #15803d; color: white; }
                 .nd-confirm-buttons button.default { background-color: #bdc3c7; color: #2c3e50; }
             `;
             uiRoot.appendChild(style);
@@ -14689,7 +14893,7 @@ function decryptDES(encrypted, key, iv) {
             const btnContainer = document.createElement('div');
             btnContainer.className = 'nd-confirm-buttons';
 
-            const buttonClasses = ['primary', 'secondary', 'default'];
+            const buttonClasses = options.buttonClasses || ['primary', 'secondary', 'default'];
             buttons.forEach((btnText, index) => {
                 const btn = document.createElement('button');
                 btn.textContent = btnText;

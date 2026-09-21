@@ -24,7 +24,7 @@
     *   Greasemonkey (Chủ yếu cho Firefox phiên bản cũ hơn)
     *   [ScriptCat](https://scriptcat.org/) (Đã dùng thử, khá mượt nhưng chưa hỗ trợ :>)
 2.  **Cài đặt script:** Nhấn vào link sau và làm theo hướng dẫn của trình quản lý userscript:
-    *   **[Cài đặt novelDownloaderVietSub (v3.5.448.16)](https://raw.githubusercontent.com/BaoBao666888/Novel-Downloader5/main/novelDownloaderVietSub.user.js)**
+    *   **[Cài đặt novelDownloaderVietSub (v3.5.448.17)](https://raw.githubusercontent.com/BaoBao666888/Novel-Downloader5/main/novelDownloaderVietSub.user.js)**
 
 ## Hướng dẫn sử dụng
 

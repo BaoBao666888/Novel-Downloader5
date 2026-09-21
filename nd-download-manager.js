@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name        nd-download-manager
-// @version     1.0.8
+// @version     1.0.9
 // @include     *
 // ==/UserScript==
 /* eslint-env browser */
@@ -15,9 +15,11 @@
     const OVERLAY_ID = 'nd-manager-overlay';
     const STATE_KEY = 'nd_manager_state';
     const RESUME_KEY_PREFIX = 'nd_manager_resume_';
+    const RUNTIME_KEY_PREFIX = 'nd_manager_runtime_';
     const RESUME_REQUEST_KEY = 'nd_manager_resume_request';
     const MAX_HISTORY = 50;
     const TASK_RETENTION_MS = 30 * 24 * 60 * 60 * 1000;
+    const RUNTIME_HEARTBEAT_TTL_MS = 90 * 1000;
     const runtimeActions = new Map();
 
     function getUiRoot(create = false) {
@@ -181,6 +183,10 @@
 
     function getResumeKey(id) {
         return `${RESUME_KEY_PREFIX}${id}`;
+    }
+
+    function getRuntimeKey(id) {
+        return `${RUNTIME_KEY_PREFIX}${id}`;
     }
 
     function normalizeUrlForResume(url) {
@@ -347,11 +353,9 @@
             this._initialized = true;
             GM_addValueChangeListener(this.STATE_KEY, (name, oldValue, newValue, remote) => {
                 if (remote) {
-                    console.log('TaskManager: State changed from another tab.');
                     this._emit(newValue);
                 }
             });
-            console.log('TaskManager initialized and listening for changes.');
         },
 
         async createTask(task = {}) {
@@ -444,6 +448,7 @@
                 finishedTask = task;
                 return state;
             });
+            await this.clearRuntimeState(id);
             await this.clearResumeData(id, { updateTask: false });
             return finishedTask;
         },
@@ -498,6 +503,7 @@
             });
             if (removedTask) {
                 runtimeActions.delete(id);
+                await this.clearRuntimeState(id);
                 await this.clearResumeData(id, { updateTask: false });
             }
             return removedTask;
@@ -551,6 +557,31 @@
                     }
                 });
             }
+            return true;
+        },
+
+        async setRuntimeState(id, runtime = {}) {
+            if (!id) return null;
+            const payload = Object.assign({}, runtime, {
+                taskId: id,
+                heartbeatAt: runtime.heartbeatAt || nowIso()
+            });
+            await GM_setValue(getRuntimeKey(id), payload);
+            return payload;
+        },
+
+        async getRuntimeState(id) {
+            if (!id) return null;
+            const runtime = await GM_getValue(getRuntimeKey(id));
+            if (!runtime || typeof runtime !== 'object') return null;
+            const heartbeatTime = new Date(runtime.heartbeatAt || 0).getTime();
+            if (!heartbeatTime || Date.now() - heartbeatTime > RUNTIME_HEARTBEAT_TTL_MS) return null;
+            return runtime;
+        },
+
+        async clearRuntimeState(id) {
+            if (!id) return null;
+            await GM_setValue(getRuntimeKey(id), null);
             return true;
         },
 
@@ -715,7 +746,7 @@
             return state.queue.concat(state.history).find(task => task.id === id) || null;
         };
 
-        const renderActions = (task, location) => {
+        const renderActions = (task, location, runtime) => {
             const errors = taskErrors(task);
             const buttons = [
                 `<button type="button" data-action="copy-summary" data-task-id="${escapeHtml(task.id)}">Copy summary</button>`
@@ -731,15 +762,18 @@
             if (TaskManager.hasRuntimeAction(task.id, 'retry')) {
                 buttons.push(`<button type="button" data-action="retry-task" data-task-id="${escapeHtml(task.id)}">Retry</button>`);
             }
-            if (location === 'queue' && !TaskManager.hasRuntimeAction(task.id, 'cancel') && task.meta && task.meta.resumeAvailable) {
+            if (location === 'queue' && !TaskManager.hasRuntimeAction(task.id, 'cancel') && !runtime && task.meta && task.meta.resumeAvailable) {
                 buttons.push(`<button type="button" data-action="resume-task" data-task-id="${escapeHtml(task.id)}">Tiếp tục</button>`);
             }
             return `<div class="nd-manager-actions">${buttons.join('')}</div>`;
         };
 
-        const renderTask = (task, location) => {
+        const renderTask = (task, location, runtime = null) => {
             const progress = normalizeProgress(task.progress);
             const errors = taskErrors(task);
+            const statusText = !runtime && task.status === 'downloading'
+                ? 'Chờ tiếp tục'
+                : formatStatus(task.status);
             const progressText = `${progress.completed} / ${progress.total}${progress.failed ? `, lỗi ${progress.failed}` : ''}`;
             const timeText = location === 'history'
                 ? `Kết thúc: ${formatDateTime(task.finishedAt)}`
@@ -752,19 +786,49 @@
                         <progress value="${progress.completed}" max="${progress.total || 1}"></progress>
                         <span>${escapeHtml(progressText)}</span>
                     </div>
-                    <div class="nd-manager-status">Trạng thái: ${escapeHtml(formatStatus(task.status))}${timeText ? ` - ${escapeHtml(timeText)}` : ''}</div>
+                    <div class="nd-manager-status">Trạng thái: ${escapeHtml(statusText)}${timeText ? ` - ${escapeHtml(timeText)}` : ''}</div>
                     ${errors.length ? `<div class="nd-manager-errors">Lỗi gần nhất: ${escapeHtml(errors[errors.length - 1].message || errors[errors.length - 1].url)}</div>` : ''}
-                    ${renderActions(task, location)}
+                    ${renderActions(task, location, runtime)}
                 </div>
             `;
         };
 
-        const renderUI = (state) => {
+        const runtimeListenerTaskIds = new Set();
+        let renderSequence = 0;
+        const renderUI = async (state) => {
+            const sequence = ++renderSequence;
             const queueList = overlay.querySelector('#nd-queue-list');
             if (!state.queue || state.queue.length === 0) {
                 queueList.innerHTML = 'Chưa có gì trong hàng đợi.';
             } else {
-                queueList.innerHTML = state.queue.map(task => renderTask(task, 'queue')).join('');
+                state.queue.forEach((task) => {
+                    if (!task || !task.id || runtimeListenerTaskIds.has(task.id)) return;
+                    runtimeListenerTaskIds.add(task.id);
+                    GM_addValueChangeListener(getRuntimeKey(task.id), () => {
+                        TaskManager.getState()
+                            .then(renderUI)
+                            .catch(error => console.error('[ND] Không thể cập nhật heartbeat trong Download Manager:', error));
+                    });
+                });
+                const runtimeEntries = await Promise.all(state.queue.map(async task => [task.id, await TaskManager.getRuntimeState(task.id)]));
+                if (sequence !== renderSequence) return;
+                const runtimeByTaskId = new Map(runtimeEntries);
+                const orderedQueue = state.queue.slice().sort((a, b) => {
+                    const rank = (task) => {
+                        const runtime = runtimeByTaskId.get(task.id);
+                        if (runtime && runtime.status === 'downloading') return 0;
+                        if (runtime && runtime.status === 'queued') return 1;
+                        if (task.status === 'queued') return 2;
+                        return 3;
+                    };
+                    const rankDiff = rank(a) - rank(b);
+                    if (rankDiff) return rankDiff;
+                    if (a.status === 'queued' && b.status === 'queued') {
+                        return new Date(a.createdAt || 0).getTime() - new Date(b.createdAt || 0).getTime();
+                    }
+                    return new Date(b.updatedAt || 0).getTime() - new Date(a.updatedAt || 0).getTime();
+                });
+                queueList.innerHTML = orderedQueue.map(task => renderTask(task, 'queue', runtimeByTaskId.get(task.id))).join('');
             }
 
             const historyList = overlay.querySelector('#nd-history-list');
@@ -861,10 +925,12 @@
         });
 
         const initialState = await TaskManager.getState();
-        renderUI(initialState);
+        await renderUI(initialState);
         notifyMainUiStateChanged();
 
-        TaskManager.onStateChange(renderUI);
+        TaskManager.onStateChange((state) => {
+            renderUI(state).catch(error => console.error('[ND] Không thể render Download Manager:', error));
+        });
     }
 
     const api = {
