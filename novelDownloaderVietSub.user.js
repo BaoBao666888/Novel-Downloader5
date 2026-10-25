@@ -2,7 +2,7 @@
 // ==UserScript==
 // @name        novelDownloaderVietSub
 // @description Menu Download Novel hoặc nhấp đúp vào cạnh trái của trang để hiển thị bảng điều khiển
-// @version     3.5.448.17
+// @version     3.5.448.18
 // @author      dodying | BaoBao
 // @namespace   https://github.com/BaoBao666888/Novel-Downloader5
 // @supportURL  https://github.com/BaoBao666888/Novel-Downloader5/issues
@@ -40,6 +40,7 @@
 // @noframes
 // @connect     127.0.0.1
 // @connect     localhost
+// @connect     shuqireader.com
 // ==/UserScript==
 
 // ============================================================================
@@ -211,7 +212,7 @@ function decryptDES(encrypted, key, iv) {
     // ============================================================================
 
     function getNovelDownloaderScriptVersion() {
-        return GM_info && GM_info.script && GM_info.script.version ? GM_info.script.version : '3.5.448.17';
+        return GM_info && GM_info.script && GM_info.script.version ? GM_info.script.version : '3.5.448.18';
     }
 
     function docList(items) {
@@ -276,6 +277,7 @@ function decryptDES(encrypted, key, iv) {
             docList([
                 'Mở Quản lý tải xuống để copy summary/lỗi, đồng thời mở bảng Console để xem log chi tiết.',
                 'Với lỗi web đổi HTML, thử <b>Lấy lại info</b>/<b>Lấy lại DS chương</b>, lấy thử một chương rồi gửi log bằng <b>Yêu cầu rule</b>.',
+                'Shuqi nhận trang <code>/book/ID</code>, <code>/chapter?bid=ID</code> và <code>/reader?bid=ID&amp;cid=ID</code>. Chương VIP cần quyền đọc trên tài khoản hiện tại; sau khi đăng nhập/mở chương, lấy lại danh sách trước khi tải.',
                 'Với web chặn request, thử tăng delay giữa chương hoặc tải qua chế độ thủ công nếu rule hỗ trợ.'
             ])
         ].join('');
@@ -285,17 +287,12 @@ function decryptDES(encrypted, key, iv) {
         return [
             `<h3>v${getNovelDownloaderScriptVersion()}</h3>`,
             docList([
-                'Thêm hàng chờ tải dùng chung giữa các tab trong cùng phiên trình duyệt: khi đã có truyện đang tải, popup ưu tiên <b>Thêm vào hàng chờ</b> nhưng vẫn cho phép <b>Tải song song</b>.',
-                'Task chờ được lưu trong Quản lý tải xuống, tự chạy theo thứ tự khi tới lượt và vẫn có thể tải lại; heartbeat hết hạn giúp tab đã đóng không khóa các lượt tải sau.',
-                'Sửa rule <b>话本小说 (ihuaben.com)</b>: nhận URL mục lục <code>/list/&lt;bookId&gt;.html</code>, nhận đúng trang sách/chương và lấy nội dung từ API hiện tại.',
-                'Giảm log lặp khi tải nhiều chương: bỏ log đồng bộ Quản lý tải xuống giữa các tab và chỉ hiện chi tiết từng chương/lô khi bật debug nội dung.',
-                'Thêm rule public cho <b>久久小说网 (xjjxs.com)</b> và <b>晚安小说网 (azxxs.com)</b>, hỗ trợ cửa sổ xác minh, mục lục phân trang và chương chia trang.',
-                'Thêm form <b>Yêu cầu rule</b>, tự điền môi trường và mở GitHub issue mới nhưng để user kiểm tra rồi tự gửi.',
-                'Xuất EPUB theo cấu trúc mới: hỏi EPUB 2/3, có cover, metadata, mục lục hiển thị, NCX cho EPUB 2 và nav cho EPUB 3; dọn các setting EPUB cũ.',
-                'Nâng cấp Rule Editor với toàn màn hình, panel thu gọn, tô màu code, tìm kiếm/phím tắt, Format Code và đánh dấu dòng lỗi.'
+                'Thêm rule public cho <b>书旗小说 (shuqi.com)</b>: nhận trang sách/mục lục/trang đọc, lấy toàn bộ chương và nội dung tiếng Trung, đánh dấu VIP và chỉ tải toàn văn khi có quyền đọc (<b>#29</b>).',
+                'Thêm rule riêng cho <b>繁體小說網 (fantinovels.com)</b>: lấy đúng mục lục đầy đủ theo thứ tự, lọc liên kết ngoài chương gây lỗi 404 và xử lý GBK để giữ đúng chữ Trung (<b>#30</b>).'
             ]),
             '<h3>Các bản trước (tóm tắt)</h3>',
             docList([
+                'v3.5.448.17: hàng chờ tải liên tab, lưu task chờ/tiếp tục, giảm spam log; sửa iHuaben, thêm XJJXS/AZXXS, form Yêu cầu rule, EPUB 2/3 và nâng cấp Rule Editor.',
                 'v3.5.448.15: nâng UX chọn/xem thử chương, refresh info/mục lục, rule POPO, tên file/credit và cơ chế an toàn Debug Bridge.',
                 'v3.5.448.12: thêm Rule Editor, Danh sách hỗ trợ, Debug Bridge, khôi phục task tải dở và cải thiện Console/Quản lý tải xuống.',
                 'v3.5.448.x: bỏ phụ thuộc AntiClear, thêm nút nổi Novel Downloader, Hướng dẫn/Changelog trong script, tab Cài đặt và thanh tiến độ sticky <b>x / y</b>.',
@@ -11922,6 +11919,204 @@ function decryptDES(encrypted, key, iv) {
                     }
                     return { title, content: parts.join('<br />') };
                 },
+                thread: 1,
+            };
+        })(),
+        (() => {
+            const origin = 'https://www.shuqi.com';
+            const readerCache = new Map();
+            const bookIdFromUrl = (url = location.href) => {
+                const parsed = new URL(url, origin);
+                return (parsed.pathname.match(/^\/book\/(\d+)\/?$/) || [])[1]
+                    || (/^\/(?:chapter|reader)\/?$/.test(parsed.pathname) && parsed.searchParams.get('bid')) || '';
+            };
+            const isGranted = (value) => value === true || value === 1 || value === '1';
+            const textHtml = (text) => {
+                const element = document.createElement('div');
+                element.textContent = String(text || '');
+                return element.innerHTML.replace(/\r\n?|\n/g, '<br />');
+            };
+            const requestContent = async (url) => {
+                let response;
+                try {
+                    response = await fetch(url, {
+                        credentials: 'omit',
+                        signal: AbortSignal.timeout(Number(Config.timeout) || 30000),
+                    });
+                } catch (error) {
+                    if (error.name === 'TimeoutError' || error.name === 'AbortError') throw new Error('Shuqi: Hết thời gian chờ nội dung chương.');
+                    return Rule.helpers.requestJson(url, { timeout: Config.timeout });
+                }
+                if (!response.ok) throw new Error(`Shuqi: HTTP ${response.status} khi tải nội dung chương.`);
+                return response.json();
+            };
+            const loadReader = async (bookId, doc = document, refresh = false) => {
+                if (!/^\d+$/.test(bookId)) throw new Error('Shuqi: Không xác định được ID truyện.');
+                if (refresh) readerCache.delete(bookId);
+                if (!readerCache.has(bookId)) {
+                    const loading = (async () => {
+                        let node = !refresh && bookIdFromUrl() === bookId ? doc.querySelector('.js-dataChapters') : null;
+                        if (!node) {
+                            const firstLink = Array.from(doc.querySelectorAll('a[href]')).map((link) => new URL(link.getAttribute('href'), origin))
+                                .find((url) => url.origin === origin && url.pathname === '/reader'
+                                    && url.searchParams.get('bid') === bookId && /^\d+$/.test(url.searchParams.get('cid') || ''));
+                            const readerUrl = firstLink?.href || `${origin}/reader?bid=${bookId}`;
+                            let readerDoc;
+                            try {
+                                const response = await fetch(readerUrl, {
+                                    credentials: 'include',
+                                    signal: AbortSignal.timeout(Number(Config.timeout) || 30000),
+                                });
+                                if (!response.ok) throw new Error(`HTTP ${response.status}`);
+                                readerDoc = Rule.helpers.parseHtml(await response.text());
+                            } catch (error) {
+                                readerDoc = await Rule.helpers.requestDoc(readerUrl, { timeout: Config.timeout });
+                            }
+                            node = readerDoc.querySelector('.js-dataChapters');
+                        }
+                        if (!node) throw new Error('Shuqi: Không tìm thấy dữ liệu mục lục. Hãy mở trang đọc và kiểm tra xác minh/đăng nhập.');
+                        const data = JSON.parse(node.textContent);
+                        if (String(data.bookId) !== bookId || !Array.isArray(data.chapterList)) {
+                            throw new Error('Shuqi: Dữ liệu mục lục không khớp truyện.');
+                        }
+                        const chapters = data.chapterList.flatMap((volume) => (volume.volumeList || [])
+                            .map((chapter) => ({ ...chapter, volume: volume.volumeName || '' })));
+                        return { data, chapters, byId: new Map(chapters.map((chapter) => [String(chapter.chapterId), chapter])) };
+                    })();
+                    readerCache.set(bookId, loading);
+                    loading.catch(() => {
+                        if (readerCache.get(bookId) === loading) readerCache.delete(bookId);
+                    });
+                }
+                return readerCache.get(bookId);
+            };
+
+            return {
+                siteName: '书旗小说 (Shuqi)',
+                filter: () => {
+                    if (!/^(?:www\.)?shuqi\.com$/i.test(location.hostname) || !/^\d+$/.test(bookIdFromUrl())) return 0;
+                    return /^\/reader\/?$/.test(location.pathname) ? 2 : 1;
+                },
+                infoPage: () => `${origin}/book/${bookIdFromUrl()}`,
+                title: '.view-book-info .bname',
+                writer: '.view-book-info .bauthor a',
+                intro: (doc) => textHtml(doc.querySelector('.js-showDesc')?.getAttribute('data-text')
+                    || doc.querySelector('.js-descContent')?.textContent || ''),
+                cover: 'img.cover',
+                getChapters: async (doc) => {
+                    const bookId = bookIdFromUrl();
+                    const { chapters } = await loadReader(bookId, doc, true);
+                    return Rule.helpers.uniqueBy(chapters.filter((chapter) => /^\d+$/.test(String(chapter.chapterId)))
+                        .map((chapter) => ({
+                            title: chapter.chapterName,
+                            url: `${origin}/reader?bid=${bookId}&cid=${chapter.chapterId}`,
+                            vip: !isGranted(chapter.isFreeRead),
+                            volume: chapter.volume,
+                        })), (chapter) => chapter.url);
+                },
+                deal: async (chapter) => {
+                    const url = new URL(chapter.url, origin);
+                    const bookId = bookIdFromUrl(url.href);
+                    const chapterId = url.searchParams.get('cid');
+                    if (!/^\d+$/.test(chapterId || '')) throw new Error('Shuqi: URL chương không hợp lệ.');
+                    const { data, byId } = await loadReader(bookId);
+                    const entry = byId.get(chapterId);
+                    if (!entry) throw new Error('Shuqi: Chương không có trong mục lục hiện tại. Hãy lấy lại danh sách chương.');
+                    const free = isGranted(entry.isFreeRead);
+                    if (!free && !isGranted(entry.isBuy)) {
+                        throw new Error('Shuqi: Chương VIP chưa được mở/mua. Hãy đăng nhập, mở quyền đọc trên web rồi lấy lại danh sách chương.');
+                    }
+                    const prefix = free ? data.freeContUrlPrefix : data.chargeContUrlPrefix;
+                    if (!prefix || !entry.contUrlSuffix) throw new Error('Shuqi: Không tìm thấy địa chỉ nội dung chương.');
+                    const contentUrl = new URL(prefix + entry.contUrlSuffix, origin);
+                    if (contentUrl.protocol === 'http:') contentUrl.protocol = 'https:';
+                    if (!/(^|\.)shuqireader\.com$/i.test(contentUrl.hostname)) throw new Error('Shuqi: Host nội dung chương không hợp lệ.');
+                    if (!free) {
+                        const token = document.cookie.split(';').map((part) => part.trim()).find((part) => part.startsWith('usertoken='));
+                        if (!token) throw new Error('Shuqi: Phiên đăng nhập đã hết hạn. Hãy đăng nhập lại trên web.');
+                        contentUrl.searchParams.set('userToken', decodeURIComponent(token.slice('usertoken='.length)));
+                    }
+                    const response = await requestContent(contentUrl.href);
+                    if (Number(response.state) !== 200 || !response.ChapterContent) {
+                        throw new Error('Shuqi: Không lấy được toàn văn chương. Hãy kiểm tra quyền đọc và lấy lại danh sách chương.');
+                    }
+                    // The web reader applies ROT13 to the Base64 alphabet before UTF-8 decoding.
+                    const base64 = String(response.ChapterContent).replace(/[A-Za-z]/g, (character) =>
+                        String.fromCharCode(character.charCodeAt(0) + (character.toLowerCase() <= 'm' ? 13 : -13)));
+                    const content = new TextDecoder('utf-8', { fatal: true })
+                        .decode(Uint8Array.from(atob(base64), (character) => character.charCodeAt(0))).trim();
+                    if (!content) throw new Error('Shuqi: Nội dung chương rỗng sau khi giải mã.');
+                    const contentDoc = Rule.helpers.parseHtml(/<(?:br|p|div)\b/i.test(content) ? content : textHtml(content));
+                    contentDoc.querySelectorAll('script, style, iframe, object, embed').forEach((element) => element.remove());
+                    if (!contentDoc.body.textContent.trim()) throw new Error('Shuqi: Nội dung chương rỗng sau khi xử lý HTML.');
+                    return { title: entry.chapterName || chapter.title, content: contentDoc.body.innerHTML };
+                },
+                thread: 1,
+            };
+        })(),
+        (() => {
+            const bookIdFromUrl = (url = location.href) => (new URL(url, location.href).pathname.match(/^\/(\d+)(?:\/|$)/) || [])[1] || '';
+            const loadDoc = async (url) => {
+                if (new URL(url, location.href).href === location.href) return document;
+                const response = await xhr.sync(url, null, {
+                    timeout: Config.timeout,
+                    responseType: 'text',
+                    overrideMimeType: 'text/html; charset=gbk',
+                });
+                if (response.status < 200 || response.status >= 300) throw new Error(`Fantinovels: HTTP ${response.status} khi tải trang.`);
+                return Rule.helpers.parseHtml(response.responseText || response.response || '');
+            };
+            const meta = (doc, name) => doc.querySelector(`meta[property="${name}"]`)?.getAttribute('content') || '';
+
+            return {
+                siteName: '繁體小說網 (Fantinovels)',
+                charset: 'gbk',
+                url: /^https?:\/\/(?:www\.)?fantinovels\.com\/\d+\/?(?:[?#].*)?$/i,
+                chapterUrl: /^https?:\/\/(?:www\.)?fantinovels\.com\/\d+\/\d+(?:_\d+)?\.html(?:[?#].*)?$/i,
+                infoPage: () => `${location.origin}/${bookIdFromUrl()}/`,
+                title: (doc) => meta(doc, 'og:novel:book_name') || doc.querySelector('h1.bookTitle')?.textContent.trim() || '',
+                writer: (doc) => meta(doc, 'og:novel:author'),
+                intro: (doc) => {
+                    const intro = doc.querySelector('#bookIntro')?.cloneNode(true);
+                    if (!intro) return $('<div>').text(meta(doc, 'og:description')).html();
+                    intro.querySelectorAll('img, script, style').forEach((element) => element.remove());
+                    return intro.innerHTML;
+                },
+                cover: (doc) => meta(doc, 'og:image') || doc.querySelector('img.img-thumbnail')?.getAttribute('src') || '',
+                getChapters: async () => {
+                    const bookId = bookIdFromUrl();
+                    if (!bookId) throw new Error('Fantinovels: Không xác định được ID truyện.');
+                    const base = `${location.origin}/${bookId}/`;
+                    const doc = await loadDoc(base);
+                    const links = doc.querySelectorAll('#list-chapterAll dd a[href]');
+                    const chapters = Array.from(links).map((link) => ({
+                        title: link.textContent.trim(),
+                        url: new URL(link.getAttribute('href'), base).href,
+                    })).filter((chapter) => {
+                        const url = new URL(chapter.url);
+                        return url.origin === location.origin && new RegExp(`^/${bookId}/\\d+\\.html$`).test(url.pathname);
+                    });
+                    if (!chapters.length) throw new Error('Fantinovels: Không tìm thấy mục lục đầy đủ. Hãy kiểm tra trang truyện/xác minh.');
+                    return Rule.helpers.uniqueBy(chapters, (chapter) => chapter.url);
+                },
+                chapterTitle: 'h1.readTitle',
+                deal: async (chapter) => {
+                    const url = new URL(chapter.url, location.href);
+                    if (url.origin !== location.origin || !/^\/\d+\/\d+(?:_\d+)?\.html$/.test(url.pathname)) {
+                        throw new Error('Fantinovels: URL chương không hợp lệ. Hãy lấy lại danh sách chương.');
+                    }
+                    const doc = await loadDoc(url.href);
+                    const content = doc.querySelector('#htmlContent')?.cloneNode(true);
+                    if (!content) throw new Error('Fantinovels: Không tìm thấy nội dung chương. Hãy kiểm tra trang chương/xác minh.');
+                    content.querySelectorAll('script, style, iframe, .adsbygoogle, .a2a_kit').forEach((element) => element.remove());
+                    if (!content.textContent.trim()) throw new Error('Fantinovels: Nội dung chương rỗng.');
+                    return {
+                        title: doc.querySelector('h1.readTitle')?.textContent.trim() || chapter.title,
+                        content: content.innerHTML,
+                    };
+                },
+                chapterPrev: '#linkPrev',
+                chapterNext: '#linkNext',
                 thread: 1,
             };
         })(),

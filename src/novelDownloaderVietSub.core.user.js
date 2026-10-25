@@ -2,7 +2,7 @@
 // ==UserScript==
 // @name        novelDownloaderVietSub
 // @description Menu Download Novel hoặc nhấp đúp vào cạnh trái của trang để hiển thị bảng điều khiển
-// @version     3.5.448.17
+// @version     3.5.448.18
 // @author      dodying | BaoBao
 // @namespace   https://github.com/BaoBao666888/Novel-Downloader5
 // @supportURL  https://github.com/BaoBao666888/Novel-Downloader5/issues
@@ -40,6 +40,7 @@
 // @noframes
 // @connect     127.0.0.1
 // @connect     localhost
+// @connect     shuqireader.com
 // ==/UserScript==
 
 // ============================================================================
@@ -211,7 +212,7 @@ function decryptDES(encrypted, key, iv) {
     // ============================================================================
 
     function getNovelDownloaderScriptVersion() {
-        return GM_info && GM_info.script && GM_info.script.version ? GM_info.script.version : '3.5.448.17';
+        return GM_info && GM_info.script && GM_info.script.version ? GM_info.script.version : '3.5.448.18';
     }
 
     function docList(items) {
@@ -276,6 +277,7 @@ function decryptDES(encrypted, key, iv) {
             docList([
                 'Mở Quản lý tải xuống để copy summary/lỗi, đồng thời mở bảng Console để xem log chi tiết.',
                 'Với lỗi web đổi HTML, thử <b>Lấy lại info</b>/<b>Lấy lại DS chương</b>, lấy thử một chương rồi gửi log bằng <b>Yêu cầu rule</b>.',
+                'Shuqi nhận trang <code>/book/ID</code>, <code>/chapter?bid=ID</code> và <code>/reader?bid=ID&amp;cid=ID</code>. Chương VIP cần quyền đọc trên tài khoản hiện tại; sau khi đăng nhập/mở chương, lấy lại danh sách trước khi tải.',
                 'Với web chặn request, thử tăng delay giữa chương hoặc tải qua chế độ thủ công nếu rule hỗ trợ.'
             ])
         ].join('');
@@ -285,17 +287,12 @@ function decryptDES(encrypted, key, iv) {
         return [
             `<h3>v${getNovelDownloaderScriptVersion()}</h3>`,
             docList([
-                'Thêm hàng chờ tải dùng chung giữa các tab trong cùng phiên trình duyệt: khi đã có truyện đang tải, popup ưu tiên <b>Thêm vào hàng chờ</b> nhưng vẫn cho phép <b>Tải song song</b>.',
-                'Task chờ được lưu trong Quản lý tải xuống, tự chạy theo thứ tự khi tới lượt và vẫn có thể tải lại; heartbeat hết hạn giúp tab đã đóng không khóa các lượt tải sau.',
-                'Sửa rule <b>话本小说 (ihuaben.com)</b>: nhận URL mục lục <code>/list/&lt;bookId&gt;.html</code>, nhận đúng trang sách/chương và lấy nội dung từ API hiện tại.',
-                'Giảm log lặp khi tải nhiều chương: bỏ log đồng bộ Quản lý tải xuống giữa các tab và chỉ hiện chi tiết từng chương/lô khi bật debug nội dung.',
-                'Thêm rule public cho <b>久久小说网 (xjjxs.com)</b> và <b>晚安小说网 (azxxs.com)</b>, hỗ trợ cửa sổ xác minh, mục lục phân trang và chương chia trang.',
-                'Thêm form <b>Yêu cầu rule</b>, tự điền môi trường và mở GitHub issue mới nhưng để user kiểm tra rồi tự gửi.',
-                'Xuất EPUB theo cấu trúc mới: hỏi EPUB 2/3, có cover, metadata, mục lục hiển thị, NCX cho EPUB 2 và nav cho EPUB 3; dọn các setting EPUB cũ.',
-                'Nâng cấp Rule Editor với toàn màn hình, panel thu gọn, tô màu code, tìm kiếm/phím tắt, Format Code và đánh dấu dòng lỗi.'
+                'Thêm rule public cho <b>书旗小说 (shuqi.com)</b>: nhận trang sách/mục lục/trang đọc, lấy toàn bộ chương và nội dung tiếng Trung, đánh dấu VIP và chỉ tải toàn văn khi có quyền đọc (<b>#29</b>).',
+                'Thêm rule riêng cho <b>繁體小說網 (fantinovels.com)</b>: lấy đúng mục lục đầy đủ theo thứ tự, lọc liên kết ngoài chương gây lỗi 404 và xử lý GBK để giữ đúng chữ Trung (<b>#30</b>).'
             ]),
             '<h3>Các bản trước (tóm tắt)</h3>',
             docList([
+                'v3.5.448.17: hàng chờ tải liên tab, lưu task chờ/tiếp tục, giảm spam log; sửa iHuaben, thêm XJJXS/AZXXS, form Yêu cầu rule, EPUB 2/3 và nâng cấp Rule Editor.',
                 'v3.5.448.15: nâng UX chọn/xem thử chương, refresh info/mục lục, rule POPO, tên file/credit và cơ chế an toàn Debug Bridge.',
                 'v3.5.448.12: thêm Rule Editor, Danh sách hỗ trợ, Debug Bridge, khôi phục task tải dở và cải thiện Console/Quản lý tải xuống.',
                 'v3.5.448.x: bỏ phụ thuộc AntiClear, thêm nút nổi Novel Downloader, Hướng dẫn/Changelog trong script, tab Cài đặt và thanh tiến độ sticky <b>x / y</b>.',

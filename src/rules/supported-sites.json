@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "updatedAt": "2026-08-19",
+  "updatedAt": "2026-10-25",
   "source": "src/rules/special",
   "sites": [
     {
@@ -1684,6 +1684,26 @@
       "kind": "special",
       "domains": [
         "www.azxxs.com"
+      ]
+    },
+    {
+      "name": "书旗小说 (Shuqi)",
+      "ruleName": "书旗小说 (Shuqi)",
+      "file": "src/rules/special/0187-shuqi-com.rule.js",
+      "kind": "special",
+      "domains": [
+        "shuqi.com",
+        "www.shuqi.com"
+      ]
+    },
+    {
+      "name": "繁體小說網 (Fantinovels)",
+      "ruleName": "繁體小說網 (Fantinovels)",
+      "file": "src/rules/special/0188-fantinovels-com.rule.js",
+      "kind": "special",
+      "domains": [
+        "fantinovels.com",
+        "www.fantinovels.com"
       ]
     }
   ]
