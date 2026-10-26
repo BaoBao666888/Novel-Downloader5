@@ -277,6 +277,7 @@ function decryptDES(encrypted, key, iv) {
             docList([
                 'Mở Quản lý tải xuống để copy summary/lỗi, đồng thời mở bảng Console để xem log chi tiết.',
                 'Với lỗi web đổi HTML, thử <b>Lấy lại info</b>/<b>Lấy lại DS chương</b>, lấy thử một chương rồi gửi log bằng <b>Yêu cầu rule</b>.',
+                'JJWXC nhận token app qua <code>window.tokenOptions.Jjwxc</code>. Nếu tài khoản cần thêm key, dùng <code>Jjwxc: { token: "...", user_key: "..." }</code>; <code>user_key</code> có thể để trống và cấu hình chuỗi token cũ vẫn dùng được.',
                 'Shuqi nhận trang <code>/book/ID</code>, <code>/chapter?bid=ID</code> và <code>/reader?bid=ID&amp;cid=ID</code>. Chương VIP cần quyền đọc trên tài khoản hiện tại; sau khi đăng nhập/mở chương, lấy lại danh sách trước khi tải.',
                 'Với web chặn request, thử tăng delay giữa chương hoặc tải qua chế độ thủ công nếu rule hỗ trợ.'
             ])
@@ -288,7 +289,8 @@ function decryptDES(encrypted, key, iv) {
             `<h3>v${getNovelDownloaderScriptVersion()}</h3>`,
             docList([
                 'Thêm rule public cho <b>书旗小说 (shuqi.com)</b>: nhận trang sách/mục lục/trang đọc, lấy toàn bộ chương và nội dung tiếng Trung, đánh dấu VIP và chỉ tải toàn văn khi có quyền đọc (<b>#29</b>).',
-                'Thêm rule riêng cho <b>繁體小說網 (fantinovels.com)</b>: lấy đúng mục lục đầy đủ theo thứ tự, lọc liên kết ngoài chương gây lỗi 404 và xử lý GBK để giữ đúng chữ Trung (<b>#30</b>).'
+                'Thêm rule riêng cho <b>繁體小說網 (fantinovels.com)</b>: lấy đúng mục lục đầy đủ theo thứ tự, lọc liên kết ngoài chương gây lỗi 404 và xử lý GBK để giữ đúng chữ Trung (<b>#30</b>).',
+                'Bổ sung <code>user_key</code> tùy chọn cho API JJWXC qua <code>Jjwxc: { token, user_key }</code>, giữ tương thích token dạng chuỗi và không lưu nội dung có kiểu mã hóa chưa hỗ trợ.'
             ]),
             '<h3>Các bản trước (tóm tắt)</h3>',
             docList([

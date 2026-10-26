@@ -121,11 +121,19 @@
                     const chapterId = raw.match(/[?&]chapterid=(\d+)/i)?.[1];
                     return novelId && chapterId ? { novelId, chapterId } : {};
                 };
-                const normalizeToken = (token) => String(token || '').replace(/undefined|token=|\s|&.*$/g, '').trim();
-                const getToken = () => {
+                const normalizeCredential = (value, name) => {
+                    const raw = String(value ?? '').trim();
+                    const query = raw.includes('?') ? raw.slice(raw.indexOf('?') + 1) : raw.replace(/^[?&]/, '');
+                    const params = new URLSearchParams(query);
+                    const credential = String(params.has(name) ? params.get(name) : raw.split('&')[0]).replace(/\s/g, '');
+                    return credential && !/^(?:undefined|null|\?+)$/i.test(credential) ? credential : null;
+                };
+                const getCredentials = () => {
                     const raw = unsafeWindow.tokenOptions?.Jjwxc;
-                    const token = normalizeToken(typeof raw === 'string' ? raw : (raw?.token || ''));
-                    return token && token !== '????' ? token : null;
+                    return {
+                        token: normalizeCredential(typeof raw === 'string' ? raw : raw?.token, 'token'),
+                        userKey: normalizeCredential(typeof raw === 'object' ? raw?.user_key : null, 'user_key')
+                    };
                 };
                 const decodeHtmlEntitiesTwice = (text) => {
                     const textarea = document.createElement('textarea');
@@ -171,7 +179,8 @@
                 const decodeField = (value, encryptType) => {
                     if (!value) return '';
                     if (encryptType === 'jj') return decryptContent(value);
-                    return value;
+                    // Additional decryption (including yw) is kept private and omitted from this public rule.
+                    throw new Error(`JJWXC: Chưa hỗ trợ kiểu mã hóa "${encryptType || 'không rõ'}". Không lưu nội dung chưa giải mã.`);
                 };
                 const getFontName = (doc) => {
                     const noveltext = doc.querySelector('div.noveltext');
@@ -216,12 +225,13 @@
                     }
                     return { title, content: root.innerHTML };
                 };
-                const getChapterByApi = async (token) => {
+                const getChapterByApi = async ({ token, userKey }) => {
                     const apiUrl = new URL('https://app.jjwxc.net/androidapi/chapterContent');
                     apiUrl.searchParams.set('novelId', novelId);
                     apiUrl.searchParams.set('chapterId', chapterId);
                     apiUrl.searchParams.set('versionCode', '381');
                     if (token) apiUrl.searchParams.set('token', token);
+                    if (userKey) apiUrl.searchParams.set('user_key', userKey);
                     const userAgent = 'Mozilla/5.0 (Linux; Android 16; Pixel 9 Pro Build/TP1A.251005.002.B2; wv) AppleWebKit/537.36 (KHTML, like Gecko) Version/4.0 Chrome/134.0.6998.109 Mobile Safari/537.36/JINJIANG-Android/381(Pixel9Pro;Scale/3.5;isHarmonyOS/false)' + Date.now();
                     let result = null;
                     let lastError = null;
@@ -268,16 +278,16 @@
                 const isVip = Boolean(chapter.vip || chapter.isVip || chapter.isVIP);
                 if (!novelId || !chapterId) return { content: '', error: 'JJWXC thiếu novelId/chapterId.' };
 
-                const token = getToken();
+                const credentials = getCredentials();
                 try {
-                    if (!token) return await publicChapter();
-                    return await getChapterByApi(token);
+                    if (!credentials.token) return await publicChapter();
+                    return await getChapterByApi(credentials);
                 } catch (apiError) {
                     console.warn(`[JJWXC] API tải chương ${chapterId} lỗi, fallback trang web:`, apiError);
                     try {
                         return await publicChapter();
                     } catch (pageError) {
-                        return { content: '', error: pageError.message || String(pageError) };
+                        return { content: '', error: `${apiError.message || String(apiError)}; ${pageError.message || String(pageError)}` };
                     }
                 }
             },

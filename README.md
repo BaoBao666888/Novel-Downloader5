@@ -76,7 +76,7 @@ OEBPS/Images/*
 
 ### Cung cấp Token JJWXC và API Fanqie
 
-Rule **JJWXC** mới có thể tải chương public/no-VIP trực tiếp từ web. Với chương VIP đã mua, script sẽ dùng token app Android nếu bạn cung cấp qua `window.tokenOptions`. Với **Fanqie**, bạn có thể cấu hình API thay thế nếu API gốc bị chặn hoặc cần key riêng.
+Rule **JJWXC** có thể tải chương public/no-VIP trực tiếp từ web. Với chương VIP đã mua, script sẽ dùng token app Android nếu bạn cung cấp qua `window.tokenOptions`. Nếu tài khoản cần thêm `user_key`, điền cùng token trong `Jjwxc: { token, user_key }`; key này sẽ được gửi vào request API chương. Với **Fanqie**, bạn có thể cấu hình API thay thế nếu API gốc bị chặn hoặc cần key riêng.
 
 **Tại sao cần làm việc này?**
 
@@ -107,8 +107,11 @@ Rule **JJWXC** mới có thể tải chương public/no-VIP trực tiếp từ w
 
       // --- CHỈNH SỬA THÔNG TIN DƯỚI ĐÂY ---
       const tokenOptions = {
-        // Tùy chọn: thay "token của bạn" bằng token JJWXC cá nhân nếu cần tải VIP
-        Jjwxc: "token của bạn",
+        // Tùy chọn: điền token JJWXC cá nhân nếu cần tải VIP đã mua
+        Jjwxc: {
+          token: "",
+          user_key: "", // Điền nếu tài khoản/API yêu cầu; có thể để trống
+        },
 
         // API endpoint cho Fanqie (có thể giữ nguyên hoặc đổi nếu bạn có API riêng)
         Fanqie: [
@@ -126,7 +129,7 @@ Rule **JJWXC** mới có thể tải chương public/no-VIP trực tiếp từ w
     ```
 
 5.  **Chỉnh sửa Token và API:**
-    *   Tìm dòng `Jjwxc: "token của bạn"`. Nếu chỉ tải chương public/no-VIP trên JJWXC thì có thể bỏ trống hoặc bỏ key này. Nếu cần tải chương VIP đã mua, thay `"token của bạn"` bằng **token JJWXC thực tế** của bạn (token này thường lấy từ quá trình đăng nhập vào app JJWXC). **Không chia sẻ token này cho người khác.**
+    *   Điền **token JJWXC thực tế** vào `Jjwxc.token` nếu cần tải chương VIP đã mua. Nếu tài khoản yêu cầu, điền thêm `Jjwxc.user_key` từ cùng phiên app Android, lấy giá trị tham số `user_key` trong request `androidapi/chapterContent`. Nếu chỉ tải public/no-VIP thì có thể để trống. Cấu hình cũ `Jjwxc: "token"` vẫn dùng được. **Không chia sẻ token hoặc user_key cho người khác.**
     *   Tìm dòng `Fanqie: "..."`. Bạn có thể thay thế bằng một địa chỉ API Fanqie khác nếu bạn có.
 6.  **Lưu Script:** Nhấn "File" -> "Save" hoặc nút Lưu tương ứng. Đảm bảo script này được **bật (enabled)** trong trình quản lý userscript.
 7.  **Hoàn tất:** Script phụ trợ này sẽ tự động chạy trên mọi trang và tạo ra biến `window.tokenOptions`. Script `novelDownloaderVietSub` sẽ tự động tìm và sử dụng biến này khi tải truyện từ JJWXC (VIP) hoặc Fanqie.
