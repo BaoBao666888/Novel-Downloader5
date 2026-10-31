@@ -24,7 +24,7 @@
     *   Greasemonkey (Chủ yếu cho Firefox phiên bản cũ hơn)
     *   [ScriptCat](https://scriptcat.org/) (Đã dùng thử, khá mượt nhưng chưa hỗ trợ :>)
 2.  **Cài đặt script:** Nhấn vào link sau và làm theo hướng dẫn của trình quản lý userscript:
-    *   **[Cài đặt novelDownloaderVietSub (v3.5.448.18)](https://raw.githubusercontent.com/BaoBao666888/Novel-Downloader5/main/novelDownloaderVietSub.user.js)**
+    *   **[Cài đặt novelDownloaderVietSub (v3.5.448.19)](https://raw.githubusercontent.com/BaoBao666888/Novel-Downloader5/main/novelDownloaderVietSub.user.js)**
 
 ## Hướng dẫn sử dụng
 
@@ -152,6 +152,7 @@ Script hỗ trợ một danh sách lớn các trang web. Trong UI tải chính h
 *   Novel543 (Novel543.com)
 *   久久小说网 (xjjxs.com)
 *   晚安小说网 (azxxs.com)
+*   洋柿子书城 (talebed.com): nhận `/detail?id=ID`, `/page/ID?page=N` và `/read/ID/CHAP`; tự duyệt mục lục từ trang đầu và xuất bìa canvas. Khi web yêu cầu xác minh, mở cửa sổ theo thông báo và giữ cửa sổ đó để web tự xác minh. Hủy/đóng cửa sổ hoặc gặp HTTP 429 sẽ dừng tải; xác minh/đợi xong rồi tải lại trang để tiếp tục từ dữ liệu đã lưu.
 *   Và nhiều trang khác...
 
 *(Bạn có thể tự thêm hoặc sửa rule trong `src/rules`, sau đó chạy build để sinh lại userscript chính).*

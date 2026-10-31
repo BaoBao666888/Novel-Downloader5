@@ -2,7 +2,7 @@
 // ==UserScript==
 // @name        novelDownloaderVietSub
 // @description Menu Download Novel hoặc nhấp đúp vào cạnh trái của trang để hiển thị bảng điều khiển
-// @version     3.5.448.18
+// @version     3.5.448.19
 // @author      dodying | BaoBao
 // @namespace   https://github.com/BaoBao666888/Novel-Downloader5
 // @supportURL  https://github.com/BaoBao666888/Novel-Downloader5/issues
@@ -212,7 +212,7 @@ function decryptDES(encrypted, key, iv) {
     // ============================================================================
 
     function getNovelDownloaderScriptVersion() {
-        return GM_info && GM_info.script && GM_info.script.version ? GM_info.script.version : '3.5.448.18';
+        return GM_info && GM_info.script && GM_info.script.version ? GM_info.script.version : '3.5.448.19';
     }
 
     function docList(items) {
@@ -288,12 +288,11 @@ function decryptDES(encrypted, key, iv) {
         return [
             `<h3>v${getNovelDownloaderScriptVersion()}</h3>`,
             docList([
-                'Thêm rule public cho <b>书旗小说 (shuqi.com)</b>: nhận trang sách/mục lục/trang đọc, lấy toàn bộ chương và nội dung tiếng Trung, đánh dấu VIP và chỉ tải toàn văn khi có quyền đọc (<b>#29</b>).',
-                'Thêm rule riêng cho <b>繁體小說網 (fantinovels.com)</b>: lấy đúng mục lục đầy đủ theo thứ tự, lọc liên kết ngoài chương gây lỗi 404 và xử lý GBK để giữ đúng chữ Trung (<b>#30</b>).',
-                'Bổ sung <code>user_key</code> tùy chọn cho API JJWXC qua <code>Jjwxc: { token, user_key }</code>, giữ tương thích token dạng chuỗi và không lưu nội dung có kiểu mã hóa chưa hỗ trợ.'
+                'Thêm rule public cho <b>洋柿子书城 (talebed.com)</b>: nhận trang chi tiết/mục lục/trang đọc, duyệt hết phân trang, lấy chữ Trung và bìa canvas; hỗ trợ cửa sổ xác minh tự động, dừng khi hủy xác minh hoặc bị giới hạn truy cập (<b>#31</b>).'
             ]),
             '<h3>Các bản trước (tóm tắt)</h3>',
             docList([
+                'v3.5.448.18: thêm Shuqi, sửa Fantinovels, bổ sung <code>user_key</code> tùy chọn cho JJWXC và chặn lưu nội dung có kiểu mã hóa chưa hỗ trợ.',
                 'v3.5.448.17: hàng chờ tải liên tab, lưu task chờ/tiếp tục, giảm spam log; sửa iHuaben, thêm XJJXS/AZXXS, form Yêu cầu rule, EPUB 2/3 và nâng cấp Rule Editor.',
                 'v3.5.448.15: nâng UX chọn/xem thử chương, refresh info/mục lục, rule POPO, tên file/credit và cơ chế an toàn Debug Bridge.',
                 'v3.5.448.12: thêm Rule Editor, Danh sách hỗ trợ, Debug Bridge, khôi phục task tải dở và cải thiện Console/Quản lý tải xuống.',

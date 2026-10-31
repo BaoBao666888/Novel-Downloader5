@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "updatedAt": "2026-10-25",
+  "updatedAt": "2026-10-31",
   "source": "src/rules/special",
   "sites": [
     {
@@ -1704,6 +1704,16 @@
       "domains": [
         "fantinovels.com",
         "www.fantinovels.com"
+      ]
+    },
+    {
+      "name": "洋柿子书城 (Talebed)",
+      "ruleName": "洋柿子书城 (Talebed)",
+      "file": "src/rules/special/0189-talebed-com.rule.js",
+      "kind": "special",
+      "domains": [
+        "talebed.com",
+        "www.talebed.com"
       ]
     }
   ]
