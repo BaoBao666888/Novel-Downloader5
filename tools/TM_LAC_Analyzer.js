@@ -11,10 +11,11 @@
 })(typeof globalThis !== 'undefined' ? globalThis : this, function (root) {
     'use strict';
 
-    const VERSION = '1.0.0';
-    const MODEL_ID = 'vbook-beta-lac-a78a1e6c';
-    const MODEL_URL = 'https://raw.githubusercontent.com/Darkrai9x/vbook-settings/main/analyzer.zip';
-    const MODEL_SHA256 = 'a78a1e6cfa8534dbdc1715e9c49811df34fb52812e128128e24092cca3639f4c';
+    const VERSION = '1.0.2';
+    const MODEL_ID = 'vbook-beta-lac-27136b57';
+    const MODEL_URL = 'https://raw.githubusercontent.com/Darkrai9x/vbook-settings/83dacfdd8b4920021122be222c8f2e44cecf0e6b/analyzer.zip';
+    const MODEL_SHA256 = '27136b570fc6de18c18e5bf4b7736a4df3f43e0e6a35e2f98db7d9c930710f74';
+    const MODEL_MIRRORS = Object.freeze(['https://drive.usercontent.google.com/download?id=1vZb8xBl2r7quVL0CS9IRxIRoJdJYScCb&export=download&confirm=t']);
     const WEIGHTS_BYTES = 31863632;
     const DB_NAME = 'tm_translate_lac_model_v1';
     const DB_VERSION = 1;
@@ -350,13 +351,13 @@
             const meta = await idbGet('meta');
             return {
                 cached: meta?.id === MODEL_ID,
-                ready: !!worker,
+                ready: workerReady,
                 bytes: Number(meta?.bytes) || 0,
                 cachedAt: Number(meta?.cachedAt) || 0,
                 modelId: MODEL_ID
             };
         } catch (error) {
-            return { cached: false, ready: !!worker, bytes: 0, cachedAt: 0, modelId: MODEL_ID, warning: error?.message || String(error) };
+            return { cached: false, ready: workerReady, bytes: 0, cachedAt: 0, modelId: MODEL_ID, warning: error?.message || String(error) };
         }
     }
 
@@ -412,10 +413,9 @@
 
     function unzipDefault(buffer) {
         const codec = root.fflate;
-        if (!codec?.unzip) throw new Error('fflate chưa sẵn sàng để giải nén model LAC.');
-        return new Promise((resolve, reject) => {
-            codec.unzip(new Uint8Array(buffer), (error, files) => error ? reject(error) : resolve(files));
-        });
+        if (!codec?.unzipSync) throw new Error('fflate chưa sẵn sàng để giải nén model LAC.');
+        // fflate.unzip creates its own Worker, which some page CSPs block without a callback.
+        return codec.unzipSync(new Uint8Array(buffer));
     }
 
     function workerMain(core) {
@@ -443,6 +443,7 @@
     }
 
     let worker = null;
+    let workerReady = false;
     let workerSequence = 0;
     const pending = new Map();
 
@@ -450,8 +451,10 @@
         const error = reason || new Error('Worker LAC đã dừng.');
         try { worker?.terminate?.(); } catch (_) { }
         worker = null;
+        workerReady = false;
         for (const task of pending.values()) {
             task.signal?.removeEventListener?.('abort', task.abort);
+            clearTimeout(task.timer);
             task.reject(error);
         }
         pending.clear();
@@ -475,10 +478,12 @@
                 }
                 pending.delete(message.id);
                 task.signal?.removeEventListener?.('abort', task.abort);
+                clearTimeout(task.timer);
                 if (message.type === 'error') task.reject(new Error(message.error || 'LAC local thất bại.'));
                 else task.resolve(message.result);
             };
             instance.onerror = event => terminateWorker(new Error(event?.message || 'Worker LAC gặp lỗi.'));
+            instance.onmessageerror = () => terminateWorker(new Error('Không đọc được phản hồi Worker LAC.'));
             return instance;
         } finally {
             root.URL.revokeObjectURL(url);
@@ -492,12 +497,15 @@
         return new Promise((resolve, reject) => {
             const id = ++workerSequence;
             const abort = () => terminateWorker(abortError());
-            pending.set(id, { resolve, reject, abort, signal: settings.signal, onProgress: settings.onProgress });
+            const timer = type === 'init' ? setTimeout(() => terminateWorker(
+                new Error('Worker LAC không khởi tạo được. Kiểm tra CSP hoặc quyền của userscript.')), 20000) : null;
+            pending.set(id, { resolve, reject, abort, timer, signal: settings.signal, onProgress: settings.onProgress });
             settings.signal?.addEventListener?.('abort', abort, { once: true });
             try {
                 worker.postMessage({ id, type, ...payload }, settings.transfer || []);
             } catch (error) {
                 pending.delete(id);
+                clearTimeout(timer);
                 settings.signal?.removeEventListener?.('abort', abort);
                 reject(error);
             }
@@ -507,29 +515,37 @@
     async function downloadBundle(options) {
         const settings = options || {};
         if (typeof settings.download !== 'function') throw new Error('Thiếu hàm tải model LAC.');
-        settings.onProgress?.({ phase: 'download', loaded: 0, total: 0 });
-        const buffer = await settings.download({
-            url: MODEL_URL,
-            signal: settings.signal,
-            onProgress: progress => settings.onProgress?.({ phase: 'download', ...progress })
-        });
-        throwIfAborted(settings.signal);
-        const archive = buffer instanceof ArrayBuffer ? buffer : exactArrayBuffer(buffer);
-        settings.onProgress?.({ phase: 'verify', loaded: archive.byteLength, total: archive.byteLength });
-        const hash = await sha256Hex(archive);
-        if (hash && hash !== MODEL_SHA256) throw new Error('Gói model LAC sai mã kiểm tra SHA-256.');
-        throwIfAborted(settings.signal);
-        settings.onProgress?.({ phase: 'unzip', loaded: 0, total: archive.byteLength });
-        const files = await (typeof settings.unzip === 'function' ? settings.unzip(archive) : unzipDefault(archive));
-        throwIfAborted(settings.signal);
-        return extractBundle(files);
+        let lastError;
+        for (const url of [MODEL_URL, ...MODEL_MIRRORS]) {
+            throwIfAborted(settings.signal);
+            try {
+                settings.onProgress?.({ phase: url === MODEL_URL ? 'download' : 'mirror', loaded: 0, total: 0 });
+                const buffer = await settings.download({ url, signal: settings.signal,
+                    onProgress: progress => settings.onProgress?.({ phase: 'download', ...progress }) });
+                throwIfAborted(settings.signal);
+                const archive = buffer instanceof ArrayBuffer ? buffer : exactArrayBuffer(buffer);
+                settings.onProgress?.({ phase: 'verify', loaded: archive.byteLength, total: archive.byteLength });
+                const hash = await sha256Hex(archive);
+                if (!hash) throw new Error('LAC cần HTTPS để kiểm tra SHA-256 của model.');
+                if (hash !== MODEL_SHA256) throw new Error('Gói model LAC sai mã kiểm tra SHA-256.');
+                throwIfAborted(settings.signal);
+                settings.onProgress?.({ phase: 'unzip', loaded: 0, total: archive.byteLength });
+                const files = await (typeof settings.unzip === 'function' ? settings.unzip(archive) : unzipDefault(archive));
+                throwIfAborted(settings.signal);
+                return extractBundle(files);
+            } catch (error) {
+                if (error?.name === 'AbortError') throw error;
+                lastError = error;
+            }
+        }
+        throw lastError;
     }
 
     let ensurePromise = null;
     async function ensureModel(options) {
         const settings = options || {};
         throwIfAborted(settings.signal);
-        if (worker) return { ready: true, cached: true, modelId: MODEL_ID };
+        if (workerReady) return { ready: true, cached: true, modelId: MODEL_ID };
         if (ensurePromise) return ensurePromise;
         ensurePromise = (async () => {
             let bundle = null;
@@ -556,10 +572,14 @@
             settings.onProgress?.({ phase: 'init', loaded: bundle.weights.byteLength, total: bundle.weights.byteLength });
             const weights = bundle.weights;
             await sendWorker('init', { bundle }, { signal: settings.signal, transfer: [weights] });
+            workerReady = true;
             return { ready: true, cached: fromCache || !cacheWarning, downloaded: !fromCache, warning: cacheWarning, modelId: MODEL_ID };
         })();
         try {
             return await ensurePromise;
+        } catch (error) {
+            terminateWorker(error);
+            throw error;
         } finally {
             ensurePromise = null;
         }
@@ -580,6 +600,7 @@
         VERSION,
         MODEL_ID,
         MODEL_URL,
+        MODEL_MIRRORS,
         MODEL_SHA256,
         WEIGHTS_BYTES,
         getCacheStatus,

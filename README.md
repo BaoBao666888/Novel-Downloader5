@@ -2,6 +2,10 @@
 
 Đây là một userscript giúp tải truyện chữ (novel) từ nhiều trang web khác nhau về máy tính dưới dạng file TEXT, EPUB hoặc ZIP. Phiên bản này được tùy chỉnh và phát triển dựa trên bản gốc của [dodying](https://github.com/dodying/UserJs).
 
+## License
+
+Mã do repo phát triển dùng [AGPL-3.0-only](LICENSE). Mã và thư viện bên thứ ba giữ nguyên license gốc. Xem [ghi nhận nguồn và phạm vi áp dụng](THIRD_PARTY_NOTICES.md). License của repo không cấp quyền đối với nội dung truyện tải từ website.
+
 ## Tính năng chính
 
 *   **Hỗ trợ nhiều trang web:** Tải truyện từ các trang phổ biến như Fanqie, JJWXC, Qidian, 69shuba, PO18, và nhiều trang khác.
@@ -34,11 +38,11 @@
     *   **Cách 2:** Nhấp đúp chuột vào cạnh **trái** của trang web.
     *   **Cách 3:** Nhấp vào biểu tượng của trình quản lý userscript (ví dụ: Tampermonkey) trên thanh công cụ trình duyệt, tìm đến `novelDownloaderVietSub` và chọn "Download Novel".
     *   *(Lưu ý: Xem phần "Vấn đề đã biết" nếu gặp khó khăn khi mở bảng điều khiển).*
-3.  **Kiểm tra thông tin:** Script sẽ cố gắng tự động lấy thông tin truyện (tên, tác giả, bìa, tóm tắt) nếu rule cho trang đó hỗ trợ. Ô `Tóm tắt` là vùng nhiều dòng để bạn xem và chỉnh đúng bố cục xuống dòng. Dùng `Lấy lại info` hoặc `Lấy lại DS chương` khi cần gọi lại rule mà không đóng UI. Nút `Yêu cầu rule` mở form tạo sẵn GitHub issue; bạn vẫn cần kiểm tra và tự nhấn `Create issue` trên GitHub.
+3.  **Kiểm tra thông tin:** Script sẽ cố gắng tự động lấy thông tin truyện (tên, tác giả, bìa, tóm tắt) nếu rule cho trang đó hỗ trợ. Ô `Tóm tắt` là vùng nhiều dòng để bạn xem và chỉnh đúng bố cục xuống dòng. Dùng `Lấy lại info` hoặc `Lấy lại DS chương` khi cần gọi lại rule mà không đóng UI. Nút `Yêu cầu rule` mở form tạo sẵn GitHub issue. Bạn vẫn cần kiểm tra và tự nhấn `Create issue` trên GitHub.
 4.  **Cấu hình (Tùy chọn):** Điều chỉnh các tùy chọn tải xuống như định dạng file, số luồng, thời gian chờ, có tải chương VIP hay không, v.v.
-5.  **Chọn chương:** Bấm `Chọn chương tải` để mở danh sách chương trong popup. Nhập phạm vi như `1-25, 35, 50`; dòng trạng thái sẽ báo số chương hợp lệ, còn thẻ chương thường/VIP được phân màu riêng. Bấm một thẻ rồi chọn `Lấy thử chap`, hoặc nhấp đúp thẻ để xem ngay title và nội dung. Nội dung xem thử được làm sạch giống file xuất; nút `Copy chương` sao chép theo dạng `title\ncontent`.
+5.  **Chọn chương:** Bấm `Chọn chương tải` để mở danh sách chương trong popup. Nhập phạm vi như `1-25, 35, 50`. Dòng trạng thái sẽ báo số chương hợp lệ, còn thẻ chương thường/VIP được phân màu riêng. Bấm một thẻ rồi chọn `Lấy thử chap`, hoặc nhấp đúp thẻ để xem ngay title và nội dung. Nội dung xem thử được làm sạch giống file xuất. Nút `Copy chương` sao chép theo dạng `title\ncontent`.
 6.  **Bắt đầu tải:** Nhấn `Tải xuống - TXT`, `Tải xuống - ZIP` hoặc `Tải xuống - EPUB`. Khi tải EPUB, chọn EPUB 2 để tương thích máy đọc cũ hoặc EPUB 3 cho metadata/nav hiện đại. Cả ba định dạng dùng tên file theo dạng `tên truyện__tác giả`.
-7.  **Theo dõi:** Theo dõi thanh tiến trình trên bảng điều khiển hoặc mở `Quản lý tải xuống` để xem queue/lịch sử. Bảng này có nút copy summary/lỗi, xóa lịch sử, xóa task treo và nạp lại task đã lưu khi tab bị đóng giữa chừng. Sau khi nạp, chọn lại phạm vi rồi bấm định dạng tải; script không tự chạy phạm vi cũ.
+7.  **Theo dõi:** Theo dõi thanh tiến trình trên bảng điều khiển hoặc mở `Quản lý tải xuống` để xem queue/lịch sử. Bảng này có nút copy summary/lỗi, xóa lịch sử, xóa task treo và nạp lại task đã lưu khi tab bị đóng giữa chừng. Sau khi nạp, chọn lại phạm vi rồi bấm định dạng tải. Script không tự chạy phạm vi cũ.
 8.  **Lưu file:** Có thể dùng nút `Chọn thư mục lưu` để ghi trực tiếp bằng File System Access API. Nếu trình duyệt không hỗ trợ hoặc không cấp quyền, script tự fallback về hộp lưu mặc định của trình duyệt.
 
 ### Cấu trúc file EPUB
@@ -58,7 +62,7 @@ OEBPS/Styles/stylesheet.css
 OEBPS/Images/*
 ```
 
-`content.opf` chứa metadata, manifest và thứ tự đọc. EPUB 2 dùng thêm `toc.ncx`; EPUB 3 dùng `toc.xhtml` có thuộc tính `epub:type="toc"` và metadata `dcterms:modified`.
+`content.opf` chứa metadata, manifest và thứ tự đọc. EPUB 2 dùng thêm `toc.ncx`. EPUB 3 dùng `toc.xhtml` có thuộc tính `epub:type="toc"` và metadata `dcterms:modified`.
 
 ## Cấu hình nâng cao (Tùy chọn)
 
@@ -69,18 +73,18 @@ OEBPS/Images/*
 ### Debug Bridge ND5
 
 - Xem hướng dẫn: [Novel Downloader Debug Bridge](tools/nd-debug-bridge/README.md).
-- Debug Bridge dùng server local để test selector, chạy rule, xem `Storage`/`Config`, chạy `getChapters`, `deal` và eval JS ngay trong tab Tampermonkey thật; có CLI terminal ở `tools/nd-debug-bridge/cli.js` để điều khiển tab debug, mở URL mới, inject rule test bằng `inject-rule`, hoặc mở tab mới và test rule bằng `test-rule <file> <url>`.
+- Debug Bridge dùng server local để test selector, chạy rule, xem `Storage`/`Config`, chạy `getChapters`, `deal` và eval JS ngay trong tab Tampermonkey thật. Có CLI terminal ở `tools/nd-debug-bridge/cli.js` để điều khiển tab debug, mở URL mới, inject rule test bằng `inject-rule`, hoặc mở tab mới và test rule bằng `test-rule <file> <url>`.
 - Bridge mặc định chỉ kết nối thủ công. Bật `Luôn tự kết nối server debug` nếu muốn tự nạp/reconnect khi mở trang.
 - Khi chưa bật `Tin tưởng tất cả code JS chạy qua bridge`, mỗi lệnh eval/inject sẽ mở popup trên tab đích để chọn cho phép một lần, tin tưởng origin đó trong session, hoặc từ chối. Eval JS luôn hiện toast cảnh báo trên website đang chạy.
-- Khi muốn test Rule Editor bằng bản trong repo hiện tại, chạy `node tools/nd-debug-bridge/server.js`; server này cũng phục vụ `/nd-rule-editor.js`.
+- Khi muốn test Rule Editor bằng bản trong repo hiện tại, chạy `node tools/nd-debug-bridge/server.js`. Server này cũng phục vụ `/nd-rule-editor.js`.
 
 ### Cung cấp Token JJWXC và API Fanqie
 
-Rule **JJWXC** có thể tải chương public/no-VIP trực tiếp từ web. Với chương VIP đã mua, script sẽ dùng token app Android nếu bạn cung cấp qua `window.tokenOptions`. Nếu tài khoản cần thêm `user_key`, điền cùng token trong `Jjwxc: { token, user_key }`; key này sẽ được gửi vào request API chương. Với **Fanqie**, bạn có thể cấu hình API thay thế nếu API gốc bị chặn hoặc cần key riêng.
+Rule **JJWXC** có thể tải chương public/no-VIP trực tiếp từ web. Với chương VIP đã mua, script sẽ dùng token app Android nếu bạn cung cấp qua `window.tokenOptions`. Nếu tài khoản cần thêm `user_key`, điền cùng token trong `Jjwxc: { token, user_key }`. Key này sẽ được gửi vào request API chương. Với **Fanqie**, bạn có thể cấu hình API thay thế nếu API gốc bị chặn hoặc cần key riêng.
 
 **Tại sao cần làm việc này?**
 
-*   **JJWXC:** Chương public/no-VIP không cần token; chương VIP cần token xác thực cá nhân để truy cập qua API app.
+*   **JJWXC:** Chương public/no-VIP không cần token. Chương VIP cần token xác thực cá nhân để truy cập qua API app.
 *   **Fanqie:** API gốc của Fanqie có thể bị chặn hoặc yêu cầu cookie phức tạp. Sử dụng API bên ngoài (API riêng của bạn) có thể ổn định hơn.
 
 **Các bước thực hiện:**
@@ -152,7 +156,7 @@ Script hỗ trợ một danh sách lớn các trang web. Trong UI tải chính h
 *   Novel543 (Novel543.com)
 *   久久小说网 (xjjxs.com)
 *   晚安小说网 (azxxs.com)
-*   洋柿子书城 (talebed.com): nhận `/detail?id=ID`, `/page/ID?page=N` và `/read/ID/CHAP`; tự duyệt mục lục từ trang đầu và xuất bìa canvas. Khi web yêu cầu xác minh, mở cửa sổ theo thông báo và giữ cửa sổ đó để web tự xác minh. Hủy/đóng cửa sổ hoặc gặp HTTP 429 sẽ dừng tải; xác minh/đợi xong rồi tải lại trang để tiếp tục từ dữ liệu đã lưu.
+*   洋柿子书城 (talebed.com)
 *   Và nhiều trang khác...
 
 *(Bạn có thể tự thêm hoặc sửa rule trong `src/rules`, sau đó chạy build để sinh lại userscript chính).*
@@ -163,7 +167,7 @@ Bạn nên dùng `Quản lý rule` trong phần cài đặt nâng cao của UI t
 
 Trong vùng code có thể dùng `Tab`/`Shift+Tab`, `Enter` để tự thụt lề, `Ctrl+/` để bật/tắt comment, `Ctrl+F` để tìm, `Ctrl+S` để lưu draft và `Shift+Alt+F` để format. Nút `Format Code` thực hiện cùng thao tác format bằng chuột.
 
-Khi bấm `Áp dụng`, Rule Editor sẽ sinh lại `Config.customize` nên vẫn tương thích cơ chế cũ. Nếu cần dán thủ công, `Config.customize` vẫn nhận một object, một mảng object, hoặc một lệnh JS kiểu `Rule.special.push({...})`; sau khi áp dụng hãy tải lại trang nếu muốn rule mới được nạp lại từ đầu.
+Khi bấm `Áp dụng`, Rule Editor sẽ sinh lại `Config.customize` nên vẫn tương thích cơ chế cũ. Nếu cần dán thủ công, `Config.customize` vẫn nhận một object, một mảng object, hoặc một lệnh JS kiểu `Rule.special.push({...})`. Sau khi áp dụng hãy tải lại trang nếu muốn rule mới được nạp lại từ đầu.
 
 Nếu sửa rule gốc trong repo, sửa từng file trong `src/rules/special` hoặc `src/rules/template`, rồi chạy:
 
@@ -172,7 +176,7 @@ node tools/build-novel-downloader.js build
 node --check novelDownloaderVietSub.user.js
 ```
 
-`novelDownloaderVietSub.user.js` là output để Tampermonkey cài/update; source không chứa rule dài nằm ở `src/novelDownloaderVietSub.core.user.js`.
+`novelDownloaderVietSub.user.js` là output để Tampermonkey cài/update. Source không chứa rule dài nằm ở `src/novelDownloaderVietSub.core.user.js`.
 
 Rule tối thiểu cần `siteName`, cách nhận diện trang (`url`/`chapterUrl` hoặc `filter`) và cách lấy chương (`chapter`/`getChapters`) kèm nội dung (`content` hoặc `deal`). Ví dụ khung đầy đủ:
 
@@ -233,8 +237,8 @@ Rule.special.push({
 
 ### Userscript chính
 
-*   **novelDownloaderVietSub.user.js:** Bản stable để cài Tampermonkey, được build từ `src/novelDownloaderVietSub.core.user.js` và `src/rules`; cài đặt nhanh [Stable](https://raw.githubusercontent.com/BaoBao666888/Novel-Downloader5/main/novelDownloaderVietSub.user.js) • [Beta](https://raw.githubusercontent.com/BaoBao666888/Novel-Downloader5/main/novelDownloaderVietSub-beta.user.js) • [3.5.446](https://raw.githubusercontent.com/BaoBao666888/Novel-Downloader5/main/novelDownloaderVietSub-3.5.446.user.js) • [3.5.445](https://raw.githubusercontent.com/BaoBao666888/Novel-Downloader5/main/novelDownloaderVietSub-3.5.445.user.js).
-*   **src/novelDownloaderVietSub.core.user.js:** Source chính không chứa danh sách rule dài; build script sẽ chèn rule vào đúng vị trí.
+*   **novelDownloaderVietSub.user.js:** Bản stable để cài Tampermonkey, được build từ `src/novelDownloaderVietSub.core.user.js` và `src/rules`. Cài đặt nhanh [Stable](https://raw.githubusercontent.com/BaoBao666888/Novel-Downloader5/main/novelDownloaderVietSub.user.js)
+*   **src/novelDownloaderVietSub.core.user.js:** Source chính không chứa danh sách rule dài. Build script sẽ chèn rule vào đúng vị trí.
 *   **src/rules/special\\*** và **src/rules/template\\***: Rule gốc đã tách theo file riêng để sửa/thêm từng site dễ hơn.
 *   **auto inject tokenOptions.user.js:** Script phụ tự tạo window.tokenOptions (token JJWXC, API Fanqie) cho novelDownloaderVietSub; [Cài đặt](https://raw.githubusercontent.com/BaoBao666888/Novel-Downloader5/main/auto%20inject%20tokenOptions.user.js).
 *   **nd-console-panel.js:** Panel console trong UI chính, bắt `console.log/info/warn/error/debug`, giữ màu `%c`, hỗ trợ copy/xóa/ẩn.
@@ -248,7 +252,7 @@ Rule.special.push({
 *   **Fanqie Chapter Replacer and copy Full.user.js:** Thay nội dung chương Fanqie từ API cá nhân và thêm nút copy tiêu đề + nội dung để dùng lại nhanh; [Cài đặt](https://raw.githubusercontent.com/BaoBao666888/Novel-Downloader5/main/Fanqie%20Chapter%20Replacer%20and%20copy%20Full.user.js).
 *   **TM Translate.user.js:** Dịch trang, quản lý name-set, Thư viện đọc offline, OCR, selection toolbar và TTS trong reader; [Cài đặt](https://raw.githubusercontent.com/BaoBao666888/Novel-Downloader5/main/TM%20Translate.user.js) • [Hướng dẫn sử dụng](TM_TRANSLATE_GUIDE.md) • [Hướng dẫn TTS](tools/HUONG_DAN_SU_DUNG_TTS_READER.md).
 *   **TruyenWikiDich_Works_Manager.user.js:** Đồng bộ toàn bộ works cá nhân trên Wikidich, lưu vào localForage, hỗ trợ lọc nâng cao và xuất/nhập dữ liệu; [Cài đặt](https://raw.githubusercontent.com/BaoBao666888/Novel-Downloader5/main/TruyenWikiDich_Works_Manager.user.js).
-*   **Scribd_Document_Exporter.user.js:** Lưu tài liệu Scribd đang đọc thành TXT và PDF khi có lớp chữ; tài liệu chỉ có ảnh sẽ tự tắt TXT và xuất PDF. TXT tự chuẩn hóa chữ bộ thủ của font Scribd; glyph riêng chưa xác định sẽ hiện ảnh để sửa và tự điền gợi ý nếu có **TM Translate Hybrid Helper**. Mở trang tài liệu Scribd rồi bấm `Lưu TXT/PDF` ở góc dưới bên phải; [Cài đặt](https://raw.githubusercontent.com/BaoBao666888/Novel-Downloader5/main/tools/Scribd_Document_Exporter.user.js).
+*   **Scribd_Document_Exporter.user.js:** Lưu tài liệu Scribd đang đọc thành TXT và PDF khi có lớp chữ. Tài liệu chỉ có ảnh sẽ tự tắt TXT và xuất PDF. TXT tự chuẩn hóa chữ bộ thủ của font Scribd. Glyph riêng chưa xác định sẽ hiện ảnh để sửa và tự điền gợi ý nếu có **TM Translate Hybrid Helper**. Mở trang tài liệu Scribd rồi bấm `Lưu TXT/PDF` ở góc dưới bên phải; [Cài đặt](https://raw.githubusercontent.com/BaoBao666888/Novel-Downloader5/main/tools/Scribd_Document_Exporter.user.js).
 *   **Wikicv_Library_Archiver.user.js:** Quét, lưu, xem và xuất thư viện Wikicv, hỗ trợ checkpoint, helper và xuất HTML linh hoạt; [Cài đặt](https://raw.githubusercontent.com/BaoBao666888/Novel-Downloader5/main/tools/Wikicv_Library_Archiver.user.js).
 *   **TruyenWikiDich_Get_Names.user.js:** Lấy danh sách tên nhân vật, quản lý name desk từ web wiki; [Cài đặt](https://github.com/BaoBao666888/Novel-Downloader5/raw/refs/heads/main/tools/TruyenWikiDich_Get_Names.user.js).
 *   **wkidich-search-to-detail.user.js:** Thêm nút tìm truyện Wikidich và hiển thị link nhúng detail từ API; [Cài đặt](https://raw.githubusercontent.com/BaoBao666888/Novel-Downloader5/main/wkidich-search-to-detail.user.js).
@@ -256,10 +260,10 @@ Rule.special.push({
 
 ### Công cụ & thư mục
 
-*   **tools/build-novel-downloader.js:** Build `novelDownloaderVietSub.user.js` từ source core và các file rule; hỗ trợ `extract` khi cần tách lại từ userscript hiện có.
+*   **tools/build-novel-downloader.js:** Build `novelDownloaderVietSub.user.js` từ source core và các file rule. Hỗ trợ `extract` khi cần tách lại từ userscript hiện có.
 *   **decode\\Zongcai-Novel-Decoder.user.js:** Giải mã truyện Zongcai; [Cài đặt Zongcai](https://raw.githubusercontent.com/BaoBao666888/Novel-Downloader5/main/decode/Zongcai-Novel-Decoder.user.js).
-*   **rename_chapters\\***: Ứng dụng Tkinter Rename Chapters (v0.1.5) đổi tên file theo nội dung, sắp xếp, gộp/tách, hỗ trợ fetch metadata (ảnh, mục lục), plugin cho JJWXC/PO18/Qidian/Fanqie va cập nhật tự động; ưu tiên dùng bản build sẵn [Rename Chapters](https://github.com/BaoBao666888/Novel-Downloader5/releases).
-*   **tools/nd-debug-bridge\\***: Server và client Debug Bridge cho ND5; xem [hướng dẫn debug script](tools/nd-debug-bridge/README.md).
+*   **rename_chapters\\***: Ứng dụng Tkinter Rename Chapters (v0.1.5) đổi tên file theo nội dung, sắp xếp, gộp/tách, hỗ trợ fetch metadata (ảnh, mục lục), plugin cho JJWXC/PO18/Qidian/Fanqie va cập nhật tự động. Ưu tiên dùng bản build sẵn [Rename Chapters](https://github.com/BaoBao666888/Novel-Downloader5/releases).
+*   **tools/nd-debug-bridge\\***: Server và client Debug Bridge cho ND5. Xem [hướng dẫn debug script](tools/nd-debug-bridge/README.md).
 
 ### Dữ liệu & thư viện hỗ trợ
 

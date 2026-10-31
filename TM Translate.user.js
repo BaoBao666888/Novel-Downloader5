@@ -2,7 +2,8 @@
 // @name         TM Translate
 // @author       QuocBao
 // @namespace    http://tampermonkey.net/
-// @version      3.5.5.18_beta
+// @version      3.5.5.19_beta
+// @license      AGPL-3.0-only
 // @description  Dịch trang, quản lý name-sets, sửa tên, Thư viện đọc offline, OCR và TTS.
 // @icon         data:image/png;base64,AAABAAEAQEAAAAEAIAAoQgAAFgAAACgAAABAAAAAgAAAAAEAIAAAAAAAAEAAAAAAAAAAAAAAAAAAAAAAAAA+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/0CLNf9BjDb/QYw2/0GMNv9BjDb/QYw2/0GMNv9BjDb/QYw2/0GMNv9BjDb/QYw2/0GMNv9BjDb/QIs1/z+LNP8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z+KNP81hCn/L4Ek/zCCJf8wgiX/MIIl/zCCJf8wgiX/MIIl/zCCJf8wgiX/MIIk/zCCJP8xgiX/MoMm/zWFKv86hy7/Pooz/0GMNv9BjDb/P4s0/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/0CLNf83hiz/gbJ6/7HQrf+py6T/qsum/6rLpv+qy6b/qsum/6rLpv+qy6b/qsum/6jKo/+fxZr/kLuJ/36xd/9oo1//UJVH/zyJMf8xgiX/MoIm/zqIL/9BjDb/QIs1/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/9AizX/M4Mo/8DZvP///////P38//////////////////////////////////////////////////////////////////X59f/b6dr/tNGw/4CyeP9Ok0T/M4Mn/zSEKP8/izT/QYw2/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/QIs1/zOEKP+71rj///////n8+f/8/fz//P38//z9/P/8/fz//P38//z9/P/8/fz//P38//z9/P/8/fz//f79//7//v//////////////////////8/jz/7zWuf9wqGj/OIYt/zOEKP9AizX/P4s0/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/0CLNv8zgyj/vde6///////8/fz//////////////////v79//3+/f/9/v3//f79//7+/v/+/v7//v/+/////////////v/+//3+/f/8/fz//f79/////////////////9Pk0f9yqWr/M4Mo/zmHLv9BjDb/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/9Aizb/M4Mo/73Xuv///////P38///////////////////////////////////////////////////////9/v3//P38//z9/P/9/v3////////////+//7//P38//3+/f///////////8DYvP9Nk0P/MoMn/0GMNv8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/QIs2/zODKP+917r///////z9/P/////////////////h7N//1+fV/9vp2f/e69z/5/Dl//P48v/9/v3///////////////////////7//v/8/fz//v7+/////////////f79//3+/P//////7/Xu/3Wrbv8wgiT/QIs1/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/0CLNv8zgyj/vde6///////8/fz/////////////////Yp9Z/zODJ/89iTP/PYoy/0ONOP9Mk0L/WptR/3Gpaf+Qu4n/ttKy/+Ds3v/9/v3////////////9/vz//v7+/////////////P38//7+/v//////lL6O/zGCJv9AizX/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/9Aizb/M4Mo/73Xuv///////P38/////////////////2ShXP82hSv/QIs1/z6KM/88iTH/Oogv/zeGLP80hCj/MYIl/zKDJv8+ijP/Yp9Z/6THn//s8+v///////7+/f/9/v3////////////+/v3//P38//////+awpX/MYIl/0GMNv8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/QIs2/zODKP+917r///////z9/P////////////////9koVz/NoUr/0CLNf8+ijP/P4o0/z+LNP8/izX/QIs1/0GMNv9BjDb/Pooz/zaFK/8wgST/Ro88/5nBk//1+fT///////z9/P////////////7//v/8/fz//////4a2gP8xgiX/QYw2/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/0CLNv8zgyj/vde6///////8/fz/////////////////ZKFb/zaFKv9AizX/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/9AizX/QYw3/zyJMf8vgSP/VZhL/9Hjzv///////P38/////////////v7+///////6/Pr/YJ9Y/zaFKv9AizX/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/9Aizb/M4Mo/73Xuv///////P38/////////////////2ShW/82hSr/QIs1/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8/ijT/Qow3/zeGLP85hy7/udW2///////8/fz////////////9/v3//////9Pk0P87iDD/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/QIs2/zODKP+917r///////z9/P////////////////9koVv/NoUq/0CLNf8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/9BjDb/PYky/zWEKf+/2Lv///////39/P////////////z9/P//////hrV//zGCJf9BjDb/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/0CLNv8zgyj/vde6///////8/fz/////////////////ZKFb/zaFKv9AizX/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/0CLNf87iTD/QIs1/93q2////////f79///////+/v3//////93q2/8/ijT/PYoy/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/9Aizb/M4Mo/73Xuv///////P38/////////////////2ShW/82hSr/QIs1/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/QYw2/zOEKP9ppGH///////7//v////////////3+/f//////dqxv/zODJ/9AjDb/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/QIs2/zODKP+917r///////z9/P////////////////9koVv/NoUq/0CLNf8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/9BjDb/MYIm/7jUtP///////f38///////8/fz//////7nUtf8ygyf/QYw2/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/0CLNv8zgyj/vde6///////8/fz/////////////////ZKFb/zaFKv9AizX/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/QIs1/zaFKv9koVz//////////////////v7+///////p8uj/RY47/zyJMf8/ijT/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/9Aizb/M4Mo/73Xuv///////P38/////////////////2ShW/82hSr/QIs1/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8/ijT/O4gw/9ro1////////f79///////+//7//////2aiXv81hSr/QIs1/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/QIs2/zODKP+917r///////z9/P////////////////9koVv/NoUq/0CLNf8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/QYw2/zCCJP+oyqP///////z9/P///////P38//////+JuIP/MYIl/0GMNv8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/0CLNv8zgyj/vde6///////8/fz/////////////////ZKFb/zaFKv9AizX/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/0GMNv8ygyb/gbJ6///////9/vz///////z9/P//////qMqj/zGCJf9BjDb/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/9Aizb/M4Mo/73Xuv///////P38/////////////////2ShW/82hSr/QIs1/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/9AizX/NYUq/2ejX////////v/+///////8/fz//////7zWuf8zgyf/QIw2/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/QIs2/zODKP+917r///////z9/P////////////////9koVv/NoUq/0CLNf8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/P4s1/ziGLP9am1D/+/37///////+//7//f79///////K38f/NoUq/0CLNf8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/0CLNv8zgyj/vde6///////8/fz/////////////////ZKFb/zaFKv9AizX/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z+LNP85hy7/U5dJ//j7+P///////v/+//3+/f//////0+TR/zmHLf8/izT/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/9Aizb/M4Mo/73Xuv///////P38/////////////////2ShW/82hSr/QIs1/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8/izT/OYcu/1OWSf/3+vf///////7//v/9/v3//////9bm1P86hy7/P4o0/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/QIs2/zODKP+917r///////z9/P////////////////9koVv/NoUq/0CLNf8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/P4s0/ziGLf9XmU7/+vz6///////+//7//f79///////R487/OIYs/z+LNP8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/0CLNv8zgyj/vde6///////8/fz/////////////////ZKFb/zaFKv9AizX/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/0CLNf82hSv/YqBa//////////////////3+/f//////xtzD/zWEKf9AizX/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/9Aizb/M4Mo/73Xuv///////P38/////////////////2ShW/82hSr/QIs1/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/9BjDb/M4Mn/3itcf///////f79///////8/fz//////7bSsv8ygyb/QYw2/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/QIs2/zODKP+917r///////z9/P////////////////9koVv/NoUq/0CLNf8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/QYw2/zCCJP+bwpX///////z9/P///////P38//////+dw5f/MIIk/0GMNv8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/0CLNv8zgyj/vde6///////8/fz/////////////////ZKFb/zaFKv9AizX/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/0CLNf81hSr/yd7F///////9/v3///////3+/f//////fK90/zKDJ/9BjDb/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/9Aizb/M4Mo/73Xuv///////P38/////////////////2ShW/82hSr/QIs1/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z+LNP85hy7/UZZI//b69v///////v/+//7//v//////+vz6/1eZTf84hi3/P4s0/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/QIs2/zODKP+917r///////z9/P////////////////9koVv/NoUq/0CLNf8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/9CjDf/MIIk/5W/j////////P38///////9/v3//////9Xl0/86hy//P4o0/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/0CLNv8zgyj/vde6///////8/fz/////////////////ZKFb/zaFKv9AizX/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8/izT/O4gw/0ePPP/r8ur///////7+/v///////P38//////+XwJH/MIIl/0GMNv8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/9Aizb/M4Mo/73Xuv///////P38/////////////////2ShW/82hSr/QIs1/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Qow3/y+BI/+tzaj///////39/P///////v/+///////2+fX/VZdL/zmHLf8/izT/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/QIs2/zODKP+917r///////z9/P////////////////9koVv/NoUq/0CLNf8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8/ijT/Qo04/y2AIf+Cs3v///////3+/f////////////z9/P//////sM+r/zKCJv9BjDb/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/0CLNv8zgyj/vde6///////8/fz/////////////////ZKFb/zaFKv9AizX/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/9BjDb/Pooz/y2AIf99sHb//P38///////+//7///////7+/v//////8/fy/1KWSf85hy7/P4s0/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/9Aizb/M4Mo/73Xuv///////P38/////////////////2ShW/82hSr/QIs1/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/P4o0/0GMNv9AizX/M4Mn/zuIMP+gxZr//v/+//7+/v/+//7////////////8/fv//////4y5hf8xgiX/QYw2/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/QIs2/zODKP+917r///////z9/P////////////////9koVv/NoUq/0CLNf8+ijP/Pooz/z6KM/8+ijP/P4o0/0CLNf9BjDb/QYw2/zyJMf8ygyb/N4Yr/3Oqa//b6dn///////3+/P/+//7////////////7/fv//////7nUtf80hCn/QIs1/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/0CLNv8zgyj/vde6///////8/fz/////////////////Z6Je/zmHLv9DjTj/QYw2/0GMNv9AizX/Pooz/zuIMP82hSv/MYIl/zKDJ/9Gjzz/frF3/9Hjzv////////////3+/f/+//7////////////7/fv//////8zgyf89iTL/PIkx/z+LNP8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/9Aizb/M4Mo/73Xuv///////P38/////////////////1maUP8nfBv/MoMn/zGCJf8ygyb/NYQp/zuIMP9JkT//YZ9Z/4e2gf+51LX/7PPr/////////////f79//3+/f////////////7+/f/8/fz//////8fdxP8/ijT/O4gv/0CLNf8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/QIs2/zODKP+917r///////z9/P////////////////+71bf/psmh/6vMpv+uzqn/t9Oz/8jdxf/a6dj/8PXv//7//v/////////////////9/v3//f79/////////////v/+//z9/P/+//7//////6rLpf84hi3/O4gw/0CLNf8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/0CLNv8zgyj/vde6///////8/fz///////////////////////////////////////////////////////////////7//P38//z9/P/+/v7////////////+/v7//P38//7+/v//////6/Pq/3mucv8xgiX/Pooz/0CLNf8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/9Aizb/M4Mo/73Xuv///////P38//////////////////3+/P/8/fz//P38//z9/P/8/fz//f79//3+/f/+/v7//////////////////v7+//z9/P/9/v3////////////4+/f/qMqj/0ePPf8ygyb/QYw2/z+KNP8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/QIs2/zODKP+81rj///////v8+v/9/v3//f79//3+/f/9/v3//f79//3+/f/9/v3//f79//3+/f/9/vz//P38//z9/P/9/v3////////////+//7//////+vz6v+myaH/VZhL/zCCJP87iDD/QYw2/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/0CLNf8zgyj/wNi8///////8/fz///////////////////////////////////////////////////////////////////////3+/f/l7+P/t9Oz/3uvdP9Gjzv/MIIl/ziHLf9BjDb/P4s0/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/9AizX/NYQp/6HGnP/l7+T/2ejX/9vp2f/b6dn/2+nZ/9vp2f/b6dn/2+nZ/9vp2f/a6Nj/1OXS/8jdxf+10rH/ncSY/36xd/9enVX/Qow3/zKCJv8ygyb/PIkx/0GMNv8/izT/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/87iDD/PIgx/zyIMf88iDH/PIgx/zyIMf88iDH/PIgx/zyIMf88iTH/O4gw/ziGLf81hCn/MYIm/zCCJP8ygyb/N4Yr/z2JMv9BjDb/QYw2/z+KNP8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/P4o0/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8/izT/QIs1/0GMNv9BjDb/QYw2/0CLNf8+ijT/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=
 // @downloadURL  https://raw.githubusercontent.com/BaoBao666888/Novel-Downloader5/main/TM%20Translate.user.js
@@ -33,6 +34,13 @@
 // @connect      translate.google.com
 // @connect      gemini.google.com
 // @connect      www.bing.com
+// @connect      texsmart.qq.com
+// @connect      huggingface.co
+// @connect      hf.co
+// @connect      cdn-lfs.huggingface.co
+// @connect      cas-bridge.xethub.hf.co
+// @connect      www.hanlp.com
+// @connect      drive.google.com
 // @connect      api.zalo.ai
 // @connect      *.zalo.ai
 // @connect      *.zdn.vn
@@ -40,8 +48,9 @@
 // @connect      *.zmdcdn.me
 // @connect      *
 // @require      https://raw.githubusercontent.com/BaoBao666888/Novel-Downloader5/main/translate/zh_to_vi/translateZhToVi.js
-// @require      https://raw.githubusercontent.com/BaoBao666888/Novel-Downloader5/main/tools/TM_LAC_Analyzer.js?v=20260824b
-// @require      https://raw.githubusercontent.com/BaoBao666888/Novel-Downloader5/main/tools/TM_Name_Analyzer.js?v=20260824b
+// @require      https://raw.githubusercontent.com/BaoBao666888/Novel-Downloader5/main/tools/TM_LAC_Analyzer.js?v=20261031b
+// @require      https://raw.githubusercontent.com/BaoBao666888/Novel-Downloader5/main/tools/TM_BERT_Analyzer.js?v=20261031b
+// @require      https://raw.githubusercontent.com/BaoBao666888/Novel-Downloader5/main/tools/TM_Name_Analyzer.js?v=20261031b
 // @require      https://raw.githubusercontent.com/BaoBao666888/Novel-Downloader5/main/tools/TTS_Reader_Core.user.js?v=20260629
 // @require      https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js
 // @require      https://unpkg.com/@oovz/esearch-ocr/dist/eSearchOCR.umd.js
@@ -137,7 +146,7 @@
         const projectedMiB = (projectedBytes / 1024 / 1024).toFixed(1);
         const error = new Error(
             `Kho Tampermonkey đang dùng khoảng ${usedMiB} MiB và ${label} có thể đẩy lên ${projectedMiB} MiB, `
-            + `vượt ngưỡng an toàn 50 MiB. Cache dịch đã được dọn nếu có; hãy sao lưu rồi xóa bớt truyện, dùng bìa nhỏ hơn hoặc chọn lưu trên thiết bị.`
+            + `vượt ngưỡng an toàn 50 MiB. Cache dịch đã được dọn nếu có. Hãy sao lưu rồi xóa bớt truyện, dùng bìa nhỏ hơn hoặc chọn lưu trên thiết bị.`
         );
         error.code = 'TM_STORAGE_LIMIT';
         error.projectedBytes = projectedBytes;
@@ -577,14 +586,15 @@
         libraryBackupIntervalHours: 6,
         libraryNameAnalyzer: {
             minLength: 2,
-            maxLength: 5,
+            maxLength: 12,
             minFrequency: 5,
             types: ['PER', 'LOC', 'ORG'],
-            engines: ['texsmart'],
+            engines: ['lac'],
             skipExisting: true,
             useMachineSuggestion: true,
             useHanVietSuggestion: true
         },
+        libraryHanlpApiKey: '',
         readerMode: 'vertical', // single | vertical
         readerFullscreen: false,
         readerStyle: {
@@ -636,6 +646,9 @@
             ...DEFAULT_CONFIG.libraryNameAnalyzer,
             ...(c.libraryNameAnalyzer || {})
         };
+        merged.libraryNameAnalyzer.engines = (Array.isArray(merged.libraryNameAnalyzer.engines)
+            ? merged.libraryNameAnalyzer.engines : []).filter(engine => ['lac', 'bert', 'texsmart', 'hanlp'].includes(engine));
+        if (!merged.libraryNameAnalyzer.engines.length) merged.libraryNameAnalyzer.engines = ['lac'];
         {
             const backupHours = Number(merged.libraryBackupIntervalHours);
             merged.libraryBackupIntervalHours = Number.isFinite(backupHours)
@@ -931,7 +944,7 @@
     let translatedBodyClone = null;
 
     /* ================== VERSION ================== */
-    const CURRENT_VERSION = '3.5.5.18_beta';
+    const CURRENT_VERSION = '3.5.5.19_beta';
     const TM_VERSION_KEY = 'tm_translate_version';
     const TTS_STORAGE_KEY = 'twd_tts_reader_settings_v1';
     const TTS_DEFAULT_SETTINGS = {
@@ -1138,6 +1151,36 @@
         // Không quét lại Việt -> Việt, tránh lỗi kiểu "điều sơn" bị sửa thành "điềU sơn".
         return text;
     }
+    function getSourceTranslatedNames(sourceText, nameSet) {
+        const source = String(sourceText || '');
+        const names = new Map();
+        if (!source || !nameSet || typeof nameSet !== 'object') return names;
+        const privateKeys = new Set(nameSet[NAME_SET_PRIORITY_META]?.privateKeys || []);
+        const keys = Object.keys(nameSet).filter(original => original && source.includes(original)).sort((a, b) =>
+            Number(privateKeys.has(b)) - Number(privateKeys.has(a)) || b.length - a.length);
+        for (const original of keys) {
+            const canonical = normalizeTextForTranslation(String(nameSet[original] || '')).trim();
+            const key = canonical.toLocaleLowerCase('vi-VN');
+            if (key && !names.has(key)) names.set(key, { original, canonical });
+        }
+        return names;
+    }
+    function createSourceTranslatedNamesRegExp(names) {
+        if (!names.size) return null;
+        const alternatives = Array.from(names.values()).map(item => item.canonical)
+            .sort((a, b) => b.length - a.length).map(escapeRegExp).join('|');
+        return createSafeRegExp(
+            `(^|[^\\p{L}\\p{N}\\p{M}])(${alternatives})(?=$|[^\\p{L}\\p{N}\\p{M}])`,
+            'giu', 'source-name-matches');
+    }
+    function preserveNameInitialCase(canonical, matched) {
+        const originalInitial = String(matched || '').match(/\p{L}/u)?.[0];
+        const canonicalInitial = String(canonical || '').match(/\p{L}/u);
+        if (!originalInitial || !canonicalInitial || originalInitial === originalInitial.toLocaleLowerCase('vi-VN')) return canonical;
+        const index = canonicalInitial.index;
+        return canonical.slice(0, index) + canonicalInitial[0].toLocaleUpperCase('vi-VN')
+            + canonical.slice(index + canonicalInitial[0].length);
+    }
     function restoreTranslatedNameCasingForSource(text, sourceText, nameSet) {
         const translated = String(text || '');
         if (!translated || !nameSet || typeof nameSet !== 'object') return translated;
@@ -1145,25 +1188,14 @@
         const translatedLines = translated.split(/\r?\n/);
         const sameLineCount = rawLines.length === translatedLines.length;
         const allSource = String(sourceText || '');
-        const entries = Object.entries(nameSet)
-            .filter(([source, value]) => source && value)
-            .sort((a, b) => String(b[1]).length - String(a[1]).length);
-
         return translatedLines.map((line, index) => {
             const sourceScope = sameLineCount ? (rawLines[index] || '') : allSource;
-            let restored = line;
-            for (const [source, canonicalValue] of entries) {
-                if (!sourceScope.includes(source)) continue;
-                const canonical = String(canonicalValue || '').trim();
-                if (!canonical) continue;
-                const pattern = createSafeRegExp(
-                    `(^|[^\\p{L}\\p{N}\\p{M}])(${escapeRegExp(canonical)})(?=$|[^\\p{L}\\p{N}\\p{M}])`,
-                    'giu',
-                    `restore-name-casing:${source}`
-                );
-                if (pattern) restored = restored.replace(pattern, (_match, prefix) => `${prefix}${canonical}`);
-            }
-            return normalizeTranslatedTypography(restored, nameSet);
+            const names = getSourceTranslatedNames(sourceScope, nameSet);
+            const pattern = createSourceTranslatedNamesRegExp(names);
+            // Match once, longest first, so a short Name cannot rewrite part of a longer one.
+            const restored = pattern ? line.replace(pattern, (_match, prefix, name) =>
+                prefix + preserveNameInitialCase(names.get(name.toLocaleLowerCase('vi-VN')).canonical, name)) : line;
+            return capitalizeFirstLetter(restored, nameSet);
         }).join('\n');
     }
     function normalizeTranslatedTypography(s, nameSet = null) {
@@ -1188,10 +1220,11 @@
     }
     function capitalizeFirstLetter(s, nameSet = null) {
         if (typeof s !== 'string' || !s) return s;
-        const normalized = normalizeTranslatedTypography(s, nameSet);
-        return normalized.replace(/(^|[\.?!…:])(\s*["'“‘(\[]*)(\p{L})/gu, (match, p1, p2, p3) => {
-            return p1 + p2 + p3.toLocaleUpperCase('vi-VN');
-        });
+        return s.split(/\r\n?|\n/).map(line => {
+            const normalized = normalizeTranslatedTypography(line, nameSet);
+            return normalized.replace(/(^|[.?!…:。！？：])([\s\p{Ps}\p{Pe}\p{Pi}\p{Pf}"'—–-]*)(\p{L})/gu,
+                (_match, boundary, prefix, initial) => boundary + prefix + initial.toLocaleUpperCase('vi-VN'));
+        }).join('\n');
     }
     const INVISIBLE_TEXT_FORMATTING_REGEX = /[\u00AD\u200B-\u200F\u202A-\u202E\u2060-\u2064\u2066-\u206F\uFEFF]/;
     const INVISIBLE_TEXT_FORMATTING_GLOBAL_REGEX = /[\u00AD\u200B-\u200F\u202A-\u202E\u2060-\u2064\u2066-\u206F\uFEFF]/g;
@@ -3112,7 +3145,7 @@
         if (!called) {
             const ev = new CustomEvent('tm:edit-style-clicked', { detail: { button: btn } });
             document.dispatchEvent(ev);
-            console.warn('Không tìm thấy hàm edit-style; phát event tm:edit-style-clicked để lắng nghe thay thế.');
+            console.warn('Không tìm thấy hàm edit-style. Phát event tm:edit-style-clicked để lắng nghe thay thế.');
         }
     });
 
@@ -3821,52 +3854,21 @@
     }
 
     function highlightNamesInText(translatedText, nameSet, sourceText = '') {
-        const source = String(sourceText || '');
-        const vietToOrigMap = {};
-        const vietCanonicalMap = {};
-        for (const orig in nameSet) {
-            if (!source || !source.includes(orig)) continue;
-            const vietName = nameSet[orig];
-            if (vietName) {
-                const key = String(vietName).toLocaleLowerCase('vi-VN');
-                vietToOrigMap[key] = orig;
-                vietCanonicalMap[key] = vietName;
-            }
-        }
-
-        const vietNames = Object.keys(vietToOrigMap);
-        if (vietNames.length === 0) {
-            return escapeHtml(translatedText);
-        }
-
-        const namePattern = vietNames
-            .sort((a, b) => b.length - a.length)
-            .map(name => escapeRegExp(name))
-            .join('|');
-        const regex = createSafeRegExp(
-            `(^|[^\\p{L}\\p{N}\\p{M}])(${namePattern})(?=$|[^\\p{L}\\p{N}\\p{M}])`,
-            'giu',
-            'highlight-names'
-        ) || createSafeRegExp(
-            `(^|[^A-Za-z0-9_À-ÖØ-öø-ÿĀ-žƀ-ɏ\\u0300-\\u036f])(${namePattern})(?=$|[^A-Za-z0-9_À-ÖØ-öø-ÿĀ-žƀ-ɏ\\u0300-\\u036f])`,
-            'gi',
-            'highlight-names-fallback'
-        );
-        if (!regex) {
-            return escapeHtml(translatedText);
-        }
-
-        return escapeHtml(translatedText).replace(regex, (matchedText, prefix, nameText) => {
-            const lowerCaseMatch = String(nameText || '').toLocaleLowerCase('vi-VN');
-            const origName = vietToOrigMap[lowerCaseMatch];
-
-            if (origName) {
-                const displayName = vietCanonicalMap[lowerCaseMatch] || nameText;
-                return `${prefix}<span class="tm-name" data-orig="${escapeHtml(origName)}">${escapeHtml(displayName)}</span>`;
-            }
-
-            return matchedText;
+        const text = String(translatedText || '');
+        const names = getSourceTranslatedNames(sourceText, nameSet);
+        const pattern = createSourceTranslatedNamesRegExp(names);
+        if (!pattern) return escapeHtml(text);
+        let html = '';
+        let cursor = 0;
+        text.replace(pattern, (matched, prefix, nameText, index) => {
+            const entry = names.get(nameText.toLocaleLowerCase('vi-VN'));
+            const displayName = preserveNameInitialCase(entry.canonical, nameText);
+            html += escapeHtml(text.slice(cursor, index)) + escapeHtml(prefix)
+                + `<span class="tm-name" data-orig="${escapeHtml(entry.original)}">${escapeHtml(displayName)}</span>`;
+            cursor = index + matched.length;
+            return matched;
         });
+        return html + escapeHtml(text.slice(cursor));
     }
 
 
@@ -11581,7 +11583,7 @@
                 ? `HTML nhúng toàn bộ data (${detail}) nên có thể lag khi mở/xem. Nên xuất EPUB.`
                 : `HTML phù hợp để đọc offline với truyện nhỏ/vừa (${detail}).`,
             epubTitle: tooLargeForHtml
-                ? `Đề xuất cho truyện lớn (${detail}); nhẹ hơn khi đọc so với HTML nhúng toàn bộ data.`
+                ? `Đề xuất cho truyện lớn (${detail}), nhẹ hơn khi đọc so với HTML nhúng toàn bộ data.`
                 : `EPUB vẫn phù hợp nếu muốn đọc bằng app/thiết bị đọc sách (${detail}).`
         };
     }
@@ -13538,7 +13540,7 @@ body.tmx-fullscreen .tmx-scroll {
         });
         if (exportRecommendation.recommended === 'epub') {
             const levelText = exportRecommendation.stronglyWarnHtml ? 'rất lớn' : 'khá lớn';
-            const ok = confirm(`Truyện ${levelText} (${exportRecommendation.detail}). File HTML nhúng toàn bộ data nên mở/xem có thể lag mạnh; nên dùng EPUB cho bộ này.\n\nVẫn xuất HTML?`);
+            const ok = confirm(`Truyện ${levelText} (${exportRecommendation.detail}). File HTML nhúng toàn bộ data nên mở/xem có thể lag mạnh. Nên dùng EPUB cho bộ này.\n\nVẫn xuất HTML?`);
             if (!ok) {
                 showNotification('Đã hủy xuất HTML. Nên chọn Xuất EPUB cho truyện lớn.');
                 return;
@@ -14818,9 +14820,9 @@ self.onmessage = event => {
         const refreshStorageHint = () => {
             if (storageSelect.value === LIB_STORAGE_BACKEND_LOCAL) {
                 storageHint.innerHTML = `<strong>Dung lượng lớn hơn</strong>, dùng OPFS khi trình duyệt hỗ trợ và tự fallback IndexedDB. `
-                    + `Dữ liệu phụ thuộc quota/ổ đĩa và có thể mất nếu xóa dữ liệu website/profile. Chỉ domain <strong>${escapeHtml(libCurrentStorageOrigin())}</strong> đọc/sửa trực tiếp được; TM Translate sẽ tự mở tab domain này khi cần.`;
+                    + `Dữ liệu phụ thuộc quota/ổ đĩa và có thể mất nếu xóa dữ liệu website/profile. Chỉ domain <strong>${escapeHtml(libCurrentStorageOrigin())}</strong> đọc/sửa trực tiếp được. TM Translate sẽ tự mở tab domain này khi cần.`;
             } else {
-                storageHint.innerHTML = '<strong>Tiện dùng ở mọi website</strong>, backup/khôi phục tập trung. Bị giới hạn bởi message 64 MiB của Tampermonkey; script cảnh báo, dọn cache và chặn trước vùng an toàn 50 MiB.';
+                storageHint.innerHTML = '<strong>Tiện dùng ở mọi website</strong>, backup/khôi phục tập trung. Bị giới hạn bởi message 64 MiB của Tampermonkey. Script cảnh báo, dọn cache và chặn trước vùng an toàn 50 MiB.';
             }
         };
         storageSelect.addEventListener('change', refreshStorageHint);
@@ -14967,7 +14969,68 @@ self.onmessage = event => {
         return api;
     }
 
-    function libDownloadLacModel({ url, signal, onProgress } = {}) {
+    function libGetBertAnalyzerApi() {
+        const api = globalThis.TMBertAnalyzer;
+        if (!api?.ensureModel || !api?.analyze) throw new Error('Thư viện BERT Mini chưa tải được. Hãy cập nhật userscript và @require.');
+        return api;
+    }
+
+    let libHanlpLimiter = null;
+    function libGetHanlpLimiter() {
+        if (!libHanlpLimiter) libHanlpLimiter = libGetNameAnalyzerApi().createHanlpLimiter({
+            get: key => tmStorageGet(key), set: (key, value) => tmStorageSet(key, value),
+            list: tmStorageListValues, remove: tmStorageDelete
+        });
+        return libHanlpLimiter;
+    }
+
+    async function libDownloadLacModel({ url, signal, onProgress } = {}) {
+        const nativeController = new AbortController();
+        const abortNative = () => nativeController.abort();
+        const nativeTimeout = setTimeout(abortNative, 120000);
+        const makeAbortError = () => Object.assign(new Error('Đã dừng tải model NER local.'), { name: 'AbortError' });
+        const makeSizeError = () => Object.assign(new Error('File model vượt giới hạn an toàn 48 MiB.'), { noTransportFallback: true });
+        try {
+            if (signal?.aborted) throw makeAbortError();
+            signal?.addEventListener('abort', abortNative, { once: true });
+            // Public model files do not need cookies or extension message transport.
+            const response = await fetch(url, { credentials: 'omit', signal: nativeController.signal });
+            if (!response.ok) throw new Error(`HTTP ${response.status}`);
+            const total = Number(response.headers.get('Content-Length')) || 0;
+            const limit = 48 * 1024 * 1024;
+            if (total > limit) throw makeSizeError();
+            if (!response.body?.getReader) {
+                const buffer = await response.arrayBuffer();
+                if (buffer.byteLength > limit) throw makeSizeError();
+                onProgress?.({ loaded: buffer.byteLength, total });
+                return buffer;
+            }
+            const reader = response.body.getReader();
+            const chunks = [];
+            let loaded = 0;
+            try {
+                while (true) {
+                    const { value, done } = await reader.read();
+                    if (done) break;
+                    loaded += value.byteLength;
+                    if (loaded > limit) throw makeSizeError();
+                    chunks.push(value);
+                    onProgress?.({ loaded, total });
+                }
+            } finally { await reader.cancel().catch(() => {}); }
+            const bytes = new Uint8Array(loaded);
+            let offset = 0;
+            for (const chunk of chunks) { bytes.set(chunk, offset); offset += chunk.byteLength; }
+            return bytes.buffer;
+        } catch (error) {
+            if (signal?.aborted) throw makeAbortError();
+            if (error?.noTransportFallback) throw error;
+            // GM remains the fallback on pages where CORS or CSP blocks fetch.
+        } finally {
+            nativeController.abort();
+            clearTimeout(nativeTimeout);
+            signal?.removeEventListener('abort', abortNative);
+        }
         return new Promise((resolve, reject) => {
             let settled = false;
             let request = null;
@@ -14980,12 +15043,12 @@ self.onmessage = event => {
             const abort = () => {
                 if (settled) return;
                 try { request?.abort?.(); } catch (_) { }
-                const error = new Error('Đã dừng tải model LAC.');
+                const error = new Error('Đã dừng tải model NER local.');
                 error.name = 'AbortError';
                 finish(reject, error);
             };
             const rejectAbort = () => {
-                const error = new Error('Đã dừng tải model LAC.');
+                const error = new Error('Đã dừng tải model NER local.');
                 error.name = 'AbortError';
                 finish(reject, error);
             };
@@ -14995,22 +15058,34 @@ self.onmessage = event => {
                 method: 'GET',
                 url,
                 responseType: 'arraybuffer',
+                anonymous: true,
                 timeout: 120000,
-                onprogress: event => onProgress?.({ loaded: Number(event.loaded) || 0, total: Number(event.total) || 0 }),
+                onprogress: event => {
+                    if (Number(event.loaded) > 48 * 1024 * 1024) {
+                        finish(reject, makeSizeError());
+                        try { request?.abort?.(); } catch (_) { }
+                        return;
+                    }
+                    onProgress?.({ loaded: Number(event.loaded) || 0, total: Number(event.total) || 0 });
+                },
                 onload: response => {
                     if (response.status < 200 || response.status >= 300) {
-                        finish(reject, new Error(`Không tải được model LAC (HTTP ${response.status}).`));
+                        finish(reject, new Error(`Không tải được model NER local (HTTP ${response.status}).`));
                         return;
                     }
                     const data = response.response;
                     if (!data || typeof data.byteLength !== 'number') {
-                        finish(reject, new Error('Server model LAC không trả dữ liệu nhị phân.'));
+                        finish(reject, new Error('Server model NER không trả dữ liệu nhị phân.'));
+                        return;
+                    }
+                    if (data.byteLength > 48 * 1024 * 1024) {
+                        finish(reject, makeSizeError());
                         return;
                     }
                     finish(resolve, data);
                 },
-                onerror: () => finish(reject, new Error('Lỗi mạng khi tải model LAC.')),
-                ontimeout: () => finish(reject, new Error('Tải model LAC quá thời gian.')),
+                onerror: () => finish(reject, new Error('Lỗi mạng khi tải model NER local.')),
+                ontimeout: () => finish(reject, new Error('Tải model NER local quá thời gian.')),
                 onabort: rejectAbort
             });
         });
@@ -15040,17 +15115,22 @@ self.onmessage = event => {
             request = GM_xmlhttpRequest({
                 method: spec.method || 'POST',
                 url: spec.url,
+                anonymous: true,
                 headers: spec.headers || {},
                 data: spec.body,
                 timeout: Math.max(5000, Number(spec.timeout) || 30000),
                 onload: response => {
                     if (response.status < 200 || response.status >= 300) {
-                        finish(reject, new Error(`HTTP ${response.status}`));
+                        const error = new Error(`HTTP ${response.status}${response.status === 429 ? ' - engine đã hết quota hoặc gọi quá nhanh' : ''}`);
+                        error.status = response.status;
+                        const retryAfter = String(response.responseHeaders || '').match(/^retry-after:\s*(.+)$/im)?.[1]?.trim();
+                        error.retryAfterMs = retryAfter ? (/^\d+$/.test(retryAfter) ? Number(retryAfter) * 1000 : Math.max(0, Date.parse(retryAfter) - Date.now())) : 60000;
+                        finish(reject, error);
                         return;
                     }
                     finish(resolve, response.responseText || response.response || '');
                 },
-                onerror: () => finish(reject, new Error('Lỗi mạng khi gọi engine NER.')),
+                onerror: () => finish(reject, new Error('Không kết nối được engine online. Hãy kiểm tra mạng hoặc chọn engine Local.')),
                 ontimeout: () => finish(reject, new Error('Engine NER phản hồi quá lâu.')),
                 onabort: () => {
                     const error = new Error('Đã dừng phân tích.');
@@ -15071,18 +15151,27 @@ self.onmessage = event => {
             error.name = 'AbortError';
             throw error;
         };
+        const warnings = [];
         if (options.useHanViet !== false && words.length) {
             options.onProgress?.('Đang tạo gợi ý Hán-Việt...');
-            const map = await loadHanVietJson();
-            for (let index = 0; index < words.length; index++) {
-                throwIfAborted();
-                try {
-                    suggestions[index].hv = await buildHanVietMixedName(words[index], map);
-                } catch (_) { }
-                if ((index + 1) % 80 === 0) await new Promise(resolve => setTimeout(resolve, 0));
+            let map;
+            try {
+                map = await loadHanVietJson();
+            } catch (error) {
+                if (error?.name === 'AbortError') throw error;
+                warnings.push(`Không lấy được gợi ý Hán-Việt: ${error?.message || error}`);
+            }
+            throwIfAborted();
+            if (map) {
+                for (let index = 0; index < words.length; index++) {
+                    throwIfAborted();
+                    try {
+                        suggestions[index].hv = await buildHanVietMixedName(words[index], map);
+                    } catch (_) { }
+                    if ((index + 1) % 80 === 0) await new Promise(resolve => setTimeout(resolve, 0));
+                }
             }
         }
-        let machineWarning = '';
         if (options.useMachine !== false && words.length) {
             options.onProgress?.(`Đang dịch gợi ý bằng ${config.serverProvider === 'dichnhanh' ? 'DichNhanh' : 'DichNgay'}...`);
             try {
@@ -15102,11 +15191,11 @@ self.onmessage = event => {
                 }
             } catch (error) {
                 if (error?.name === 'AbortError') throw error;
-                machineWarning = `Không lấy được gợi ý dịch máy: ${error?.message || error}`;
+                warnings.push(`Không lấy được gợi ý dịch máy: ${error?.message || error}`);
             }
         }
         throwIfAborted();
-        return { suggestions, warning: machineWarning };
+        return { suggestions, warning: warnings.join(' ') };
     }
 
     async function openLibraryNameAnalyzer(book, options = {}) {
@@ -15157,9 +15246,9 @@ self.onmessage = event => {
                             <div class="tm-name-analyzer-field">
                                 <label class="tm-label">Độ dài Name (ký tự Hán)</label>
                                 <div style="display:grid;grid-template-columns:1fr auto 1fr;gap:7px;align-items:center;">
-                                    <input id="tm-na-min-length" class="tm-input" type="number" min="1" max="20" value="${Math.max(1, Number(saved.minLength) || 2)}">
+                                    <input id="tm-na-min-length" class="tm-input" type="number" min="1" max="12" value="${Math.min(12, Math.max(1, Number(saved.minLength) || 2))}">
                                     <span>–</span>
-                                    <input id="tm-na-max-length" class="tm-input" type="number" min="1" max="20" value="${Math.max(1, Number(saved.maxLength) || 5)}">
+                                    <input id="tm-na-max-length" class="tm-input" type="number" min="1" max="12" value="${Math.min(12, Math.max(1, Number(saved.maxLength) || 12))}">
                                 </div>
                             </div>
                             <div class="tm-name-analyzer-field">
@@ -15181,18 +15270,29 @@ self.onmessage = event => {
                                     <span><b>LAC Local</b><small>Model vBook chạy ngay trên thiết bị, không gửi nội dung đi.</small></span>
                                 </label>
                                 <label class="tm-name-analyzer-engine">
-                                    <input type="checkbox" data-na-engine="texsmart" ${savedEngines.has('texsmart') ? 'checked' : ''}>
-                                    <span><b>TexSmart (On)</b><small>NER online của Tencent; lựa chọn mặc định.</small></span>
+                                    <input type="checkbox" data-na-engine="bert" ${savedEngines.has('bert') ? 'checked' : ''}>
+                                    <span><b>BERT Mini Local</b><small>ONNX khoảng 12,6 MB, kèm tokenizer và runtime. Xử lý trên thiết bị.</small></span>
                                 </label>
                                 <label class="tm-name-analyzer-engine">
-                                    <input type="checkbox" data-na-engine="ibm" ${savedEngines.has('ibm') ? 'checked' : ''}>
-                                    <span><b>IBM (On)</b><small>Engine dự phòng; API demo cũ có thể ngừng hoạt động.</small></span>
+                                    <input type="checkbox" data-na-engine="texsmart" ${savedEngines.has('texsmart') ? 'checked' : ''}>
+                                    <span><b>TexSmart</b><small>NER online của Tencent, phụ thuộc tình trạng dịch vụ và kết nối mạng.</small></span>
+                                </label>
+                                <label class="tm-name-analyzer-engine">
+                                    <input type="checkbox" data-na-engine="hanlp" ${savedEngines.has('hanlp') ? 'checked' : ''}>
+                                    <span><b>HanLP (Thử nghiệm)</b><small>Chỉ để thử nghiệm/nghiên cứu, không khuyến khích dùng thực tế. Tối đa 2 lần/phút.</small></span>
                                 </label>
                             </div>
                             <div class="tm-name-analyzer-local-tools">
                                 <button id="tm-na-lac-clear" class="tm-btn" type="button">Xóa model LAC</button>
                                 <span id="tm-na-lac-status" class="tm-name-analyzer-local-status">Đang kiểm tra model local...</span>
                             </div>
+                            <div class="tm-name-analyzer-local-tools">
+                                <button id="tm-na-bert-clear" class="tm-btn" type="button">Xóa model BERT</button>
+                                <span id="tm-na-bert-status" class="tm-name-analyzer-local-status">Đang kiểm tra BERT Mini...</span>
+                            </div>
+                            <label class="tm-label" for="tm-na-hanlp-key">HanLP API key (tùy chọn)</label>
+                            <input id="tm-na-hanlp-key" class="tm-input" type="password" autocomplete="off" value="${escapeHtml(config.libraryHanlpApiKey || '')}" placeholder="Để trống để gọi ẩn danh">
+                            <div class="tm-name-analyzer-warning"><strong>HanLP chỉ dùng để thử nghiệm/nghiên cứu, không khuyến khích quét truyện hằng ngày.</strong> Chỉ gửi nội dung khi bạn chọn engine này. Xem <a href="https://bbs.hanlp.com/t/hanlp2-1-restful-api/53" target="_blank" rel="noopener noreferrer">điều khoản và key cộng đồng miễn phí</a>.</div>
                         </div>
                         <div class="tm-name-analyzer-field">
                             <label class="tm-label">Gợi ý tiếng Việt</label>
@@ -15202,7 +15302,7 @@ self.onmessage = event => {
                                 <label><input id="tm-na-skip-existing" type="checkbox" ${saved.skipExisting !== false ? 'checked' : ''}> Bỏ qua Name đã có</label>
                             </div>
                         </div>
-                        <div class="tm-name-analyzer-warning">⚠️ LAC xử lý hoàn toàn trên máy. TexSmart/IBM là engine online nên nội dung chỉ được gửi đi khi bạn bật chúng. LAC tải khoảng 29 MB lần đầu trên mỗi domain và cache khoảng 33 MB trong IndexedDB.</div>
+                        <div class="tm-name-analyzer-warning">LAC và BERT xử lý trên máy, cache model theo domain. Lần đầu cần mạng để tải model và runtime. TexSmart và HanLP chỉ nhận nội dung khi bạn chọn chúng.</div>
                     </section>
                     <section id="tm-na-progress" class="tm-name-analyzer-progress" hidden>
                         <div id="tm-na-progress-text">Đang chuẩn bị...</div>
@@ -15249,6 +15349,8 @@ self.onmessage = event => {
         const applyButton = wrapper.querySelector('#tm-na-apply');
         const lacStatus = wrapper.querySelector('#tm-na-lac-status');
         const lacClearButton = wrapper.querySelector('#tm-na-lac-clear');
+        const bertStatus = wrapper.querySelector('#tm-na-bert-status');
+        const bertClearButton = wrapper.querySelector('#tm-na-bert-clear');
         let resultItems = [];
         let controller = null;
         let running = false;
@@ -15277,11 +15379,24 @@ self.onmessage = event => {
                 if (checkbox) checkbox.disabled = true;
             }
         };
+        const refreshBertStatus = async () => {
+            try {
+                const status = await libGetBertAnalyzerApi().getCacheStatus();
+                if (!wrapper.isConnected) return;
+                bertStatus.textContent = status.ready ? 'BERT Mini đã sẵn sàng trên tab này.'
+                    : status.cached ? `Đã cache ${libFormatBytes(status.bytes)} trên domain này.` : 'Chưa tải model BERT Mini.';
+                bertClearButton.disabled = running || (!status.cached && !status.ready);
+            } catch (error) {
+                bertStatus.textContent = error.message;
+                bertClearButton.disabled = true;
+                wrapper.querySelector('[data-na-engine="bert"]').disabled = true;
+            }
+        };
         const readSettings = () => {
             const start = Math.max(1, Math.min(chapters.length, parseInt(wrapper.querySelector('#tm-na-chapter-start').value, 10) || 1));
             const end = Math.max(start, Math.min(chapters.length, parseInt(wrapper.querySelector('#tm-na-chapter-end').value, 10) || Math.min(50, chapters.length)));
-            const minLength = Math.max(1, Math.min(20, parseInt(wrapper.querySelector('#tm-na-min-length').value, 10) || 2));
-            const maxLength = Math.max(minLength, Math.min(20, parseInt(wrapper.querySelector('#tm-na-max-length').value, 10) || 5));
+            const minLength = Math.max(1, Math.min(12, parseInt(wrapper.querySelector('#tm-na-min-length').value, 10) || 2));
+            const maxLength = Math.max(minLength, Math.min(12, parseInt(wrapper.querySelector('#tm-na-max-length').value, 10) || 12));
             return {
                 start,
                 end,
@@ -15368,7 +15483,8 @@ self.onmessage = event => {
         startButton.onclick = async () => {
             const settings = readSettings();
             if (!settings.types.length) return showNotification('Hãy chọn ít nhất một loại Name.');
-            if (!settings.engines.length) return showNotification('Hãy chọn LAC Local, TexSmart hoặc IBM.');
+            if (!settings.engines.length) return showNotification('Hãy chọn ít nhất một engine NER.');
+            config.libraryHanlpApiKey = wrapper.querySelector('#tm-na-hanlp-key').value.trim();
             config.libraryNameAnalyzer = {
                 minLength: settings.minLength,
                 maxLength: settings.maxLength,
@@ -15403,31 +15519,62 @@ self.onmessage = event => {
                     if ((index + 1) % 4 === 0) await new Promise(resolve => setTimeout(resolve, 0));
                 }
                 let lacApi = null;
+                let bertApi = null;
+                const activeEngines = settings.engines.slice();
                 if (settings.engines.includes('lac')) {
-                    lacApi = libGetLacAnalyzerApi();
-                    const lacState = await lacApi.ensureModel({
-                        signal: controller.signal,
-                        download: libDownloadLacModel,
-                        onProgress: progress => {
-                            const phase = progress?.phase;
-                            if (phase === 'download') {
-                                const loaded = libFormatBytes(progress.loaded || 0);
-                                const total = progress.total ? `/${libFormatBytes(progress.total)}` : '';
-                                const ratio = progress.total ? progress.loaded / progress.total : 0;
-                                setProgress(`Đang tải model LAC ${loaded}${total}...`, 8 + Math.max(0, Math.min(1, ratio)) * 8);
-                            } else if (phase === 'verify') setProgress('Đang kiểm tra model LAC...', 16.5);
-                            else if (phase === 'unzip') setProgress('Đang giải nén model LAC...', 17.5);
-                            else if (phase === 'cache-write') setProgress('Đang lưu model LAC cho lần sau...', 18.5);
-                            else if (phase === 'init') setProgress('Đang nạp model LAC vào Worker...', 19.5);
-                            else setProgress('Đang tìm model LAC trong cache...', 9);
-                        }
-                    });
-                    if (lacState.warning) setupWarnings.push(lacState.warning);
-                    void refreshLacStatus();
+                    try {
+                        lacApi = libGetLacAnalyzerApi();
+                        const lacState = await lacApi.ensureModel({
+                            signal: controller.signal,
+                            download: libDownloadLacModel,
+                            onProgress: progress => {
+                                const phase = progress?.phase;
+                                if (phase === 'download') {
+                                    const loaded = libFormatBytes(progress.loaded || 0);
+                                    const total = progress.total ? `/${libFormatBytes(progress.total)}` : '';
+                                    const ratio = progress.total ? progress.loaded / progress.total : 0;
+                                    setProgress(`Đang tải model LAC ${loaded}${total}...`, 8 + Math.max(0, Math.min(1, ratio)) * 8);
+                                } else if (phase === 'mirror') setProgress('Đang thử mirror Drive của LAC...', 10);
+                                else if (phase === 'verify') setProgress('Đang kiểm tra model LAC...', 16.5);
+                                else if (phase === 'unzip') setProgress('Đang giải nén model LAC...', 17.5);
+                                else if (phase === 'cache-write') setProgress('Đang lưu model LAC cho lần sau...', 18.5);
+                                else if (phase === 'init') setProgress('Đang nạp model LAC vào Worker...', 19.5);
+                                else setProgress('Đang tìm model LAC trong cache...', 9);
+                            }
+                        });
+                        if (lacState.warning) setupWarnings.push(lacState.warning);
+                        void refreshLacStatus();
+                    } catch (error) {
+                        if (error?.name === 'AbortError') throw error;
+                        lacApi = null;
+                        activeEngines.splice(activeEngines.indexOf('lac'), 1);
+                        setupWarnings.push(`LAC Local: ${error?.message || error}`);
+                    }
                 }
+                if (settings.engines.includes('bert')) {
+                    try {
+                        bertApi = libGetBertAnalyzerApi();
+                        const state = await bertApi.ensureModel({
+                            signal: controller.signal,
+                            download: libDownloadLacModel,
+                            onProgress: progress => {
+                                if (progress.phase === 'download') setProgress(`Đang tải BERT Mini ${libFormatBytes(progress.loaded || 0)}/${libFormatBytes(progress.total || 0)}...`, 12);
+                                else setProgress(`BERT Mini: ${progress.phase === 'init' ? 'đang nạp runtime và model' : progress.phase === 'verify' ? 'đang kiểm tra SHA-256' : progress.phase === 'mirror' ? 'đang thử mirror Drive' : 'đang đọc cache'}...`, 18);
+                            }
+                        });
+                        if (state.warning) setupWarnings.push(state.warning);
+                        void refreshBertStatus();
+                    } catch (error) {
+                        if (error?.name === 'AbortError') throw error;
+                        bertApi = null;
+                        activeEngines.splice(activeEngines.indexOf('bert'), 1);
+                        setupWarnings.push(`BERT Mini: ${error?.message || error}`);
+                    }
+                }
+                if (!activeEngines.length) throw new Error(setupWarnings.join(' '));
                 const analysis = await analyzer.analyze({
                     chapters: selectedChapters,
-                    engines: settings.engines,
+                    engines: activeEngines,
                     types: settings.types,
                     minLength: settings.minLength,
                     maxLength: settings.maxLength,
@@ -15438,6 +15585,9 @@ self.onmessage = event => {
                     requestGapMs: 350,
                     retryCount: 1,
                     request: libNameAnalyzerRequest,
+                    hanlp: { apiKey: config.libraryHanlpApiKey },
+                    hanlpLimiter: libGetHanlpLimiter(),
+                    localAnalyzers: bertApi ? { bert: (text, localOptions) => bertApi.analyze(text, localOptions) } : {},
                     localAnalyze: lacApi
                         ? (text, localOptions) => lacApi.analyze(text, { ...localOptions, maxSegmentChars: 320 })
                         : null,
@@ -15449,7 +15599,8 @@ self.onmessage = event => {
                     },
                     onEngineProgress: progress => {
                         const engineLabel = analyzer.ENGINES[progress.engine]?.label || progress.engine;
-                        setProgress(`${engineLabel} đang xử lý đoạn ${progress.completed}/${progress.total} · ${progress.chapterTitle || `chương ${progress.chapterIndex + 1}`}`);
+                        setProgress(progress.waitMs ? `${engineLabel}: chờ ${Math.ceil(progress.waitMs / 1000)} giây để giữ nhịp gọi an toàn...`
+                            : `${engineLabel} đang xử lý đoạn ${progress.completed}/${progress.total} · ${progress.chapterTitle || `chương ${progress.chapterIndex + 1}`}`);
                     }
                 });
                 const suggestionResult = await libBuildNameAnalyzerSuggestions(analysis.results, {
@@ -15481,6 +15632,7 @@ self.onmessage = event => {
                 }
             } finally {
                 running = false;
+                void refreshBertStatus();
                 if (libCriticalTaskMessage.includes('phân tích Name')) libCriticalTaskMessage = '';
             }
         };
@@ -15497,6 +15649,16 @@ self.onmessage = event => {
             void refreshLacStatus();
         };
         void refreshLacStatus();
+        bertClearButton.onclick = async () => {
+            if (running) return;
+            if (!confirm('Xóa model BERT Mini đã cache trên domain này? Lần sau cần tải lại model.')) return;
+            try {
+                await libGetBertAnalyzerApi().clearCache();
+                showNotification('Đã xóa model BERT Mini.');
+            } catch (error) { showNotification(error.message); }
+            void refreshBertStatus();
+        };
+        void refreshBertStatus();
         stopButton.onclick = () => controller?.abort();
         resetButton.onclick = () => {
             if (resultItems.length && !confirm('Bỏ kết quả hiện tại để chỉnh cấu hình và phân tích lại?')) return;
@@ -15918,14 +16080,14 @@ self.onmessage = event => {
                                 <img id="tm-lib-edit-cover-preview" src="${escapeHtml(libGetBookCoverSrc(book))}" alt="Xem trước bìa" style="width:68px;height:96px;object-fit:cover;border-radius:7px;border:1px solid #d8dde6;background:#f8fafc;">
                                 <div style="min-width:0;">
                                     <input id="tm-lib-edit-cover" class="tm-input" style="margin:0 0 5px;" type="file" accept="image/*">
-                                    <small id="tm-lib-edit-cover-status" style="display:block;color:#64748b;">${book.coverDataUrl ? (isImportDraft ? 'Đã nhận bìa có sẵn trong EPUB.' : 'Đang dùng bìa hiện tại.') : 'Đang dùng bìa mặc định; chọn ảnh nếu muốn thay.'}</small>
+                                    <small id="tm-lib-edit-cover-status" style="display:block;color:#64748b;">${book.coverDataUrl ? (isImportDraft ? 'Đã nhận bìa có sẵn trong EPUB.' : 'Đang dùng bìa hiện tại.') : 'Đang dùng bìa mặc định. Chọn ảnh nếu muốn thay.'}</small>
                                 </div>
                             </div>
                         </div>
                     </div>
                     <details open style="margin-top:8px;border:1px solid #d8dde6;border-radius:10px;padding:10px;">
                         <summary style="cursor:pointer;font-weight:700">Nội dung RAW & danh sách chương <span id="tm-lib-chapter-count"></span></summary>
-                        <p style="font-size:12px;color:#64748b">Chọn chương để sửa tên/raw. Có thể chèn, di chuyển hoặc xóa; mọi thay đổi chỉ được ghi khi bấm nút lưu ở cuối modal.</p>
+                        <p style="font-size:12px;color:#64748b">Chọn chương để sửa tên/raw. Có thể chèn, di chuyển hoặc xóa. Mọi thay đổi chỉ được ghi khi bấm nút lưu ở cuối modal.</p>
                         <div class="tm-chapter-editor">
                             <div id="tm-lib-chapter-list" class="tm-chapter-editor-list"></div>
                             <div class="tm-chapter-editor-main">
@@ -16168,7 +16330,7 @@ self.onmessage = event => {
             );
             const warnings = [];
             if (result.errors.length) warnings.push(`Regex lỗi: ${result.errors.join(' | ')}`);
-            if (regex.trim() && !result.matchCount) warnings.push('Regex user không match; preview đang fallback bằng bộ chia mặc định.');
+            if (regex.trim() && !result.matchCount) warnings.push('Regex user không match. Preview đang fallback bằng bộ chia mặc định.');
             if (result.splitByLimitCount) warnings.push(`Đã tách thêm ${result.splitByLimitCount} phần do vượt giới hạn ${result.maxChars} ký tự.`);
             const cleanupNote = result.removedInjectedHeadingCount
                 ? `Đã bỏ ${result.removedInjectedHeadingCount} tiêu đề chương cũ được chèn tạm khi ghép RAW.`
@@ -16351,7 +16513,7 @@ self.onmessage = event => {
                             <option value="3">EPUB 3 — thiết bị/app mới</option>
                         </select>
                     </div>
-                    <p style="margin:0;color:#64748b;font-size:12px;">Khi cần dịch, delay giữa request tối thiểu là 800 ms; retry lỗi sẽ tăng dần delay có giới hạn.</p>
+                    <p style="margin:0;color:#64748b;font-size:12px;">Khi cần dịch, delay giữa request tối thiểu là 800 ms. Retry lỗi sẽ tăng dần delay có giới hạn.</p>
                 </div>
                 <div class="tm-modal-footer">
                     <button id="tm-lib-export-start-btn" class="tm-btn tm-btn-primary" type="button">Xuất file</button>
@@ -16615,7 +16777,7 @@ self.onmessage = event => {
             totalEl.style.color = storageBytes !== null && storageBytes >= TM_STORAGE_WARN_BYTES ? '#dc2626' : '';
             totalEl.title = storageBytes !== null && storageBytes >= TM_STORAGE_WARN_BYTES
                 ? 'Kho đang gần ngưỡng an toàn. TM Translate sẽ tự dọn cache dịch trước khi ghi thêm.'
-                : 'Dung lượng GM storage sau nén; giới hạn 50 MB là vùng an toàn trước mốc 64 MiB của Tampermonkey.';
+                : 'Dung lượng GM storage sau nén. Giới hạn 50 MB là vùng an toàn trước mốc 64 MiB của Tampermonkey.';
             grid.innerHTML = books.length
                 ? books.map(renderBookCard).join('')
                 : '<div class="tm-library-empty">Không có truyện phù hợp.</div>';
@@ -18312,7 +18474,8 @@ self.onmessage = event => {
         const expectedKey = libMakeTransKey(chapter.chapterId, chapter.rawKey, libReaderState.book);
         if (!needsRefresh && chapter.transKey === expectedKey) {
             const cached = await libGet('tm_content', expectedKey);
-            if (cached?.text) return restoreTranslatedNameCasing(cached.text);
+            if (cached?.text) return restoreTranslatedNameCasingForSource(
+                cached.text, rawText, libGetEffectiveNameSet(libReaderState.book, config));
         }
         try {
             return await libTranslateAndCacheChapter(chapter.chapterId);
@@ -18328,7 +18491,7 @@ self.onmessage = event => {
         const nameSet = libGetEffectiveNameSet(libReaderState?.book, config);
         const normalize = (s) => libNormalizeChapterParagraphBreaks(s || '');
         const normalizedRaw = normalize(rawText);
-        const normalizedTrans = normalize(transText);
+        const normalizedTrans = normalize(restoreTranslatedNameCasingForSource(transText, rawText, nameSet));
         const rawParas = normalizedRaw ? normalizedRaw.split(/\n/) : [];
         const transParas = normalizedTrans ? normalizedTrans.split(/\n/) : [];
         const max = Math.max(rawParas.length, transParas.length);
@@ -18363,7 +18526,7 @@ self.onmessage = event => {
         let transText = '';
         if (!needsRefresh && chapter.transKey === expectedKey) {
             const cached = await libGet('tm_content', expectedKey);
-            if (cached?.text) transText = restoreTranslatedNameCasing(cached.text);
+            if (cached?.text) transText = cached.text;
         }
         if (!transText) {
             if (typeof options.onTranslateStart === 'function') {
@@ -18381,6 +18544,8 @@ self.onmessage = event => {
                 }
             }
         }
+        transText = restoreTranslatedNameCasingForSource(
+            transText, rawText, libGetEffectiveNameSet(libReaderState.book, config));
         const html = libReaderBuildHtmlFromRawAndTrans(rawText, transText);
         return { text: transText, html, rawText };
     }
@@ -18710,7 +18875,7 @@ self.onmessage = event => {
 <div class="tm-welcome-title">🌸 Chào mừng đến với TM Translate 🌸</div>
 		<div class="tm-welcome-sub">TM Translate v${CURRENT_VERSION} • Dịch trang web Trung → Việt, quản lý Name-set, Thư viện đọc offline, OCR dịch ảnh và TTS</div>
 		<div class="tm-welcome-banner">
-		  <strong>✨ v${CURRENT_VERSION}:</strong> LAC Local phân tích Nhân danh, Địa danh và Tổ chức ngay trên máy rồi thêm kết quả đã duyệt vào Name Riêng.
+		  <strong>✨ v${CURRENT_VERSION}:</strong> Thêm BERT Mini Local và HanLP, giữ LAC/TexSmart. Đồng bộ Name giữa Reader, Edit Name và file xuất.
 	</div>
 <div style="height:8px;"></div>
     `.trim();
@@ -18720,39 +18885,40 @@ self.onmessage = event => {
 - **Dịch Trang** (xanh lá): Dịch toàn bộ trang. Có tự động dịch khi cuộn nếu bật trong Cài đặt.
 - **Thư viện** (xanh ngọc): Mở Thư viện toàn màn hình để import/đọc/export, tìm kiếm, đổi bìa và sao lưu/khôi phục truyện.
 - **Edit Name** (xanh dương, hình bút chì): Bôi đen đoạn đã dịch trên web → bấm bút chì để sửa tên. Dự đoán beta tự bật cùng Edit Name: dấu câu/ký hiệu (kể cả \`《》\`, ngoặc và dấu nháy), các Name đang áp dụng và Hán Việt cùng thu hẹp cụm. Nếu bôi trong một Name, hai ô luôn hiện trọn Name Trung/Việt. Tắt beta sẽ dùng nguyên khối Trung/Việt như cách cũ.
-- Khi tắt **Edit Name**, bản dịch được ghi thẳng vào text-node/link; script không tạo thêm span hay tooltip \`title\`.
+- Khi tắt **Edit Name**, bản dịch được ghi thẳng vào text-node/link. Script không tạo thêm span hay tooltip \`title\`.
 - **Dịch Nhanh** (xám): Dán text và dịch nhanh mà không cần dịch cả trang.
 - **OCR** (teal): Dịch chữ trong ảnh — khoanh vùng hoặc dịch ảnh.
 - **Style** (tối): Tùy chỉnh giao diện Chế độ đọc rút gọn.
 - **Quay Về** (vàng): Quay lại trang gốc chưa dịch.
 
 ### 📚 Thư Viện & Đọc Truyện
-- Import **TXT/EPUB/ZIP/DOCX/DOC/ODT/RTF/HTML**, chọn ngôn ngữ nguồn (Trung → có RAW/DỊCH, Việt → chỉ đọc). ZIP có thể chứa một hoặc nhiều file được hỗ trợ. Mặc định bật **Tùy chỉnh trước khi nhập** để duyệt/sửa truyện rồi mới lưu; bỏ chọn để import tự động như cũ. File lớn hiện skeleton/trạng thái trước, chia chương và giải nén ở nền khi có thể. EPUB có bìa nhúng sẽ tự lấy đúng bìa đó. DOC nhị phân cũ được đọc best-effort; nên đổi sang DOCX nếu file không đọc được.
-- Truyện chưa đọc sẽ mở **trang Thông tin** trước; truyện đang đọc mở tiếp Reader. Trang Thông tin có bìa, tác giả Hán Việt, mô tả, link bổ sung, mục lục, Đọc ngay/Đọc tiếp và BN.
+- Import **TXT/EPUB/ZIP/DOCX/DOC/ODT/RTF/HTML**, chọn ngôn ngữ nguồn (Trung → có RAW/DỊCH, Việt → chỉ đọc). ZIP có thể chứa một hoặc nhiều file được hỗ trợ. Mặc định bật **Tùy chỉnh trước khi nhập** để duyệt/sửa truyện rồi mới lưu. Bỏ chọn để import tự động như cũ. File lớn hiện skeleton/trạng thái trước, chia chương và giải nén ở nền khi có thể. EPUB có bìa nhúng sẽ tự lấy đúng bìa đó. DOC nhị phân cũ được đọc best-effort. Nên đổi sang DOCX nếu file không đọc được.
+- Truyện chưa đọc sẽ mở **trang Thông tin** trước. Truyện đang đọc mở tiếp Reader. Trang Thông tin có bìa, tác giả Hán Việt, mô tả, link bổ sung, mục lục, Đọc ngay/Đọc tiếp và BN.
 - Reader có: Thông tin, BN, RAW/DỊCH, Fullscreen, Mục lục, cache dịch + prefetch chương, nút mở nhanh Cài đặt/TTS.
 - Thư viện hiển thị dạng toàn màn hình, truyện vừa import hoặc vừa đọc nằm trước, có tổng số truyện, phân trang/lazy load khi cuộn và bìa mặc định cho từng truyện.
-- Nút **Chỉnh sửa** cho phép sửa text gốc của tên truyện, tác giả, mô tả, bìa, link bổ sung, RAW/Việt; sửa tên/raw từng chương, chèn/xóa/đổi thứ tự chương và chia lại bằng regex có preview + giới hạn ký tự.
+- Nút **Chỉnh sửa** cho phép sửa text gốc của tên truyện, tác giả, mô tả, bìa, link bổ sung, RAW/Việt. Sửa tên/raw từng chương, chèn/xóa/đổi thứ tự chương và chia lại bằng regex có preview + giới hạn ký tự.
 - Popup Import Tùy chỉnh, Chỉnh sửa truyện và Edit Name không đóng khi chạm ra ngoài. Nếu nội dung đang sửa dở, nút Đóng/Bỏ sẽ hỏi xác nhận trước và giữ nguyên popup khi chọn quay lại sửa.
-- Khi import có thể chọn **Tampermonkey** (dùng chung mọi domain, vùng an toàn 50 MiB) hoặc **Thiết bị này** (RAW/cache ưu tiên OPFS, tự fallback IndexedDB; bìa/chương nằm trong IndexedDB). Lựa chọn local có quota lớn hơn nhưng theo từng domain/profile và có thể mất nếu xóa dữ liệu website; không phải dung lượng vô hạn.
+- Khi import có thể chọn **Tampermonkey** (dùng chung mọi domain, vùng an toàn 50 MiB) hoặc **Thiết bị này** (RAW/cache ưu tiên OPFS, tự fallback IndexedDB. Bìa/chương nằm trong IndexedDB). Lựa chọn local có quota lớn hơn nhưng theo từng domain/profile và có thể mất nếu xóa dữ liệu website. Không phải dung lượng vô hạn.
 - Index nhẹ vẫn nằm trong Tampermonkey nên truyện local hiện ở mọi website, đồng thời index cũng bị chặn trước vùng 64 MiB. Khi bấm truyện từ sai domain, script tự mở tab domain đã import và tiếp tục Reader/Thông tin/Chỉnh sửa/BN/Xuất/Xóa. Backup chỉ đọc được truyện local thuộc domain tab hiện tại và sẽ cảnh báo những truyện phải bỏ qua.
-- Nội dung lưu trong Tampermonkey được nén gzip; lần đầu lên bản mới, script tự hiện tiến độ thu gọn dữ liệu cũ rồi dùng lại bình thường, không xóa truyện. Thư viện hiện dung lượng kho nén/quota domain, tự dọn cache dịch khi GM gần đầy và kiểm tra đủ chỗ trước khi import để không ghi dở nửa truyện. Bìa lớn được tự thu nhỏ; ảnh bìa vẫn đi theo backup và EPUB.
+- Nội dung lưu trong Tampermonkey được nén gzip. Lần đầu lên bản mới, script tự hiện tiến độ thu gọn dữ liệu cũ rồi dùng lại bình thường, không xóa truyện. Thư viện hiện dung lượng kho nén/quota domain, tự dọn cache dịch khi GM gần đầy và kiểm tra đủ chỗ trước khi import để không ghi dở nửa truyện. Bìa lớn được tự thu nhỏ. Ảnh bìa vẫn đi theo backup và EPUB.
 - Tên tác giả Trung được phiên âm Hán Việt, viết hoa và tách đúng ranh giới chữ Latin/Trung.
 - Ô tìm kiếm mặc định bật toàn bộ phạm vi: tên truyện, tác giả raw, tác giả dịch, raw Trung và cache dịch.
-- **BN** cho phép chọn nhiều Bộ Name Chung và quản lý một Bộ Name Riêng cho từng truyện (nhập file/text, thêm, sửa, xóa, xuất). Name Riêng luôn ưu tiên hơn Name Chung; Edit Name trong Reader mặc định lưu vào Riêng nhưng có thể chọn một bộ Chung đang áp dụng. Tên truyện và văn án cũng dùng đúng tổ hợp BN này khi dịch.
-- Trong **BN → Phân tích Name**, chọn phạm vi chương, độ dài, tần suất, loại và engine theo flow vBook. Script quét ở nền có tiến độ; sau đó có thể lọc, sửa/chọn gợi ý Dịch máy hoặc Hán-Việt rồi đưa vào bản nháp Name Riêng. **LAC Local** chạy trên thiết bị bằng model vBook; TexSmart dùng được mặc định và IBM là dự phòng.
+- **BN** cho phép chọn nhiều Bộ Name Chung và quản lý một Bộ Name Riêng cho từng truyện (nhập file/text, thêm, sửa, xóa, xuất). Name Riêng luôn ưu tiên hơn Name Chung. Edit Name trong Reader mặc định lưu vào Riêng nhưng có thể chọn một bộ Chung đang áp dụng. Tên truyện và văn án cũng dùng đúng tổ hợp BN này khi dịch.
+- Trong **BN → Phân tích Name**, chọn phạm vi chương, độ dài Name tối đa 12 ký tự Hán, tần suất và loại PER/LOC/ORG. **LAC Local** là mặc định cho cấu hình mới. **BERT Mini Local** chạy ONNX trong Worker với cửa sổ chồng lấn, có cache và hủy tác vụ. Model LAC/BERT được kiểm tra SHA-256 và có mirror Drive. BERT tải thêm tokenizer và runtime ở lần đầu.
+- **TexSmart** được giữ làm tùy chọn online. **HanLP (Thử nghiệm)** chỉ dùng để thử nghiệm/nghiên cứu, không khuyến khích quét truyện hằng ngày. HanLP hỗ trợ ẩn danh hoặc API key tùy chọn, giữ nhịp bảo thủ tối đa 2 lần/phút qua GM storage và dừng khi hết quota. Chỉ engine online được chọn mới nhận nội dung. Sau khi quét, duyệt gợi ý rồi thêm Name Riêng và bấm **Lưu & áp dụng**. Lỗi gợi ý không làm mất kết quả quét.
 - **Sao lưu/Khôi phục** dùng file \`.tmbackup.jsonl\`: bấm **Sao lưu** để tải file backup, bấm **Khôi phục** để chọn file đó nhập lại. File gồm index thư viện, raw, cache dịch và ảnh bìa.
-- Trên phone, thanh nút Reader nằm trên một hàng cuộn ngang; vuốt sang trái/phải để mở các nút còn lại. Nút Fullscreen/Mục lục/RAW/DỊCH được đặt trước để thao tác đọc chính luôn dễ chạm.
+- Trên phone, thanh nút Reader nằm trên một hàng cuộn ngang. Vuốt sang trái/phải để mở các nút còn lại. Nút Fullscreen/Mục lục/RAW/DỊCH được đặt trước để thao tác đọc chính luôn dễ chạm.
 - Bôi đen text trong Reader sẽ hiện thanh **Phát / Sửa tên hoặc Thay thế từ / Xóa rác / Sao chép**. Trên mobile, menu copy/share mặc định của máy được ẩn trong Reader.
-- **Phát** mở mini-player TTS và đọc từ vị trí bôi đen tới hết chương; nếu bật **Tự qua đoạn/chương** + **Tự đọc chương kế** thì tự sang chương sau.
+- **Phát** mở mini-player TTS và đọc từ vị trí bôi đen tới hết chương. Nếu bật **Tự qua đoạn/chương** + **Tự đọc chương kế** thì tự sang chương sau.
 - Mini-player có đĩa quay, Tạm dừng/Phát, Tiếp, Dừng, countdown hẹn giờ ngủ, highlight đoạn đang đọc và tự cuộn khi bật.
-- Khi tới cuối chương mà chưa bật đủ **Tự qua đoạn/chương** + **Tự đọc chương kế**, TTS sẽ phát thông báo nhắc bật hai tùy chọn này rồi dừng; khi hết truyện sẽ phát thông báo đã tới cuối truyện.
-- TTS ưu tiên ngắt đoạn tại dấu câu/xuống dòng; remote TTS prefetch trước các đoạn kế tiếp và phát audio giữ media âm lượng rất thấp khi phải chờ audio thật.
+- Khi tới cuối chương mà chưa bật đủ **Tự qua đoạn/chương** + **Tự đọc chương kế**, TTS sẽ phát thông báo nhắc bật hai tùy chọn này rồi dừng. Khi hết truyện sẽ phát thông báo đã tới cuối truyện.
+- TTS ưu tiên ngắt đoạn tại dấu câu/xuống dòng. Remote TTS prefetch trước các đoạn kế tiếp và phát audio giữ media âm lượng rất thấp khi phải chờ audio thật.
 - Truyện Trung RAW+DỊCH: **Sửa tên** dùng được cả khi chọn text ở RAW hoặc DỊCH. Truyện chỉ RAW: nút đổi thành **Thay thế từ**.
-- **Xóa rác** luôn mở popup để sửa đoạn raw trước khi xác nhận; có tùy chọn không phân biệt hoa thường khi cần.
+- **Xóa rác** luôn mở popup để sửa đoạn raw trước khi xác nhận. Có tùy chọn không phân biệt hoa thường khi cần.
 - Kiểu đọc cuộn dọc: chạm đầu/cuối chương rồi cuộn thêm một nhịp mới chuyển chương.
 - Tự lưu **tiến độ đọc** (chương + vị trí cuộn).
-- Nút **Xuất file...** mở lựa chọn TXT/EPUB/HTML, phạm vi toàn bộ/chương đang đọc/từ chương đang đọc/khoảng tùy chọn, Dịch khi xuất cho RAW và EPUB 2/3. Bản xuất dùng đúng Bộ Name của truyện theo ưu tiên **Name Riêng > Name Chung**, đồng thời sửa lại viết hoa Name trong cache cũ. TXT bắt đầu bằng Tên sách, Tác giả, Mô tả rồi mới tới từng cặp tên chương/nội dung. EPUB và HTML đều có trang Thông tin gồm metadata, link bổ sung và mục lục; HTML mở trang này trước khi vào Reader.
-- Khi dịch trong lúc xuất, khoảng cách giữa hai request tối thiểu 800 ms nếu cài đặt thấp hơn. Request lỗi sẽ retry với delay tăng dần có giới hạn; request thành công kế tiếp trở về delay xuất mặc định.
+- Nút **Xuất file...** mở lựa chọn TXT/EPUB/HTML, phạm vi toàn bộ/chương đang đọc/từ chương đang đọc/khoảng tùy chọn, Dịch khi xuất cho RAW và EPUB 2/3. Bản xuất dùng đúng Bộ Name của truyện theo ưu tiên **Name Riêng > Name Chung**, đồng thời sửa lại viết hoa Name trong cache cũ. TXT bắt đầu bằng Tên sách, Tác giả, Mô tả rồi mới tới từng cặp tên chương/nội dung. EPUB và HTML đều có trang Thông tin gồm metadata, link bổ sung và mục lục. HTML mở trang này trước khi vào Reader.
+- Khi dịch trong lúc xuất, khoảng cách giữa hai request tối thiểu 800 ms nếu cài đặt thấp hơn. Request lỗi sẽ retry với delay tăng dần có giới hạn. Request thành công kế tiếp trở về delay xuất mặc định.
 
 ### 📷 OCR (Dịch Ảnh)
 - Chạy trên trình duyệt (không gửi ảnh lên server lạ).
@@ -18760,15 +18926,15 @@ self.onmessage = event => {
 - Kết quả có thể bôi đen copy, click tên highlight để Edit Name.
 
 ### ⚙️ Cài Đặt
-- Giao diện Cài đặt tự chuyển sang full-screen trên điện thoại; tab cuộn ngang, form/nút xếp dọc để không bị cắt mất.
+- Giao diện Cài đặt tự chuyển sang full-screen trên điện thoại. Tab cuộn ngang, form/nút xếp dọc để không bị cắt mất.
 - **Tab Chung**: Chế độ dịch (Server/Local), bật/tắt nút, Simplified View, chặn JS.
 - **Tab Bộ Tên**: Tạo/Xóa bộ name, nhập file JSON/TXT, xuất, thêm/sửa nhanh.
 - **Tab Thư viện**: Hiển thị nút, prefetch, kiểu đọc và giao diện reader.
 - **Tab TTS**: Chọn nguồn Browser/TikTok/Google/Gemini/Bing/Zalo, giọng đọc, tốc độ/cao độ/âm lượng, độ dài đoạn, delay, hẹn giờ ngủ, prefetch remote, retry/timeout/request gap và thay thế từ trước khi đọc.
-- Hẹn giờ ngủ chỉ chạy khi bật checkbox; cookie TikTok/API key Zalo được lưu ngay khi bấm **Lưu** trong popup.
+- Hẹn giờ ngủ chỉ chạy khi bật checkbox. Cookie TikTok/API key Zalo được lưu ngay khi bấm **Lưu** trong popup.
 - Khi hẹn giờ ngủ gần dừng, TTS sẽ giảm âm lượng dần trong vài giây rồi mới ngắt.
 - **Tự cuộn** sẽ highlight/cuộn theo đoạn đang đọc; **Tự qua đoạn/chương** + **Tự đọc chương kế** cho phép phát tiếp sang chương sau.
-- TikTok có popup nhập Cookie; Zalo có popup nhập một hoặc nhiều API key. Gemini cần đăng nhập gemini.google.com; Bing có thể cần mở bing.com/translator một lần nếu token hết hạn.
+- TikTok có popup nhập Cookie. Zalo có popup nhập một hoặc nhiều API key. Gemini cần đăng nhập gemini.google.com. Bing có thể cần mở bing.com/translator một lần nếu token hết hạn.
 - Hướng dẫn TTS chi tiết: [HUONG_DAN_SU_DUNG_TTS_READER.md](https://github.com/BaoBao666888/Novel-Downloader5/blob/main/tools/HUONG_DAN_SU_DUNG_TTS_READER.md).
 - **Tab Từ điển Local**: Tìm/sửa/xóa mục, khôi phục gốc.
 - **Tab Blacklist**: Chặn domain không muốn script chạy.
@@ -18777,28 +18943,32 @@ self.onmessage = event => {
     `.trim();
 
     const changelogMarkdown = `
-### ✨ v3.5.5.18_beta
-- Thêm **LAC Local** thật cho Phân tích Name: port đúng model BiGRU-CRF của vBook sang JavaScript, nhận Nhân danh/Địa danh/Tổ chức mà không gửi nội dung ra ngoài.
-- Model khoảng 29 MB được kiểm tra SHA-256, cache trong IndexedDB theo domain và có nút xóa; lần sau dùng lại cache thay vì tải lại.
-- Suy luận chạy trong Web Worker, chia đoạn an toàn, có tiến độ và nút Dừng hủy tác vụ; TexSmart/IBM vẫn hoạt động độc lập để đối chiếu.
+### ✨ v3.5.5.19_beta
+- Thêm **BERT Mini Local** trong Worker và **HanLP REST (Thử nghiệm)** với API key tùy chọn. HanLP chỉ dùng cho thử nghiệm/nghiên cứu, không khuyến khích dùng thực tế. Giữ LAC và TexSmart, không tự bật engine online.
+- Chuẩn hóa PER/LOC/ORG, cho Name dài tối đa 12 ký tự Hán và chia đầu vào theo từng engine.
+- HanLP giữ nhịp bảo thủ tối đa 2 lần/phút qua GM storage, dừng khi hết quota và không tự retry HTTP 429.
+- LAC/BERT có mirror Drive được kiểm tra SHA-256. Bổ sung ghi nhận license model/runtime và rà văn bản UI, hướng dẫn.
+- Sửa LAC bị chặn bởi SHA-256 cũ: ghim revision model đã kiểm tra, phục hồi sau lỗi Worker và dùng LAC làm engine mặc định cho cấu hình mới.
+- Bỏ IBM demo đã ngừng hoạt động. Lỗi khởi tạo LAC hoặc gợi ý Hán-Việt không còn làm hỏng engine/kết quả còn lại. TexSmart báo lỗi rõ khi dịch vụ không truy cập được.
+- Đồng bộ Name giữa Edit Name, Reader, TXT, EPUB và HTML: ưu tiên cụm dài, sửa lỗi \`沈庄园=Thẩm trang viên\` bị Name ngắn \`沈庄=Thẩm Trang\` ghi đè.
+- Name chữ thường được viết hoa ở đầu câu/đầu dòng, kể cả sau dấu nháy. Không hạ chữ hoa đầu Name đã có. Bổ sung AGPL-3.0 và ghi nhận license bên thứ ba.
 
-### ✨ v3.5.5.17_beta
-- Thêm **Phân tích Name** trong BN của từng truyện theo flow vBook: phạm vi chương, độ dài, tần suất, Nhân danh/Địa danh/Tổ chức, bỏ qua Name đã có và gợi ý Dịch máy + Hán-Việt.
-- Hỗ trợ TexSmart và IBM, gộp kết quả/tần suất/nguồn, cho lọc/sửa/chọn trước khi thêm vào Name Riêng; LAC được ghi rõ là engine native chưa chạy được trên web.
-- Tách lõi NER sang \`tools/TM_Name_Analyzer.js\`, có tiến độ, dừng an toàn và giao diện phone.
+### 📦 v3.5.5.17_beta - v3.5.5.18_beta (tóm tắt)
+- Thêm Phân tích Name trong BN theo phạm vi/tần suất/loại NER, gợi ý Việt và duyệt trước khi thêm Name Riêng.
+- Thêm LAC Local chạy model BiGRU-CRF bằng Web Worker, kiểm tra model, cache theo domain và nút xóa. Tách lõi NER thành thư viện riêng.
 
 ### ✨ v3.5.5.16_beta
-- Dịch trang mobile giữ nguyên ảnh, icon và các thẻ con bên trong link có bố cục; link thuần chữ dài không còn tràn ngang.
+- Dịch trang mobile giữ nguyên ảnh, icon và các thẻ con bên trong link có bố cục. Link thuần chữ dài không còn tràn ngang.
 - Giữ nguyên chữ hoa do DichNgay/server trả về, không còn đoán sai \`Troy\` thành \`troy\` sau dấu nháy.
 
 ### 📦 v3.5.5.13_beta - v3.5.5.15_beta (tóm tắt)
 - Hoàn thiện **Xuất file...**, import ZIP/file lớn, áp dụng đúng **Name Riêng > Name Chung**, giảm giật Reader và giữ vị trí cuộn khi Edit Name.
-- Nén kho Tampermonkey, tự cảnh báo/dọn cache trước vùng nguy hiểm; cho chọn lưu truyện bằng Tampermonkey hoặc IndexedDB/OPFS theo domain.
+- Nén kho Tampermonkey, tự cảnh báo/dọn cache trước vùng nguy hiểm. Cho chọn lưu truyện bằng Tampermonkey hoặc IndexedDB/OPFS theo domain.
 - Sửa bìa EPUB cho máy đọc sách: bìa lớn nén thành JPEG và bìa WebP do bản cũ tạo được tự chuyển đổi.
 
 ### 📦 v3.5.5.10_beta - v3.5.5.12_beta (tóm tắt)
-- Hoàn thiện UI phone, trang Thông tin, chỉnh metadata/raw/chương và chia regex; thêm Name Riêng, nhiều Name Chung, tác giả Hán-Việt, bìa EPUB, import Word và export có trang Thông tin.
-- Ổn định Edit Name beta bằng dấu câu/Name/Hán-Việt/neo Latin, sửa fallback và cặp Trung-Việt; vá cache theo paragraph, tối ưu Reader, marquee tên truyện và thứ tự truyện mới import.
+- Hoàn thiện UI phone, trang Thông tin, chỉnh metadata/raw/chương và chia regex. Thêm Name Riêng, nhiều Name Chung, tác giả Hán-Việt, bìa EPUB, import Word và export có trang Thông tin.
+- Ổn định Edit Name beta bằng dấu câu/Name/Hán-Việt/neo Latin, sửa fallback và cặp Trung-Việt. Vá cache theo paragraph, tối ưu Reader, marquee tên truyện và thứ tự truyện mới import.
 - Sửa chia lại chương còn sót tiêu đề cũ, tải lại từ điển Hán-Việt khi lỗi, giao diện Reader/BN/Chỉnh sửa trên phone và nhận diện từ Latin có dấu nối.
 
 ### 📦 Các bản trước (tóm tắt)

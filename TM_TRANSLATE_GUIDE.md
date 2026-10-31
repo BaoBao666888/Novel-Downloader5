@@ -1,10 +1,10 @@
 # 🌸 Hướng dẫn TM Translate
 
-> Dành cho **TM Translate v3.5.5.18_beta**.
+> Dành cho **TM Translate v3.5.5.19_beta**.
 >
 > 🌐 Dịch trang · 📚 Thư viện · ✏️ Edit Name · 📷 OCR · 🔊 TTS
 
-TM Translate giúp dịch trang truyện Trung → Việt, sửa Name, lưu truyện vào Thư viện, đọc bằng Reader, OCR ảnh và nghe TTS. Phần đầu là cách dùng nhanh; giải thích kỹ hơn được gom xuống cuối.
+TM Translate giúp dịch trang truyện Trung → Việt, sửa Name, lưu truyện vào Thư viện, đọc bằng Reader, OCR ảnh và nghe TTS. Phần đầu là cách dùng nhanh. Giải thích kỹ hơn được gom xuống cuối.
 
 ## 1. 🚀 Bắt đầu nhanh
 
@@ -22,7 +22,7 @@ Xem thêm [yêu cầu cài đặt](README.md#cài-đặt). Trên Android có th�
 2. Bấm **Dịch Trang**.
 3. Nếu trang tải thêm nội dung khi cuộn, bật **Tự động dịch khi cuộn** trong Cài đặt.
 
-Bấm **Quay về** để khôi phục trang gốc. Bản 3.5.5.16 giữ nguyên ảnh, icon và bố cục của các link phức tạp trên trang mobile; chữ hoa mà server dịch đúng cũng được giữ nguyên.
+Bấm **Quay về** để khôi phục trang gốc. Bản 3.5.5.16 giữ nguyên ảnh, icon và bố cục của các link phức tạp trên trang mobile. Chữ hoa mà server dịch đúng cũng được giữ nguyên.
 
 ### 📚 Import và đọc một bộ truyện
 
@@ -34,7 +34,7 @@ Bấm **Quay về** để khôi phục trang gốc. Bản 3.5.5.16 giữ nguyên
 4. Chọn nơi lưu rồi bấm **Tiếp tục**.
 5. Giữ **Tùy chỉnh trước khi nhập** nếu muốn xem và sửa thông tin/chương. Bỏ chọn để nhập nhanh theo mặc định.
 
-Truyện vừa import hoặc vừa đọc sẽ nằm đầu Thư viện. Bấm **Mở** để vào trang Thông tin; nếu đã đọc dở, script mở tiếp vị trí gần nhất.
+Truyện vừa import hoặc vừa đọc sẽ nằm đầu Thư viện. Bấm **Mở** để vào trang Thông tin. Nếu đã đọc dở, script mở tiếp vị trí gần nhất.
 
 ## 2. 🧭 Các nút chính
 
@@ -52,13 +52,13 @@ Có thể ẩn/hiện và sắp xếp các nút trong **Cài đặt**. Trên đi
 
 ### 🖊️ Sửa một Name trên trang
 
-1. Bật **Edit Name**; nút bút chì sẽ có màu xanh.
+1. Bật **Edit Name**. Nút bút chì sẽ có màu xanh.
 2. Bôi đen tên hoặc cụm tiếng Việt cần sửa.
 3. Bấm **Bút chì**, kiểm tra cặp Trung/Việt rồi lưu.
 
-**Dự đoán cụm Trung/Việt beta** tự bật cùng Edit Name. Nó dùng dấu câu, Name đã biết, ký tự Latin và Hán-Việt để tìm cụm gọn hơn. Có thể tắt ngay trong hộp Edit Name nếu kết quả chưa phù hợp; khi đó script dùng nguyên khối Trung và Việt tương ứng.
+**Dự đoán cụm Trung/Việt beta** tự bật cùng Edit Name. Nó dùng dấu câu, Name đã biết, ký tự Latin và Hán-Việt để tìm cụm gọn hơn. Có thể tắt ngay trong hộp Edit Name nếu kết quả chưa phù hợp. Khi đó script dùng nguyên khối Trung và Việt tương ứng.
 
-Khi Edit Name tắt, script không tạo thêm thẻ hay title để đánh dấu Name. Hộp đang sửa không tự đóng khi bấm ra ngoài; nếu đã thay đổi mà bấm Đóng/Hủy, script sẽ hỏi trước khi bỏ.
+Khi Edit Name tắt, script không tạo thêm thẻ hay title để đánh dấu Name. Hộp đang sửa không tự đóng khi bấm ra ngoài. Nếu đã thay đổi mà bấm Đóng/Hủy, script sẽ hỏi trước khi bỏ.
 
 ### 🗂️ Name Chung và Name Riêng
 
@@ -76,7 +76,7 @@ Name đang áp dụng cũng được dùng cho tên truyện, tác giả, mô t�
 - **Tampermonkey:** dễ dùng giữa nhiều website. Hợp với thư viện nhỏ hoặc vừa, nhưng dung lượng an toàn có giới hạn.
 - **Thiết bị này:** hợp với truyện lớn hoặc nhiều truyện. Dữ liệu nằm trong IndexedDB/OPFS của website đang mở, nên phụ thuộc domain, trình duyệt và dữ liệu website.
 
-> 💡 **Chọn nhanh:** ít truyện và hay đổi website → **Tampermonkey**; nhiều truyện hoặc file rất lớn → **Thiết bị này**.
+> 💡 **Chọn nhanh:** ít truyện và hay đổi website → **Tampermonkey**. Nhiều truyện hoặc file rất lớn → **Thiết bị này**.
 
 Nếu truyện lưu ở **Thiết bị này** mà bạn mở từ domain khác, script sẽ mở tab đúng domain rồi tiếp tục thao tác. Hãy sao lưu định kỳ dù chọn cách nào.
 
@@ -103,7 +103,7 @@ Reader ghi nhớ chương và vị trí đọc. Thanh công cụ có:
 
 Bôi đen nội dung để mở các thao tác **Phát**, **Sửa tên/Thay thế từ**, **Xóa rác** và **Sao chép**. Khi sửa Name, script chỉ cập nhật các đoạn bị ảnh hưởng và cố giữ nguyên vị trí đang đọc.
 
-Trên điện thoại, vuốt ngang thanh công cụ thay vì để các nút che nội dung. Nút ở cuối chương dùng để chuyển chương; tiến độ đọc được lưu tự động.
+Trên điện thoại, vuốt ngang thanh công cụ thay vì để các nút che nội dung. Nút ở cuối chương dùng để chuyển chương. Tiến độ đọc được lưu tự động.
 
 ### 🛠️ Chỉnh sửa truyện
 
@@ -115,7 +115,7 @@ Mục **Chỉnh sửa** cho phép:
 - Thêm, xóa, đổi tên hoặc sắp xếp chương.
 - Chia lại chương bằng regex, xem preview và đặt số ký tự tối đa.
 
-Các trường tên/tác giả/mô tả là text gốc. Nếu truyện là RAW, sau khi sửa script sẽ dịch lại khi cần. Popup không đóng khi bấm ra ngoài; thay đổi chưa lưu luôn được cảnh báo trước khi thoát.
+Các trường tên/tác giả/mô tả là text gốc. Nếu truyện là RAW, sau khi sửa script sẽ dịch lại khi cần. Popup không đóng khi bấm ra ngoài. Thay đổi chưa lưu luôn được cảnh báo trước khi thoát.
 
 ### 🏷️ Bộ Name của truyện
 
@@ -130,19 +130,31 @@ Name Riêng luôn được ưu tiên trước các bộ Chung đã chọn.
 
 #### ✨ Phân tích Name tự động
 
+Tự động nhận diện tên nhân vật, địa danh và tổ chức trong truyện, giúp tạo danh sách Name nhanh chóng.
+
+**Cách sử dụng:**
+
 1. Mở truyện → **BN** → **Phân tích Name**.
-2. Chọn phạm vi chương, độ dài Name, tần suất tối thiểu và loại cần tìm.
-3. Chọn engine:
-   - **LAC Local:** riêng tư, chạy trên máy; lần đầu tải model khoảng 29 MB.
-   - **TexSmart:** engine online mặc định, tiện để dùng nhanh hoặc đối chiếu.
-   - **IBM:** engine online dự phòng, đôi lúc dịch vụ cũ không phản hồi.
-4. Bấm **Bắt đầu phân tích** và chờ thanh tiến độ.
-5. Lọc danh sách, sửa hoặc chọn gợi ý Dịch máy/Hán-Việt rồi bấm **Thêm Name**.
-6. Trở lại trang BN, kiểm tra lần cuối và bấm **Lưu & áp dụng**.
+2. Chọn phạm vi chương, độ dài Name và tần suất xuất hiện.
+3. Chọn một hoặc nhiều engine phân tích:
+   - **LAC Local (Khuyên dùng):** Chạy trực tiếp trên thiết bị, cần tải model khoảng 29 MB lần đầu.
+   - **BERT Mini Local:** Nhận diện bằng AI, chạy trên thiết bị, cần tải model khoảng 12,6 MB cùng các thành phần hỗ trợ.
+   - **TexSmart:** Dịch vụ trực tuyến của Tencent, cần kết nối mạng.
+   - **HanLP (Thử nghiệm):** Dịch vụ trực tuyến, hỗ trợ API key tùy chọn. Có giới hạn lượt gọi, không khuyến khích sử dụng thường xuyên.
+4. Nhấn **Bắt đầu phân tích** và chờ kết quả.
+5. Lọc, chỉnh sửa hoặc chọn bản dịch gợi ý, sau đó nhấn **Thêm Name**.
+6. Quay lại trang BN và nhấn **Lưu & áp dụng**.
 
-Mặc định script quét 50 chương đầu, tìm Name dài 2–5 ký tự xuất hiện ít nhất 5 lần và bỏ qua Name đã có. Có thể đổi các số này khi truyện dùng tên dài hoặc Name ít lặp lại.
+**Thiết lập mặc định:** Quét 50 chương đầu, tìm Name dài 2–12 chữ Hán, xuất hiện ít nhất 5 lần và bỏ qua Name đã có. Bạn có thể tùy chỉnh theo nhu cầu.
 
-> 🔐 **LAC Local** không gửi nội dung ra ngoài. Model được cache riêng trên từng domain bằng IndexedDB; có thể bấm **Xóa model LAC** ngay trong popup. TexSmart và IBM là engine online nên chỉ bật khi bạn chấp nhận gửi các chương đã chọn tới dịch vụ đó.
+**Lưu ý:**
+- LAC và BERT xử lý trên thiết bị, không gửi nội dung truyện ra ngoài.
+- TexSmart và HanLP cần gửi nội dung chương được chọn tới dịch vụ tương ứng.
+- Có thể kết hợp nhiều engine. Nếu một engine gặp lỗi, các engine còn lại vẫn tiếp tục hoạt động.
+- Model đã tải được lưu lại để sử dụng lần sau và có thể xóa trong phần cài đặt phân tích.
+- Kết quả và bản dịch gợi ý có thể chỉnh sửa trước khi lưu.
+
+Xem [giấy phép và thông tin bên thứ ba](THIRD_PARTY_NOTICES.md).
 
 ### 📤 Xuất file
 
@@ -153,7 +165,9 @@ Bấm **Xuất file...**, sau đó chọn:
 - Với RAW: bật/tắt **Dịch khi xuất**.
 - Với EPUB: chọn **EPUB 2** hoặc **EPUB 3**.
 
-Khi sửa chỉ số đầu/cuối, phạm vi tự chuyển sang **Khoảng chương đang chọn**. TXT có tên sách, tác giả và mô tả trước nội dung. EPUB/HTML có trang Thông tin; bìa đã chỉnh được dùng khi xuất. EPUB 2 thường tương thích máy đọc sách cũ tốt hơn, EPUB 3 phù hợp ứng dụng đọc mới.
+Khi sửa chỉ số đầu/cuối, phạm vi tự chuyển sang **Khoảng chương đang chọn**. TXT có tên sách, tác giả và mô tả trước nội dung. EPUB/HTML có trang Thông tin. Bìa đã chỉnh được dùng khi xuất. EPUB 2 thường tương thích máy đọc sách cũ tốt hơn, EPUB 3 phù hợp ứng dụng đọc mới.
+
+Reader và file xuất dùng cùng cách xử lý Name: cụm dài như `沈庄园=Thẩm trang viên` không bị `沈庄=Thẩm Trang` ghi đè. Name chữ thường như `云乡酒店=khách sạn Vân Hương` thành `Khách sạn Vân Hương` ở đầu câu/đầu dòng. Chữ hoa đầu Name có sẵn không bị hạ xuống.
 
 Trong lúc dịch để xuất, request được gửi chậm và tự giãn thêm khi lỗi. Không nên đóng tab cho tới khi file tải xong.
 
@@ -190,7 +204,7 @@ Xem thêm [hướng dẫn TTS Reader](https://github.com/BaoBao666888/Novel-Down
 - **OCR:** chế độ quét, nguồn ảnh và model.
 - **Nâng cao:** server dịch, độ trễ, giới hạn ký tự và retry.
 
-Trên phone, popup Cài đặt dùng bố cục cuộn; nếu chưa thấy một mục, vuốt tab ngang hoặc cuộn xuống.
+Trên phone, popup Cài đặt dùng bố cục cuộn. Nếu chưa thấy một mục, vuốt tab ngang hoặc cuộn xuống.
 
 ## 8. 🩹 Lỗi thường gặp
 
@@ -208,7 +222,7 @@ Trên phone, popup Cài đặt dùng bố cục cuộn; nếu chưa thấy một
 
 ### ⏳ Import hoặc xuất file lớn có vẻ đứng
 
-Hãy chờ dòng trạng thái tiến trình; file EPUB/ZIP lớn cần thời gian giải nén và chia chương. Không tải lại trang khi popup còn báo đang xử lý.
+Hãy chờ dòng trạng thái tiến trình. File EPUB/ZIP lớn cần thời gian giải nén và chia chương. Không tải lại trang khi popup còn báo đang xử lý.
 
 ### 🖼️ Máy đọc sách không hiện bìa
 
@@ -236,7 +250,7 @@ Index nhẹ vẫn nằm trong Tampermonkey để bạn nhìn thấy danh sách t
 4. Reload đúng một tab có TM Translate, chờ thanh chuyển đổi dữ liệu hoàn tất.
 5. Sau khi vào Thư viện bình thường, có thể đổi Content Script API về lựa chọn cũ.
 
-Lần chuyển đổi đầu sẽ nén dữ liệu cũ; không đóng tab giữa chừng.
+Lần chuyển đổi đầu sẽ nén dữ liệu cũ. Không đóng tab giữa chừng.
 
 ### 🗃️ File import và bìa
 
@@ -246,21 +260,25 @@ Lần chuyển đổi đầu sẽ nén dữ liệu cũ; không đóng tab giữa
 
 ### ⏱️ Dịch khi xuất
 
-Nếu delay đã thấp hơn 800 ms, xuất RAW dùng tối thiểu 800 ms giữa hai request. Khi request lỗi, script tăng thời gian chờ dần tới giới hạn; sau khi server ổn định, nhịp gửi trở về mức xuất bình thường.
+Nếu delay đã thấp hơn 800 ms, xuất RAW dùng tối thiểu 800 ms giữa hai request. Khi request lỗi, script tăng thời gian chờ dần tới giới hạn. Sau khi server ổn định, nhịp gửi trở về mức xuất bình thường.
 
 ## 10. 📝 Thay đổi gần đây
 
-### ✨ v3.5.5.18_beta
+### ✨ v3.5.5.19_beta
 
-- Thêm **LAC Local** chạy đúng model vBook ngay trên thiết bị, nhận Nhân danh/Địa danh/Tổ chức mà không gửi nội dung ra ngoài.
-- Model tải khoảng 29 MB ở lần đầu, được kiểm tra an toàn và cache theo domain; có nút xóa model khi không cần.
-- Phân tích chạy nền bằng Worker, vẫn có tiến độ và có thể bấm Dừng; TexSmart/IBM tiếp tục dùng độc lập hoặc kết hợp.
+- Thêm BERT Mini Local trong Worker và HanLP REST thử nghiệm với API key tùy chọn. HanLP chỉ để thử nghiệm/nghiên cứu, không khuyến khích dùng thực tế. Giữ LAC và TexSmart, không tự bật engine online.
+- Chuẩn hóa PER/LOC/ORG, cho Name dài tối đa 12 ký tự Hán và chia đầu vào theo từng engine.
+- Thêm hàng đợi HanLP dùng chung GM storage, giữ nhịp tối đa 2 lần/phút và dừng khi hết quota.
+- Thêm mirror Drive có kiểm tra SHA-256 cho LAC/BERT. Rà lại ghi nhận license, bỏ thông tin môi trường máy và dấu chấm phẩy trong văn bản hướng dẫn/UI.
+- Sửa model LAC đổi SHA-256, ghim revision, phục hồi Worker lỗi và tách lỗi engine/gợi ý khỏi kết quả còn lại.
+- Gỡ IBM demo, dùng LAC mặc định cho cấu hình mới. Giữ TexSmart tùy chọn và báo lỗi dịch vụ rõ ràng.
+- Đồng bộ Name dài/ngắn và viết hoa đầu câu giữa Edit Name, Reader, TXT, EPUB 2/3 và HTML.
+- Bổ sung AGPL-3.0 và ghi nhận nguồn/license bên thứ ba.
 
-### ✨ v3.5.5.17_beta
+### 📦 v3.5.5.17_beta - v3.5.5.18_beta
 
-- Thêm **Phân tích Name** cho từng truyện trong BN, với phạm vi chương, độ dài, tần suất và bộ lọc Nhân danh/Địa danh/Tổ chức.
-- Hỗ trợ TexSmart/IBM, gợi ý Dịch máy + Hán-Việt và màn hình duyệt trước khi thêm vào Name Riêng.
-- Có tiến độ, nút dừng và giao diện phù hợp điện thoại; lõi NER được tách thành file thư viện riêng.
+- Thêm Phân tích Name trong BN, phạm vi/tần suất/loại NER, gợi ý dịch và duyệt trước khi thêm Name Riêng.
+- Thêm LAC Local thật bằng Web Worker, kiểm tra/cache model theo domain và nút xóa model.
 
 ### ✨ v3.5.5.16_beta
 
