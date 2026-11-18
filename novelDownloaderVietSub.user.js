@@ -2,7 +2,7 @@
 // ==UserScript==
 // @name        novelDownloaderVietSub
 // @description Menu Download Novel hoặc nhấp đúp vào cạnh trái của trang để hiển thị bảng điều khiển
-// @version     3.5.448.19
+// @version     3.5.448.20
 // @author      dodying | BaoBao
 // @namespace   https://github.com/BaoBao666888/Novel-Downloader5
 // @supportURL  https://github.com/BaoBao666888/Novel-Downloader5/issues
@@ -212,7 +212,7 @@ function decryptDES(encrypted, key, iv) {
     // ============================================================================
 
     function getNovelDownloaderScriptVersion() {
-        return GM_info && GM_info.script && GM_info.script.version ? GM_info.script.version : '3.5.448.19';
+        return GM_info && GM_info.script && GM_info.script.version ? GM_info.script.version : '3.5.448.20';
     }
 
     function docList(items) {
@@ -288,12 +288,15 @@ function decryptDES(encrypted, key, iv) {
         return [
             `<h3>v${getNovelDownloaderScriptVersion()}</h3>`,
             docList([
-                'Thêm rule public cho <b>洋柿子书城 (talebed.com)</b>: nhận trang chi tiết/mục lục/trang đọc, duyệt hết phân trang, lấy chữ Trung và bìa canvas; hỗ trợ cửa sổ xác minh tự động, dừng khi hủy xác minh hoặc bị giới hạn truy cập (<b>#31</b>).'
+                'Sửa tải truyện trên <b>52书库</b> và thêm tên miền <b>256wx.org</b> cho <b>256文学</b>. Cập nhật thông tin truyện, mục lục và vùng nội dung theo bố cục hiện tại (<b>#32</b>).',
+                'Không lưu toàn bộ trang web khi thiếu vùng nội dung chương. Tải thật và xem thử đều báo lỗi để tránh ghép trang lỗi vào file truyện.',
+                'Nếu bản tải dở trước đây đã lưu sai nội dung, hãy tải lại từ đầu sau khi cập nhật. Với hai web này, mỗi mục trong danh sách tương ứng một trang đọc của web.'
             ]),
             '<h3>Các bản trước (tóm tắt)</h3>',
             docList([
+                'v3.5.448.19: thêm Talebed với phân trang mục lục, chữ Trung, bìa canvas và cửa sổ xác minh tự động (#31).',
                 'v3.5.448.18: thêm Shuqi, sửa Fantinovels, bổ sung <code>user_key</code> tùy chọn cho JJWXC và chặn lưu nội dung có kiểu mã hóa chưa hỗ trợ.',
-                'v3.5.448.17: hàng chờ tải liên tab, lưu task chờ/tiếp tục, giảm spam log; sửa iHuaben, thêm XJJXS/AZXXS, form Yêu cầu rule, EPUB 2/3 và nâng cấp Rule Editor.',
+                'v3.5.448.17: hàng chờ tải liên tab, lưu task chờ/tiếp tục, giảm spam log, sửa iHuaben, thêm XJJXS/AZXXS, form Yêu cầu rule, EPUB 2/3 và nâng cấp Rule Editor.',
                 'v3.5.448.15: nâng UX chọn/xem thử chương, refresh info/mục lục, rule POPO, tên file/credit và cơ chế an toàn Debug Bridge.',
                 'v3.5.448.12: thêm Rule Editor, Danh sách hỗ trợ, Debug Bridge, khôi phục task tải dở và cải thiện Console/Quản lý tải xuống.',
                 'v3.5.448.x: bỏ phụ thuộc AntiClear, thêm nút nổi Novel Downloader, Hướng dẫn/Changelog trong script, tab Cài đặt và thanh tiến độ sticky <b>x / y</b>.',
@@ -2883,36 +2886,53 @@ function decryptDES(encrypted, key, iv) {
         },
         { // https://www.52shuku.vip/  và https://www.52shuku.net/
             siteName: '52书库',
-            filter: () => (/^www\.52shuku\.(vip|net)$/.test(window.location.host) ? ($('.list.clearfix').length ? 1 : 2) : 0),
+            filter: () => (/^www\.52shuku\.(vip|net)$/.test(window.location.host) ? ($('.list.clearfix').length ? 1 : $('.book_con, #nr1').length ? 2 : 0) : 0),
             infoPage: () => {
                 const breadcrumbs = $('.content-wrap .breadcrumbs, .breadcrumbs');
-                return breadcrumbs.length ? breadcrumbs.find('a:last').attr('href') : '';
+                return breadcrumbs.first().find('a:last').attr('href') || '';
             },
             intro: (doc) => {
                 const ps = $(doc).find('article.article-content > p').filter((i, el) => {
-                    return !el.hasAttribute('id') && !el.hasAttribute('class');
-                }).slice(0, 3);
+                    return !el.hasAttribute('id') && !el.hasAttribute('class')
+                        && !/^\s*(?:小说简介|所属专题|Tips)[：:]/i.test(el.textContent);
+                });
                 return ps.map((i, el) => $(el).text().trim()).get().join('\n\n');
             },
             title: (doc) => {
-                const breadcrumbs = $(doc).find('.content-wrap .breadcrumbs, .breadcrumbs');
-                if (breadcrumbs.length > 0) {
-                    let text = breadcrumbs.find('a:last').text().replace('丹青手', '').replace('扶子不好吃', '');
-                    if (text.endsWith('丹青手')) {
-                        text = text.replace('丹青手', '');
-                    } else if (text.endsWith('扶子不好吃')) {
-                        text = text.replace('扶子不好吃', '');
-                    }
-                    return text;
-                }
-                return '';
+                return $(doc).find('.article-title, #nr_title').first().text()
+                    .replace(/\(\d+\)$/, '').replace(/_[^_]+$/, '').trim();
+            },
+            writer: (doc) => {
+                const heading = $(doc).find('.article-title, #nr_title').first().text().replace(/\(\d+\)$/, '');
+                return (heading.match(/_([^_【]+)(?:【.*】)?$/) || [])[1]?.trim() || '';
             },
             chapter: '.list.clearfix > li > a',
-            chapterTitle: '#nr_title',
-            content: '#nr1',
-            elementRemove: '.related_top, .article-header, .article-nav, script, .chapterNum, .pagination2, hr + p, #go-top',
+            chapterTitle: (doc, res, request) => request?.raw?.title?.trim()
+                || $(doc).find('#nr_title, .article-title').first().text().trim(),
+            content: '#text.book_con, #nr1:not(ul)',
+            contentCheck: '#text.book_con, #nr1:not(ul)',
+            elementRemove: '.related_top, .article-header, .article-nav, script, style, iframe, .chapterNum, .pagination2, #lineCorrect, hr + p, #go-top',
             chapterPrev: '.pagination2 a:contains("上一页")',
             chapterNext: '.pagination2 a:contains("下一页")',
+            getChapters: async () => {
+                let doc = document;
+                if (!doc.querySelector('.list.clearfix > li > a')) {
+                    const href = $('.breadcrumbs').first().find('a:last').attr('href');
+                    if (!href) throw new Error('52书库: Không tìm thấy liên kết mục lục.');
+                    doc = await Rule.helpers.requestDoc(new URL(href, location.href).href, { cache: false });
+                }
+                const seen = new Set();
+                const chapters = Array.from(doc.querySelectorAll('.list.clearfix > li > a')).map((a) => ({
+                    title: a.textContent.trim(),
+                    url: new URL(a.getAttribute('href'), location.href).href,
+                })).filter((chapter) => {
+                    if (seen.has(chapter.url)) return false;
+                    seen.add(chapter.url);
+                    return true;
+                });
+                if (!chapters.length) throw new Error('52书库: Không tìm thấy danh sách chương. Hãy kiểm tra trang hoặc xác minh rồi thử lại.');
+                return chapters;
+            },
         },
         { // http://gj.zdic.net
             siteName: '汉典古籍',
@@ -9788,21 +9808,44 @@ function decryptDES(encrypted, key, iv) {
             content: '#BookText',
             elementRemove: 'div.ads, div.link, h4, script, style',
         },
-        { // https://www.256wenku.com
+        { // https://www.256wenku.com and https://www.256wx.org
             siteName: '256文学',
             filter: () => {
-                if (window.location.host !== 'www.256wenku.com') return 0;
-                if (document.querySelector('.catalog > li > a')) return 1;
+                if (!/^www\.(?:256wenku\.com|256wx\.org)$/.test(window.location.host)) return 0;
+                if (document.querySelector('.catalog > li > a, .list > li > a')) return 1;
                 if (document.querySelector('.book_con')) return 2;
                 return 0;
             },
             title: '.art_tit',
-            writer: (doc) => $('span.bookinfo:nth-child(1) > a, span.bookinfo:nth-child(1)', doc).first().text().replace(/^作者：/, '').trim(),
-            intro: '.infotype > p',
-            chapter: '.catalog > li > a',
-            chapterTitle: '.bookname h1, h1',
+            infoPage: () => /\/read\/\d+\/\d+\.html$/.test(location.pathname)
+                ? location.href.replace(/\d+\.html(?:[?#].*)?$/, '') : '',
+            writer: (doc) => $('#text > span > a[href*="/writer/"], span.bookinfo:nth-child(1) > a, span.bookinfo:nth-child(1)', doc).first().text().replace(/^作者[：:]/, '').trim(),
+            intro: '.infotype > p, #nr_history > p:not(.ztread):not(.txtread):not(:first-child)',
+            chapter: '.catalog > li > a, .list > li > a',
+            chapterTitle: (doc, res, request) => request?.raw?.title?.trim()
+                || $(doc).find('#nr_title, .bookname h1, h1').first().text().trim(),
             content: '.book_con',
-            elementRemove: 'script, style',
+            elementRemove: 'script, style, iframe, .page, .pagination, .pagination2',
+            contentReplace: [[/【256文学将分享[^】]*】/g, '']],
+            chapterPrev: '.page a:contains("上一页")',
+            chapterNext: '.page a:contains("下一页")',
+            getChapters: async () => {
+                let doc = document;
+                const infoUrl = /\/read\/\d+\/\d+\.html$/.test(location.pathname)
+                    ? location.href.replace(/\d+\.html(?:[?#].*)?$/, '') : location.href;
+                if (infoUrl !== location.href) doc = await Rule.helpers.requestDoc(infoUrl, { cache: false });
+                const seen = new Set();
+                const chapters = Array.from(doc.querySelectorAll('.catalog > li > a, .list > li > a')).map((a) => ({
+                    title: a.textContent.trim(),
+                    url: new URL(a.getAttribute('href'), infoUrl).href,
+                })).filter((chapter) => {
+                    if (seen.has(chapter.url)) return false;
+                    seen.add(chapter.url);
+                    return true;
+                });
+                if (!chapters.length) throw new Error('256文学: Không tìm thấy danh sách chương. Hãy kiểm tra trang hoặc xác minh rồi thử lại.');
+                return chapters;
+            },
         },
         { // https://m.bixiange.me -> https://bixiange.xyz
             siteName: '笔仙阁',
@@ -13016,16 +13059,14 @@ function decryptDES(encrypted, key, iv) {
             const doc = Rule.helpers.parseHtml(responseText);
             const res = { response: doc, responseText, status: 200 };
             const request = { raw: previewChapter };
+            if (activeRule.contentCheck && !await getFromRule(activeRule.contentCheck,
+                Object.assign((selector) => $(selector, doc).length > 0, { document: doc }), [res, request], false)) {
+                throw new Error('Trang tải về không có nội dung chương hợp lệ');
+            }
             let title = await getFromRule(activeRule.chapterTitle, { attr: 'text', document: doc }, [res, request], '');
             title = title || previewChapter.title || $('title', doc).eq(0).text();
-            let content = previewChapter.content || await getFromRule(activeRule.content, (selector) => {
-                let elems = $(selector, doc);
-                if (!elems.length) elems = $('body', doc);
-                if (elems.length > 1) {
-                    elems = elems.filter((i, elem) => !elems.not(elem).toArray().find((other) => $(elem).find(other).length));
-                }
-                return elems.toArray().map((elem) => $(elem).html()).join('\n');
-            }, [res, request], '');
+            let content = previewChapter.content || await getFromRule(activeRule.content,
+                Object.assign((selector) => extractChapterContent(selector, doc), { document: doc }), [res, request], '');
             if (Array.isArray(content)) content = content.join('\n');
             if (!String(content || '').trim()) throw new Error('Không tìm thấy nội dung chương');
             return { title, content, rule: activeRule };
@@ -14045,22 +14086,12 @@ function decryptDES(encrypted, key, iv) {
                 chapter.title = chapterTitle;
                 request.title = chapter.title;
                 let contentCheck = true;
-                if (rule.contentCheck) contentCheck = await getFromRule(rule.contentCheck, (selector) => $(selector, doc).length, [res, request], true);
+                if (rule.contentCheck) contentCheck = await getFromRule(rule.contentCheck,
+                    Object.assign((selector) => $(selector, doc).length > 0, { document: doc }), [res, request], false);
                 if (contentCheck) {
                     if (Storage.debug.content) debugger;
-                    let content = chapter.content || await getFromRule(rule.content, (selector) => {
-                        let elems = $(selector, doc);
-                        if (Storage.debug.content) debugger;
-                        if (rule === Rule) elems = elems.not(':emptyHuman'); // 移除空元素
-                        if (elems.length === 0) { // 没有找到内容
-                            console.error(`novelDownloader: 找不到内容元素\n选择器: ${selector}`);
-                            elems = $('body', doc);
-                        } else if (elems.length > 1) {
-                            // 当a是b的祖辈元素时，移除a
-                            elems = elems.filter((i, e) => !elems.not(e).toArray().find((j) => $(e).find(j).length));
-                        }
-                        return elems.toArray().map((i) => $(i).html());
-                    }, [res, request], '');
+                    let content = chapter.content || await getFromRule(rule.content,
+                        Object.assign((selector) => extractChapterContent(selector, doc, rule === Rule), { document: doc }), [res, request], '');
                     if (content instanceof Array) content = content.join('\n');
                     //thêm
                     if (!content) { // Ngưỡng 10 ký tự ví dụ
@@ -15127,6 +15158,16 @@ function decryptDES(encrypted, key, iv) {
         }
         returnValue = returnValue !== null && returnValue !== undefined ? returnValue : defaultValue;
         return returnValue;
+    }
+
+    function extractChapterContent(selector, doc, ignoreEmpty = false) {
+        let elems = $(selector, doc);
+        if (ignoreEmpty) elems = elems.not(':emptyHuman');
+        if (!elems.length) throw new Error(`Không tìm thấy nội dung chương với bộ chọn: ${selector}`);
+        if (elems.length > 1) {
+            elems = elems.filter((i, elem) => !elems.not(elem).toArray().some((other) => $(elem).find(other).length));
+        }
+        return elems.toArray().map((elem) => $(elem).html()).join('\n');
     }
 
     async function processChapterContentForOutput(rawContent, rule = Storage.rule, format = 'text') {

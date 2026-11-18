@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "updatedAt": "2026-10-31",
+  "updatedAt": "2026-11-18",
   "source": "src/rules/special",
   "sites": [
     {
@@ -1312,7 +1312,8 @@
       "file": "src/rules/special/0145-256wenku-com.rule.js",
       "kind": "special",
       "domains": [
-        "www.256wenku.com"
+        "www.256wenku.com",
+        "www.256wx.org"
       ]
     },
     {

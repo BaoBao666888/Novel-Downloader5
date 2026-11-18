@@ -1,4 +1,21 @@
-# TM Translate Regression Tests
+# Userscript Regression Tests
+
+Run all offline tests from the repository root:
+
+```bash
+node --test tools/tests/*.test.cjs
+```
+
+## Novel Downloader
+
+`nd-reader-rules.test.cjs` covers issue #32, the old/new reader domains,
+catalog URL resolution and deduplication, page titles and missing catalogs.
+It also tests the production content extraction and download callback to ensure
+missing selectors and failed content checks never persist whole error pages.
+DOM fixtures do not replace live checks of book metadata, full catalogs and
+sample pages through Debug Bridge.
+
+## TM Translate
 
 Run the focused offline suite from the repository root:
 

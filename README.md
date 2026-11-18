@@ -28,7 +28,7 @@ Mã do repo phát triển dùng [AGPL-3.0-only](LICENSE). Mã và thư viện b�
     *   Greasemonkey (Chủ yếu cho Firefox phiên bản cũ hơn)
     *   [ScriptCat](https://scriptcat.org/) (Đã dùng thử, khá mượt nhưng chưa hỗ trợ :>)
 2.  **Cài đặt script:** Nhấn vào link sau và làm theo hướng dẫn của trình quản lý userscript:
-    *   **[Cài đặt novelDownloaderVietSub (v3.5.448.19)](https://raw.githubusercontent.com/BaoBao666888/Novel-Downloader5/main/novelDownloaderVietSub.user.js)**
+    *   **[Cài đặt novelDownloaderVietSub (v3.5.448.20)](https://raw.githubusercontent.com/BaoBao666888/Novel-Downloader5/main/novelDownloaderVietSub.user.js)**
 
 ## Hướng dẫn sử dụng
 
