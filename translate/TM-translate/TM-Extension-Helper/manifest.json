@@ -1,0 +1,60 @@
+{
+    "manifest_version": 3,
+    "name": "TM Translate Hybrid Helper",
+    "version": "2.1.1",
+    "description": "Powerful specific backend for TM Translate Userscript: Fast OCR & Smart Security Header Management.",
+    "permissions": [
+        "declarativeNetRequest",
+        "declarativeNetRequestWithHostAccess",
+        "offscreen",
+        "storage",
+        "unlimitedStorage"
+    ],
+    "host_permissions": [
+        "<all_urls>"
+    ],
+    "background": {
+        "service_worker": "background.js"
+    },
+    "web_accessible_resources": [
+        {
+            "resources": [
+                "assets/*",
+                "offscreen.html",
+                "offscreen.js"
+            ],
+            "matches": [
+                "<all_urls>"
+            ]
+        }
+    ],
+    "content_scripts": [
+        {
+            "matches": [
+                "<all_urls>"
+            ],
+            "js": [
+                "content_script.js"
+            ],
+            "run_at": "document_start"
+        },
+        {
+            "matches": [
+                "<all_urls>"
+            ],
+            "js": [
+                "bridge.js"
+            ],
+            "run_at": "document_start",
+            "world": "MAIN"
+        }
+    ],
+    "externally_connectable": {
+        "matches": [
+            "*://*/*"
+        ]
+    },
+    "content_security_policy": {
+        "extension_pages": "script-src 'self' 'wasm-unsafe-eval'; object-src 'self'; connect-src 'self' https:; img-src 'self' data: https:;"
+    }
+}

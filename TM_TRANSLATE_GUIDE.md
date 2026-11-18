@@ -1,6 +1,6 @@
 # 🌸 Hướng dẫn TM Translate
 
-> Dành cho **TM Translate v3.5.5.19_beta**.
+> Dành cho **TM Translate v3.5.5.20_beta**.
 >
 > 🌐 Dịch trang · 📚 Thư viện · ✏️ Edit Name · 📷 OCR · 🔊 TTS
 
@@ -22,6 +22,10 @@ Xem thêm [yêu cầu cài đặt](README.md#cài-đặt). Trên Android có th�
 2. Bấm **Dịch Trang**.
 3. Nếu trang tải thêm nội dung khi cuộn, bật **Tự động dịch khi cuộn** trong Cài đặt.
 
+Muốn dịch riêng một đoạn, bôi đen chữ trong trang rồi bấm nút **D** màu xanh lá. Chỉ phần chữ đã chọn được thay bằng bản dịch Việt, còn phần trước/sau và các thẻ HTML giữ nguyên. Cách này không bật chế độ rút gọn hay dịch tự động. Ô nhập, nội dung chỉnh sửa và Reader trong Thư viện không được sửa bằng nút D.
+
+Nếu trang đổi nội dung trong lúc chờ hoặc dịch lỗi, script giữ nguyên chữ gốc và báo để bạn chọn lại. Bỏ vùng chọn trước khi bấm D nếu muốn dịch toàn trang.
+
 Bấm **Quay về** để khôi phục trang gốc. Bản 3.5.5.16 giữ nguyên ảnh, icon và bố cục của các link phức tạp trên trang mobile. Chữ hoa mà server dịch đúng cũng được giữ nguyên.
 
 ### 📚 Import và đọc một bộ truyện
@@ -38,7 +42,7 @@ Truyện vừa import hoặc vừa đọc sẽ nằm đầu Thư viện. Bấm *
 
 ## 2. 🧭 Các nút chính
 
-- 🟢 **Dịch Trang:** dịch nội dung trang hiện tại.
+- 🟢 **Dịch Trang:** dịch đoạn đang bôi đen, hoặc dịch toàn trang nếu không chọn chữ.
 - 🟩 **Thư viện:** import, đọc, chỉnh sửa, xuất và sao lưu truyện.
 - 🔵 **Edit Name / Bút chì:** bật chế độ sửa tên Trung → Việt trên trang.
 - ⚪ **Dịch Nhanh:** dán một đoạn văn để dịch riêng.
@@ -187,6 +191,10 @@ Nên sao lưu trước khi xóa dữ liệu website, đổi trình duyệt, đ�
 
 Nguồn ảnh, cách hiển thị và model OCR nằm trong **Cài đặt → OCR**. Lần đầu dùng có thể cần chờ tải model.
 
+Có thể cài thêm [TM Translate Hybrid Helper](translate/TM-translate/TM-Extension-Helper/README.md) cho Chrome để OCR bằng model kèm theo. Bản **2.1.1** sửa lỗi `OffscreenCanvas` khi gửi ảnh qua content script. Sau khi cập nhật thư mục extension, bấm **Reload** trong `chrome://extensions` rồi reload trang truyện.
+
+Trên điện thoại, OCR local không bắt buộc có extension. Nếu trình duyệt không hỗ trợ chụp màn hình, script mở phần chọn file ảnh để bạn nhập ảnh hoặc screenshot đã chụp. Luồng này dùng WASM một luồng và canvas thường, không yêu cầu SharedArrayBuffer hay OffscreenCanvas. Ảnh quá lớn cần cắt nhỏ để tránh thiếu RAM. Hỗ trợ thực tế còn tùy trình duyệt và thiết bị.
+
 ## 6. 🔊 TTS
 
 Trong Reader, bôi đen vị trí bắt đầu rồi chọn **Phát**, hoặc mở nút **TTS**. Mini-player có Phát/Tạm dừng, Tiếp, Dừng và hẹn giờ ngủ.
@@ -263,6 +271,14 @@ Lần chuyển đổi đầu sẽ nén dữ liệu cũ. Không đóng tab giữa
 Nếu delay đã thấp hơn 800 ms, xuất RAW dùng tối thiểu 800 ms giữa hai request. Khi request lỗi, script tăng thời gian chờ dần tới giới hạn. Sau khi server ổn định, nhịp gửi trở về mức xuất bình thường.
 
 ## 10. 📝 Thay đổi gần đây
+
+### v3.5.5.20_beta
+
+- Nút D dịch riêng vùng chữ đang chọn, giữ phần còn lại và cấu trúc trang.
+- Không dùng lại vùng chọn cũ khi người dùng đã bỏ chọn. Kiểm tra nội dung trước khi thay để tránh ghi đè trang vừa thay đổi.
+- Không chọn chữ thì giữ luồng dịch toàn trang. Dịch lại sau khi sửa Name vẫn dịch toàn trang.
+- OCR local dùng runtime/WASM cùng phiên bản và một luồng, bỏ các bản vá fetch/SharedArrayBuffer cũ. Trình duyệt thiếu API chụp màn hình được chuyển sang nhập ảnh. Khoanh vùng hỗ trợ cả chuột lẫn cảm ứng.
+- File model/WASM lớn của Helper được chuyển khỏi Git sang Releases, có checksum và công cụ khôi phục/build.
 
 ### ✨ v3.5.5.19_beta
 

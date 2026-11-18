@@ -17,6 +17,20 @@ sample pages through Debug Bridge.
 
 ## TM Translate
 
+`tm-selection-ocr.test.cjs` covers selection-only replacement, pointer selection
+preservation, unchanged surrounding text, stale DOM rejection and OCR message/
+image normalization. It also checks the helper's source and release asset manifest.
+`tm-mobile-package.test.cjs` covers unsupported screen-capture fallback, pointer
+input, single-thread runtime configuration, checksums and safe asset restoration.
+The offline suite does not require model/WASM binaries in the Git checkout.
+Also test real recognition through
+both external messaging and the page/content-script bridge after reloading the
+unpacked extension in Chrome.
+
+For OCR without the helper, test actual model inference with extension detection
+disabled, including environments without OffscreenCanvas/SharedArrayBuffer.
+API simulation and a narrow browser viewport are not real phone/device testing.
+
 Run the focused offline suite from the repository root:
 
 ```bash

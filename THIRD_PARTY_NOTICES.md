@@ -18,6 +18,10 @@ retain their own copyright and license. This notice does not relicense them.
 | BERT Mini Chinese NER ONNX model, revision `2e6990291be3ec0407ef0d559e8346893b8ff4e9` | [TomatoMTL model card](https://huggingface.co/TomatoMTL/bert-mini-finetuned-ner-chinese-onnx) | Apache-2.0 as declared by the publisher |
 | Fine-tuned model underlying the BERT ONNX conversion | [IcyKallen model card](https://huggingface.co/IcyKallen/bert-mini-finetuned-ner-chinese) | Apache-2.0 as declared by the publisher |
 | Transformers.js 3.8.1 | [Hugging Face Transformers.js](https://github.com/huggingface/transformers.js) | Apache-2.0 |
+| eSearch OCR bundled in TM Extension Helper | [xushengfeng/eSearch-OCR](https://github.com/xushengfeng/eSearch-OCR) | Apache-2.0 |
+| PaddleOCR Chinese/English model archive `assets/ch.zip` | [eSearch OCR model releases](https://github.com/xushengfeng/eSearch-OCR/releases/tag/4.0.0), [PaddleOCR](https://github.com/PaddlePaddle/PaddleOCR) | Apache-2.0. Copyright (c) 2016 PaddlePaddle Authors |
+| ONNX Runtime Web 1.18.0 bundled in TM Extension Helper | [Microsoft ONNX Runtime](https://github.com/microsoft/onnxruntime) | MIT. Copyright (c) Microsoft Corporation |
+| JSZip 3.10.1 and its bundled Pako dependency | [Stuk/jszip](https://github.com/Stuk/jszip), [nodeca/pako](https://github.com/nodeca/pako) | MIT option used for JSZip, MIT for Pako |
 
 Full permissive license texts: [MIT notices](LICENSES/MIT-third-party.txt),
 [Baidu LAC / Apache-2.0](LICENSES/Apache-2.0.txt).
@@ -48,6 +52,14 @@ No paid plan or shared API key is bundled with this repository.
 
 The LAC model archive is downloaded separately from
 [Darkrai9x/vbook-settings](https://github.com/Darkrai9x/vbook-settings).
+
+TM Extension Helper's release ZIP includes its OCR runtime and model archive.
+Large model/WASM files are not stored in Git. The source checkout contains
+checksums and a restore/build tool for those release assets.
+Keep this notice and the repository's license files when redistributing the
+helper with those assets. Changes to the helper's message handling and image
+decoding are repository contributions, not changes to the bundled OCR libraries
+or model weights.
 
 The repository license does not grant additional rights to third-party
 models, dictionaries, fonts, images, website content, or downloaded novels.

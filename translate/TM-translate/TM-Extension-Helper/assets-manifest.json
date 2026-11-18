@@ -1,0 +1,16 @@
+{
+  "version": "2.1.1",
+  "releaseTag": "tm-helper-v2.1.1",
+  "downloadUrl": "https://github.com/BaoBao666888/Novel-Downloader5/releases/download/tm-helper-v2.1.1/TM-Extension-Helper-2.1.1.zip",
+  "assets": [
+    { "file": "ch.zip", "bytes": 14365264, "sha256": "57c3345ab7f30fce0363505bd6b6be9c25f45a72e0e95d533122fe21241351f4" },
+    { "file": "ort-wasm-simd-threaded.wasm", "bytes": 10684943, "sha256": "86e907409c5a79b7475b6ca690e404fa5c5f5714054a3926f3b0bf40559d7d2e" },
+    { "file": "ort-wasm-simd.wasm", "bytes": 10595041, "sha256": "f533b5f21790563d7556c611c3835ac65848ee326da2689aac54ed7d9cc8c6a4" },
+    { "file": "ort-wasm-threaded.wasm", "bytes": 9841732, "sha256": "54c445435526af7138c6a2438b2e8103c87d4eb3e972649f2eb5fd713fadfa5c" },
+    { "file": "ort-wasm.wasm", "bytes": 9758086, "sha256": "ebe7ec327f83aabc07e3b58487522481ccff10941f24182ab0428d0123652ff2" },
+    { "file": "eSearchOCR.umd.js", "bytes": 27429, "sha256": "1dcd4425b875ebdefff972658447cff24926306cac2c3fa440ecc2f29110274d" },
+    { "file": "jszip.min.js", "bytes": 97630, "sha256": "acc7e41455a80765b5fd9c7ee1b8078a6d160bbbca455aeae854de65c947d59e" },
+    { "file": "ort.min.js", "bytes": 540716, "sha256": "74945866728300a05746a37387ac48863a8be5cdc3760304b47d0136d7d0dc5b" },
+    { "file": "ort.wasm.min.js", "bytes": 142930, "sha256": "90533a3fd7006df7f897c0d63c468996da5c8e430e39964d92ebe586c4996614" }
+  ]
+}

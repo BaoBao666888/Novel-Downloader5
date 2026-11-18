@@ -4,6 +4,10 @@ Copyright (c) 2017 Dodying (UserJs)
 Copyright (c) 2013-2014 hustlzp (jquery-s2t)
 Copyright (c) 2009-2013 Jeff Mott (CryptoJS)
 Copyright (c) 2013-2016 Evan Vosberg (CryptoJS)
+Copyright (c) Microsoft Corporation. All rights reserved. (ONNX Runtime Web)
+Copyright (c) 2009-2016 Stuart Knightley, David Duponchel, Franz Buchinger,
+Antonio Afonso (JSZip)
+Copyright (C) 2014-2017 Vitaly Puzrin and Andrei Tuputcyn (Pako)
 
 These notices apply to the respective third-party components listed in
 THIRD_PARTY_NOTICES.md, not to each component jointly.

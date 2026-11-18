@@ -2,7 +2,7 @@
 // @name         TM Translate
 // @author       QuocBao
 // @namespace    http://tampermonkey.net/
-// @version      3.5.5.19_beta
+// @version      3.5.5.20_beta
 // @license      AGPL-3.0-only
 // @description  Dịch trang, quản lý name-sets, sửa tên, Thư viện đọc offline, OCR và TTS.
 // @icon         data:image/png;base64,AAABAAEAQEAAAAEAIAAoQgAAFgAAACgAAABAAAAAgAAAAAEAIAAAAAAAAEAAAAAAAAAAAAAAAAAAAAAAAAA+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/0CLNf9BjDb/QYw2/0GMNv9BjDb/QYw2/0GMNv9BjDb/QYw2/0GMNv9BjDb/QYw2/0GMNv9BjDb/QIs1/z+LNP8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z+KNP81hCn/L4Ek/zCCJf8wgiX/MIIl/zCCJf8wgiX/MIIl/zCCJf8wgiX/MIIk/zCCJP8xgiX/MoMm/zWFKv86hy7/Pooz/0GMNv9BjDb/P4s0/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/0CLNf83hiz/gbJ6/7HQrf+py6T/qsum/6rLpv+qy6b/qsum/6rLpv+qy6b/qsum/6jKo/+fxZr/kLuJ/36xd/9oo1//UJVH/zyJMf8xgiX/MoIm/zqIL/9BjDb/QIs1/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/9AizX/M4Mo/8DZvP///////P38//////////////////////////////////////////////////////////////////X59f/b6dr/tNGw/4CyeP9Ok0T/M4Mn/zSEKP8/izT/QYw2/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/QIs1/zOEKP+71rj///////n8+f/8/fz//P38//z9/P/8/fz//P38//z9/P/8/fz//P38//z9/P/8/fz//f79//7//v//////////////////////8/jz/7zWuf9wqGj/OIYt/zOEKP9AizX/P4s0/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/0CLNv8zgyj/vde6///////8/fz//////////////////v79//3+/f/9/v3//f79//7+/v/+/v7//v/+/////////////v/+//3+/f/8/fz//f79/////////////////9Pk0f9yqWr/M4Mo/zmHLv9BjDb/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/9Aizb/M4Mo/73Xuv///////P38///////////////////////////////////////////////////////9/v3//P38//z9/P/9/v3////////////+//7//P38//3+/f///////////8DYvP9Nk0P/MoMn/0GMNv8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/QIs2/zODKP+917r///////z9/P/////////////////h7N//1+fV/9vp2f/e69z/5/Dl//P48v/9/v3///////////////////////7//v/8/fz//v7+/////////////f79//3+/P//////7/Xu/3Wrbv8wgiT/QIs1/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/0CLNv8zgyj/vde6///////8/fz/////////////////Yp9Z/zODJ/89iTP/PYoy/0ONOP9Mk0L/WptR/3Gpaf+Qu4n/ttKy/+Ds3v/9/v3////////////9/vz//v7+/////////////P38//7+/v//////lL6O/zGCJv9AizX/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/9Aizb/M4Mo/73Xuv///////P38/////////////////2ShXP82hSv/QIs1/z6KM/88iTH/Oogv/zeGLP80hCj/MYIl/zKDJv8+ijP/Yp9Z/6THn//s8+v///////7+/f/9/v3////////////+/v3//P38//////+awpX/MYIl/0GMNv8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/QIs2/zODKP+917r///////z9/P////////////////9koVz/NoUr/0CLNf8+ijP/P4o0/z+LNP8/izX/QIs1/0GMNv9BjDb/Pooz/zaFK/8wgST/Ro88/5nBk//1+fT///////z9/P////////////7//v/8/fz//////4a2gP8xgiX/QYw2/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/0CLNv8zgyj/vde6///////8/fz/////////////////ZKFb/zaFKv9AizX/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/9AizX/QYw3/zyJMf8vgSP/VZhL/9Hjzv///////P38/////////////v7+///////6/Pr/YJ9Y/zaFKv9AizX/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/9Aizb/M4Mo/73Xuv///////P38/////////////////2ShW/82hSr/QIs1/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8/ijT/Qow3/zeGLP85hy7/udW2///////8/fz////////////9/v3//////9Pk0P87iDD/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/QIs2/zODKP+917r///////z9/P////////////////9koVv/NoUq/0CLNf8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/9BjDb/PYky/zWEKf+/2Lv///////39/P////////////z9/P//////hrV//zGCJf9BjDb/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/0CLNv8zgyj/vde6///////8/fz/////////////////ZKFb/zaFKv9AizX/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/0CLNf87iTD/QIs1/93q2////////f79///////+/v3//////93q2/8/ijT/PYoy/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/9Aizb/M4Mo/73Xuv///////P38/////////////////2ShW/82hSr/QIs1/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/QYw2/zOEKP9ppGH///////7//v////////////3+/f//////dqxv/zODJ/9AjDb/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/QIs2/zODKP+917r///////z9/P////////////////9koVv/NoUq/0CLNf8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/9BjDb/MYIm/7jUtP///////f38///////8/fz//////7nUtf8ygyf/QYw2/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/0CLNv8zgyj/vde6///////8/fz/////////////////ZKFb/zaFKv9AizX/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/QIs1/zaFKv9koVz//////////////////v7+///////p8uj/RY47/zyJMf8/ijT/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/9Aizb/M4Mo/73Xuv///////P38/////////////////2ShW/82hSr/QIs1/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8/ijT/O4gw/9ro1////////f79///////+//7//////2aiXv81hSr/QIs1/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/QIs2/zODKP+917r///////z9/P////////////////9koVv/NoUq/0CLNf8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/QYw2/zCCJP+oyqP///////z9/P///////P38//////+JuIP/MYIl/0GMNv8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/0CLNv8zgyj/vde6///////8/fz/////////////////ZKFb/zaFKv9AizX/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/0GMNv8ygyb/gbJ6///////9/vz///////z9/P//////qMqj/zGCJf9BjDb/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/9Aizb/M4Mo/73Xuv///////P38/////////////////2ShW/82hSr/QIs1/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/9AizX/NYUq/2ejX////////v/+///////8/fz//////7zWuf8zgyf/QIw2/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/QIs2/zODKP+917r///////z9/P////////////////9koVv/NoUq/0CLNf8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/P4s1/ziGLP9am1D/+/37///////+//7//f79///////K38f/NoUq/0CLNf8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/0CLNv8zgyj/vde6///////8/fz/////////////////ZKFb/zaFKv9AizX/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z+LNP85hy7/U5dJ//j7+P///////v/+//3+/f//////0+TR/zmHLf8/izT/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/9Aizb/M4Mo/73Xuv///////P38/////////////////2ShW/82hSr/QIs1/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8/izT/OYcu/1OWSf/3+vf///////7//v/9/v3//////9bm1P86hy7/P4o0/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/QIs2/zODKP+917r///////z9/P////////////////9koVv/NoUq/0CLNf8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/P4s0/ziGLf9XmU7/+vz6///////+//7//f79///////R487/OIYs/z+LNP8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/0CLNv8zgyj/vde6///////8/fz/////////////////ZKFb/zaFKv9AizX/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/0CLNf82hSv/YqBa//////////////////3+/f//////xtzD/zWEKf9AizX/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/9Aizb/M4Mo/73Xuv///////P38/////////////////2ShW/82hSr/QIs1/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/9BjDb/M4Mn/3itcf///////f79///////8/fz//////7bSsv8ygyb/QYw2/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/QIs2/zODKP+917r///////z9/P////////////////9koVv/NoUq/0CLNf8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/QYw2/zCCJP+bwpX///////z9/P///////P38//////+dw5f/MIIk/0GMNv8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/0CLNv8zgyj/vde6///////8/fz/////////////////ZKFb/zaFKv9AizX/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/0CLNf81hSr/yd7F///////9/v3///////3+/f//////fK90/zKDJ/9BjDb/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/9Aizb/M4Mo/73Xuv///////P38/////////////////2ShW/82hSr/QIs1/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z+LNP85hy7/UZZI//b69v///////v/+//7//v//////+vz6/1eZTf84hi3/P4s0/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/QIs2/zODKP+917r///////z9/P////////////////9koVv/NoUq/0CLNf8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/9CjDf/MIIk/5W/j////////P38///////9/v3//////9Xl0/86hy//P4o0/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/0CLNv8zgyj/vde6///////8/fz/////////////////ZKFb/zaFKv9AizX/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8/izT/O4gw/0ePPP/r8ur///////7+/v///////P38//////+XwJH/MIIl/0GMNv8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/9Aizb/M4Mo/73Xuv///////P38/////////////////2ShW/82hSr/QIs1/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Qow3/y+BI/+tzaj///////39/P///////v/+///////2+fX/VZdL/zmHLf8/izT/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/QIs2/zODKP+917r///////z9/P////////////////9koVv/NoUq/0CLNf8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8/ijT/Qo04/y2AIf+Cs3v///////3+/f////////////z9/P//////sM+r/zKCJv9BjDb/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/0CLNv8zgyj/vde6///////8/fz/////////////////ZKFb/zaFKv9AizX/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/9BjDb/Pooz/y2AIf99sHb//P38///////+//7///////7+/v//////8/fy/1KWSf85hy7/P4s0/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/9Aizb/M4Mo/73Xuv///////P38/////////////////2ShW/82hSr/QIs1/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/P4o0/0GMNv9AizX/M4Mn/zuIMP+gxZr//v/+//7+/v/+//7////////////8/fv//////4y5hf8xgiX/QYw2/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/QIs2/zODKP+917r///////z9/P////////////////9koVv/NoUq/0CLNf8+ijP/Pooz/z6KM/8+ijP/P4o0/0CLNf9BjDb/QYw2/zyJMf8ygyb/N4Yr/3Oqa//b6dn///////3+/P/+//7////////////7/fv//////7nUtf80hCn/QIs1/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/0CLNv8zgyj/vde6///////8/fz/////////////////Z6Je/zmHLv9DjTj/QYw2/0GMNv9AizX/Pooz/zuIMP82hSv/MYIl/zKDJ/9Gjzz/frF3/9Hjzv////////////3+/f/+//7////////////7/fv//////8zgyf89iTL/PIkx/z+LNP8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/9Aizb/M4Mo/73Xuv///////P38/////////////////1maUP8nfBv/MoMn/zGCJf8ygyb/NYQp/zuIMP9JkT//YZ9Z/4e2gf+51LX/7PPr/////////////f79//3+/f////////////7+/f/8/fz//////8fdxP8/ijT/O4gv/0CLNf8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/QIs2/zODKP+917r///////z9/P////////////////+71bf/psmh/6vMpv+uzqn/t9Oz/8jdxf/a6dj/8PXv//7//v/////////////////9/v3//f79/////////////v/+//z9/P/+//7//////6rLpf84hi3/O4gw/0CLNf8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/0CLNv8zgyj/vde6///////8/fz///////////////////////////////////////////////////////////////7//P38//z9/P/+/v7////////////+/v7//P38//7+/v//////6/Pq/3mucv8xgiX/Pooz/0CLNf8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/9Aizb/M4Mo/73Xuv///////P38//////////////////3+/P/8/fz//P38//z9/P/8/fz//f79//3+/f/+/v7//////////////////v7+//z9/P/9/v3////////////4+/f/qMqj/0ePPf8ygyb/QYw2/z+KNP8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/QIs2/zODKP+81rj///////v8+v/9/v3//f79//3+/f/9/v3//f79//3+/f/9/v3//f79//3+/f/9/vz//P38//z9/P/9/v3////////////+//7//////+vz6v+myaH/VZhL/zCCJP87iDD/QYw2/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/0CLNf8zgyj/wNi8///////8/fz///////////////////////////////////////////////////////////////////////3+/f/l7+P/t9Oz/3uvdP9Gjzv/MIIl/ziHLf9BjDb/P4s0/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/9AizX/NYQp/6HGnP/l7+T/2ejX/9vp2f/b6dn/2+nZ/9vp2f/b6dn/2+nZ/9vp2f/a6Nj/1OXS/8jdxf+10rH/ncSY/36xd/9enVX/Qow3/zKCJv8ygyb/PIkx/0GMNv8/izT/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/87iDD/PIgx/zyIMf88iDH/PIgx/zyIMf88iDH/PIgx/zyIMf88iTH/O4gw/ziGLf81hCn/MYIm/zCCJP8ygyb/N4Yr/z2JMv9BjDb/QYw2/z+KNP8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/P4o0/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8/izT/QIs1/0GMNv9BjDb/QYw2/0CLNf8+ijT/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/Pooz/z6KM/8+ijP/AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=
@@ -54,7 +54,7 @@
 // @require      https://raw.githubusercontent.com/BaoBao666888/Novel-Downloader5/main/tools/TTS_Reader_Core.user.js?v=20260629
 // @require      https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js
 // @require      https://unpkg.com/@oovz/esearch-ocr/dist/eSearchOCR.umd.js
-// @require      https://unpkg.com/onnxruntime-web@1.22.0/dist/ort.wasm.min.js
+// @require      https://cdn.jsdelivr.net/npm/onnxruntime-web@1.18.0/dist/ort.wasm.min.js
 // @require      https://unpkg.com/fflate@0.8.2/umd/index.js
 // @require      https://cdn.jsdelivr.net/npm/mammoth@1.9.1/mammoth.browser.min.js
 // ==/UserScript==
@@ -944,7 +944,7 @@
     let translatedBodyClone = null;
 
     /* ================== VERSION ================== */
-    const CURRENT_VERSION = '3.5.5.19_beta';
+    const CURRENT_VERSION = '3.5.5.20_beta';
     const TM_VERSION_KEY = 'tm_translate_version';
     const TTS_STORAGE_KEY = 'twd_tts_reader_settings_v1';
     const TTS_DEFAULT_SETTINGS = {
@@ -2200,9 +2200,9 @@
             startBtn.style.backgroundColor = '#28a745';
             startBtn.style.right = '18px';
             startBtn.style.bottom = `${bottomOffset}px`;
-            startBtn.title = 'Bắt đầu dịch trang này';
+            startBtn.title = 'Dịch đoạn đang chọn hoặc toàn trang';
             startBtn.innerHTML = ttHTML(`<svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor"><text x="12" y="17" text-anchor="middle" font-size="18" font-weight="bold" font-family="Arial,sans-serif">D</text></svg>`);
-            startBtn.addEventListener('click', startTranslateAction);
+            bindTranslateButtonSelection(startBtn);
             tmUIRoot.appendChild(startBtn);
             bottomOffset += 64;
         } else if (translatedBodyClone && config.nameEditingEnabled) {
@@ -3949,7 +3949,7 @@
             chunks.push({ original: para, tokens: tokens, numTextTokens: textsForThisPara.length });
         }
 
-        if (textsToSend.length === 0) return returnType === 'html' ? '<p style="color:#888;">Không có gì để dịch.</p>' : '';
+        if (textsToSend.length === 0) return returnType === 'paragraphs' ? [] : returnType === 'html' ? '<p style="color:#888;">Không có gì để dịch.</p>' : '';
 
         const batches = splitIntoBatches(textsToSend, config.maxCharsPerRequest);
         let allTranslatedTexts = [];
@@ -3995,14 +3995,123 @@
             translationIdx += chunk.numTextTokens;
         }
 
-        return returnType === 'html' ? finalResult : resultArray.join('\n');
+        return returnType === 'paragraphs' ? resultArray : returnType === 'html' ? finalResult : resultArray.join('\n');
     }
 
-    async function startTranslateAction() {
+    function getPageTranslationSelection() {
+        const selection = window.getSelection();
+        if (!selection || selection.rangeCount !== 1 || selection.isCollapsed || !selection.toString().trim()) return null;
+        const range = selection.getRangeAt(0).cloneRange();
+        const parts = [];
+        const root = range.commonAncestorContainer;
+        const collect = (node) => {
+            if (!document.body.contains(node) || !range.intersectsNode(node)) return;
+            const parent = node.parentElement;
+            if (!parent || parent.closest('script,style,noscript,input,textarea,select,button,[contenteditable]:not([contenteditable="false"]),#tm-reader-overlay,[id^="tm-"]')) return;
+            const original = node.nodeValue || '';
+            const start = node === range.startContainer ? range.startOffset : 0;
+            const end = node === range.endContainer ? range.endOffset : original.length;
+            const text = original.slice(start, end);
+            if (!text.trim()) return;
+            const previous = parts[parts.length - 1];
+            let joinPrevious = false;
+            if (previous && previous.end === previous.original.length && start === 0) {
+                const blocks = 'p,div,li,td,th,h1,h2,h3,h4,h5,h6,section,article,main,blockquote';
+                if (previous.node.parentElement.closest(blocks) === parent.closest(blocks)) {
+                    const gap = document.createRange();
+                    gap.setStart(previous.node, previous.end);
+                    gap.setEnd(node, start);
+                    const fragment = gap.cloneContents();
+                    joinPrevious = !fragment.textContent && !fragment.querySelector('br,img,hr,video,audio');
+                }
+            }
+            parts.push({ node, original, start, end, text, joinPrevious });
+        };
+        if (root.nodeType === Node.TEXT_NODE) collect(root);
+        else {
+            const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+            while (walker.nextNode()) collect(walker.currentNode);
+        }
+        return { parts, text: selection.toString() };
+    }
+
+    function bindTranslateButtonSelection(button) {
+        let pending;
+        button.addEventListener('pointerdown', () => { pending = getPageTranslationSelection(); });
+        button.addEventListener('mousedown', (event) => {
+            if (event.button !== 0) return;
+            pending = getPageTranslationSelection() || pending;
+            if (pending) event.preventDefault();
+        });
+        button.addEventListener('pointercancel', () => { pending = undefined; });
+        button.addEventListener('click', (event) => {
+            const selection = event.detail === 0 || pending === undefined ? getPageTranslationSelection() : pending;
+            pending = undefined;
+            void startTranslateAction({ selection });
+        });
+    }
+
+    async function translatePageSelection(selection) {
+        if (!selection.parts.length) {
+            showNotification('Hãy chọn chữ trong nội dung trang, ngoài ô nhập và giao diện script.');
+            return;
+        }
+        isTranslating = true;
+        try {
+            config = loadConfig();
+            showLoading('Đang dịch đoạn đã chọn...');
+            const parts = selection.parts.map((part) => {
+                let text = part.text;
+                if (window.location.hostname.includes('fanqienovel.com')) {
+                    text = window.location.pathname.startsWith('/reader/') ? decodeFanqieReaderText(text)
+                        : decodeFanqieGeneralText(text, window.location.pathname.startsWith('/search/') ? 'search' : 'library');
+                }
+                return { ...part, input: normalizeTextForTranslation(text).replace(/\r\n?/g, '\n') };
+            });
+            const lines = await translatePanelText(parts.map((part) => part.input).join('\n'), 'paragraphs');
+            const expected = parts.reduce((count, part) => count + part.input.split('\n').length, 0);
+            if (!Array.isArray(lines) || lines.length !== expected) throw new Error('Bản dịch thiếu đoạn. Chưa thay đổi nội dung gốc.');
+            if (parts.some((part) => !document.body.contains(part.node) || part.node.nodeValue !== part.original)) {
+                throw new Error('Nội dung trang đã thay đổi trong lúc dịch. Hãy chọn lại đoạn cần dịch.');
+            }
+            let offset = 0;
+            const replacements = parts.map((part) => {
+                const count = part.input.split('\n').length;
+                const translated = lines.slice(offset, offset + count).join('\n');
+                offset += count;
+                if (!translated.trim()) throw new Error('Bản dịch rỗng. Chưa thay đổi nội dung gốc.');
+                const leading = part.text.match(/^\s*/)[0];
+                const trailing = part.text.match(/\s*$/)[0];
+                return part.original.slice(0, part.start) + leading + translated.trim() + trailing + part.original.slice(part.end);
+            });
+            for (let index = 1; index < parts.length; index++) {
+                if (parts[index].joinPrevious && /[\p{L}\p{N}]$/u.test(replacements[index - 1])
+                    && /^[\p{L}\p{N}]/u.test(replacements[index])) replacements[index - 1] += ' ';
+            }
+            parts.forEach((part, index) => { part.node.nodeValue = replacements[index]; });
+            const current = window.getSelection();
+            if (current?.toString() === selection.text) current.removeAllRanges();
+            lastSelectionRange = null;
+            window._lastSelectionSnapshot = null;
+            hideSelectionEditButton();
+            showNotification('Đã dịch đoạn được chọn.');
+        } catch (error) {
+            console.error('[tm-translate] Không dịch được đoạn chọn:', error);
+            showNotification(error.message || 'Không dịch được đoạn đã chọn.');
+        } finally {
+            isTranslating = false;
+            removeLoading();
+        }
+    }
+
+    async function startTranslateAction(options = {}) {
         if (isTranslating) {
             showNotification("Đang dịch, vui lòng đợi...", 2000);
             return;
         }
+        const selection = options?.forcePage ? null
+            : Object.prototype.hasOwnProperty.call(options || {}, 'selection') ? options.selection : getPageTranslationSelection();
+        if (selection) return translatePageSelection(selection);
         isTranslating = true;
         removeElementById('tm-start-translate-btn');
 
@@ -6027,7 +6136,7 @@
             if (simplifiedActive) simplifiedActive = false;
             removeFloatingButtons();
             console.log('Bắt đầu quy trình dịch lại...');
-            await startTranslateAction();
+            await startTranslateAction({ forcePage: true });
         } else {
             removeLoading();
             alert('Không tìm thấy bản sao trang gốc. Vui lòng tải lại trang (F5) để áp dụng thay đổi.');
@@ -8446,95 +8555,54 @@
 
     let __ortPromise = null;
 
+    function supportsOcrSimd() {
+        try {
+            // Same feature probe used by ONNX Runtime 1.18.
+            return WebAssembly.validate(new Uint8Array([0,97,115,109,1,0,0,0,1,4,1,96,0,0,3,2,1,0,10,30,1,28,0,65,0,253,15,253,12,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,253,186,1,26,11]));
+        } catch (error) {
+            return false;
+        }
+    }
+
     async function ensureOrtSandbox() {
         if (__ortPromise) return __ortPromise;
-
         __ortPromise = (async () => {
-            if (typeof SharedArrayBuffer === 'undefined') {
-                const SafeBuffer = typeof ArrayBuffer !== 'undefined' ? ArrayBuffer : null;
-                if (SafeBuffer) {
-                    if (typeof window !== 'undefined') window.SharedArrayBuffer = SafeBuffer;
-                    if (typeof globalThis !== 'undefined') globalThis.SharedArrayBuffer = SafeBuffer;
-                    if (typeof self !== 'undefined') self.SharedArrayBuffer = SafeBuffer;
-                    console.log("[TM-Translate] Polyfilled SharedArrayBuffer -> ArrayBuffer");
-                }
+            if (typeof WebAssembly === 'undefined') throw new Error('Trình duyệt chưa hỗ trợ WebAssembly để chạy OCR local.');
+            let runtime = typeof ort !== 'undefined' ? ort : null;
+            if (!runtime) {
+                const source = await gmFetchText('https://cdn.jsdelivr.net/npm/onnxruntime-web@1.18.0/dist/ort.wasm.min.js');
+                runtime = new Function(source + '\nreturn ort;')();
             }
-
-            // --- Monkey-Patch fetch & XHR for WASM Injection ---
-            if (!window.__tmFetchPatched) {
-                const patchTarget = (target) => {
-                    if (!target || target.__tmFetchPatched) return;
-
-                    const isOrtWasm = (url) => {
-                        return url &&
-                            (url.endsWith('.wasm') || url.includes('.wasm?')) &&
-                            url.includes('ort-wasm');
-                    };
-
-                    const originalFetch = target.fetch;
-                    target.fetch = async function (input, init) {
-                        const url = typeof input === 'string' ? input : (input instanceof URL ? input.href : input.url);
-                        const buffer = window.__TM_WASM_BUFFER || (typeof unsafeWindow !== 'undefined' ? unsafeWindow.__TM_WASM_BUFFER : null);
-
-                        if (isOrtWasm(url) && buffer) {
-                            console.log(`[TM-Translate] Intercepted ORT WASM fetch (${target === window ? 'window' : 'unsafe'}): ${url}`);
-                            return new Response(buffer, {
-                                status: 200,
-                                headers: { 'Content-Type': 'application/wasm' }
-                            });
-                        }
-                        return originalFetch.apply(this, arguments);
-                    };
-
-                    const originalOpen = target.XMLHttpRequest.prototype.open;
-                    target.XMLHttpRequest.prototype.open = function (method, url) {
-                        if (url && (typeof url === 'string') && isOrtWasm(url)) {
-                            this._isWasmRequest = true;
-                            this._wasmUrl = url;
-                        }
-                        return originalOpen.apply(this, arguments);
-                    };
-
-                    const originalSend = target.XMLHttpRequest.prototype.send;
-                    target.XMLHttpRequest.prototype.send = function (body) {
-                        const buffer = window.__TM_WASM_BUFFER || (typeof unsafeWindow !== 'undefined' ? unsafeWindow.__TM_WASM_BUFFER : null);
-                        if (this._isWasmRequest && buffer) {
-                            console.log(`[TM-Translate] Intercepted ORT WASM XHR (${target === window ? 'window' : 'unsafe'}): ${this._wasmUrl}`);
-
-                            Object.defineProperty(this, 'status', { value: 200 });
-                            Object.defineProperty(this, 'readyState', { value: 4 });
-                            Object.defineProperty(this, 'response', { value: buffer });
-                            Object.defineProperty(this, 'responseType', { value: 'arraybuffer' });
-
-                            const event = new Event('load');
-                            this.dispatchEvent(event);
-                            if (this.onload) this.onload(event);
-                            return;
-                        }
-                        return originalSend.apply(this, arguments);
-                    };
-
-                    target.__tmFetchPatched = true;
-                };
-
-                patchTarget(window);
-                patchTarget(self);
-                patchTarget(globalThis);
-                if (typeof unsafeWindow !== 'undefined') patchTarget(unsafeWindow);
-
-                console.log("[TM-Translate] Pre-patched fetch/XHR (All scopes) for WASM interception.");
-            }
-
-            const ortCode = await gmFetchText("https://unpkg.com/onnxruntime-web@1.18.0/dist/ort.wasm.min.js");
-            const ort = (0, eval)(`${ortCode}\n; ort;`);
-            if (!ort) throw new Error("Cannot obtain `ort` from ort.wasm.min.js");
-            window.ort = ort;
-            globalThis.ort = ort;
-            return ort;
+            if (!runtime?.env?.wasm) throw new Error('Không tải được ONNX Runtime cho OCR.');
+            const simd = supportsOcrSimd();
+            const filename = simd ? 'ort-wasm-simd.wasm' : 'ort-wasm.wasm';
+            const expected = simd
+                ? 'f533b5f21790563d7556c611c3835ac65848ee326da2689aac54ed7d9cc8c6a4'
+                : 'ebe7ec327f83aabc07e3b58487522481ccff10941f24182ab0428d0123652ff2';
+            const buffer = await libDownloadLacModel({
+                url: 'https://cdn.jsdelivr.net/npm/onnxruntime-web@1.18.0/dist/' + filename,
+            });
+            if (!globalThis.crypto?.subtle) throw new Error('Hãy mở trang HTTPS để kiểm tra thư viện OCR.');
+            const hash = Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256', buffer)),
+                (byte) => byte.toString(16).padStart(2, '0')).join('');
+            if (hash !== expected) throw new Error('Thư viện OCR không khớp SHA-256. Hãy thử tải lại.');
+            runtime.env.wasm.numThreads = 1;
+            runtime.env.wasm.proxy = false;
+            runtime.env.wasm.simd = simd;
+            runtime.env.wasm.wasmPaths = {
+                [filename]: URL.createObjectURL(new Blob([buffer], { type: 'application/wasm' })),
+            };
+            runtime.env.logLevel = 'warning';
+            return runtime;
         })();
-
-        return __ortPromise;
+        try {
+            return await __ortPromise;
+        } catch (error) {
+            __ortPromise = null;
+            throw error;
+        }
     }
+
     // --- EXTENSION COMMUNICATION HELPERS ---
 
     async function syncBlacklistToExtension(blacklist) {
@@ -8550,6 +8618,32 @@
 
     /* ================== OCR SERVICE ================== */
 
+    async function loadLocalOcrImage(source) {
+        const image = new Image();
+        await new Promise((resolve, reject) => {
+            const finish = (error) => {
+                clearTimeout(timer);
+                image.onload = image.onerror = null;
+                if (error) reject(error);
+                else resolve();
+            };
+            const timer = setTimeout(() => finish(new Error('Hết thời gian tải ảnh OCR.')), 15000);
+            image.onload = () => finish();
+            image.onerror = () => finish(new Error('Không đọc được ảnh OCR.'));
+            image.src = source;
+        });
+        const width = image.naturalWidth;
+        const height = image.naturalHeight;
+        if (!width || !height || width * height > 8000000) throw new Error('Ảnh rỗng hoặc quá lớn. Hãy cắt ảnh nhỏ hơn rồi thử lại.');
+        const canvas = document.createElement('canvas');
+        canvas.width = width;
+        canvas.height = height;
+        const context = canvas.getContext('2d', { willReadFrequently: true });
+        if (!context) throw new Error('Trình duyệt không tạo được canvas OCR.');
+        context.drawImage(image, 0, 0);
+        return context.getImageData(0, 0, width, height);
+    }
+
     const paddleService = {
         modelLoaded: false,
         ocrEngine: null,
@@ -8557,10 +8651,9 @@
         cacheVersion: "4.0.0",
         zipUrl: "https://github.com/xushengfeng/eSearch-OCR/releases/download/4.0.0/ch.zip",
         zipUrls: [
-            "https://release-assets.githubusercontent.com/github-production-release-asset/439694660/f49fd7b8-78fa-4f1e-94c0-1c5235496edf?sp=r&sv=2018-11-09&sr=b&spr=https&se=2026-01-20T03%3A31%3A05Z&rscd=attachment%3B+filename%3Dch.zip&rsct=application%2Foctet-stream&skoid=96c2d410-5711-43a1-aedd-ab1947aa7ab0&sktid=398a6654-997b-47e9-b12b-9515b896b4de&skt=2026-01-20T02%3A30%3A19Z&ske=2026-01-20T03%3A31%3A05Z&sks=b&skv=2018-11-09&sig=v%2Fihzcj4nsrsz%2F5HEV4xTAAoEpCQ3GcvShSq3YyBXf0%3D&jwt=eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpc3MiOiJnaXRodWIuY29tIiwiYXVkIjoicmVsZWFzZS1hc3NldHMuZ2l0aHVidXNlcmNvbnRlbnQuY29tIiwia2V5Ijoia2V5MSIsImV4cCI6MTc2ODg3ODE0NywibmJmIjoxNzY4ODc2MzQ3LCJwYXRoIjoicmVsZWFzZWFzc2V0cHJvZHVjdGlvbi5ibG9iLmNvcmUud2luZG93cy5uZXQifQ.xKZ9TVx9_LxSrpnlgj9lzNusgrbNbHFvzpQuEwV2fBM&response-content-disposition=attachment%3B%20filename%3Dch.zip&response-content-type=application%2Foctet-stream",
+            "https://github.com/BaoBao666888/Novel-Downloader5/releases/download/tm-helper-v2.1.1/ch.zip",
+            "https://github.com/xushengfeng/eSearch-OCR/releases/download/4.0.0/ch.zip",
             "https://drive.usercontent.google.com/u/0/uc?id=1J2xfRuEzDZpuXPnRcBiWhp7ajb-INoGa&export=download",
-            "https://ghfast.top/?q=https://github.com/xushengfeng/eSearch-OCR/releases/download/4.0.0/ch.zip",
-            "https://github.com/xushengfeng/eSearch-OCR/releases/download/4.0.0/ch.zip"
         ],
         files: ["ppocr_keys_v1.txt", "ppocr_det.onnx", "ppocr_rec.onnx"],
 
@@ -8583,134 +8676,17 @@
             const initFn = eSearchOCR.init || eSearchOCR;
 
 
-            if (ort.env && ort.env.wasm) {
-                const isPolyfilled = typeof SharedArrayBuffer !== 'undefined' && SharedArrayBuffer === ArrayBuffer;
-                const isSecureContext = typeof window !== 'undefined' && window.crossOriginIsolated;
-                const canUseThreading = false; // FORCE DISABLE THREADING TO FIX LINK ERROR
-                // const canUseThreading = typeof SharedArrayBuffer !== 'undefined' && !isPolyfilled && isSecureContext;
-                ort.env.wasm.numThreads = 0;
-                ort.env.wasm.simd = true;
-                ort.env.logLevel = "verbose";
-
-                console.log(`[TM-Translate] Fetching WASM via GM... Threading=${canUseThreading} (Polyfilled=${isPolyfilled}, Isolated=${isSecureContext})`);
-
-                try {
-                    const wasmCacheKey = "paddleocr_ort_wasm_v1_18_0";
-                    let wasmBuffer = null;
-                    let loadedCandidate = null;
-
-                    let cachedB64 = await tmStorageGet(wasmCacheKey, null);
-                    let loadedFromCache = false;
-
-                    if (cachedB64) {
-                        try {
-                            const binStr = window.atob(cachedB64);
-                            const len = binStr.length;
-                            const bytes = new Uint8Array(len);
-                            for (let i = 0; i < len; i++) bytes[i] = binStr.charCodeAt(i);
-
-                            wasmBuffer = bytes.buffer;
-                            loadedCandidate = "Cached Model (v1.18.0)";
-                            loadedFromCache = true;
-                            console.log("[TM-Translate] Loaded WASM from Tampermonkey Storage.");
-                        } catch (e) {
-                            console.warn("[TM-Translate] Failed to parse cached WASM, cleaning up...", e);
-                            await tmStorageDelete(wasmCacheKey);
-                        }
-                    }
-
-                    if (!wasmBuffer) {
-                        const candidates = canUseThreading
-                            ? ["ort-wasm-simd-threaded.wasm", "ort-wasm-threaded.wasm", "ort-wasm-simd.wasm", "ort-wasm.wasm"]
-                            : ["ort-wasm.wasm", "ort-wasm-simd.wasm"];
-
-                        for (const fileName of candidates) {
-                            try {
-                                const url = `https://cdn.jsdelivr.net/npm/onnxruntime-web@1.18.0/dist/${fileName}`;
-                                console.log(`[TM-Translate] Downloading WASM: ${fileName}`);
-                                const buffer = await gmFetchArrayBuffer(url);
-                                if (buffer && buffer.byteLength > 0) {
-                                    wasmBuffer = buffer;
-                                    loadedCandidate = fileName;
-                                    break;
-                                }
-                            } catch (e) {
-                                console.warn(`[TM-Translate] Failed to load ${fileName}:`, e.message);
-                            }
-                        }
-                    }
-
-                    if (!wasmBuffer) {
-                        throw new Error("All WASM candidates failed to download (v1.18.0).");
-                    }
-
-                    if (!loadedFromCache) {
-                        console.log(`[TM-Translate] Caching WASM (${loadedCandidate}) to storage...`);
-                        try {
-                            let binary = '';
-                            const bytes = new Uint8Array(wasmBuffer);
-                            const len = bytes.byteLength;
-                            const chunkSize = 8192;
-                            for (let i = 0; i < len; i += chunkSize) {
-                                binary += String.fromCharCode.apply(null, bytes.subarray(i, i + chunkSize));
-                            }
-                            const b64 = window.btoa(binary);
-
-                            if (b64.length < 15 * 1024 * 1024) {
-                                await tmStorageSet(wasmCacheKey, b64);
-                                await tmStorageSet(wasmCacheKey + "_meta", { name: loadedCandidate });
-                                console.log("[TM-Translate] WASM Cached successfully.");
-                            } else {
-                                console.warn("[TM-Translate] WASM too large to cache safely.");
-                            }
-                        } catch (e) {
-                            console.warn("[TM-Translate] Failed to cache WASM:", e);
-                        }
-                    } else {
-                        const meta = await tmStorageGet(wasmCacheKey + "_meta", {});
-                        if (meta.name) loadedCandidate = meta.name;
-                    }
-
-                    if (!wasmBuffer) {
-                        throw new Error("All WASM candidates failed to download (v1.18.0).");
-                    }
-                    ort.env.wasm.wasmBinary = new Uint8Array(wasmBuffer);
-
-                    window.__TM_WASM_BUFFER = wasmBuffer;
-                    if (typeof unsafeWindow !== 'undefined') unsafeWindow.__TM_WASM_BUFFER = wasmBuffer;
-                    console.log("[TM-Translate] Assigned window.__TM_WASM_BUFFER for interception.");
-
-                    ort.env.wasm.wasmPaths = undefined;
-
-                    if (!canUseThreading) {
-                        try {
-                            Object.defineProperty(ort.env.wasm, 'numThreads', {
-                                get: () => 0,
-                                set: (v) => { console.warn(`[TM-Translate] Blocked attempt to set numThreads=${v} (Force 0)`); },
-                                enumerable: true,
-                                configurable: true
-                            });
-                            console.log("[TM-Translate] Soft-locked ort.env.wasm.numThreads = 0");
-                        } catch (e) {
-                            console.warn("Could not lock numThreads:", e);
-                            ort.env.wasm.numThreads = 0;
-                        }
-                    } else {
-                        ort.env.wasm.numThreads = 4;
-                    }
-
-                    const isSimd = loadedCandidate.includes('simd');
-                    ort.env.wasm.simd = isSimd;
-                    console.log(`[TM-Translate] Configured ORT: SIMD=${isSimd}, Threads=${ort.env.wasm.numThreads}`);
-
-                    console.log(`[TM-Translate] ONNX WASM Loaded & Configured: ${loadedCandidate}`);
-
-                } catch (e) {
-                    console.error("[TM-Translate] Critical WASM Load Error:", e);
-                    alert("Lỗi tải thư viện AI (WASM). Vui lòng thử lại hoặc kiểm tra mạng.");
-                    throw e;
-                }
+            if (typeof eSearchOCR.setOCREnv === 'function') {
+                eSearchOCR.setOCREnv({
+                    canvas: (width, height) => {
+                        const canvas = document.createElement('canvas');
+                        canvas.width = width;
+                        canvas.height = height;
+                        return canvas;
+                    },
+                });
             }
+
 
             let models = null;
             const version = await tmStorageGet(this.cacheKey + "_ver", null);
@@ -8735,7 +8711,7 @@
             this.ocrEngine = await initFn({
                 det: {
                     input: detBuffer,
-                    ratio: 2.0,
+                    ratio: 1.0,
                 },
                 rec: {
                     input: recBuffer,
@@ -8758,9 +8734,11 @@
                     console.log('Downloading model from:', url);
                     return await this.downloadModelFromUrl(url);
                 } catch (e) {
+                    lastError = e;
                     console.warn(`Failed to download from ${url}:`, e);
                 }
             }
+            throw lastError || new Error('Không tải được model OCR. Hãy kiểm tra mạng rồi thử lại.');
         },
 
         async downloadModelFromUrl(url) {
@@ -8772,7 +8750,7 @@
 
             while (attempt < maxRetries) {
                 try {
-                    arrayBuffer = await gmFetchArrayBuffer(url);
+                    arrayBuffer = await libDownloadLacModel({ url });
                     break; // Success
                 } catch (e) {
                     attempt++;
@@ -8787,6 +8765,12 @@
             }
 
             if (!arrayBuffer) throw new Error("Thất bại toàn tập khi tải Models.");
+            if (!globalThis.crypto?.subtle) throw new Error('Hãy mở trang HTTPS để kiểm tra model OCR.');
+            const hash = Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256', arrayBuffer)),
+                (byte) => byte.toString(16).padStart(2, '0')).join('');
+            if (hash !== '57c3345ab7f30fce0363505bd6b6be9c25f45a72e0e95d533122fe21241351f4') {
+                throw new Error('Model OCR tải về không khớp SHA-256.');
+            }
 
             showLoading("Tải xong, đang giải nén (fflate)...");
             return await this.processZipAndSave(arrayBuffer);
@@ -8911,12 +8895,12 @@
             return decodeURIComponent(escape(window.atob(base64)));
         },
 
-        async recognize(imageSrc) {
+        async recognize(imageSrc, options = {}) {
             // Priority: Check Extension First
             const extMeta = document.querySelector('meta[name="tm-extension-id"]');
             const extId = window.tmExtensionId || (extMeta ? extMeta.content : null);
 
-            if (extId) {
+            if (extId && !options.skipExtension) {
                 console.log("[paddleService] Delegating to Extension:", extId);
                 try {
                     const result = await new Promise((resolve, reject) => {
@@ -8942,23 +8926,27 @@
             }
 
             // Fallback: Local WASM
+            const imageData = await loadLocalOcrImage(imageSrc);
             if (!this.modelLoaded) {
                 await this.init();
             }
             showLoading('Đang nhận diện văn bản (Local WASM)...');
             let result;
             if (typeof this.ocrEngine === 'function') {
-                result = await this.ocrEngine(imageSrc);
+                result = await this.ocrEngine(imageData);
             } else if (typeof this.ocrEngine.recognize === 'function') {
-                result = await this.ocrEngine.recognize(imageSrc);
+                result = await this.ocrEngine.recognize(imageData);
             } else if (typeof this.ocrEngine.ocr === 'function') {
-                result = await this.ocrEngine.ocr(imageSrc);
+                result = await this.ocrEngine.ocr(imageData);
             } else {
                 console.error("Unknown OCR Engine type:", this.ocrEngine);
                 throw new Error("OCR Engine is not compatible.");
             }
 
             removeLoading();
+            if (result && typeof result === 'object' && !result.text) {
+                result.text = (result.parragraphs || result.src || []).map((part) => part.text || part.parse?.text || '').join('\n');
+            }
             return result;
         }
     };
@@ -9020,7 +9008,7 @@
                     if (!paddleService.modelLoaded) {
                         await paddleService.init(!!overlayContainer);
                     }
-                    const localRes = await paddleService.recognize(base64FullString);
+                    const localRes = await paddleService.recognize(base64FullString, { skipExtension: true });
                     if (typeof localRes === 'object') ocrText = localRes.text;
                     else ocrText = localRes;
                 }
@@ -9456,7 +9444,15 @@
         }
     }
 
+    function supportsScreenOcr() {
+        return typeof navigator.mediaDevices?.getDisplayMedia === 'function';
+    }
+
     async function handleOcrScreenMode() {
+        if (!supportsScreenOcr()) {
+            showNotification('Trình duyệt chưa hỗ trợ chụp màn hình. Hãy chọn ảnh hoặc ảnh chụp màn hình từ máy.');
+            return handleOcrImportMode();
+        }
         showLoading('Đang lấy quyền chia sẻ màn hình...');
         try {
             // Need user interaction to get stream
@@ -9528,7 +9524,7 @@
         });
 
         modal.innerHTML = `
-            <div style="background:white; padding:20px; border-radius:8px; width:400px; text-align:center; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
+            <div style="background:white; padding:20px; border-radius:8px; width:min(400px,calc(100vw - 32px)); box-sizing:border-box; text-align:center; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
                 <h3 style="margin-top:0; color:#333;">Nhập ảnh để dịch</h3>
                 <div style="margin: 20px 0;">
                     <button id="tm-ocr-btn-file" class="tm-btn" style="width:100%; margin-bottom:10px;">📂 Chọn File Ảnh</button>
@@ -10220,12 +10216,16 @@
     }
 
     async function activateAreaSelectionMode() {
-        showNotification('Chế độ OCR: Kéo chuột để chọn vùng cần dịch. (Nhấn Esc để hủy)', 4000);
+        if (!supportsScreenOcr()) {
+            showNotification('Trình duyệt chưa hỗ trợ chụp màn hình. Hãy chọn ảnh hoặc ảnh chụp màn hình từ máy.');
+            return handleOcrImportMode();
+        }
+        showNotification('Kéo để chọn vùng cần dịch. Nhấn Esc để hủy.', 4000);
 
         let overlay = document.createElement('div');
         Object.assign(overlay.style, {
             position: 'fixed', inset: '0', zIndex: '2147483646',
-            cursor: 'crosshair', background: 'rgba(0,0,0,0.1)'
+            cursor: 'crosshair', background: 'rgba(0,0,0,0.1)', touchAction: 'none'
         });
 
         let selectionBox = document.createElement('div');
@@ -10240,6 +10240,9 @@
         let startX, startY, endX, endY, isDragging = false;
 
         function onMouseDown(e) {
+            if (e.button !== 0 || e.isPrimary === false) return;
+            e.preventDefault();
+            overlay.setPointerCapture?.(e.pointerId);
             isDragging = true;
             startX = e.clientX;
             startY = e.clientY;
@@ -10252,6 +10255,7 @@
 
         function onMouseMove(e) {
             if (!isDragging) return;
+            e.preventDefault();
             endX = e.clientX;
             endY = e.clientY;
 
@@ -10407,16 +10411,18 @@
             if (overlay) { overlay.remove(); overlay = null; }
             if (selectionBox) { selectionBox.remove(); selectionBox = null; }
             // document.removeEventListener('mousedown', onMouseDown);
-            document.removeEventListener('mousemove', onMouseMove);
-            document.removeEventListener('mouseup', onMouseUp);
+            document.removeEventListener('pointermove', onMouseMove);
+            document.removeEventListener('pointerup', onMouseUp);
+            document.removeEventListener('pointercancel', cleanup);
             document.removeEventListener('keydown', onKeyDown);
             // Reset các biến cờ local
             isDragging = false;
         }
 
-        overlay.addEventListener('mousedown', onMouseDown);
-        document.addEventListener('mousemove', onMouseMove);
-        document.addEventListener('mouseup', onMouseUp);
+        overlay.addEventListener('pointerdown', onMouseDown);
+        document.addEventListener('pointermove', onMouseMove, { passive: false });
+        document.addEventListener('pointerup', onMouseUp);
+        document.addEventListener('pointercancel', cleanup);
         document.addEventListener('keydown', onKeyDown);
     }
 
@@ -18875,14 +18881,14 @@ self.onmessage = event => {
 <div class="tm-welcome-title">🌸 Chào mừng đến với TM Translate 🌸</div>
 		<div class="tm-welcome-sub">TM Translate v${CURRENT_VERSION} • Dịch trang web Trung → Việt, quản lý Name-set, Thư viện đọc offline, OCR dịch ảnh và TTS</div>
 		<div class="tm-welcome-banner">
-		  <strong>✨ v${CURRENT_VERSION}:</strong> Thêm BERT Mini Local và HanLP, giữ LAC/TexSmart. Đồng bộ Name giữa Reader, Edit Name và file xuất.
+		  <strong>✨ v${CURRENT_VERSION}:</strong> Bôi đen chữ rồi bấm D để dịch riêng đoạn chọn ngay trên trang. Không chọn chữ thì vẫn dịch toàn trang.
 	</div>
 <div style="height:8px;"></div>
     `.trim();
 
     const guideMarkdown = `
 ### 🟢 Nút Nổi (Floating Buttons)
-- **Dịch Trang** (xanh lá): Dịch toàn bộ trang. Có tự động dịch khi cuộn nếu bật trong Cài đặt.
+- **Dịch Trang** (xanh lá): Bôi đen chữ rồi bấm D để chỉ dịch đoạn chọn ngay tại chỗ. Không chọn chữ thì dịch toàn trang. Dịch riêng giữ nguyên thẻ và phần chữ ngoài vùng chọn, không bật chế độ rút gọn hay tự dịch khi cuộn.
 - **Thư viện** (xanh ngọc): Mở Thư viện toàn màn hình để import/đọc/export, tìm kiếm, đổi bìa và sao lưu/khôi phục truyện.
 - **Edit Name** (xanh dương, hình bút chì): Bôi đen đoạn đã dịch trên web → bấm bút chì để sửa tên. Dự đoán beta tự bật cùng Edit Name: dấu câu/ký hiệu (kể cả \`《》\`, ngoặc và dấu nháy), các Name đang áp dụng và Hán Việt cùng thu hẹp cụm. Nếu bôi trong một Name, hai ô luôn hiện trọn Name Trung/Việt. Tắt beta sẽ dùng nguyên khối Trung/Việt như cách cũ.
 - Khi tắt **Edit Name**, bản dịch được ghi thẳng vào text-node/link. Script không tạo thêm span hay tooltip \`title\`.
@@ -18943,6 +18949,13 @@ self.onmessage = event => {
     `.trim();
 
     const changelogMarkdown = `
+### v3.5.5.20_beta
+- Nút D ưu tiên dịch đoạn đang bôi đen. Giữ nguyên chữ ngoài vùng chọn, thẻ HTML và sự kiện của trang.
+- Giữ vùng chọn khi bấm nút trên máy tính và cảm ứng. Nếu trang thay đổi trong lúc dịch hoặc bản dịch lỗi, không ghi đè nội dung gốc.
+- Không chọn chữ thì vẫn dịch toàn trang như trước. Dịch lại sau khi sửa Name vẫn áp dụng cho cả trang.
+- OCR local dùng WASM một luồng đúng phiên bản, không cần SharedArrayBuffer hay OffscreenCanvas. Trình duyệt không chụp màn hình được sẽ mở phần nhập ảnh. Khoanh vùng hỗ trợ cảm ứng.
+- Model/WASM lớn của Helper nằm trong Releases thay vì Git, kèm checksum và công cụ khôi phục/build.
+
 ### ✨ v3.5.5.19_beta
 - Thêm **BERT Mini Local** trong Worker và **HanLP REST (Thử nghiệm)** với API key tùy chọn. HanLP chỉ dùng cho thử nghiệm/nghiên cứu, không khuyến khích dùng thực tế. Giữ LAC và TexSmart, không tự bật engine online.
 - Chuẩn hóa PER/LOC/ORG, cho Name dài tối đa 12 ký tự Hán và chia đầu vào theo từng engine.

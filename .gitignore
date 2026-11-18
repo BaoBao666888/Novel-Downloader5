@@ -27,7 +27,12 @@ utils_data.py
 forum_tab_mixin.py
 qimao_ext.py
 *.pth
-TM-translate/
+# Keep helper sources in Git. Large runtime/model assets ship in Releases.
+/translate/TM-translate/TM-Extension-Helper/assets/*.wasm
+/translate/TM-translate/TM-Extension-Helper/assets/*.zip
+/translate/TM-translate/*.zip
+/translate/TM-translate/*.pdf
+/translate/TM-translate/eSearch-OCR/
 imageAI/
 tmp/
 gdown/
