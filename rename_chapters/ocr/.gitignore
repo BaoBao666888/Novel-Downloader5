@@ -1,0 +1,7 @@
+__pycache__/
+*.log
+.venv/
+build/
+dist/
+*.spec.bak
+/models/
