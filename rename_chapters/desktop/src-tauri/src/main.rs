@@ -2,11 +2,13 @@
 
 use std::sync::{Mutex, MutexGuard};
 
-use novel_studio_core::{first_line, rename, rename_apply};
+use novel_studio_core::{first_line, rename, rename_apply, split};
 use tauri::{Manager, WebviewWindow};
 use tauri_plugin_dialog::DialogExt;
 
-use workspace::{LinePreview, LineResult, Preview, Workspace};
+use workspace::{
+    LinePreview, LineResult, Preview, SplitOptions, SplitPreview, SplitSelection, Workspace,
+};
 
 mod workspace;
 
@@ -119,6 +121,220 @@ async fn undo_first_line(app: tauri::AppHandle, revision: u32) -> Result<LineRes
     .map_err(|err| err.to_string())?
 }
 
+#[tauri::command]
+async fn choose_split_file(window: WebviewWindow) -> Result<Option<SplitSelection>, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        let Some(file) = window
+            .dialog()
+            .file()
+            .set_parent(&window)
+            .set_title("Chọn tệp .txt cần chia chương")
+            .add_filter("Text file", &["txt"])
+            .blocking_pick_file()
+        else {
+            return Ok(None);
+        };
+        let file = file.into_path().map_err(|err| err.to_string())?;
+        let workspace = window.state::<Mutex<Workspace>>();
+        state(&workspace)?.select_split_file(file).map(Some)
+    })
+    .await
+    .map_err(|err| err.to_string())?
+}
+
+#[tauri::command]
+async fn choose_split_output_dir(window: WebviewWindow) -> Result<Option<String>, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        let Some(folder) = window
+            .dialog()
+            .file()
+            .set_parent(&window)
+            .set_title("Chọn thư mục xuất các chương đã chia")
+            .blocking_pick_folder()
+        else {
+            return Ok(None);
+        };
+        let folder = folder.into_path().map_err(|err| err.to_string())?;
+        let workspace = window.state::<Mutex<Workspace>>();
+        state(&workspace)?.select_split_output_dir(folder).map(Some)
+    })
+    .await
+    .map_err(|err| err.to_string())?
+}
+
+#[tauri::command]
+async fn preview_split(
+    app: tauri::AppHandle,
+    options: SplitOptions,
+) -> Result<SplitPreview, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        let workspace = app.state::<Mutex<Workspace>>();
+        state(&workspace)?.preview_split(options)
+    })
+    .await
+    .map_err(|err| err.to_string())?
+}
+
+#[tauri::command]
+async fn refresh_split_view(
+    app: tauri::AppHandle,
+    revision: u32,
+    preface_mode: split::PrefaceMode,
+    name_format: String,
+) -> Result<SplitPreview, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        let workspace = app.state::<Mutex<Workspace>>();
+        state(&workspace)?.refresh_split_view(revision, preface_mode, name_format)
+    })
+    .await
+    .map_err(|err| err.to_string())?
+}
+
+#[tauri::command]
+async fn nudge_split_boundary(
+    app: tauri::AppHandle,
+    revision: u32,
+    boundary_index: usize,
+    line_delta: isize,
+    preface_mode: split::PrefaceMode,
+    name_format: String,
+) -> Result<SplitPreview, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        let workspace = app.state::<Mutex<Workspace>>();
+        state(&workspace)?.nudge_split_boundary(
+            revision,
+            boundary_index,
+            line_delta,
+            preface_mode,
+            name_format,
+        )
+    })
+    .await
+    .map_err(|err| err.to_string())?
+}
+
+#[tauri::command]
+async fn merge_split_boundary(
+    app: tauri::AppHandle,
+    revision: u32,
+    boundary_index: usize,
+    preface_mode: split::PrefaceMode,
+    name_format: String,
+) -> Result<SplitPreview, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        let workspace = app.state::<Mutex<Workspace>>();
+        state(&workspace)?.merge_split_boundary(revision, boundary_index, preface_mode, name_format)
+    })
+    .await
+    .map_err(|err| err.to_string())?
+}
+
+#[tauri::command]
+async fn rename_split_boundary(
+    app: tauri::AppHandle,
+    revision: u32,
+    boundary_index: usize,
+    title: String,
+    preface_mode: split::PrefaceMode,
+    name_format: String,
+) -> Result<SplitPreview, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        let workspace = app.state::<Mutex<Workspace>>();
+        state(&workspace)?.rename_split_boundary(
+            revision,
+            boundary_index,
+            title,
+            preface_mode,
+            name_format,
+        )
+    })
+    .await
+    .map_err(|err| err.to_string())?
+}
+
+#[tauri::command]
+async fn add_split_boundary(
+    app: tauri::AppHandle,
+    revision: u32,
+    start_byte: usize,
+    title: Option<String>,
+    preface_mode: split::PrefaceMode,
+    name_format: String,
+) -> Result<SplitPreview, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        let workspace = app.state::<Mutex<Workspace>>();
+        state(&workspace)?.add_split_boundary(
+            revision,
+            start_byte,
+            title,
+            preface_mode,
+            name_format,
+        )
+    })
+    .await
+    .map_err(|err| err.to_string())?
+}
+
+#[tauri::command]
+async fn undo_split(
+    app: tauri::AppHandle,
+    revision: u32,
+    preface_mode: split::PrefaceMode,
+    name_format: String,
+) -> Result<SplitPreview, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        let workspace = app.state::<Mutex<Workspace>>();
+        state(&workspace)?.undo_split(revision, preface_mode, name_format)
+    })
+    .await
+    .map_err(|err| err.to_string())?
+}
+
+#[tauri::command]
+async fn redo_split(
+    app: tauri::AppHandle,
+    revision: u32,
+    preface_mode: split::PrefaceMode,
+    name_format: String,
+) -> Result<SplitPreview, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        let workspace = app.state::<Mutex<Workspace>>();
+        state(&workspace)?.redo_split(revision, preface_mode, name_format)
+    })
+    .await
+    .map_err(|err| err.to_string())?
+}
+
+#[tauri::command]
+async fn search_split_text(
+    app: tauri::AppHandle,
+    revision: u32,
+    query: String,
+) -> Result<Vec<split::SearchHit>, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        let workspace = app.state::<Mutex<Workspace>>();
+        state(&workspace)?.search_split_text(revision, query)
+    })
+    .await
+    .map_err(|err| err.to_string())?
+}
+
+#[tauri::command]
+async fn apply_split(
+    app: tauri::AppHandle,
+    revision: u32,
+    preface_mode: split::PrefaceMode,
+    name_format: String,
+    overwrite: bool,
+) -> Result<split::SplitOutcome, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        let workspace = app.state::<Mutex<Workspace>>();
+        state(&workspace)?.apply_split(revision, preface_mode, name_format, overwrite)
+    })
+    .await
+    .map_err(|err| err.to_string())?
+}
+
 fn main() {
     tauri::Builder::default()
         .setup(|app| {
@@ -141,7 +357,19 @@ fn main() {
             apply_rename,
             preview_first_line,
             apply_first_line,
-            undo_first_line
+            undo_first_line,
+            choose_split_file,
+            choose_split_output_dir,
+            preview_split,
+            refresh_split_view,
+            nudge_split_boundary,
+            merge_split_boundary,
+            rename_split_boundary,
+            add_split_boundary,
+            undo_split,
+            redo_split,
+            search_split_text,
+            apply_split
         ])
         .run(tauri::generate_context!())
         .expect("failed to start Novel Studio");

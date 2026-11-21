@@ -39,6 +39,60 @@ export type LineResult = {
   undo_revision: number | null;
 };
 
+export type PrefaceMode = 'separate' | 'merge' | 'remove';
+
+export type SplitSelection = {
+  file: string;
+  output_dir: string;
+};
+
+export type SplitOptions = {
+  pattern: string;
+  position: 'before' | 'after';
+  preface_mode: PrefaceMode;
+  name_format: string;
+};
+
+export type SplitPart = {
+  part_index: number;
+  boundary_index: number;
+  start_byte: number;
+  start_char: number;
+  title: string;
+  filename: string | null;
+  preview: string;
+  char_count: number;
+  is_preface: boolean;
+  is_empty: boolean;
+  manual: boolean;
+  warnings: string[];
+  context_before: string;
+  context_after: string;
+};
+
+export type SplitPreview = {
+  revision: number;
+  output_dir: string;
+  parts: SplitPart[];
+  writable_count: number;
+  can_undo: boolean;
+  can_redo: boolean;
+};
+
+export type SplitSearchHit = {
+  line_start_byte: number;
+  line_start_char: number;
+  line_number: number;
+  snippet: string;
+};
+
+export type SplitOutcome = {
+  output_dir: string;
+  written: string[];
+  skipped_empty: number;
+  failure: { filename: string; error: string } | null;
+};
+
 export const chooseFolder = () => invoke<string | null>('choose_folder');
 export const choosePython = () => invoke<string | null>('choose_python');
 export const previewRename = (options: Options) => invoke<Preview>('preview_rename', { options });
@@ -48,6 +102,51 @@ export const previewFirstLine = (scanRevision: number, edits: LineEdit[]) =>
   invoke<LinePreview>('preview_first_line', { scanRevision, edits });
 export const applyFirstLine = (revision: number) => invoke<LineResult>('apply_first_line', { revision });
 export const undoFirstLine = (revision: number) => invoke<LineResult>('undo_first_line', { revision });
+
+export const chooseSplitFile = () => invoke<SplitSelection | null>('choose_split_file');
+export const chooseSplitOutputDir = () => invoke<string | null>('choose_split_output_dir');
+export const previewSplit = (options: SplitOptions) => invoke<SplitPreview>('preview_split', { options });
+export const refreshSplitView = (revision: number, prefaceMode: PrefaceMode, nameFormat: string) =>
+  invoke<SplitPreview>('refresh_split_view', { revision, prefaceMode, nameFormat });
+export const nudgeSplitBoundary = (
+  revision: number,
+  boundaryIndex: number,
+  lineDelta: number,
+  prefaceMode: PrefaceMode,
+  nameFormat: string,
+) => invoke<SplitPreview>('nudge_split_boundary', { revision, boundaryIndex, lineDelta, prefaceMode, nameFormat });
+export const mergeSplitBoundary = (
+  revision: number,
+  boundaryIndex: number,
+  prefaceMode: PrefaceMode,
+  nameFormat: string,
+) => invoke<SplitPreview>('merge_split_boundary', { revision, boundaryIndex, prefaceMode, nameFormat });
+export const renameSplitBoundary = (
+  revision: number,
+  boundaryIndex: number,
+  title: string,
+  prefaceMode: PrefaceMode,
+  nameFormat: string,
+) => invoke<SplitPreview>('rename_split_boundary', { revision, boundaryIndex, title, prefaceMode, nameFormat });
+export const addSplitBoundary = (
+  revision: number,
+  startByte: number,
+  title: string | null,
+  prefaceMode: PrefaceMode,
+  nameFormat: string,
+) => invoke<SplitPreview>('add_split_boundary', { revision, startByte, title, prefaceMode, nameFormat });
+export const undoSplit = (revision: number, prefaceMode: PrefaceMode, nameFormat: string) =>
+  invoke<SplitPreview>('undo_split', { revision, prefaceMode, nameFormat });
+export const redoSplit = (revision: number, prefaceMode: PrefaceMode, nameFormat: string) =>
+  invoke<SplitPreview>('redo_split', { revision, prefaceMode, nameFormat });
+export const searchSplitText = (revision: number, query: string) =>
+  invoke<SplitSearchHit[]>('search_split_text', { revision, query });
+export const applySplit = (
+  revision: number,
+  prefaceMode: PrefaceMode,
+  nameFormat: string,
+  overwrite: boolean,
+) => invoke<SplitOutcome>('apply_split', { revision, prefaceMode, nameFormat, overwrite });
 
 const issueLabels: Record<Row['issues'][number], string> = {
   invalid_target: 'Tên đích không hợp lệ',

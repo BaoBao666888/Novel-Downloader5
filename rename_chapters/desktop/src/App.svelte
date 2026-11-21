@@ -1,13 +1,15 @@
 <script lang="ts">
   import { tick } from 'svelte';
+  import SplitWorkbench from './SplitWorkbench.svelte';
   import {
     applyFirstLine, applyRename, chooseFolder, choosePython, previewFirstLine, previewRename, rowStatus,
     undoFirstLine, type LinePreview, type LineResult, type Outcome, type Preview, type Row,
   } from './studio';
+  import { applyUiPrefs, loadUiPrefs, resolveTheme, type UiPrefs } from './ui-prefs';
 
   const defaultFormat = '第{num}章 {title}.txt';
   let folder = $state('');
-  let mode = $state<'rename' | 'line'>('rename');
+  let mode = $state<'rename' | 'line' | 'split'>('rename');
   let python = $state('');
   let nameFormat = $state(defaultFormat);
   let strategy = $state('content_first');
@@ -26,12 +28,11 @@
   let busy = $state<'folder' | 'python' | 'preview' | 'apply' | 'review' | 'save' | 'undo' | null>(null);
   let error = $state('');
   let needsPreview = $state(false);
-  let dark = $state(
-    (localStorage.getItem('novel-studio-theme') ?? (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light')) === 'dark',
-  );
-  let formatInput: HTMLInputElement;
-  let confirmation: HTMLDialogElement;
-  let lineConfirmation: HTMLDialogElement;
+  let uiPrefs = $state<UiPrefs>(loadUiPrefs());
+  let dark = $derived(resolveTheme(uiPrefs.theme) === 'dark');
+  let formatInput = $state<HTMLInputElement | undefined>(undefined);
+  let confirmation = $state<HTMLDialogElement | undefined>(undefined);
+  let lineConfirmation = $state<HTMLDialogElement | undefined>(undefined);
 
   const eligible = $derived(new Set(mode === 'line' ? preview?.rows.map((row) => row.filename) : preview?.eligible));
   const search = $derived(query.trim().toLowerCase());
@@ -47,9 +48,12 @@
   ).length);
 
   $effect(() => {
-    document.documentElement.dataset.theme = dark ? 'dark' : 'light';
-    localStorage.setItem('novel-studio-theme', dark ? 'dark' : 'light');
+    applyUiPrefs(uiPrefs);
   });
+
+  function toggleTheme() {
+    uiPrefs = { ...uiPrefs, theme: dark ? 'light' : 'dark' };
+  }
 
   function clearPreview() {
     preview = null;
@@ -74,13 +78,14 @@
   }
 
   function insertToken(token: string) {
+    if (!formatInput) return;
     const start = formatInput.selectionStart ?? nameFormat.length;
     const end = formatInput.selectionEnd ?? start;
     nameFormat = nameFormat.slice(0, start) + token + nameFormat.slice(end);
     changedRules();
     requestAnimationFrame(() => {
-      formatInput.focus();
-      formatInput.setSelectionRange(start + token.length, start + token.length);
+      formatInput?.focus();
+      formatInput?.setSelectionRange(start + token.length, start + token.length);
     });
   }
 
@@ -167,7 +172,7 @@
         replacement: draftFor(row),
       })));
       await tick();
-      lineConfirmation.showModal();
+      lineConfirmation?.showModal();
     } catch (cause) {
       error = String(cause);
     } finally {
@@ -178,7 +183,7 @@
   async function saveLines() {
     if (!lineReview || !reviewedChanges.length || busy) return;
     const revision = lineReview.revision;
-    lineConfirmation.close();
+    lineConfirmation?.close();
     await writeLines('save', revision);
   }
 
@@ -209,7 +214,7 @@
   }
 
   async function confirmApply() {
-    confirmation.close();
+    confirmation?.close();
     if (!preview || !selected.size || busy) return;
     const revision = preview.revision;
     const selection = Array.from(selected);
@@ -229,10 +234,13 @@
 </script>
 
 <header class="masthead">
-  <div class="brand"><span class="book-mark" aria-hidden="true"></span> Novel Studio</div>
+  <div class="brand">
+    <span class="book-mark" aria-hidden="true"></span>
+    <span>Novel Studio</span>
+  </div>
   <div class="masthead-end">
     <button type="button" class="theme" aria-label={dark ? 'Bật giao diện sáng' : 'Bật giao diện tối'}
-      onclick={() => (dark = !dark)}>{dark ? '☀' : '☾'} <span>{dark ? 'Sáng' : 'Tối'}</span></button>
+      onclick={toggleTheme}>{dark ? '☀' : '☾'} <span>{dark ? 'Sáng' : 'Tối'}</span></button>
   </div>
 </header>
 
@@ -242,7 +250,13 @@
       onclick={() => setMode('rename')}>Đổi tên chương</button>
     <button type="button" aria-pressed={mode === 'line'} disabled={busy !== null}
       onclick={() => setMode('line')}>Sửa dòng đầu</button>
+    <button type="button" aria-pressed={mode === 'split'} disabled={busy !== null}
+      onclick={() => setMode('split')}>Chia chương</button>
   </nav>
+
+  {#if mode === 'split'}
+    <SplitWorkbench {python} onPickPython={pickPython} parentBusy={busy !== null} />
+  {:else}
   <section class="heading">
     <div>
       <h1>{mode === 'rename' ? 'Đổi tên chương' : 'Sửa dòng đầu'}</h1>
@@ -417,7 +431,7 @@
         <span aria-live="polite">{selected.size ? `${selected.size} file đã chọn` : 'Chưa chọn file'}</span>
         {#if mode === 'rename'}
           <button class="button primary" type="button" disabled={busy !== null || !selected.size}
-            onclick={() => confirmation.showModal()}>Đổi tên{selected.size ? ` ${selected.size} file` : ''}</button>
+            onclick={() => confirmation?.showModal()}>Đổi tên{selected.size ? ` ${selected.size} file` : ''}</button>
         {:else}
           <div class="proof-actions">
             {#if undoRevision !== null}
@@ -431,6 +445,7 @@
       </footer>
     </section>
   </div>
+  {/if}
 </main>
 
 <dialog bind:this={confirmation} aria-labelledby="confirm-title">
@@ -443,7 +458,7 @@
   </ul>
   {#if selected.size > 5}<p>Và {selected.size - 5} file khác trong danh sách đã chọn.</p>{/if}
   <div class="dialog-actions">
-    <button type="button" class="button" onclick={() => confirmation.close()}>Hủy</button>
+    <button type="button" class="button" onclick={() => confirmation?.close()}>Hủy</button>
     <button type="button" class="button primary" onclick={confirmApply}>Xác nhận đổi tên</button>
   </div>
 </dialog>
@@ -470,7 +485,7 @@
     <p>Dòng đầu của các file đã chọn đều khớp.</p>
   {/if}
   <div class="dialog-actions">
-    <button type="button" class="button" onclick={() => lineConfirmation.close()}>{reviewedChanges.length ? 'Hủy' : 'Đóng'}</button>
+    <button type="button" class="button" onclick={() => lineConfirmation?.close()}>{reviewedChanges.length ? 'Hủy' : 'Đóng'}</button>
     {#if reviewedChanges.length}
       <button type="button" class="button primary" onclick={saveLines}>Lưu dòng đầu</button>
     {/if}

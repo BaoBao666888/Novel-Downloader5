@@ -1,10 +1,11 @@
 use std::collections::HashSet;
+use std::ffi::OsStr;
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::time::SystemTime;
 
-use novel_studio_core::{first_line, rename, rename_apply};
-use serde::Serialize;
+use novel_studio_core::{first_line, rename, rename_apply, split};
+use serde::{Deserialize, Serialize};
 
 #[derive(Default)]
 pub struct Workspace {
@@ -14,6 +15,33 @@ pub struct Workspace {
     prepared: Option<Prepared>,
     line_plan: Option<(u32, first_line::Plan)>,
     line_undo: Option<(u32, first_line::Plan)>,
+    split_file: Option<PathBuf>,
+    split_output_dir: Option<PathBuf>,
+    split_session: Option<(u32, split::SplitSession)>,
+}
+
+#[derive(Serialize)]
+pub struct SplitSelection {
+    pub file: String,
+    pub output_dir: String,
+}
+
+#[derive(Deserialize)]
+pub struct SplitOptions {
+    pub pattern: String,
+    pub position: String,
+    pub preface_mode: split::PrefaceMode,
+    pub name_format: String,
+}
+
+#[derive(Serialize)]
+pub struct SplitPreview {
+    pub revision: u32,
+    pub output_dir: String,
+    pub parts: Vec<split::PartSummary>,
+    pub writable_count: usize,
+    pub can_undo: bool,
+    pub can_redo: bool,
 }
 
 #[derive(Serialize)]
@@ -112,7 +140,303 @@ impl Workspace {
         self.interpreter = Some(executable);
         self.prepared = None;
         self.line_plan = None;
+        self.split_session = None;
         Ok(label)
+    }
+
+    pub fn select_split_file(&mut self, file: PathBuf) -> Result<SplitSelection, String> {
+        let metadata = fs::symlink_metadata(&file).map_err(|err| err.to_string())?;
+        if !metadata.is_file() {
+            return Err("Hãy chọn một tệp văn bản .txt hợp lệ.".into());
+        }
+        let is_txt = file
+            .extension()
+            .and_then(|ext| ext.to_str())
+            .is_some_and(|ext| ext.eq_ignore_ascii_case("txt"));
+        if !is_txt {
+            return Err("Chỉ hỗ trợ chia tệp .txt.".into());
+        }
+        let canonical = file.canonicalize().map_err(|err| err.to_string())?;
+        let stem = canonical
+            .file_stem()
+            .and_then(|s| s.to_str())
+            .filter(|s| !s.is_empty())
+            .unwrap_or("chapters");
+        let default_dir = canonical
+            .parent()
+            .unwrap_or_else(|| Path::new("."))
+            .join(format!("{stem}_split"));
+        let file_label = file.display().to_string();
+        let dir_label = default_dir.display().to_string();
+        self.split_file = Some(canonical);
+        self.split_output_dir = Some(default_dir);
+        self.split_session = None;
+        Ok(SplitSelection {
+            file: file_label,
+            output_dir: dir_label,
+        })
+    }
+
+    pub fn select_split_output_dir(&mut self, folder: PathBuf) -> Result<String, String> {
+        let canonical = folder.canonicalize().map_err(|err| err.to_string())?;
+        if !canonical.is_dir() {
+            return Err("Hãy chọn một thư mục xuất hợp lệ.".into());
+        }
+        let label = folder.display().to_string();
+        self.split_output_dir = Some(canonical);
+        Ok(label)
+    }
+
+    fn build_split_preview(
+        revision: u32,
+        session: &split::SplitSession,
+        output_dir: &Path,
+        preface_mode: split::PrefaceMode,
+        name_format: &str,
+    ) -> SplitPreview {
+        let parts = session.summaries(preface_mode, name_format);
+        let writable_count = parts.iter().filter(|p| !p.is_empty).count();
+        SplitPreview {
+            revision,
+            output_dir: output_dir.display().to_string(),
+            parts,
+            writable_count,
+            can_undo: session.can_undo(),
+            can_redo: session.can_redo(),
+        }
+    }
+
+    pub fn preview_split(&mut self, options: SplitOptions) -> Result<SplitPreview, String> {
+        self.split_session = None;
+        let file = self
+            .split_file
+            .as_ref()
+            .ok_or("Hãy chọn tệp .txt cần chia trước.")?;
+        if options.pattern.trim().is_empty() {
+            return Err("Hãy nhập biểu thức regex để tìm điểm chia.".into());
+        }
+        let session = split::SplitSession::from_regex(
+            file,
+            OsStr::new(&options.pattern),
+            Some(OsStr::new(&options.position)),
+            self.interpreter.as_deref(),
+        )
+        .map_err(|err| err.to_string())?;
+        let output_dir = self
+            .split_output_dir
+            .clone()
+            .unwrap_or_else(|| session.default_output_dir());
+        let revision = self.next_revision();
+        let preview = Self::build_split_preview(
+            revision,
+            &session,
+            &output_dir,
+            options.preface_mode,
+            &options.name_format,
+        );
+        self.split_session = Some((revision, session));
+        Ok(preview)
+    }
+
+    fn current_split_output(&self, session: &split::SplitSession) -> PathBuf {
+        self.split_output_dir
+            .clone()
+            .unwrap_or_else(|| session.default_output_dir())
+    }
+
+    pub fn refresh_split_view(
+        &self,
+        revision: u32,
+        preface_mode: split::PrefaceMode,
+        name_format: String,
+    ) -> Result<SplitPreview, String> {
+        let (_, session) = self
+            .split_session
+            .as_ref()
+            .filter(|(id, _)| *id == revision)
+            .ok_or("Phiên chia chương đã hết hiệu lực. Hãy xem trước lại.")?;
+        let output_dir = self.current_split_output(session);
+        Ok(Self::build_split_preview(
+            revision,
+            session,
+            &output_dir,
+            preface_mode,
+            &name_format,
+        ))
+    }
+
+    pub fn nudge_split_boundary(
+        &mut self,
+        revision: u32,
+        boundary_index: usize,
+        line_delta: isize,
+        preface_mode: split::PrefaceMode,
+        name_format: String,
+    ) -> Result<SplitPreview, String> {
+        let output_dir = self.split_output_dir.clone();
+        let (_, session) = self
+            .split_session
+            .as_mut()
+            .filter(|(id, _)| *id == revision)
+            .ok_or("Phiên chia chương đã hết hiệu lực. Hãy xem trước lại.")?;
+        session.nudge_boundary(boundary_index, line_delta)?;
+        let dir = output_dir.unwrap_or_else(|| session.default_output_dir());
+        Ok(Self::build_split_preview(
+            revision,
+            session,
+            &dir,
+            preface_mode,
+            &name_format,
+        ))
+    }
+
+    pub fn merge_split_boundary(
+        &mut self,
+        revision: u32,
+        boundary_index: usize,
+        preface_mode: split::PrefaceMode,
+        name_format: String,
+    ) -> Result<SplitPreview, String> {
+        let output_dir = self.split_output_dir.clone();
+        let (_, session) = self
+            .split_session
+            .as_mut()
+            .filter(|(id, _)| *id == revision)
+            .ok_or("Phiên chia chương đã hết hiệu lực. Hãy xem trước lại.")?;
+        session.remove_boundary(boundary_index)?;
+        let dir = output_dir.unwrap_or_else(|| session.default_output_dir());
+        Ok(Self::build_split_preview(
+            revision,
+            session,
+            &dir,
+            preface_mode,
+            &name_format,
+        ))
+    }
+
+    pub fn rename_split_boundary(
+        &mut self,
+        revision: u32,
+        boundary_index: usize,
+        title: String,
+        preface_mode: split::PrefaceMode,
+        name_format: String,
+    ) -> Result<SplitPreview, String> {
+        let output_dir = self.split_output_dir.clone();
+        let (_, session) = self
+            .split_session
+            .as_mut()
+            .filter(|(id, _)| *id == revision)
+            .ok_or("Phiên chia chương đã hết hiệu lực. Hãy xem trước lại.")?;
+        session.rename_boundary(boundary_index, title)?;
+        let dir = output_dir.unwrap_or_else(|| session.default_output_dir());
+        Ok(Self::build_split_preview(
+            revision,
+            session,
+            &dir,
+            preface_mode,
+            &name_format,
+        ))
+    }
+
+    pub fn add_split_boundary(
+        &mut self,
+        revision: u32,
+        start_byte: usize,
+        title: Option<String>,
+        preface_mode: split::PrefaceMode,
+        name_format: String,
+    ) -> Result<SplitPreview, String> {
+        let output_dir = self.split_output_dir.clone();
+        let (_, session) = self
+            .split_session
+            .as_mut()
+            .filter(|(id, _)| *id == revision)
+            .ok_or("Phiên chia chương đã hết hiệu lực. Hãy xem trước lại.")?;
+        session.add_boundary(start_byte, title)?;
+        let dir = output_dir.unwrap_or_else(|| session.default_output_dir());
+        Ok(Self::build_split_preview(
+            revision,
+            session,
+            &dir,
+            preface_mode,
+            &name_format,
+        ))
+    }
+
+    pub fn undo_split(
+        &mut self,
+        revision: u32,
+        preface_mode: split::PrefaceMode,
+        name_format: String,
+    ) -> Result<SplitPreview, String> {
+        let output_dir = self.split_output_dir.clone();
+        let (_, session) = self
+            .split_session
+            .as_mut()
+            .filter(|(id, _)| *id == revision)
+            .ok_or("Phiên chia chương đã hết hiệu lực. Hãy xem trước lại.")?;
+        session.undo();
+        let dir = output_dir.unwrap_or_else(|| session.default_output_dir());
+        Ok(Self::build_split_preview(
+            revision,
+            session,
+            &dir,
+            preface_mode,
+            &name_format,
+        ))
+    }
+
+    pub fn redo_split(
+        &mut self,
+        revision: u32,
+        preface_mode: split::PrefaceMode,
+        name_format: String,
+    ) -> Result<SplitPreview, String> {
+        let output_dir = self.split_output_dir.clone();
+        let (_, session) = self
+            .split_session
+            .as_mut()
+            .filter(|(id, _)| *id == revision)
+            .ok_or("Phiên chia chương đã hết hiệu lực. Hãy xem trước lại.")?;
+        session.redo();
+        let dir = output_dir.unwrap_or_else(|| session.default_output_dir());
+        Ok(Self::build_split_preview(
+            revision,
+            session,
+            &dir,
+            preface_mode,
+            &name_format,
+        ))
+    }
+
+    pub fn search_split_text(
+        &self,
+        revision: u32,
+        query: String,
+    ) -> Result<Vec<split::SearchHit>, String> {
+        let (_, session) = self
+            .split_session
+            .as_ref()
+            .filter(|(id, _)| *id == revision)
+            .ok_or("Phiên chia chương đã hết hiệu lực. Hãy xem trước lại.")?;
+        Ok(session.search_lines(&query, 40))
+    }
+
+    pub fn apply_split(
+        &mut self,
+        revision: u32,
+        preface_mode: split::PrefaceMode,
+        name_format: String,
+        overwrite: bool,
+    ) -> Result<split::SplitOutcome, String> {
+        let (_, session) = self
+            .split_session
+            .as_ref()
+            .filter(|(id, _)| *id == revision)
+            .ok_or("Phiên chia chương đã hết hiệu lực. Hãy xem trước lại.")?;
+        let output_dir = self.current_split_output(session);
+        session.execute(&output_dir, preface_mode, &name_format, overwrite)
     }
 
     pub fn preview(&mut self, options: rename::Options) -> Result<Preview, String> {
@@ -427,5 +751,74 @@ mod tests {
             b"\xef\xbb\xbfOld\r\nbody\r\n"
         );
         assert!(workspace.line_undo.is_none());
+    }
+
+    #[test]
+    fn split_workspace_rejects_directories_and_enforces_revision() {
+        let dir = tempfile::tempdir().unwrap();
+        let fake_txt_dir = dir.path().join("folder.txt");
+        fs::create_dir(&fake_txt_dir).unwrap();
+        let mut workspace = Workspace::default();
+        assert!(workspace.select_split_file(fake_txt_dir).is_err());
+
+        let non_txt = dir.path().join("note.md");
+        fs::write(&non_txt, "hello").unwrap();
+        assert!(workspace.select_split_file(non_txt).is_err());
+
+        let source = dir.path().join("book.txt");
+        let text = "Mở đầu\n第1章 Một\nNội dung 1\n第2章 Hai\nNội dung 2";
+        fs::write(&source, text).unwrap();
+        let selected = workspace.select_split_file(source.clone()).unwrap();
+        assert!(selected.output_dir.ends_with("book_split"));
+
+        let session = split::SplitSession::from_file_points(
+            &source.canonicalize().unwrap(),
+            &[
+                "Mở đầu\n".chars().count(),
+                "Mở đầu\n第1章 Một\nNội dung 1\n".chars().count(),
+            ],
+        )
+        .unwrap();
+        let revision = workspace.next_revision();
+        workspace.split_session = Some((revision, session));
+
+        // Wrong revision is rejected
+        assert!(
+            workspace
+                .refresh_split_view(
+                    revision + 1,
+                    split::PrefaceMode::Separate,
+                    "c_{num}.txt".into(),
+                )
+                .is_err()
+        );
+
+        let merged = workspace
+            .merge_split_boundary(
+                revision,
+                2,
+                split::PrefaceMode::Separate,
+                "c_{num}.txt".into(),
+            )
+            .unwrap();
+        assert_eq!(merged.parts.len(), 2);
+        assert!(merged.can_undo);
+
+        let undone = workspace
+            .undo_split(revision, split::PrefaceMode::Separate, "c_{num}.txt".into())
+            .unwrap();
+        assert_eq!(undone.parts.len(), 3);
+        assert!(undone.can_redo);
+
+        let outcome = workspace
+            .apply_split(
+                revision,
+                split::PrefaceMode::Remove,
+                "chuong_{num}.txt".into(),
+                false,
+            )
+            .unwrap();
+        assert_eq!(outcome.written, vec!["chuong_1.txt", "chuong_2.txt"]);
+        assert!(outcome.failure.is_none());
     }
 }
