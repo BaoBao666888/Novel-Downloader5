@@ -1,0 +1,22 @@
+[package]
+name = "novel-studio-desktop"
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.91.1"
+license = "AGPL-3.0-only"
+publish = false
+
+[build-dependencies]
+tauri-build = "2"
+
+[dependencies]
+novel-studio-core = { path = "../../rust" }
+serde = { version = "1", features = ["derive"] }
+tauri = "2"
+tauri-plugin-dialog = "2"
+
+[features]
+custom-protocol = ["tauri/custom-protocol"]
+
+[dev-dependencies]
+tempfile = "3"

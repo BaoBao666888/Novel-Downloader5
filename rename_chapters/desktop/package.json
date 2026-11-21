@@ -1,0 +1,23 @@
+{
+  "name": "novel-studio-desktop",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "check": "svelte-check --tsconfig ./tsconfig.json",
+    "build": "vite build",
+    "tauri": "tauri"
+  },
+  "dependencies": {
+    "@tauri-apps/api": "^2.12.5",
+    "svelte": "^5.59.1"
+  },
+  "devDependencies": {
+    "@sveltejs/vite-plugin-svelte": "^6.2.4",
+    "@tauri-apps/cli": "^2.12.6",
+    "svelte-check": "^4.3.0",
+    "typescript": "^5.9.3",
+    "vite": "^7.3.8"
+  }
+}
