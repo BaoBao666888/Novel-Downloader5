@@ -1,0 +1,76 @@
+name: Novel Studio Rust core
+
+on:
+  workflow_dispatch:
+  push:
+    branches: ['refactor/novel-studio-rust']
+  pull_request:
+    paths:
+      - '.github/workflows/novel-studio-core.yml'
+      - 'LICENSE'
+      - 'rename_chapters/app/__init__.py'
+      - 'rename_chapters/app/paths.py'
+      - 'rename_chapters/app/core/__init__.py'
+      - 'rename_chapters/app/core/renamer.py'
+      - 'rename_chapters/app/core/text_ops.py'
+      - 'rename_chapters/rust/**'
+
+permissions:
+  contents: read
+
+jobs:
+  windows:
+    runs-on: windows-2022
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: rename_chapters/rust
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+          sparse-checkout-cone-mode: false
+          sparse-checkout: |
+            /LICENSE
+            /rename_chapters/app/__init__.py
+            /rename_chapters/app/paths.py
+            /rename_chapters/app/core/__init__.py
+            /rename_chapters/app/core/renamer.py
+            /rename_chapters/app/core/text_ops.py
+            /rename_chapters/rust/
+
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: '3.12'
+
+      - name: Set up Rust
+        run: rustup toolchain install 1.91.1 --profile minimal
+
+      - uses: actions/cache@caa296126883cff596d87d8935842f9db880ef25 # v5
+        with:
+          path: |
+            ~/.cargo/registry/cache
+            ~/.cargo/registry/index
+          key: ${{ runner.os }}-${{ runner.arch }}-novel-studio-cargo-${{ hashFiles('rename_chapters/rust/Cargo.lock') }}
+
+      - name: Test the Rust core
+        run: cargo +1.91.1 test --locked
+
+      - name: Build the development CLI
+        run: cargo +1.91.1 build --locked
+
+      - name: Check split preview parity
+        run: python -B tests/split_parity.py target/debug/novel-studio-core.exe
+
+      - name: Check rename preview parity
+        run: python -B tests/rename_parity.py target/debug/novel-studio-core.exe
+
+      - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        with:
+          name: novel-studio-core-dev-windows-x64
+          path: |
+            LICENSE
+            rename_chapters/rust/README.md
+            rename_chapters/rust/target/debug/novel-studio-core.exe
+          if-no-files-found: error
+          retention-days: 7
