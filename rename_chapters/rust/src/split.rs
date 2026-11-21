@@ -1,4 +1,9 @@
-use serde::Serialize;
+use std::ffi::OsStr;
+use std::path::Path;
+
+use serde::{Deserialize, Serialize};
+
+use crate::{CoreError, python};
 
 const PREVIEW_LIMIT: usize = 50;
 pub const NO_MATCHES: &str = "Không tìm thấy điểm chia nào với regex đã cho";
@@ -13,6 +18,50 @@ pub struct PreviewChunk {
 pub enum SplitError {
     NoMatches,
     InvalidOffsets,
+}
+
+#[derive(Deserialize)]
+#[serde(tag = "status", rename_all = "snake_case")]
+enum SplitSource {
+    Matched { content: String, points: Vec<usize> },
+    Error { message: String },
+}
+
+#[derive(Serialize)]
+pub struct PreviewOutput {
+    pub chunks: Vec<PreviewChunk>,
+    pub error: Option<String>,
+}
+
+/// Preview an existing file using the legacy regex semantics.
+pub fn preview_file(
+    file: &Path,
+    pattern: &OsStr,
+    position: Option<&OsStr>,
+) -> Result<PreviewOutput, CoreError> {
+    let mut args = vec![file.as_os_str().to_owned(), pattern.to_owned()];
+    if let Some(position) = position {
+        args.push(position.to_owned());
+    }
+    let bytes = python::run(include_str!("split_source.py"), &args, None)?;
+    let result = match serde_json::from_slice(&bytes)? {
+        SplitSource::Matched { content, points } => match preview(&content, &points) {
+            Ok(chunks) => Ok(chunks),
+            Err(SplitError::NoMatches) => Err(NO_MATCHES.to_owned()),
+            Err(SplitError::InvalidOffsets) => return Err("Vị trí chia không hợp lệ".into()),
+        },
+        SplitSource::Error { message } => Err(message),
+    };
+    Ok(match result {
+        Ok(chunks) => PreviewOutput {
+            chunks,
+            error: None,
+        },
+        Err(error) => PreviewOutput {
+            chunks: Vec::new(),
+            error: Some(error),
+        },
+    })
 }
 
 /// Split normalized UTF-8 text at sorted Python string offsets (Unicode code

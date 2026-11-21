@@ -5,7 +5,8 @@ use std::path::Path;
 
 use serde::{Deserialize, Serialize};
 
-use novel_studio_core::names::{destination_key, valid_chapter, valid_target};
+use crate::CoreError;
+use crate::names::{destination_key, valid_chapter, valid_target};
 
 #[derive(Deserialize)]
 pub struct Request {
@@ -31,7 +32,7 @@ pub struct Failure {
     error: String,
 }
 
-pub fn apply(request: Request) -> Result<Outcome, Box<dyn std::error::Error>> {
+pub fn apply(request: Request) -> Result<Outcome, CoreError> {
     let folder = fs::canonicalize(&request.folder)?;
     if !folder.is_dir() {
         return Err("Kế hoạch đổi tên cần một thư mục".into());
@@ -56,7 +57,7 @@ pub fn apply(request: Request) -> Result<Outcome, Box<dyn std::error::Error>> {
     Ok(outcome)
 }
 
-fn validate(folder: &Path, operations: &[Operation]) -> Result<(), Box<dyn std::error::Error>> {
+fn validate(folder: &Path, operations: &[Operation]) -> Result<(), CoreError> {
     let mut sources = HashSet::new();
     let mut targets = HashSet::new();
     for Operation { source, target } in operations {

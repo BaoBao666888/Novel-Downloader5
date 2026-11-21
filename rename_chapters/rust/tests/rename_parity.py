@@ -373,12 +373,16 @@ class RenameParity(unittest.TestCase):
             source = folder / "1 Old.txt"
             source.write_bytes(b"1 Old\r\nbody")
             (folder / "no number.txt").write_bytes(b"untitled")
+            (folder / "2 Excluded.txt").write_bytes(b"2 Excluded\nbody")
             rows = self.preview(
                 folder, name_format="{num}: {title}.txt", include_first_line=True,
+                excluded=["2 Excluded.txt"],
             )
             self.assertEqual(rows[0]["proposed_name"], "1 Old.txt")
             self.assertEqual(rows[0]["first_line"], "1: Old")
-            self.assertNotIn("first_line", rows[1])
+            self.assertEqual(rows[1]["status"], "excluded")
+            for row in rows[1:]:
+                self.assertNotIn("first_line", row)
             plan = self.first_line_plan(folder, {source.name: rows[0]["first_line"]})
             result = self.first_line("first-line-apply", plan)
             self.assertEqual(result.returncode, 0, result.stderr)

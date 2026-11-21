@@ -5,18 +5,18 @@ use std::process::{Command, Stdio};
 
 use serde::{Serialize, de::DeserializeOwned};
 
-pub type Error = Box<dyn std::error::Error>;
+use crate::CoreError;
 
 pub fn json<Request: Serialize, Response: DeserializeOwned>(
     script: &str,
     request: Request,
-) -> Result<Response, Error> {
+) -> Result<Response, CoreError> {
     let input = serde_json::to_vec(&request)?;
     let bytes = run(script, &[], Some(&input))?;
     Ok(serde_json::from_slice(&bytes)?)
 }
 
-pub fn run(script: &str, args: &[OsString], input: Option<&[u8]>) -> Result<Vec<u8>, Error> {
+pub fn run(script: &str, args: &[OsString], input: Option<&[u8]>) -> Result<Vec<u8>, CoreError> {
     let python = env::var_os("NOVEL_STUDIO_PYTHON")
         .unwrap_or_else(|| if cfg!(windows) { "python" } else { "python3" }.into());
     let mut command = Command::new(python);

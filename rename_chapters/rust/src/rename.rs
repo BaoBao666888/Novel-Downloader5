@@ -3,11 +3,11 @@ use std::collections::{HashMap, HashSet};
 use std::fs;
 use std::path::Path;
 
-use novel_studio_core::first_line::valid_replacement;
-use novel_studio_core::names::{destination_key, valid_target};
+use crate::first_line::valid_replacement;
+use crate::names::{destination_key, valid_target};
 use serde::{Deserialize, Serialize};
 
-use crate::python::{self, Error};
+use crate::{CoreError, python};
 
 const LEGACY: &str = concat!(
     include_str!("../../app/core/renamer.py"),
@@ -129,7 +129,7 @@ enum Issue {
     TargetCheckFailed,
 }
 
-pub fn preview(request: Request) -> Result<Vec<Row>, Error> {
+pub fn preview(request: Request) -> Result<Vec<Row>, CoreError> {
     let mut analyses: Vec<Analysis> = python::json(
         LEGACY,
         ScanRequest {
@@ -181,7 +181,8 @@ pub fn preview(request: Request) -> Result<Vec<Row>, Error> {
                 Row {
                     analysis,
                     proposed_name,
-                    first_line: first_line.filter(|line| valid_replacement(line)),
+                    first_line: first_line
+                        .filter(|line| status != Status::Excluded && valid_replacement(line)),
                     status,
                     issues: Vec::new(),
                 }
