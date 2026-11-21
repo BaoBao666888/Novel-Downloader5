@@ -8,7 +8,7 @@
  */
 
 export type ThemeMode = 'light' | 'dark' | 'system';
-export type AccentPreset = 'forest' | 'indigo' | 'amber' | 'rose';
+export type AccentPreset = 'ocean' | 'forest' | 'indigo' | 'amber' | 'rose';
 export type SurfaceStyle = 'editorial' | 'glass' | 'crisp';
 export type DensityMode = 'comfortable' | 'compact';
 export type MotionMode = 'full' | 'reduced' | 'none';
@@ -28,7 +28,7 @@ const LEGACY_THEME_KEY = 'novel-studio-theme';
 export const DEFAULT_UI_PREFS: UiPrefs = {
   version: 1,
   theme: 'system',
-  accent: 'forest',
+  accent: 'ocean',
   surface: 'editorial',
   density: 'comfortable',
   motion: 'full',
@@ -42,7 +42,7 @@ export function loadUiPrefs(): UiPrefs {
       return {
         version: 1,
         theme: isOneOf(parsed.theme, ['light', 'dark', 'system']) ? parsed.theme : DEFAULT_UI_PREFS.theme,
-        accent: isOneOf(parsed.accent, ['forest', 'indigo', 'amber', 'rose']) ? parsed.accent : DEFAULT_UI_PREFS.accent,
+        accent: isOneOf(parsed.accent, ['ocean', 'forest', 'indigo', 'amber', 'rose']) ? parsed.accent : DEFAULT_UI_PREFS.accent,
         surface: isOneOf(parsed.surface, ['editorial', 'glass', 'crisp']) ? parsed.surface : DEFAULT_UI_PREFS.surface,
         density: isOneOf(parsed.density, ['comfortable', 'compact']) ? parsed.density : DEFAULT_UI_PREFS.density,
         motion: isOneOf(parsed.motion, ['full', 'reduced', 'none']) ? parsed.motion : DEFAULT_UI_PREFS.motion,

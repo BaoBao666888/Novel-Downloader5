@@ -2,13 +2,13 @@
 
 use std::sync::{Mutex, MutexGuard};
 
-use novel_studio_core::{first_line, rename, rename_apply, split, text_tools};
+use novel_studio_core::{archive, first_line, rename, rename_apply, split, text_tools};
 use tauri::{Manager, WebviewWindow};
 use tauri_plugin_dialog::DialogExt;
 
 use workspace::{
-    LinePreview, LineResult, Preview, SplitOptions, SplitPreview, SplitSelection, TextPreview,
-    TextResult, Workspace,
+    ArchivePreview, LinePreview, LineResult, Preview, SplitOptions, SplitPreview, SplitSelection,
+    TextPreview, TextResult, Workspace,
 };
 
 mod workspace;
@@ -428,6 +428,88 @@ async fn undo_text_edit(app: tauri::AppHandle, revision: u32) -> Result<TextResu
     .map_err(|err| err.to_string())?
 }
 
+#[tauri::command]
+async fn choose_archive_file(window: WebviewWindow) -> Result<Option<SplitSelection>, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        let Some(file) = window
+            .dialog()
+            .file()
+            .set_parent(&window)
+            .set_title("Chọn tệp nén .zip cần xem trước hoặc giải nén")
+            .add_filter("ZIP archive", &["zip"])
+            .blocking_pick_file()
+        else {
+            return Ok(None);
+        };
+        let file = file.into_path().map_err(|err| err.to_string())?;
+        let workspace = window.state::<Mutex<Workspace>>();
+        state(&workspace)?.select_archive_file(file).map(Some)
+    })
+    .await
+    .map_err(|err| err.to_string())?
+}
+
+#[tauri::command]
+async fn choose_archive_output_dir(window: WebviewWindow) -> Result<Option<String>, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        let Some(folder) = window
+            .dialog()
+            .file()
+            .set_parent(&window)
+            .set_title("Chọn thư mục đích để giải nén")
+            .blocking_pick_folder()
+        else {
+            return Ok(None);
+        };
+        let folder = folder.into_path().map_err(|err| err.to_string())?;
+        let workspace = window.state::<Mutex<Workspace>>();
+        state(&workspace)?
+            .select_archive_output_dir(folder)
+            .map(Some)
+    })
+    .await
+    .map_err(|err| err.to_string())?
+}
+
+#[tauri::command]
+async fn inspect_archive(app: tauri::AppHandle) -> Result<ArchivePreview, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        let workspace = app.state::<Mutex<Workspace>>();
+        state(&workspace)?.inspect_archive()
+    })
+    .await
+    .map_err(|err| err.to_string())?
+}
+
+#[tauri::command]
+async fn preview_archive_entry(
+    app: tauri::AppHandle,
+    revision: u32,
+    entry_index: usize,
+) -> Result<archive::EntryPreview, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        let workspace = app.state::<Mutex<Workspace>>();
+        state(&workspace)?.preview_archive_entry(revision, entry_index)
+    })
+    .await
+    .map_err(|err| err.to_string())?
+}
+
+#[tauri::command]
+async fn extract_archive(
+    app: tauri::AppHandle,
+    revision: u32,
+    indices: Vec<usize>,
+    overwrite: bool,
+) -> Result<archive::ExtractOutcome, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        let workspace = app.state::<Mutex<Workspace>>();
+        state(&workspace)?.extract_archive(revision, indices, overwrite)
+    })
+    .await
+    .map_err(|err| err.to_string())?
+}
+
 fn main() {
     tauri::Builder::default()
         .setup(|app| {
@@ -468,7 +550,12 @@ fn main() {
             preview_renumber,
             preview_apply_toc,
             apply_text_edit,
-            undo_text_edit
+            undo_text_edit,
+            choose_archive_file,
+            choose_archive_output_dir,
+            inspect_archive,
+            preview_archive_entry,
+            extract_archive
         ])
         .run(tauri::generate_context!())
         .expect("failed to start Novel Studio");

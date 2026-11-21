@@ -4,7 +4,7 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use std::time::SystemTime;
 
-use novel_studio_core::{first_line, rename, rename_apply, split, text_tools};
+use novel_studio_core::{archive, first_line, rename, rename_apply, split, text_tools};
 use serde::{Deserialize, Serialize};
 
 #[derive(Default)]
@@ -22,6 +22,16 @@ pub struct Workspace {
     text_toc_file: Option<PathBuf>,
     text_plan: Option<(u32, text_tools::Plan)>,
     text_undo: Option<(u32, text_tools::Plan)>,
+    archive_file: Option<PathBuf>,
+    archive_output_dir: Option<PathBuf>,
+    archive_plan: Option<(u32, archive::ArchivePlan)>,
+}
+
+#[derive(Serialize)]
+pub struct ArchivePreview {
+    pub revision: u32,
+    pub output_dir: String,
+    pub info: archive::ArchiveInspection,
 }
 
 #[derive(Serialize)]
@@ -159,7 +169,103 @@ impl Workspace {
         self.line_plan = None;
         self.split_session = None;
         self.text_plan = None;
+        self.archive_plan = None;
         Ok(label)
+    }
+
+    pub fn select_archive_file(&mut self, file: PathBuf) -> Result<SplitSelection, String> {
+        let metadata = fs::symlink_metadata(&file).map_err(|err| err.to_string())?;
+        if !metadata.is_file() {
+            return Err("Hãy chọn một tệp nén .zip hợp lệ.".into());
+        }
+        let is_zip = file
+            .extension()
+            .and_then(|ext| ext.to_str())
+            .is_some_and(|ext| ext.eq_ignore_ascii_case("zip"));
+        if !is_zip {
+            return Err("Hiện hỗ trợ xem trước và giải nén tệp .zip.".into());
+        }
+        let canonical = file.canonicalize().map_err(|err| err.to_string())?;
+        let default_dir = archive::default_extract_dir(&canonical);
+        let file_label = file.display().to_string();
+        let dir_label = default_dir.display().to_string();
+        self.archive_file = Some(canonical);
+        self.archive_output_dir = Some(default_dir);
+        self.archive_plan = None;
+        Ok(SplitSelection {
+            file: file_label,
+            output_dir: dir_label,
+        })
+    }
+
+    pub fn select_archive_output_dir(&mut self, folder: PathBuf) -> Result<String, String> {
+        let canonical = folder.canonicalize().map_err(|err| err.to_string())?;
+        if !canonical.is_dir() {
+            return Err("Hãy chọn một thư mục đích hợp lệ.".into());
+        }
+        let label = folder.display().to_string();
+        self.archive_output_dir = Some(canonical);
+        Ok(label)
+    }
+
+    pub fn inspect_archive(&mut self) -> Result<ArchivePreview, String> {
+        self.archive_plan = None;
+        let file = self
+            .archive_file
+            .as_ref()
+            .ok_or("Hãy chọn tệp nén .zip trước.")?;
+        let (plan, info) =
+            archive::inspect(file, self.interpreter.as_deref()).map_err(|err| err.to_string())?;
+        let output_dir = self
+            .archive_output_dir
+            .clone()
+            .unwrap_or_else(|| archive::default_extract_dir(file));
+        let revision = self.next_revision();
+        self.archive_plan = Some((revision, plan));
+        Ok(ArchivePreview {
+            revision,
+            output_dir: output_dir.display().to_string(),
+            info,
+        })
+    }
+
+    pub fn preview_archive_entry(
+        &self,
+        revision: u32,
+        entry_index: usize,
+    ) -> Result<archive::EntryPreview, String> {
+        let (_, plan) = self
+            .archive_plan
+            .as_ref()
+            .filter(|(id, _)| *id == revision)
+            .ok_or("Danh sách tệp nén đã hết hiệu lực. Hãy quét lại.")?;
+        archive::preview_entry(plan, entry_index, self.interpreter.as_deref())
+            .map_err(|err| err.to_string())
+    }
+
+    pub fn extract_archive(
+        &self,
+        revision: u32,
+        indices: Vec<usize>,
+        overwrite: bool,
+    ) -> Result<archive::ExtractOutcome, String> {
+        let (_, plan) = self
+            .archive_plan
+            .as_ref()
+            .filter(|(id, _)| *id == revision)
+            .ok_or("Danh sách tệp nén đã hết hiệu lực. Hãy quét lại.")?;
+        let output_dir = self
+            .archive_output_dir
+            .clone()
+            .unwrap_or_else(|| archive::default_extract_dir(&plan.archive_path));
+        archive::extract(
+            plan,
+            &output_dir,
+            &indices,
+            overwrite,
+            self.interpreter.as_deref(),
+        )
+        .map_err(|err| err.to_string())
     }
 
     pub fn select_text_file(&mut self, file: PathBuf) -> Result<String, String> {

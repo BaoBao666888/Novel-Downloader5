@@ -1,5 +1,6 @@
 <script lang="ts">
   import { tick } from 'svelte';
+  import ArchiveWorkbench from './ArchiveWorkbench.svelte';
   import SplitWorkbench from './SplitWorkbench.svelte';
   import TextToolsWorkbench from './TextToolsWorkbench.svelte';
   import {
@@ -10,7 +11,7 @@
 
   const defaultFormat = '第{num}章 {title}.txt';
   let folder = $state('');
-  let mode = $state<'rename' | 'line' | 'split' | 'text'>('rename');
+  let mode = $state<'rename' | 'line' | 'split' | 'text' | 'archive'>('rename');
   let python = $state('');
   let nameFormat = $state(defaultFormat);
   let strategy = $state('content_first');
@@ -255,12 +256,16 @@
       onclick={() => setMode('split')}>Chia chương</button>
     <button type="button" aria-pressed={mode === 'text'} disabled={busy !== null}
       onclick={() => setMode('text')}>Công cụ văn bản</button>
+    <button type="button" aria-pressed={mode === 'archive'} disabled={busy !== null}
+      onclick={() => setMode('archive')}>Giải nén ZIP</button>
   </nav>
 
   {#if mode === 'split'}
     <SplitWorkbench {python} onPickPython={pickPython} parentBusy={busy !== null} />
   {:else if mode === 'text'}
     <TextToolsWorkbench {python} onPickPython={pickPython} parentBusy={busy !== null} />
+  {:else if mode === 'archive'}
+    <ArchiveWorkbench {python} onPickPython={pickPython} parentBusy={busy !== null} />
   {:else}
   <section class="heading">
     <div>

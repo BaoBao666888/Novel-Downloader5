@@ -123,6 +123,44 @@ export type TextResult = {
   undo_revision: number | null;
 };
 
+export type ArchiveEntry = {
+  index: number;
+  raw_name: string;
+  display_name: string;
+  size: number;
+  compressed_size: number;
+  is_txt: boolean;
+  safe: boolean;
+  issue: string | null;
+};
+
+export type ArchivePreview = {
+  revision: number;
+  output_dir: string;
+  info: {
+    archive: string;
+    default_output_dir: string;
+    entries: ArchiveEntry[];
+    total_size: number;
+    safe_count: number;
+    txt_count: number;
+    blocked_count: number;
+  };
+};
+
+export type EntryPreview = {
+  display_name: string;
+  encoding: string;
+  truncated: boolean;
+  text: string;
+};
+
+export type ExtractOutcome = {
+  output_dir: string;
+  extracted: string[];
+  failure: { entry: string; error: string } | null;
+};
+
 export const chooseFolder = () => invoke<string | null>('choose_folder');
 export const choosePython = () => invoke<string | null>('choose_python');
 export const previewRename = (options: Options) => invoke<Preview>('preview_rename', { options });
@@ -186,6 +224,14 @@ export const previewApplyToc = (tocRegex: string, mainRegex: string, mode: TocMo
   invoke<TextPreview>('preview_apply_toc', { tocRegex, mainRegex, mode });
 export const applyTextEdit = (revision: number) => invoke<TextResult>('apply_text_edit', { revision });
 export const undoTextEdit = (revision: number) => invoke<TextResult>('undo_text_edit', { revision });
+
+export const chooseArchiveFile = () => invoke<SplitSelection | null>('choose_archive_file');
+export const chooseArchiveOutputDir = () => invoke<string | null>('choose_archive_output_dir');
+export const inspectArchive = () => invoke<ArchivePreview>('inspect_archive');
+export const previewArchiveEntry = (revision: number, entryIndex: number) =>
+  invoke<EntryPreview>('preview_archive_entry', { revision, entryIndex });
+export const extractArchive = (revision: number, indices: number[], overwrite: boolean) =>
+  invoke<ExtractOutcome>('extract_archive', { revision, indices, overwrite });
 
 const issueLabels: Record<Row['issues'][number], string> = {
   invalid_target: 'Tên đích không hợp lệ',
