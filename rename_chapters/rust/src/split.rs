@@ -33,6 +33,30 @@ pub struct PreviewOutput {
     pub error: Option<String>,
 }
 
+pub use crate::split_session::{
+    Boundary, PartSummary, PrefaceMode, SearchHit, SplitOutcome, SplitSession, SplitWriteFailure,
+    render_split_filename, sanitize_split_filename,
+};
+
+/// Run the legacy Python regex matcher on `file`, returning normalized LF content
+/// and sorted Unicode code-point split offsets.
+pub(crate) fn match_file(
+    file: &Path,
+    pattern: &OsStr,
+    position: Option<&OsStr>,
+    interpreter: Option<&Path>,
+) -> Result<(String, Vec<usize>), CoreError> {
+    let mut args = vec![file.as_os_str().to_owned(), pattern.to_owned()];
+    if let Some(position) = position {
+        args.push(position.to_owned());
+    }
+    let bytes = python::run(include_str!("split_source.py"), &args, None, interpreter)?;
+    match serde_json::from_slice(&bytes)? {
+        SplitSource::Matched { content, points } => Ok((content, points)),
+        SplitSource::Error { message } => Err(message.into()),
+    }
+}
+
 /// Preview an existing file using the legacy regex semantics.
 pub fn preview_file(
     file: &Path,
