@@ -1,10 +1,13 @@
 use std::env;
-use std::ffi::{OsStr, OsString};
-use std::io::{self, Write};
-use std::process::{Command, ExitCode};
+use std::ffi::OsString;
+use std::io::{self, Read, Write};
+use std::process::ExitCode;
 
 use novel_studio_core::split::{self, PreviewChunk, SplitError};
 use serde::{Deserialize, Serialize};
+
+mod python;
+mod rename;
 
 #[derive(Deserialize)]
 #[serde(tag = "status", rename_all = "snake_case")]
@@ -19,30 +22,14 @@ struct PreviewOutput {
     error: Option<String>,
 }
 
-fn run(args: &[OsString]) -> Result<ExitCode, Box<dyn std::error::Error>> {
+fn run_split(args: &[OsString]) -> Result<ExitCode, Box<dyn std::error::Error>> {
     if !(2..=3).contains(&args.len()) {
         return Err("Cách dùng: novel-studio-core FILE REGEX [after|before]".into());
     }
 
-    let python = env::var_os("NOVEL_STUDIO_PYTHON").unwrap_or_else(|| {
-        if cfg!(windows) {
-            OsStr::new("python").to_owned()
-        } else {
-            OsStr::new("python3").to_owned()
-        }
-    });
-    let output = Command::new(python)
-        .args(["-I", "-B", "-c", include_str!("split_source.py")])
-        .args(args)
-        .output()
-        .map_err(|err| format!("Không thể chạy Python cho regex: {err}"))?;
+    let bytes = python::run(include_str!("split_source.py"), args, None)?;
 
-    if !output.status.success() {
-        let stderr = String::from_utf8_lossy(&output.stderr);
-        return Err(format!("Python thoát với {}: {}", output.status, stderr.trim()).into());
-    }
-
-    let result = match serde_json::from_slice(&output.stdout)? {
+    let result = match serde_json::from_slice(&bytes)? {
         SplitSource::Matched { content, points } => match split::preview(&content, &points) {
             Ok(chunks) => Ok(chunks),
             Err(SplitError::NoMatches) => Err(split::NO_MATCHES.to_owned()),
@@ -71,6 +58,23 @@ fn run(args: &[OsString]) -> Result<ExitCode, Box<dyn std::error::Error>> {
     serde_json::to_writer(&mut stdout, &preview)?;
     writeln!(stdout)?;
     Ok(exit_code)
+}
+
+fn run(args: &[OsString]) -> Result<ExitCode, python::Error> {
+    match args {
+        [command] if command == "rename-preview" => {
+            let mut input = Vec::new();
+            io::stdin().lock().read_to_end(&mut input)?;
+            let json = input.strip_prefix(b"\xef\xbb\xbf").unwrap_or(&input);
+            let request = serde_json::from_slice(json)?;
+            let rows = rename::preview(request)?;
+            let mut stdout = io::stdout().lock();
+            serde_json::to_writer(&mut stdout, &rows)?;
+            writeln!(stdout)?;
+            Ok(ExitCode::SUCCESS)
+        }
+        _ => run_split(args),
+    }
 }
 
 fn main() -> ExitCode {
