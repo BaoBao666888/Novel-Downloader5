@@ -168,6 +168,71 @@ class RenameParity(unittest.TestCase):
             self.assertEqual(self.preview(Path(temp), encoding="utf-8-sig"), [])
 
 
+    def apply_plan(self, folder, pairs, *, confirm=True):
+        operations = [{"source": source, "target": target} for source, target in pairs]
+        return subprocess.run(
+            [self.cli, "rename-apply", *(["--confirm"] if confirm else [])],
+            input=json.dumps({"folder": str(folder), "operations": operations}).encode("utf-8"),
+            capture_output=True,
+            timeout=10,
+        )
+
+    def test_apply_keeps_original_bytes(self):
+        with TemporaryDirectory() as temp:
+            folder = Path(temp)
+            original = {"1 Cũ.txt": b"\xef\xbb\xbf1 C\xc5\xa9\r\n", "2 Other.TXT": b"test\xff"}
+            for name, content in original.items():
+                (folder / name).write_bytes(content)
+            names = [("1 Cũ.txt", "第1章 新.txt"), ("2 Other.TXT", "第2章 新.txt")]
+            result = self.apply_plan(folder, names)
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertEqual(
+                json.loads(result.stdout),
+                {"renamed": [{"source": a, "target": b} for a, b in names], "failure": None},
+            )
+            self.assertEqual(
+                {p.name: p.read_bytes() for p in folder.iterdir()},
+                {target: original[source] for source, target in names},
+            )
+            before = self.snapshot(folder)
+            repeated = self.apply_plan(folder, names)
+            self.assertNotEqual(repeated.returncode, 0)
+            self.assertEqual(self.snapshot(folder), before)
+
+    def test_apply_preflight_blocks_whole_batch(self):
+        with TemporaryDirectory() as temp:
+            folder = Path(temp)
+            (folder / "1.txt").write_bytes(b"first source")
+            (folder / "2.txt").write_bytes(b"second source")
+            (folder / "occupied.txt").write_bytes(b"existing destination")
+            (folder / "directory.txt").mkdir()
+            before = self.snapshot(folder)
+            valid = ("1.txt", "new.txt")
+            cases = [
+                ("already_exists", [valid, ("2.txt", "occupied.txt")], True),
+                ("duplicate", [valid, ("2.txt", "new.txt")], True),
+                ("source_duplicate", [valid, ("1.txt", "other.txt")], True),
+                ("cycle", [("1.txt", "2.txt"), ("2.txt", "1.txt")], True),
+                ("missing_source", [valid, ("missing.txt", "other.txt")], True),
+                ("directory_source", [valid, ("directory.txt", "other.txt")], True),
+                ("traversal", [valid, ("2.txt", "../other.txt")], True),
+                ("without_confirm", [valid], False),
+            ]
+            if os.name == "nt":
+                cases += [
+                    ("device_name", [valid, ("2.txt", "NUL.txt")], True),
+                    ("case_collision", [valid, ("2.txt", "New.txt")], True),
+                    ("alternate_stream", [valid, ("2.txt", "other.txt:stream")], True),
+                ]
+            for name, pairs, confirm in cases:
+                with self.subTest(case=name):
+                    result = self.apply_plan(folder, pairs, confirm=confirm)
+                    self.assertNotEqual(result.returncode, 0)
+                    self.assertEqual(result.stdout, b"")
+                    self.assertTrue(result.stderr)
+                    self.assertEqual(self.snapshot(folder), before)
+
+
 if __name__ == "__main__":
     RenameParity.cli = str(Path(sys.argv.pop(1)).resolve())
     unittest.main(verbosity=2)

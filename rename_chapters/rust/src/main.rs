@@ -8,6 +8,7 @@ use serde::{Deserialize, Serialize};
 
 mod python;
 mod rename;
+mod rename_apply;
 
 #[derive(Deserialize)]
 #[serde(tag = "status", rename_all = "snake_case")]
@@ -54,24 +55,41 @@ fn run_split(args: &[OsString]) -> Result<ExitCode, Box<dyn std::error::Error>> 
         ),
     };
 
-    let mut stdout = io::stdout().lock();
-    serde_json::to_writer(&mut stdout, &preview)?;
-    writeln!(stdout)?;
+    write_json(&preview)?;
     Ok(exit_code)
+}
+
+fn read_json<T: serde::de::DeserializeOwned>() -> Result<T, python::Error> {
+    let mut input = Vec::new();
+    io::stdin().lock().read_to_end(&mut input)?;
+    let json = input.strip_prefix(b"\xef\xbb\xbf").unwrap_or(&input);
+    Ok(serde_json::from_slice(json)?)
+}
+
+fn write_json<T: Serialize>(data: &T) -> Result<(), python::Error> {
+    let mut stdout = io::stdout().lock();
+    serde_json::to_writer(&mut stdout, data)?;
+    writeln!(stdout)?;
+    Ok(())
 }
 
 fn run(args: &[OsString]) -> Result<ExitCode, python::Error> {
     match args {
         [command] if command == "rename-preview" => {
-            let mut input = Vec::new();
-            io::stdin().lock().read_to_end(&mut input)?;
-            let json = input.strip_prefix(b"\xef\xbb\xbf").unwrap_or(&input);
-            let request = serde_json::from_slice(json)?;
-            let rows = rename::preview(request)?;
-            let mut stdout = io::stdout().lock();
-            serde_json::to_writer(&mut stdout, &rows)?;
-            writeln!(stdout)?;
+            write_json(&rename::preview(read_json()?)?)?;
             Ok(ExitCode::SUCCESS)
+        }
+        [command, confirm] if command == "rename-apply" && confirm == "--confirm" => {
+            let output = rename_apply::apply(read_json()?)?;
+            write_json(&output)?;
+            Ok(if output.failure.is_some() {
+                ExitCode::FAILURE
+            } else {
+                ExitCode::SUCCESS
+            })
+        }
+        [command, ..] if command == "rename-apply" => {
+            Err("Cách dùng: novel-studio-core rename-apply --confirm".into())
         }
         _ => run_split(args),
     }

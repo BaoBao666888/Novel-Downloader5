@@ -1,6 +1,6 @@
 # Novel Studio Rust core
 
-CLI development có preview chia chương và kế hoạch đổi tên hàng loạt. Chương trình chỉ đọc file đầu vào. CPython giữ cú pháp regex và mẫu tên của Novel Studio.
+CLI development có preview chia chương và kế hoạch đổi tên hàng loạt. Hai lệnh preview chỉ đọc file đầu vào. CPython giữ cú pháp regex và mẫu tên của Novel Studio.
 
 ## Preview chia chương
 
@@ -35,6 +35,25 @@ Trong PowerShell dùng `cmd.exe /d /c "cargo run --locked -- rename-preview < re
 Chỉ cần trường `folder`. Mặc định sắp xếp và ưu tiên lấy số/tựa theo nội dung, với mẫu `第{num}章 {title}.txt`. Có thể truyền thêm `filename_regexes`, `content_regexes` và `custom_titles` dưới dạng mảng chuỗi. Tiêu đề tùy chỉnh gắn theo thứ tự đã sắp xếp, kể cả vị trí của file bị loại trừ.
 
 Kết quả là một mảng JSON gồm phân tích từng file, tên gợi ý, trạng thái và cảnh báo. Số chương được ghi dưới dạng chuỗi để giữ nguyên số vượt giới hạn số nguyên của JavaScript. Cảnh báo đích trùng, đích đã tồn tại hoặc tên đích không hợp lệ phản ánh thời điểm preview. Trên Windows, cảnh báo tên đích trùng bỏ qua hoa thường. File có lỗi đọc vẫn xuất hiện cùng thông tin đọc được từ tên file nếu có.
+
+## Thực thi kế hoạch đổi tên
+
+Xem preview trước rồi lưu các cặp tên đã chọn vào `plan.json`. Ví dụ với file mẫu:
+
+```json
+{
+  "folder": "sample-chapters",
+  "operations": [
+    {"source": "1 Lời mở đầu.txt", "target": "第001章 Lời mở đầu.txt"}
+  ]
+}
+```
+
+```sh
+cargo run --locked -- rename-apply --confirm < plan.json
+```
+
+Lệnh kiểm tra toàn bộ kế hoạch trước khi đổi tên. Mỗi cặp dùng tên file thuộc cùng thư mục. Nguồn phải là file TXT thường. Tên nguồn lặp, tên đích trùng hoặc đích đã tồn tại sẽ dừng cả kế hoạch ở bước kiểm tra. Nếu có lỗi filesystem trong lúc chạy, output JSON ghi các cặp đã đổi trong `renamed` và cặp đầu tiên gặp lỗi trong `failure`. Lệnh giữ nguyên nội dung file. Đổi hoa/thường khi tên đích trỏ tới cùng file, hoán đổi tên, và sửa dòng đầu hiện thuộc luồng riêng.
 
 ## Kiểm thử
 

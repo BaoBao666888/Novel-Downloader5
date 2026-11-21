@@ -186,7 +186,7 @@ fn compare_numbers(left: Option<&str>, right: Option<&str>) -> Ordering {
     }
 }
 
-fn destination_key(name: &str) -> String {
+pub fn destination_key(name: &str) -> String {
     if cfg!(windows) {
         name.to_lowercase()
     } else {
@@ -194,7 +194,7 @@ fn destination_key(name: &str) -> String {
     }
 }
 
-fn valid_target(name: &str) -> bool {
+pub fn valid_target(name: &str) -> bool {
     if matches!(name, "" | "." | "..") || name.contains(['\0', '/', '\\']) {
         return false;
     }
@@ -208,7 +208,8 @@ fn valid_target(name: &str) -> bool {
         let serial_device = reserved
             .strip_prefix("COM")
             .or_else(|| reserved.strip_prefix("LPT"));
-        return !name.ends_with(['.', ' '])
+        return !name.contains([':', '"', '*', '?', '<', '>', '|'])
+            && !name.ends_with(['.', ' '])
             && !name.chars().any(|ch| ch < ' ')
             && !matches!(
                 reserved.as_str(),
