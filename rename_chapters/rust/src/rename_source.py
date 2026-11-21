@@ -6,9 +6,14 @@ import sys
 
 def scan_rename(request):
     folder = request["folder"]
-    filenames = [name for name in os.listdir(folder) if name.lower().endswith(".txt")]
+    if request["regular_files_only"]:
+        with os.scandir(folder) as entries:
+            files = [entry.name for entry in entries
+                     if entry.name.lower().endswith(".txt") and entry.is_file(follow_symlinks=False)]
+    else:
+        files = [name for name in os.listdir(folder) if name.lower().endswith(".txt")]
     rows = []
-    for name in filenames:
+    for name in files:
         row = analyze_file(
             os.path.join(folder, name),
             request["filename_regexes"],

@@ -43,7 +43,7 @@ pub fn preview_file(
     if let Some(position) = position {
         args.push(position.to_owned());
     }
-    let bytes = python::run(include_str!("split_source.py"), &args, None)?;
+    let bytes = python::run(include_str!("split_source.py"), &args, None, None)?;
     let result = match serde_json::from_slice(&bytes)? {
         SplitSource::Matched { content, points } => match preview(&content, &points) {
             Ok(chunks) => Ok(chunks),

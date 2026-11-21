@@ -1,7 +1,7 @@
 use std::collections::HashSet;
 use std::fs;
 use std::io;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 use serde::{Deserialize, Serialize};
 
@@ -10,14 +10,14 @@ use crate::names::{destination_key, valid_chapter, valid_target};
 
 #[derive(Deserialize)]
 pub struct Request {
-    folder: String,
-    operations: Vec<Operation>,
+    pub folder: PathBuf,
+    pub operations: Vec<Operation>,
 }
 
 #[derive(Deserialize, Serialize)]
-struct Operation {
-    source: String,
-    target: String,
+pub struct Operation {
+    pub source: String,
+    pub target: String,
 }
 
 #[derive(Default, Serialize)]

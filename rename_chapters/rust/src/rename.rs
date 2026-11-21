@@ -1,7 +1,7 @@
 use std::cmp::Ordering;
 use std::collections::{HashMap, HashSet};
 use std::fs;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 use crate::first_line::valid_replacement;
 use crate::names::{destination_key, valid_target};
@@ -17,7 +17,13 @@ const LEGACY: &str = concat!(
 
 #[derive(Deserialize)]
 pub struct Request {
-    folder: String,
+    folder: PathBuf,
+    #[serde(flatten)]
+    options: Options,
+}
+
+#[derive(Deserialize)]
+pub struct Options {
     #[serde(default)]
     filename_regexes: Vec<String>,
     #[serde(default)]
@@ -49,7 +55,8 @@ fn default_format() -> String {
 
 #[derive(Serialize)]
 struct Scan<'a> {
-    folder: &'a str,
+    folder: &'a Path,
+    regular_files_only: bool,
     filename_regexes: &'a [String],
     content_regexes: &'a [String],
 }
@@ -111,6 +118,15 @@ pub struct Row {
     issues: Vec<Issue>,
 }
 
+impl Row {
+    pub fn rename_pair(&self) -> Option<(&str, &str)> {
+        if self.status != Status::Proposed || !self.issues.is_empty() {
+            return None;
+        }
+        Some((&self.analysis.filename, self.proposed_name.as_deref()?))
+    }
+}
+
 #[derive(Serialize, PartialEq)]
 #[serde(rename_all = "snake_case")]
 enum Status {
@@ -130,20 +146,40 @@ enum Issue {
 }
 
 pub fn preview(request: Request) -> Result<Vec<Row>, CoreError> {
+    build_preview(&request.folder, request.options, false, None)
+}
+
+/// Preview regular TXT files in a directory selected by the desktop user.
+pub fn preview_folder(
+    folder: &Path,
+    options: Options,
+    interpreter: Option<&Path>,
+) -> Result<Vec<Row>, CoreError> {
+    build_preview(folder, options, true, interpreter)
+}
+
+fn build_preview(
+    folder: &Path,
+    options: Options,
+    regular_files_only: bool,
+    interpreter: Option<&Path>,
+) -> Result<Vec<Row>, CoreError> {
     let mut analyses: Vec<Analysis> = python::json(
         LEGACY,
         ScanRequest {
             scan: Scan {
-                folder: &request.folder,
-                filename_regexes: &request.filename_regexes,
-                content_regexes: &request.content_regexes,
+                folder,
+                regular_files_only,
+                filename_regexes: &options.filename_regexes,
+                content_regexes: &options.content_regexes,
             },
         },
+        interpreter,
     )?;
     analyses.sort_by(|left, right| {
         compare_numbers(
-            left.sort_number(&request.sort_by),
-            right.sort_number(&request.sort_by),
+            left.sort_number(&options.sort_by),
+            right.sort_number(&options.sort_by),
         )
     });
 
@@ -151,11 +187,12 @@ pub fn preview(request: Request) -> Result<Vec<Row>, CoreError> {
         LEGACY,
         Format {
             rows: &analyses,
-            strategy: &request.strategy,
-            name_format: &request.name_format,
-            custom_titles: request.custom_titles.as_deref(),
-            include_first_line: request.include_first_line,
+            strategy: &options.strategy,
+            name_format: &options.name_format,
+            custom_titles: options.custom_titles.as_deref(),
+            include_first_line: options.include_first_line,
         },
+        interpreter,
     )?;
     if proposed.len() != analyses.len() {
         return Err("Số tên gợi ý không khớp với số file đã phân tích".into());
@@ -173,7 +210,7 @@ pub fn preview(request: Request) -> Result<Vec<Row>, CoreError> {
                 },
             )| {
                 let status = match proposed_name.as_deref() {
-                    _ if request.excluded.contains(&analysis.filename) => Status::Excluded,
+                    _ if options.excluded.contains(&analysis.filename) => Status::Excluded,
                     None => Status::MissingNumber,
                     Some(name) if name == analysis.filename => Status::Unchanged,
                     Some(_) => Status::Proposed,
@@ -189,7 +226,7 @@ pub fn preview(request: Request) -> Result<Vec<Row>, CoreError> {
             },
         )
         .collect();
-    inspect_destinations(Path::new(&request.folder), &mut rows);
+    inspect_destinations(folder, &mut rows);
     Ok(rows)
 }
 
