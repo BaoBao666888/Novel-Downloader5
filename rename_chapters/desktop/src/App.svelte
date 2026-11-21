@@ -1,11 +1,13 @@
 <script lang="ts">
+  import { tick } from 'svelte';
   import {
-    applyRename, chooseFolder, choosePython, previewRename, rowStatus,
-    type Outcome, type Preview,
+    applyFirstLine, applyRename, chooseFolder, choosePython, previewFirstLine, previewRename, rowStatus,
+    undoFirstLine, type LinePreview, type LineResult, type Outcome, type Preview, type Row,
   } from './studio';
 
   const defaultFormat = '第{num}章 {title}.txt';
   let folder = $state('');
+  let mode = $state<'rename' | 'line'>('rename');
   let python = $state('');
   let nameFormat = $state(defaultFormat);
   let strategy = $state('content_first');
@@ -17,7 +19,11 @@
   let preview = $state<Preview | null>(null);
   let selected = $state(new Set<string>());
   let outcome = $state<Outcome | null>(null);
-  let busy = $state<'folder' | 'python' | 'preview' | 'apply' | null>(null);
+  let drafts = $state(new Map<string, string>());
+  let lineReview = $state<LinePreview | null>(null);
+  let lineOutcome = $state<{ result: LineResult; undone: boolean } | null>(null);
+  let undoRevision = $state<number | null>(null);
+  let busy = $state<'folder' | 'python' | 'preview' | 'apply' | 'review' | 'save' | 'undo' | null>(null);
   let error = $state('');
   let needsPreview = $state(false);
   let dark = $state(
@@ -25,14 +31,17 @@
   );
   let formatInput: HTMLInputElement;
   let confirmation: HTMLDialogElement;
+  let lineConfirmation: HTMLDialogElement;
 
-  const eligible = $derived(new Set(preview?.eligible ?? []));
+  const eligible = $derived(new Set(mode === 'line' ? preview?.rows.map((row) => row.filename) : preview?.eligible));
+  const search = $derived(query.trim().toLowerCase());
   const visible = $derived((preview?.rows ?? []).filter((row) =>
-    [row.filename, row.proposed_name].some((name) => name?.toLowerCase().includes(query.trim().toLowerCase()))
+    row.filename.toLowerCase().includes(search) || (mode === 'rename' && row.proposed_name?.toLowerCase().includes(search))
   ));
   const eligibleVisible = $derived(visible.filter((row) => eligible.has(row.filename)));
   const checkedVisible = $derived(eligibleVisible.length > 0 && eligibleVisible.every((row) => selected.has(row.filename)));
   const selectedRows = $derived((preview?.rows ?? []).filter((row) => selected.has(row.filename)));
+  const reviewedChanges = $derived(lineReview?.rows.filter((row) => row.current_line !== row.replacement) ?? []);
   const warnings = $derived((preview?.rows ?? []).filter((row) =>
     row.issues.length > 0 || row.status === 'missing_number' || (row.status === 'proposed' && !eligible.has(row.filename))
   ).length);
@@ -45,7 +54,17 @@
   function clearPreview() {
     preview = null;
     selected = new Set();
+    drafts = new Map();
+    lineReview = null;
     query = '';
+  }
+
+  function setMode(next: typeof mode) {
+    if (mode === next || busy) return;
+    mode = next;
+    clearPreview();
+    error = '';
+    needsPreview = false;
   }
 
   function changedRules() {
@@ -75,6 +94,8 @@
         folder = path;
         clearPreview();
         outcome = null;
+        lineOutcome = null;
+        undoRevision = null;
         needsPreview = false;
       }
     } catch (cause) {
@@ -115,12 +136,65 @@
         filename_regexes: filenameRegexes.split('\n').filter((item) => item.trim()),
         content_regexes: contentRegexes.split('\n').filter((item) => item.trim()),
         custom_titles: customTitles.trim() ? customTitles.trim().split('\n') : null,
+        include_first_line: mode === 'line',
       });
-      selected = new Set(preview.eligible);
+      selected = new Set(mode === 'line'
+        ? preview.rows.filter((row) => row.first_line !== undefined && !row.error).map((row) => row.filename)
+        : preview.eligible);
       needsPreview = false;
     } catch (cause) {
       error = String(cause);
     } finally {
+      busy = null;
+    }
+  }
+
+  function draftFor(row: Row) {
+    return drafts.get(row.filename) ?? row.first_line ?? '';
+  }
+
+  function editDraft(file: string, replacement: string) {
+    drafts = new Map(drafts).set(file, replacement);
+  }
+
+  async function reviewLines() {
+    if (!preview || !selectedRows.length || busy) return;
+    error = '';
+    busy = 'review';
+    try {
+      lineReview = await previewFirstLine(preview.revision, selectedRows.map((row) => ({
+        file: row.filename,
+        replacement: draftFor(row),
+      })));
+      await tick();
+      lineConfirmation.showModal();
+    } catch (cause) {
+      error = String(cause);
+    } finally {
+      busy = null;
+    }
+  }
+
+  async function saveLines() {
+    if (!lineReview || !reviewedChanges.length || busy) return;
+    const revision = lineReview.revision;
+    lineConfirmation.close();
+    await writeLines('save', revision);
+  }
+
+  async function writeLines(action: 'save' | 'undo', revision: number) {
+    if (busy) return;
+    busy = action;
+    error = '';
+    try {
+      const result = await (action === 'save' ? applyFirstLine(revision) : undoFirstLine(revision));
+      lineOutcome = { result, undone: action === 'undo' };
+      undoRevision = result.undo_revision;
+    } catch (cause) {
+      error = String(cause);
+    } finally {
+      clearPreview();
+      needsPreview = true;
       busy = null;
     }
   }
@@ -163,10 +237,16 @@
 </header>
 
 <main>
+  <nav class="mode-switch" aria-label="Công cụ xử lý chương">
+    <button type="button" aria-pressed={mode === 'rename'} disabled={busy !== null}
+      onclick={() => setMode('rename')}>Đổi tên chương</button>
+    <button type="button" aria-pressed={mode === 'line'} disabled={busy !== null}
+      onclick={() => setMode('line')}>Sửa dòng đầu</button>
+  </nav>
   <section class="heading">
     <div>
-      <h1>Đổi tên chương</h1>
-      <p>Đối chiếu tên chương và chọn các file cần đổi.</p>
+      <h1>{mode === 'rename' ? 'Đổi tên chương' : 'Sửa dòng đầu'}</h1>
+      <p>{mode === 'rename' ? 'Đối chiếu tên chương và chọn các file cần đổi.' : 'Chọn chương, chỉnh dòng đề xuất rồi đối chiếu trước khi lưu.'}</p>
     </div>
     <button class="button primary" type="button" onclick={pickFolder} disabled={busy !== null}>
       {busy === 'folder' ? 'Đang mở…' : folder ? 'Đổi thư mục' : 'Chọn thư mục'}
@@ -179,10 +259,10 @@
   </div>
 
   <div class="workspace">
-    <aside aria-label="Quy tắc đặt tên">
-      <h2>Quy tắc đặt tên</h2>
+    <aside aria-label={mode === 'rename' ? 'Quy tắc đặt tên' : 'Quy tắc gợi ý'}>
+      <h2>{mode === 'rename' ? 'Quy tắc đặt tên' : 'Quy tắc gợi ý'}</h2>
       <fieldset disabled={busy !== null}>
-        <label for="name-format">Mẫu tên mới</label>
+        <label for="name-format">{mode === 'rename' ? 'Mẫu tên mới' : 'Mẫu gợi ý dòng đầu'}</label>
         <input id="name-format" class="format" bind:this={formatInput} bind:value={nameFormat} oninput={changedRules} />
         <div class="tokens" aria-label="Chèn biến vào mẫu tên">
           <button type="button" onclick={() => insertToken('{num}')}>{'{num}'}</button>
@@ -225,12 +305,12 @@
       </div>
     </aside>
 
-    <section class="proof" aria-label="Bản xem trước" aria-busy={busy === 'preview' || busy === 'apply'}>
+    <section class="proof" aria-label="Bản xem trước" aria-busy={busy !== null}>
       <div class="proof-head">
         <div>
           <h2>Bản xem trước</h2>
           {#if preview}
-            <p class="summary">{preview.rows.length} file · {preview.eligible.length} có thể đổi{warnings ? ` · ${warnings} cần xem lại` : ''}</p>
+            <p class="summary">{preview.rows.length} file{mode === 'rename' ? ` · ${preview.eligible.length} có thể đổi${warnings ? ` · ${warnings} cần xem lại` : ''}` : ''}</p>
           {/if}
         </div>
         {#if preview?.rows.length}
@@ -239,11 +319,31 @@
       </div>
 
       {#if error}<p role="alert" class="notice error">{error}</p>{/if}
-      {#if outcome}
+      {#if mode === 'rename' && outcome}
         <div role="status" class="notice" class:error={outcome.failure !== null}>
           Đã đổi tên {outcome.renamed.length} file.
           {#if outcome.failure}
             Dừng tại <strong>{outcome.failure.operation.source}</strong>. {outcome.failure.error}
+          {/if}
+        </div>
+      {/if}
+      {#if mode === 'line' && lineOutcome}
+        {@const { result, undone } = lineOutcome}
+        <div role="status" class="notice" class:error={result.failure !== null}>
+          {undone ? 'Đã hoàn tác' : 'Đã lưu dòng đầu của'} {result.changed.length} file.
+          {#if result.failure}
+            Dừng tại <strong>{result.failure.file}</strong>. {result.failure.error}
+            {#if result.failure.recovery_dir}<p>Thư mục phục hồi · {result.failure.recovery_dir}</p>{/if}
+          {/if}
+          {#if result.changed.length}
+            <details class="backups">
+              <summary>Bản sao trước khi {undone ? 'hoàn tác' : 'lưu'}</summary>
+              <ul>
+                {#each result.changed as change (change.file)}
+                  <li>{change.file} · {change.backup}</li>
+                {/each}
+              </ul>
+            </details>
           {/if}
         </div>
       {/if}
@@ -258,9 +358,9 @@
                     disabled={!eligibleVisible.length || busy !== null}
                     onchange={(event) => check(eligibleVisible.map((row) => row.filename), event.currentTarget.checked)} />
                 </th>
-                <th scope="col">Tên hiện tại</th>
-                <th class="direction" scope="col" aria-label="Đổi thành">→</th>
-                <th scope="col">Tên sau khi đổi</th>
+                <th scope="col">{mode === 'rename' ? 'Tên hiện tại' : 'File'}</th>
+                {#if mode === 'rename'}<th class="direction" scope="col" aria-label="Đổi thành">→</th>{/if}
+                <th scope="col">{mode === 'rename' ? 'Tên sau khi đổi' : 'Dòng đầu thay thế'}</th>
               </tr>
             </thead>
             <tbody>
@@ -275,10 +375,16 @@
                   <td><span class="filename">{row.filename}</span>
                     {#if row.error}<small class="row-error" title={row.error}>Không đọc được nội dung</small>{/if}
                   </td>
-                  <td class="direction" aria-hidden="true">→</td>
-                  <td><span class="filename next-name">{row.proposed_name ?? '—'}</span>
-                    <small class:row-error={row.issues.length > 0}>{rowStatus(row, available)}</small>
-                  </td>
+                  {#if mode === 'rename'}
+                    <td class="direction" aria-hidden="true">→</td>
+                    <td><span class="filename next-name">{row.proposed_name ?? '—'}</span>
+                      <small class:row-error={row.issues.length > 0}>{rowStatus(row, available)}</small>
+                    </td>
+                  {:else}
+                    <td><input type="text" aria-label={`Dòng đầu thay thế cho ${row.filename}`} value={draftFor(row)}
+                      placeholder={row.first_line === undefined ? 'Nhập dòng thay thế' : undefined} disabled={busy !== null}
+                      oninput={(event) => editDraft(row.filename, event.currentTarget.value)} /></td>
+                  {/if}
                 </tr>
               {/each}
             </tbody>
@@ -290,6 +396,8 @@
               <h3>Đang đọc các chương</h3>
             {:else if busy === 'apply'}
               <h3>Đang đổi tên file</h3>
+            {:else if busy === 'save' || busy === 'undo'}
+              <h3>{busy === 'save' ? 'Đang lưu dòng đầu' : 'Đang hoàn tác'}</h3>
             {:else if !folder}
               <h3>Chọn thư mục chứa chương</h3>
               <p>Các file .txt sẽ xuất hiện tại đây sau khi xem trước.</p>
@@ -299,16 +407,27 @@
               <h3>Không tìm thấy tên phù hợp</h3>
             {:else}
               <h3>{needsPreview ? 'Xem trước lại để tiếp tục' : 'Sẵn sàng xem trước'}</h3>
-              <p>Chỉnh mẫu tên bên trái rồi bấm Xem trước.</p>
+              <p>Chỉnh {mode === 'rename' ? 'mẫu tên' : 'mẫu gợi ý'} bên trái rồi bấm Xem trước.</p>
             {/if}
           </div>
         {/if}
       </div>
 
       <footer class="proof-footer">
-        <span aria-live="polite">{selected.size ? `${selected.size} file đã chọn` : 'Chưa chọn file để đổi'}</span>
-        <button class="button primary" type="button" disabled={busy !== null || !selected.size}
-          onclick={() => confirmation.showModal()}>Đổi tên{selected.size ? ` ${selected.size} file` : ''}</button>
+        <span aria-live="polite">{selected.size ? `${selected.size} file đã chọn` : 'Chưa chọn file'}</span>
+        {#if mode === 'rename'}
+          <button class="button primary" type="button" disabled={busy !== null || !selected.size}
+            onclick={() => confirmation.showModal()}>Đổi tên{selected.size ? ` ${selected.size} file` : ''}</button>
+        {:else}
+          <div class="proof-actions">
+            {#if undoRevision !== null}
+              <button class="button" type="button" disabled={busy !== null}
+                onclick={() => undoRevision !== null && writeLines('undo', undoRevision)}>Hoàn tác lần sửa</button>
+            {/if}
+            <button class="button primary" type="button" disabled={busy !== null || !selected.size}
+              onclick={reviewLines}>{busy === 'review' ? 'Đang đối chiếu…' : 'Đối chiếu dòng đầu'}</button>
+          </div>
+        {/if}
       </footer>
     </section>
   </div>
@@ -326,5 +445,34 @@
   <div class="dialog-actions">
     <button type="button" class="button" onclick={() => confirmation.close()}>Hủy</button>
     <button type="button" class="button primary" onclick={confirmApply}>Xác nhận đổi tên</button>
+  </div>
+</dialog>
+
+<dialog class="line-confirmation" bind:this={lineConfirmation} aria-labelledby="line-confirm-title">
+  <h2 id="line-confirm-title">Đối chiếu dòng đầu</h2>
+  {#if reviewedChanges.length}
+    <p>{reviewedChanges.length} file sẽ đổi dòng đầu. Bản gốc được lưu cạnh từng file.</p>
+    <ul>
+      {#each reviewedChanges as row (row.file)}
+        <li>
+          <strong>{row.file}</strong>
+          <dl class="line-comparison">
+            <div><dt>Hiện tại</dt><dd>{row.current_line || '(dòng trống)'}</dd></div>
+            <div><dt>Thay bằng</dt><dd>{row.replacement || '(dòng trống)'}</dd></div>
+          </dl>
+        </li>
+      {/each}
+    </ul>
+    {#if lineReview && lineReview.rows.length > reviewedChanges.length}
+      <p>{lineReview.rows.length - reviewedChanges.length} file có dòng đầu đã khớp.</p>
+    {/if}
+  {:else}
+    <p>Dòng đầu của các file đã chọn đều khớp.</p>
+  {/if}
+  <div class="dialog-actions">
+    <button type="button" class="button" onclick={() => lineConfirmation.close()}>{reviewedChanges.length ? 'Hủy' : 'Đóng'}</button>
+    {#if reviewedChanges.length}
+      <button type="button" class="button primary" onclick={saveLines}>Lưu dòng đầu</button>
+    {/if}
   </div>
 </dialog>

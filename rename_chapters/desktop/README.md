@@ -26,7 +26,7 @@ cargo build --locked --manifest-path src-tauri/Cargo.toml --features custom-prot
 
 Bản development nằm trong `src-tauri/target/debug/novel-studio-desktop.exe`. Frontend được nhúng vào exe. Cần WebView2 và Python trên máy chạy. Lệnh đổi tên kiểm tra lại các file đã duyệt và dùng primitive chống ghi đè của Rust core. Nếu filesystem báo lỗi giữa batch, màn hình hiện số file đã đổi và file dừng.
 
-Phạm vi desktop hiện tại là đổi tên TXT trong thư mục được chọn. Các thao tác chia chương và sửa dòng đầu vẫn chạy qua CLI.
+Desktop có hai thao tác độc lập cho TXT trong thư mục được chọn. `Đổi tên chương` đổi tên file đã duyệt. `Sửa dòng đầu` gợi ý từ mẫu tên, cho nhập dòng riêng và hiển thị dòng cũ/mới trước khi lưu. Lần lưu gần nhất có thể hoàn tác trong phiên. Các bản sao trước khi ghi nằm cạnh file và đường dẫn xuất hiện trong kết quả. Chia chương vẫn chạy qua CLI.
 
 
 ## Build setup Windows từ WSL

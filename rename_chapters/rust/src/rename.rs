@@ -119,6 +119,10 @@ pub struct Row {
 }
 
 impl Row {
+    pub fn filename(&self) -> &str {
+        &self.analysis.filename
+    }
+
     pub fn rename_pair(&self) -> Option<(&str, &str)> {
         if self.status != Status::Proposed || !self.issues.is_empty() {
             return None;

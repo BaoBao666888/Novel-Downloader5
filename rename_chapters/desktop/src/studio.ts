@@ -8,6 +8,7 @@ export type Row = {
   from_content: Match;
   error: string | null;
   proposed_name: string | null;
+  first_line?: string;
   status: 'proposed' | 'unchanged' | 'missing_number' | 'excluded';
   issues: Array<'invalid_target' | 'duplicate_target' | 'target_exists' | 'target_check_failed'>;
 };
@@ -21,6 +22,7 @@ export type Options = {
   filename_regexes: string[];
   content_regexes: string[];
   custom_titles: string[] | null;
+  include_first_line: boolean;
 };
 
 type Operation = { source: string; target: string };
@@ -29,11 +31,23 @@ export type Outcome = {
   failure: { operation: Operation; error: string } | null;
 };
 
+type LineEdit = { file: string; replacement: string };
+export type LinePreview = { revision: number; rows: (LineEdit & { current_line: string })[] };
+export type LineResult = {
+  changed: { file: string; backup: string }[];
+  failure: { file: string; error: string; recovery_dir: string | null } | null;
+  undo_revision: number | null;
+};
+
 export const chooseFolder = () => invoke<string | null>('choose_folder');
 export const choosePython = () => invoke<string | null>('choose_python');
 export const previewRename = (options: Options) => invoke<Preview>('preview_rename', { options });
 export const applyRename = (revision: number, selection: string[]) =>
   invoke<Outcome>('apply_rename', { revision, selection });
+export const previewFirstLine = (scanRevision: number, edits: LineEdit[]) =>
+  invoke<LinePreview>('preview_first_line', { scanRevision, edits });
+export const applyFirstLine = (revision: number) => invoke<LineResult>('apply_first_line', { revision });
+export const undoFirstLine = (revision: number) => invoke<LineResult>('undo_first_line', { revision });
 
 const issueLabels: Record<Row['issues'][number], string> = {
   invalid_target: 'Tên đích không hợp lệ',

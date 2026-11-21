@@ -10,23 +10,23 @@ use crate::names::{destination_key, valid_chapter};
 
 #[derive(Deserialize)]
 pub struct PreviewRequest {
-    folder: PathBuf,
-    edits: Vec<Edit>,
+    pub folder: PathBuf,
+    pub edits: Vec<Edit>,
 }
 
-#[derive(Deserialize, Serialize)]
-struct Edit {
-    file: String,
-    replacement: String,
+#[derive(Clone, Deserialize, Serialize)]
+pub struct Edit {
+    pub file: String,
+    pub replacement: String,
 }
 
-#[derive(Deserialize, Serialize)]
+#[derive(Clone, Deserialize, Serialize)]
 pub struct Plan {
     folder: PathBuf,
     edits: Vec<PlannedEdit>,
 }
 
-#[derive(Deserialize, Serialize)]
+#[derive(Clone, Deserialize, Serialize)]
 struct PlannedEdit {
     #[serde(flatten)]
     edit: Edit,
@@ -35,16 +35,41 @@ struct PlannedEdit {
 }
 
 #[derive(Serialize)]
-pub struct Outcome {
-    changed: Vec<Change>,
-    unchanged: Vec<String>,
-    pub failure: Option<Failure>,
-    undo: Plan,
+pub struct Review {
+    pub file: String,
+    pub current_line: String,
+    pub replacement: String,
+}
+
+impl Plan {
+    pub fn review(&self) -> impl Iterator<Item = Review> + '_ {
+        self.edits.iter().map(|entry| Review {
+            file: entry.edit.file.clone(),
+            current_line: entry.current_line.clone(),
+            replacement: entry.edit.replacement.clone(),
+        })
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.edits.is_empty()
+    }
+
+    pub fn retain(&mut self, mut keep: impl FnMut(&str) -> bool) {
+        self.edits.retain(|entry| keep(&entry.edit.file));
+    }
 }
 
 #[derive(Serialize)]
-struct Change {
-    file: String,
+pub struct Outcome {
+    pub changed: Vec<Change>,
+    unchanged: Vec<String>,
+    pub failure: Option<Failure>,
+    pub undo: Plan,
+}
+
+#[derive(Serialize)]
+pub struct Change {
+    pub file: String,
     backup: PathBuf,
 }
 
@@ -179,10 +204,14 @@ pub fn preview(request: PreviewRequest) -> io::Result<Plan> {
         .edits
         .into_iter()
         .map(|edit| {
-            let snapshot = Snapshot::read(&folder.join(&edit.file))?;
-            snapshot.check_replacement(&edit.replacement)?;
+            let with_filename =
+                |err: io::Error| io::Error::new(err.kind(), format!("{:?}: {err}", edit.file));
+            let snapshot = Snapshot::read(&folder.join(&edit.file)).map_err(with_filename)?;
+            snapshot
+                .check_replacement(&edit.replacement)
+                .map_err(with_filename)?;
             Ok(PlannedEdit {
-                current_line: snapshot.current_line()?.to_owned(),
+                current_line: snapshot.current_line().map_err(with_filename)?.to_owned(),
                 expected_sha256: fingerprint(&snapshot.bytes),
                 edit,
             })

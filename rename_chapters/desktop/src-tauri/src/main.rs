@@ -2,11 +2,11 @@
 
 use std::sync::{Mutex, MutexGuard};
 
-use novel_studio_core::{rename, rename_apply};
+use novel_studio_core::{first_line, rename, rename_apply};
 use tauri::{Manager, WebviewWindow};
 use tauri_plugin_dialog::DialogExt;
 
-use workspace::{Preview, Workspace};
+use workspace::{LinePreview, LineResult, Preview, Workspace};
 
 mod workspace;
 
@@ -85,6 +85,40 @@ async fn apply_rename(
     .map_err(|err| err.to_string())?
 }
 
+#[tauri::command]
+async fn preview_first_line(
+    app: tauri::AppHandle,
+    scan_revision: u32,
+    edits: Vec<first_line::Edit>,
+) -> Result<LinePreview, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        let workspace = app.state::<Mutex<Workspace>>();
+        state(&workspace)?.preview_lines(scan_revision, edits)
+    })
+    .await
+    .map_err(|err| err.to_string())?
+}
+
+#[tauri::command]
+async fn apply_first_line(app: tauri::AppHandle, revision: u32) -> Result<LineResult, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        let workspace = app.state::<Mutex<Workspace>>();
+        state(&workspace)?.apply_lines(revision)
+    })
+    .await
+    .map_err(|err| err.to_string())?
+}
+
+#[tauri::command]
+async fn undo_first_line(app: tauri::AppHandle, revision: u32) -> Result<LineResult, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        let workspace = app.state::<Mutex<Workspace>>();
+        state(&workspace)?.undo_lines(revision)
+    })
+    .await
+    .map_err(|err| err.to_string())?
+}
+
 fn main() {
     tauri::Builder::default()
         .setup(|app| {
@@ -104,7 +138,10 @@ fn main() {
             choose_folder,
             choose_python,
             preview_rename,
-            apply_rename
+            apply_rename,
+            preview_first_line,
+            apply_first_line,
+            undo_first_line
         ])
         .run(tauri::generate_context!())
         .expect("failed to start Novel Studio");
