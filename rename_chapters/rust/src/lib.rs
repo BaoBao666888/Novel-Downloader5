@@ -1,3 +1,4 @@
+pub mod archive;
 pub mod first_line;
 mod names;
 mod python;
