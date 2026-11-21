@@ -5,5 +5,6 @@ pub mod rename;
 pub mod rename_apply;
 pub mod split;
 mod split_session;
+pub mod text_tools;
 
 pub type CoreError = Box<dyn std::error::Error + Send + Sync>;
