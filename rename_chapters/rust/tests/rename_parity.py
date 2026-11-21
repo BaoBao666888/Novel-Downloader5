@@ -327,6 +327,24 @@ class RenameParity(unittest.TestCase):
                     self.assertNotEqual(result.returncode, 0)
                     self.assertEqual(result.stdout, b"")
 
+    def test_first_line_read_only_file_blocks_batch(self):
+        with TemporaryDirectory() as temp:
+            folder = Path(temp)
+            a, b = folder / "a.txt", folder / "b.txt"
+            a.write_bytes(b"A\n")
+            b.write_bytes(b"B\n")
+            original_mode = b.stat().st_mode
+            b.chmod(0o444)
+            try:
+                plan = self.first_line_plan(folder, {a.name: "New A", b.name: "New B"})
+                before = self.snapshot(folder)
+                result = self.first_line("first-line-apply", plan)
+                self.assertNotEqual(result.returncode, 0)
+                self.assertEqual(result.stdout, b"")
+                self.assertEqual(self.snapshot(folder), before)
+            finally:
+                b.chmod(original_mode)
+
     @unittest.skipUnless(os.name == "nt", "Windows file sharing")
     def test_first_line_replace_failure_preserves_locked_source(self):
         import ctypes

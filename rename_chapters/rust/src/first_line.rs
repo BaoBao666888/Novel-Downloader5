@@ -58,7 +58,6 @@ pub struct Failure {
 struct Snapshot {
     bytes: Vec<u8>,
     header: std::ops::Range<usize>,
-    #[cfg(unix)]
     permissions: fs::Permissions,
 }
 
@@ -81,7 +80,6 @@ impl Snapshot {
         Ok(Self {
             bytes,
             header: start..end,
-            #[cfg(unix)]
             permissions: metadata.permissions(),
         })
     }
@@ -199,6 +197,12 @@ fn checked_snapshot(folder: &Path, entry: &PlannedEdit) -> io::Result<Snapshot> 
     snapshot.check_replacement(&entry.edit.replacement)?;
     if snapshot.current_line()? != entry.current_line {
         return Err(invalid("Dòng đầu không khớp với preview"));
+    }
+    if snapshot.permissions.readonly() && entry.current_line != entry.edit.replacement {
+        return Err(io::Error::new(
+            io::ErrorKind::PermissionDenied,
+            "File đang ở chế độ chỉ đọc",
+        ));
     }
     Ok(snapshot)
 }
