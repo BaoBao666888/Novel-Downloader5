@@ -3,6 +3,7 @@ use std::ffi::OsString;
 use std::io::{self, Read, Write};
 use std::process::ExitCode;
 
+use novel_studio_core::first_line;
 use novel_studio_core::split::{self, PreviewChunk, SplitError};
 use serde::{Deserialize, Serialize};
 
@@ -90,6 +91,22 @@ fn run(args: &[OsString]) -> Result<ExitCode, python::Error> {
         }
         [command, ..] if command == "rename-apply" => {
             Err("Cách dùng: novel-studio-core rename-apply --confirm".into())
+        }
+        [command] if command == "first-line-preview" => {
+            write_json(&first_line::preview(read_json()?)?)?;
+            Ok(ExitCode::SUCCESS)
+        }
+        [command, confirm] if command == "first-line-apply" && confirm == "--confirm" => {
+            let output = first_line::apply(read_json()?)?;
+            write_json(&output)?;
+            Ok(if output.failure.is_some() {
+                ExitCode::FAILURE
+            } else {
+                ExitCode::SUCCESS
+            })
+        }
+        [command, ..] if command == "first-line-apply" => {
+            Err("Cách dùng: novel-studio-core first-line-apply --confirm".into())
         }
         _ => run_split(args),
     }

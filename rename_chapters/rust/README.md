@@ -55,6 +55,30 @@ cargo run --locked -- rename-apply --confirm < plan.json
 
 Lệnh kiểm tra toàn bộ kế hoạch trước khi đổi tên. Mỗi cặp dùng tên file thuộc cùng thư mục. Nguồn phải là file TXT thường. Tên nguồn lặp, tên đích trùng hoặc đích đã tồn tại sẽ dừng cả kế hoạch ở bước kiểm tra. Nếu có lỗi filesystem trong lúc chạy, output JSON ghi các cặp đã đổi trong `renamed` và cặp đầu tiên gặp lỗi trong `failure`. Lệnh giữ nguyên nội dung file. Đổi hoa/thường khi tên đích trỏ tới cùng file, hoán đổi tên, và sửa dòng đầu hiện thuộc luồng riêng.
 
+## Sửa dòng đầu và hoàn tác
+
+Có thể thêm `"include_first_line": true` vào yêu cầu `rename-preview` để lấy gợi ý dòng đầu độc lập với tên file đã lọc ký tự. File thiếu số chương cần một dòng thay thế do bạn chọn.
+
+Lưu yêu cầu sửa vào `edits.json`:
+
+```json
+{
+  "folder": "sample-chapters",
+  "edits": [{"file": "1 Lời mở đầu.txt", "replacement": "Chương 1: Lời mở đầu"}]
+}
+```
+
+```sh
+cargo run --locked -- first-line-preview < edits.json > edits-preview.json
+cargo run --locked -- first-line-apply --confirm < edits-preview.json > edits-result.json
+```
+
+Trên PowerShell, dùng `cmd.exe /d /c` với lệnh và các chuyển hướng nằm trong cùng một cặp dấu nháy để giữ UTF-8. Preview trả dòng hiện tại, dòng đề xuất và SHA-256 của từng file. Xem kết quả preview trước khi chạy lệnh thứ hai. Khi có file đổi bytes sau preview, cả batch dừng ở bước kiểm tra.
+
+Chỉ dòng đầu được thay. BOM, kiểu xuống dòng và toàn bộ phần sau được giữ nguyên theo byte. Các dòng giống sẵn được ghi vào `unchanged`. Kết quả trả đường dẫn tới nội dung gốc trong `changed[].backup` và đối tượng `undo`. Lưu đối tượng `undo` thành JSON rồi đưa lại vào `first-line-apply --confirm` để khôi phục dòng cũ. Undo cũng kiểm tra SHA-256 trước khi ghi.
+
+Khi lỗi xuất hiện sau khi batch bắt đầu, xem các mục đã lưu và trường `failure`. Nếu báo `recovery_dir`, thư mục đó giữ bản phục hồi cần kiểm tra. Bản lưu do công cụ tạo trong `.novel-studio-backup-*` ngay cạnh file. Giữ các bản này cho tới khi xác nhận kết quả. Trên Linux/macOS, file mới giữ mode nhưng các metadata Unix khác nằm ở bản gốc trong thư mục backup.
+
 ## Kiểm thử
 
 Từ thư mục này, chạy `cargo test --locked` và `cargo build --locked`. Python cần có Tkinter để import module TextOps cũ. Các bộ test chạy trên file tạm và không mở cửa sổ Tk.

@@ -3,6 +3,8 @@ use std::collections::{HashMap, HashSet};
 use std::fs;
 use std::path::Path;
 
+use novel_studio_core::first_line::valid_replacement;
+use novel_studio_core::names::{destination_key, valid_target};
 use serde::{Deserialize, Serialize};
 
 use crate::python::{self, Error};
@@ -27,6 +29,8 @@ pub struct Request {
     #[serde(default = "default_format")]
     name_format: String,
     custom_titles: Option<Vec<String>>,
+    #[serde(default)]
+    include_first_line: bool,
     #[serde(default)]
     excluded: HashSet<String>,
 }
@@ -61,6 +65,7 @@ struct Format<'a> {
     strategy: &'a str,
     name_format: &'a str,
     custom_titles: Option<&'a [String]>,
+    include_first_line: bool,
 }
 
 #[derive(Deserialize, Serialize)]
@@ -89,11 +94,19 @@ impl Analysis {
     }
 }
 
+#[derive(Deserialize)]
+struct FormattedName {
+    proposed_name: Option<String>,
+    first_line: Option<String>,
+}
+
 #[derive(Serialize)]
 pub struct Row {
     #[serde(flatten)]
     analysis: Analysis,
     proposed_name: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    first_line: Option<String>,
     status: Status,
     issues: Vec<Issue>,
 }
@@ -134,13 +147,14 @@ pub fn preview(request: Request) -> Result<Vec<Row>, Error> {
         )
     });
 
-    let proposed: Vec<Option<String>> = python::json(
+    let proposed: Vec<FormattedName> = python::json(
         LEGACY,
         Format {
             rows: &analyses,
             strategy: &request.strategy,
             name_format: &request.name_format,
             custom_titles: request.custom_titles.as_deref(),
+            include_first_line: request.include_first_line,
         },
     )?;
     if proposed.len() != analyses.len() {
@@ -150,20 +164,29 @@ pub fn preview(request: Request) -> Result<Vec<Row>, Error> {
     let mut rows: Vec<_> = analyses
         .into_iter()
         .zip(proposed)
-        .map(|(analysis, proposed_name)| {
-            let status = match proposed_name.as_deref() {
-                _ if request.excluded.contains(&analysis.filename) => Status::Excluded,
-                None => Status::MissingNumber,
-                Some(name) if name == analysis.filename => Status::Unchanged,
-                Some(_) => Status::Proposed,
-            };
-            Row {
+        .map(
+            |(
                 analysis,
-                proposed_name,
-                status,
-                issues: Vec::new(),
-            }
-        })
+                FormattedName {
+                    proposed_name,
+                    first_line,
+                },
+            )| {
+                let status = match proposed_name.as_deref() {
+                    _ if request.excluded.contains(&analysis.filename) => Status::Excluded,
+                    None => Status::MissingNumber,
+                    Some(name) if name == analysis.filename => Status::Unchanged,
+                    Some(_) => Status::Proposed,
+                };
+                Row {
+                    analysis,
+                    proposed_name,
+                    first_line: first_line.filter(|line| valid_replacement(line)),
+                    status,
+                    issues: Vec::new(),
+                }
+            },
+        )
         .collect();
     inspect_destinations(Path::new(&request.folder), &mut rows);
     Ok(rows)
@@ -184,43 +207,6 @@ fn compare_numbers(left: Option<&str>, right: Option<&str>) -> Ordering {
         }
         _ => right.is_some().cmp(&left.is_some()),
     }
-}
-
-pub fn destination_key(name: &str) -> String {
-    if cfg!(windows) {
-        name.to_lowercase()
-    } else {
-        name.to_owned()
-    }
-}
-
-pub fn valid_target(name: &str) -> bool {
-    if matches!(name, "" | "." | "..") || name.contains(['\0', '/', '\\']) {
-        return false;
-    }
-    if cfg!(windows) {
-        let stem = name
-            .split('.')
-            .next()
-            .unwrap_or_default()
-            .trim_end_matches(' ');
-        let reserved = stem.to_ascii_uppercase();
-        let serial_device = reserved
-            .strip_prefix("COM")
-            .or_else(|| reserved.strip_prefix("LPT"));
-        return !name.contains([':', '"', '*', '?', '<', '>', '|'])
-            && !name.ends_with(['.', ' '])
-            && !name.chars().any(|ch| ch < ' ')
-            && !matches!(
-                reserved.as_str(),
-                "CON" | "PRN" | "AUX" | "NUL" | "CONIN$" | "CONOUT$"
-            )
-            && !matches!(
-                serial_device,
-                Some("1" | "2" | "3" | "4" | "5" | "6" | "7" | "8" | "9" | "¹" | "²" | "³")
-            );
-    }
-    true
 }
 
 fn inspect_destinations(folder: &Path, rows: &mut [Row]) {

@@ -30,10 +30,15 @@ def format_rename(request):
             match = row[field]
             if match["num"] is not None:
                 match["num"] = int(match["num"])
-        names.append(generate_new_name(
-            row, request["strategy"], request["name_format"],
-            custom_titles=request["custom_titles"], file_index=index,
-        ))
+        args = (row, request["strategy"], request["name_format"])
+        options = {"custom_titles": request["custom_titles"], "file_index": index}
+        proposed_name = generate_new_name(*args, **options)
+        first_line = None
+        if request["include_first_line"] and proposed_name is not None:
+            raw_name = generate_new_name(*args, **options, sanitize_output=False)
+            if raw_name:
+                first_line = os.path.splitext(raw_name)[0]
+        names.append({"proposed_name": proposed_name, "first_line": first_line})
     return names
 
 

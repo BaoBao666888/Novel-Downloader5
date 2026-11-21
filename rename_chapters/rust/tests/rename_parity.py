@@ -1,5 +1,6 @@
 """Check the read-only Rust rename plan against the legacy name generator."""
 
+import hashlib
 import json
 import os
 from pathlib import Path
@@ -231,6 +232,157 @@ class RenameParity(unittest.TestCase):
                     self.assertEqual(result.stdout, b"")
                     self.assertTrue(result.stderr)
                     self.assertEqual(self.snapshot(folder), before)
+
+
+    def first_line(self, command, payload, *, confirm=True):
+        flags = ["--confirm"] if command == "first-line-apply" and confirm else []
+        return subprocess.run(
+            [self.cli, command, *flags],
+            input=json.dumps(payload).encode("utf-8"),
+            capture_output=True,
+            timeout=10,
+        )
+
+    def first_line_plan(self, folder, replacements):
+        before = self.snapshot(folder)
+        result = self.first_line(
+            "first-line-preview",
+            {"folder": str(folder), "edits": [
+                {"file": name, "replacement": text} for name, text in replacements.items()
+            ]},
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(self.snapshot(folder), before)
+        return json.loads(result.stdout)
+
+    def test_first_line_preserves_bom_newlines_tail_and_backup(self):
+        with TemporaryDirectory() as temp:
+            folder = Path(temp)
+            fixture = {
+                "bom.TXT": (b"\xef\xbb\xbfOld\r\nbody\n\xff", b"\xef\xbb\xbfM\xe1\xbb\x9bi\r\nbody\n\xff"),
+                "lone-cr.txt": (b"Old\rbody\r\nnext", b"M\xe1\xbb\x9bi\rbody\r\nnext"),
+                "lf.txt": (b"Old\n", b"M\xe1\xbb\x9bi\n"),
+                "no-eol.txt": (b"Old", b"M\xe1\xbb\x9bi"),
+                "empty.txt": (b"", b"M\xe1\xbb\x9bi"),
+            }
+            for name, (old, _) in fixture.items():
+                (folder / name).write_bytes(old)
+            unchanged = folder / "unchanged.txt"
+            unchanged.write_bytes("Mới".encode("utf-8"))
+            plan = self.first_line_plan(folder, {name: "Mới" for name in (*fixture, unchanged.name)})
+            for row in plan["edits"]:
+                source = (folder / row["file"]).read_bytes()
+                self.assertEqual(row["expected_sha256"], hashlib.sha256(source).hexdigest())
+            self.assertEqual(plan["edits"][0]["current_line"], "Old")
+            result = self.first_line("first-line-apply", plan, confirm=False)
+            self.assertNotEqual(result.returncode, 0)
+            self.assertTrue(all((folder / n).read_bytes() == old for n, (old, _) in fixture.items()))
+
+            result = self.first_line("first-line-apply", plan)
+            self.assertEqual(result.returncode, 0, result.stderr)
+            outcome = json.loads(result.stdout)
+            self.assertIsNone(outcome["failure"])
+            self.assertEqual(outcome["unchanged"], [unchanged.name])
+            self.assertEqual(len(outcome["changed"]), len(fixture))
+            for row in outcome["changed"]:
+                old, new = fixture[row["file"]]
+                self.assertEqual((folder / row["file"]).read_bytes(), new)
+                self.assertEqual(Path(row["backup"]).read_bytes(), old)
+            self.assertEqual(len(list(folder.glob(".novel-studio-backup-*"))), len(fixture))
+            # A later edit prevents undo from touching any file in this batch.
+            no_eol = folder / "no-eol.txt"
+            no_eol.write_bytes(b"external edit")
+            before = self.snapshot(folder)
+            refused = self.first_line("first-line-apply", outcome["undo"])
+            self.assertNotEqual(refused.returncode, 0)
+            self.assertEqual(self.snapshot(folder), before)
+            no_eol.write_bytes(fixture[no_eol.name][1])
+
+            undone = self.first_line("first-line-apply", outcome["undo"])
+            self.assertEqual(undone.returncode, 0, undone.stderr)
+            for name, (old, _) in fixture.items():
+                self.assertEqual((folder / name).read_bytes(), old)
+
+
+    def test_first_line_stale_batch_and_bad_input(self):
+        with TemporaryDirectory() as temp:
+            folder = Path(temp)
+            a, b = folder / "a.txt", folder / "b.txt"
+            a.write_bytes(b"A\nleft intact")
+            b.write_bytes(b"B\noriginal tail")
+            plan = self.first_line_plan(folder, {a.name: "New A", b.name: "New B"})
+            b.write_bytes(b"B\nchanged tail")
+            before = self.snapshot(folder)
+            result = self.first_line("first-line-apply", plan)
+            self.assertNotEqual(result.returncode, 0)
+            self.assertEqual(result.stdout, b"")
+            self.assertEqual(self.snapshot(folder), before)
+
+            a.write_bytes(b"\xffinvalid first line")
+            for name, text in ((a.name, "New"), (b.name, "New\nextra"), (b.name, "\ufeffNew"), ("../a.txt", "New")):
+                with self.subTest(name=name, text=text):
+                    result = self.first_line("first-line-preview", {
+                        "folder": str(folder), "edits": [{"file": name, "replacement": text}],
+                    })
+                    self.assertNotEqual(result.returncode, 0)
+                    self.assertEqual(result.stdout, b"")
+
+    @unittest.skipUnless(os.name == "nt", "Windows file sharing")
+    def test_first_line_replace_failure_preserves_locked_source(self):
+        import ctypes
+        from ctypes import wintypes
+
+        kernel = ctypes.WinDLL("kernel32", use_last_error=True)
+        create = kernel.CreateFileW
+        create.argtypes = [wintypes.LPCWSTR, wintypes.DWORD, wintypes.DWORD, wintypes.LPVOID,
+                           wintypes.DWORD, wintypes.DWORD, wintypes.HANDLE]
+        create.restype = wintypes.HANDLE
+        close = kernel.CloseHandle
+        close.argtypes = [wintypes.HANDLE]
+        with TemporaryDirectory() as temp:
+            folder = Path(temp)
+            path = folder / "locked.txt"
+            path.write_bytes(b"Old\r\nbody")
+            first = folder / "first.txt"
+            first.write_bytes(b"First\nbody")
+            plan = self.first_line_plan(folder, {first.name: "New first", path.name: "New"})
+            before = self.snapshot(folder)
+            # Open for read and exclude FILE_SHARE_DELETE, allowing preview but blocking replace.
+            handle = create(str(path), 0x80000000, 0x00000001 | 0x00000002, None, 3, 0, None)
+            self.assertNotEqual(handle, ctypes.c_void_p(-1).value)
+            try:
+                result = self.first_line("first-line-apply", plan)
+                self.assertNotEqual(result.returncode, 0)
+                outcome = json.loads(result.stdout)
+                self.assertEqual([edit["file"] for edit in outcome["changed"]], [first.name])
+                self.assertEqual(outcome["failure"]["file"], path.name)
+                self.assertIsNone(outcome["failure"]["recovery_dir"])
+                self.assertEqual(path.read_bytes(), b"Old\r\nbody")
+                self.assertEqual(first.read_bytes(), b"New first\nbody")
+            finally:
+                close(handle)
+            undone = self.first_line("first-line-apply", outcome["undo"])
+            self.assertEqual(undone.returncode, 0, undone.stderr)
+            after = self.snapshot(folder)
+            self.assertEqual(after[path.name], before[path.name])
+            self.assertEqual(after[first.name][0], before[first.name][0])
+
+    def test_rename_can_propose_first_line_for_review(self):
+        with TemporaryDirectory() as temp:
+            folder = Path(temp)
+            source = folder / "1 Old.txt"
+            source.write_bytes(b"1 Old\r\nbody")
+            (folder / "no number.txt").write_bytes(b"untitled")
+            rows = self.preview(
+                folder, name_format="{num}: {title}.txt", include_first_line=True,
+            )
+            self.assertEqual(rows[0]["proposed_name"], "1 Old.txt")
+            self.assertEqual(rows[0]["first_line"], "1: Old")
+            self.assertNotIn("first_line", rows[1])
+            plan = self.first_line_plan(folder, {source.name: rows[0]["first_line"]})
+            result = self.first_line("first-line-apply", plan)
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertEqual(source.read_bytes(), b"1: Old\r\nbody")
 
 
 if __name__ == "__main__":

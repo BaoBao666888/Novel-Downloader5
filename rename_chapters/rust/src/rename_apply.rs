@@ -5,7 +5,7 @@ use std::path::Path;
 
 use serde::{Deserialize, Serialize};
 
-use crate::rename::{destination_key, valid_target};
+use novel_studio_core::names::{destination_key, valid_chapter, valid_target};
 
 #[derive(Deserialize)]
 pub struct Request {
@@ -60,7 +60,7 @@ fn validate(folder: &Path, operations: &[Operation]) -> Result<(), Box<dyn std::
     let mut sources = HashSet::new();
     let mut targets = HashSet::new();
     for Operation { source, target } in operations {
-        if !valid_target(source) || !source.to_ascii_lowercase().ends_with(".txt") {
+        if !valid_chapter(source) {
             return Err(format!("Tên file nguồn TXT không hợp lệ: {source:?}").into());
         }
         if !valid_target(target) {
