@@ -27,3 +27,25 @@ cargo build --locked --manifest-path src-tauri/Cargo.toml --features custom-prot
 Bản development nằm trong `src-tauri/target/debug/novel-studio-desktop.exe`. Frontend được nhúng vào exe. Cần WebView2 và Python trên máy chạy. Lệnh đổi tên kiểm tra lại các file đã duyệt và dùng primitive chống ghi đè của Rust core. Nếu filesystem báo lỗi giữa batch, màn hình hiện số file đã đổi và file dừng.
 
 Phạm vi desktop hiện tại là đổi tên TXT trong thư mục được chọn. Các thao tác chia chương và sửa dòng đầu vẫn chạy qua CLI.
+
+
+## Build setup Windows từ WSL
+
+Giữ checkout Git ở vị trí hiện tại. Từ root của checkout, trong WSL, đồng bộ đầu vào build vào thư mục Linux riêng. Cần `cargo-xwin`, `llvm-rc`, NSIS 3.13 với `makensis` native Linux, Python 3 và Node.js. Bộ NSIS phải có cả headers, plugins và stubs cùng phiên bản. Dùng lại Rust, Windows SDK và npm cache đã có trong WSL.
+
+```sh
+python3 rename_chapters/desktop/sync-wsl-build.py ~/novel-studio-build
+cd ~/novel-studio-build/rename_chapters/desktop
+npm ci --prefer-offline
+npm run package:windows
+```
+
+Lệnh sync chép Rust, desktop và các file cũ mà build/test dùng; Git, các thư mục ignore và dữ liệu cá nhân nằm ở checkout gốc. Lần sau chạy lại bước sync, thư mục build giữ cache và các output đã tạo.
+
+Nếu dùng bộ NSIS riêng, thêm thư mục chứa `makensis` vào `PATH` và đặt `NSISDIR` trỏ tới bộ dữ liệu NSIS ở WSL. [Build NSIS trên Linux](https://nsis.sourceforge.io/Docs/AppendixG.html)
+
+Bản cài x64 nằm tại `src-tauri/target/x86_64-pc-windows-msvc/release/bundle/nsis/`. Lệnh chuẩn bị dùng CPython 3.14.10 embeddable từ Python.org, kiểm SHA-256 trước khi giải nén và giữ nguyên giấy phép kèm theo. Archive cache và runtime dàn dựng nằm trong `src-tauri/runtime/` đã ignore.
+
+NSIS cài theo tài khoản Windows hiện tại. Nếu máy thiếu WebView2, bộ cài tải runtime WebView2 và cần Internet ở bước đó. Sau khi cài, app chạy Python được bố trí sẵn tại `runtime/python/python.exe` trong thư mục cài; không giải nén Python ra vùng tạm mỗi lần mở app. Vẫn có thể chọn Python khác trong phiên bằng hộp thoại. [CPython](https://www.python.org/downloads/release/python-31410/) · [Windows Installer của Tauri](https://v2.tauri.app/distribute/windows-installer/)
+
+Build setup này là bản build local. Ký phân phối, nâng cấp và updater là các bước riêng.

@@ -5,15 +5,15 @@ edition = "2024"
 rust-version = "1.91.1"
 license = "AGPL-3.0-only"
 publish = false
-include = ["/src/", "/capabilities/", "/build.rs", "/tauri.conf.json"]
+include = ["/src/", "/capabilities/", "/build.rs", "/tauri.conf.json", "/tauri.nsis.conf.json"]
 
 [build-dependencies]
-tauri-build = "2"
+tauri-build = { version = "2", features = [] }
 
 [dependencies]
 novel-studio-core = { path = "../../rust" }
 serde = { version = "1", features = ["derive"] }
-tauri = "2"
+tauri = { version = "2", features = [] }
 tauri-plugin-dialog = "2"
 
 [features]

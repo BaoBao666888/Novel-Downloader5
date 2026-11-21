@@ -87,7 +87,18 @@ async fn apply_rename(
 
 fn main() {
     tauri::Builder::default()
-        .manage(Mutex::new(Workspace::default()))
+        .setup(|app| {
+            let bundled = app
+                .path()
+                .resolve(
+                    "runtime/python/python.exe",
+                    tauri::path::BaseDirectory::Resource,
+                )
+                .ok()
+                .filter(|path| cfg!(windows) && path.is_file());
+            app.manage(Mutex::new(Workspace::with_interpreter(bundled)));
+            Ok(())
+        })
         .plugin(tauri_plugin_dialog::init())
         .invoke_handler(tauri::generate_handler![
             choose_folder,

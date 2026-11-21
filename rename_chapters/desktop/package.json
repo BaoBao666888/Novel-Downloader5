@@ -7,7 +7,8 @@
     "dev": "vite",
     "check": "svelte-check --tsconfig ./tsconfig.json",
     "build": "vite build",
-    "tauri": "tauri"
+    "tauri": "tauri",
+    "package:windows": "python3 prepare-python-runtime.py && tauri build --runner cargo-xwin --target x86_64-pc-windows-msvc --bundles nsis --config src-tauri/tauri.nsis.conf.json -- --locked"
   },
   "dependencies": {
     "@tauri-apps/api": "^2.12.5",

@@ -51,6 +51,13 @@ impl FileStamp {
 }
 
 impl Workspace {
+    pub fn with_interpreter(interpreter: Option<PathBuf>) -> Self {
+        Self {
+            interpreter,
+            ..Self::default()
+        }
+    }
+
     pub fn select(&mut self, folder: PathBuf) -> Result<String, String> {
         let canonical = folder.canonicalize().map_err(|err| err.to_string())?;
         if !canonical.is_dir() {
