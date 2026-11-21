@@ -31,7 +31,7 @@
   const REGEX_PRESETS = [
     { label: '第N章', pattern: '^\\s*第[0-9零一二三四五六七八九十百千万两]+章.*$' },
     { label: 'Chương N', pattern: '^\\s*Chương\\s+\\d+.*$' },
-    { label: 'Chapter N', pattern: '^\\s*Chapter\\s+[0-9IVXLCDM]+.*$' },
+    { label: 'Ch. N', pattern: '^\\s*Chapter\\s+[0-9IVXLCDM]+.*$' },
     { label: '---', pattern: '^\\s*-{3,}\\s*$' },
   ];
 
@@ -325,8 +325,8 @@
 
       <label for="split-position">Vị trí cắt</label>
       <select id="split-position" bind:value={position} onchange={markStale}>
-        <option value="before">Trước dòng khớp (giữ tiêu đề ở đầu chương)</option>
-        <option value="after">Sau chuỗi khớp (kiểu phân tách dấu gạch)</option>
+        <option value="before">Trước dòng khớp (giữ tiêu đề)</option>
+        <option value="after">Sau chuỗi khớp</option>
       </select>
 
       <label for="split-preface">Xử lý phần mở đầu</label>

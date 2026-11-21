@@ -4,7 +4,7 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use std::time::SystemTime;
 
-use novel_studio_core::{first_line, rename, rename_apply, split};
+use novel_studio_core::{first_line, rename, rename_apply, split, text_tools};
 use serde::{Deserialize, Serialize};
 
 #[derive(Default)]
@@ -18,6 +18,23 @@ pub struct Workspace {
     split_file: Option<PathBuf>,
     split_output_dir: Option<PathBuf>,
     split_session: Option<(u32, split::SplitSession)>,
+    text_main_file: Option<PathBuf>,
+    text_toc_file: Option<PathBuf>,
+    text_plan: Option<(u32, text_tools::Plan)>,
+    text_undo: Option<(u32, text_tools::Plan)>,
+}
+
+#[derive(Serialize)]
+pub struct TextPreview {
+    pub revision: u32,
+    pub summary: text_tools::PreviewSummary,
+    pub has_changes: bool,
+}
+
+#[derive(Serialize)]
+pub struct TextResult {
+    pub outcome: text_tools::ApplyOutcome,
+    pub undo_revision: Option<u32>,
 }
 
 #[derive(Serialize)]
@@ -141,7 +158,143 @@ impl Workspace {
         self.prepared = None;
         self.line_plan = None;
         self.split_session = None;
+        self.text_plan = None;
         Ok(label)
+    }
+
+    pub fn select_text_file(&mut self, file: PathBuf) -> Result<String, String> {
+        let metadata = fs::symlink_metadata(&file).map_err(|err| err.to_string())?;
+        if !metadata.is_file() {
+            return Err("Hãy chọn một tệp văn bản .txt hợp lệ.".into());
+        }
+        let is_txt = file
+            .extension()
+            .and_then(|ext| ext.to_str())
+            .is_some_and(|ext| ext.eq_ignore_ascii_case("txt"));
+        if !is_txt {
+            return Err("Chỉ hỗ trợ xử lý tệp .txt.".into());
+        }
+        let canonical = file.canonicalize().map_err(|err| err.to_string())?;
+        let label = file.display().to_string();
+        self.text_main_file = Some(canonical);
+        self.text_plan = None;
+        self.text_undo = None;
+        Ok(label)
+    }
+
+    pub fn select_toc_file(&mut self, file: PathBuf) -> Result<String, String> {
+        let metadata = fs::symlink_metadata(&file).map_err(|err| err.to_string())?;
+        if !metadata.is_file() {
+            return Err("Hãy chọn một tệp mục lục .txt hợp lệ.".into());
+        }
+        let is_txt = file
+            .extension()
+            .and_then(|ext| ext.to_str())
+            .is_some_and(|ext| ext.eq_ignore_ascii_case("txt"));
+        if !is_txt {
+            return Err("Chỉ hỗ trợ tệp mục lục .txt.".into());
+        }
+        let canonical = file.canonicalize().map_err(|err| err.to_string())?;
+        let label = file.display().to_string();
+        self.text_toc_file = Some(canonical);
+        self.text_plan = None;
+        Ok(label)
+    }
+
+    pub fn preview_renumber(
+        &mut self,
+        find_regex: String,
+        replace_format: String,
+        start_num: i64,
+    ) -> Result<TextPreview, String> {
+        self.text_plan = None;
+        let file = self
+            .text_main_file
+            .as_ref()
+            .ok_or("Hãy chọn tệp .txt cần xử lý trước.")?;
+        let plan = text_tools::preview_renumber(
+            file,
+            &find_regex,
+            &replace_format,
+            start_num,
+            self.interpreter.as_deref(),
+        )
+        .map_err(|err| err.to_string())?;
+        let summary = plan.summary();
+        let has_changes = plan.has_changes();
+        let revision = self.next_revision();
+        if has_changes {
+            self.text_plan = Some((revision, plan));
+        }
+        Ok(TextPreview {
+            revision,
+            summary,
+            has_changes,
+        })
+    }
+
+    pub fn preview_apply_toc(
+        &mut self,
+        toc_regex: String,
+        main_regex: String,
+        mode: text_tools::TocMode,
+    ) -> Result<TextPreview, String> {
+        self.text_plan = None;
+        let main_file = self
+            .text_main_file
+            .as_ref()
+            .ok_or("Hãy chọn tệp truyện chính (.txt) trước.")?;
+        let toc_file = self
+            .text_toc_file
+            .as_ref()
+            .ok_or("Hãy chọn tệp mục lục (.txt) trước.")?;
+        let plan = text_tools::preview_apply_toc(
+            main_file,
+            toc_file,
+            &toc_regex,
+            &main_regex,
+            mode,
+            self.interpreter.as_deref(),
+        )
+        .map_err(|err| err.to_string())?;
+        let summary = plan.summary();
+        let has_changes = plan.has_changes();
+        let revision = self.next_revision();
+        if has_changes {
+            self.text_plan = Some((revision, plan));
+        }
+        Ok(TextPreview {
+            revision,
+            summary,
+            has_changes,
+        })
+    }
+
+    pub fn apply_text_edit(&mut self, revision: u32) -> Result<TextResult, String> {
+        let (_, plan) = self
+            .text_plan
+            .take_if(|(id, _)| *id == revision)
+            .ok_or("Bản xem trước công cụ văn bản đã hết hiệu lực. Hãy xem trước lại.")?;
+        let (outcome, undo_plan) = text_tools::apply(&plan).map_err(|err| err.to_string())?;
+        let undo_rev = self.next_revision();
+        self.text_undo = Some((undo_rev, undo_plan));
+        Ok(TextResult {
+            outcome,
+            undo_revision: Some(undo_rev),
+        })
+    }
+
+    pub fn undo_text_edit(&mut self, revision: u32) -> Result<TextResult, String> {
+        let (_, plan) = self
+            .text_undo
+            .take_if(|(id, _)| *id == revision)
+            .ok_or("Lần sửa này không còn khả dụng để hoàn tác.")?;
+        self.text_plan = None;
+        let (outcome, _) = text_tools::apply(&plan).map_err(|err| err.to_string())?;
+        Ok(TextResult {
+            outcome,
+            undo_revision: None,
+        })
     }
 
     pub fn select_split_file(&mut self, file: PathBuf) -> Result<SplitSelection, String> {

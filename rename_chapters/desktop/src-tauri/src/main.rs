@@ -2,12 +2,13 @@
 
 use std::sync::{Mutex, MutexGuard};
 
-use novel_studio_core::{first_line, rename, rename_apply, split};
+use novel_studio_core::{first_line, rename, rename_apply, split, text_tools};
 use tauri::{Manager, WebviewWindow};
 use tauri_plugin_dialog::DialogExt;
 
 use workspace::{
-    LinePreview, LineResult, Preview, SplitOptions, SplitPreview, SplitSelection, Workspace,
+    LinePreview, LineResult, Preview, SplitOptions, SplitPreview, SplitSelection, TextPreview,
+    TextResult, Workspace,
 };
 
 mod workspace;
@@ -335,6 +336,98 @@ async fn apply_split(
     .map_err(|err| err.to_string())?
 }
 
+#[tauri::command]
+async fn choose_text_file(window: WebviewWindow) -> Result<Option<String>, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        let Some(file) = window
+            .dialog()
+            .file()
+            .set_parent(&window)
+            .set_title("Chọn tệp truyện chính (.txt)")
+            .add_filter("Text file", &["txt"])
+            .blocking_pick_file()
+        else {
+            return Ok(None);
+        };
+        let file = file.into_path().map_err(|err| err.to_string())?;
+        let workspace = window.state::<Mutex<Workspace>>();
+        state(&workspace)?.select_text_file(file).map(Some)
+    })
+    .await
+    .map_err(|err| err.to_string())?
+}
+
+#[tauri::command]
+async fn choose_toc_file(window: WebviewWindow) -> Result<Option<String>, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        let Some(file) = window
+            .dialog()
+            .file()
+            .set_parent(&window)
+            .set_title("Chọn tệp mục lục (.txt)")
+            .add_filter("Text file", &["txt"])
+            .blocking_pick_file()
+        else {
+            return Ok(None);
+        };
+        let file = file.into_path().map_err(|err| err.to_string())?;
+        let workspace = window.state::<Mutex<Workspace>>();
+        state(&workspace)?.select_toc_file(file).map(Some)
+    })
+    .await
+    .map_err(|err| err.to_string())?
+}
+
+#[tauri::command]
+async fn preview_renumber(
+    app: tauri::AppHandle,
+    find_regex: String,
+    replace_format: String,
+    start_num: i64,
+) -> Result<TextPreview, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        let workspace = app.state::<Mutex<Workspace>>();
+        state(&workspace)?.preview_renumber(find_regex, replace_format, start_num)
+    })
+    .await
+    .map_err(|err| err.to_string())?
+}
+
+#[tauri::command]
+async fn preview_apply_toc(
+    app: tauri::AppHandle,
+    toc_regex: String,
+    main_regex: String,
+    mode: text_tools::TocMode,
+) -> Result<TextPreview, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        let workspace = app.state::<Mutex<Workspace>>();
+        state(&workspace)?.preview_apply_toc(toc_regex, main_regex, mode)
+    })
+    .await
+    .map_err(|err| err.to_string())?
+}
+
+#[tauri::command]
+async fn apply_text_edit(app: tauri::AppHandle, revision: u32) -> Result<TextResult, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        let workspace = app.state::<Mutex<Workspace>>();
+        state(&workspace)?.apply_text_edit(revision)
+    })
+    .await
+    .map_err(|err| err.to_string())?
+}
+
+#[tauri::command]
+async fn undo_text_edit(app: tauri::AppHandle, revision: u32) -> Result<TextResult, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        let workspace = app.state::<Mutex<Workspace>>();
+        state(&workspace)?.undo_text_edit(revision)
+    })
+    .await
+    .map_err(|err| err.to_string())?
+}
+
 fn main() {
     tauri::Builder::default()
         .setup(|app| {
@@ -369,7 +462,13 @@ fn main() {
             undo_split,
             redo_split,
             search_split_text,
-            apply_split
+            apply_split,
+            choose_text_file,
+            choose_toc_file,
+            preview_renumber,
+            preview_apply_toc,
+            apply_text_edit,
+            undo_text_edit
         ])
         .run(tauri::generate_context!())
         .expect("failed to start Novel Studio");

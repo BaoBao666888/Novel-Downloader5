@@ -1,6 +1,7 @@
 <script lang="ts">
   import { tick } from 'svelte';
   import SplitWorkbench from './SplitWorkbench.svelte';
+  import TextToolsWorkbench from './TextToolsWorkbench.svelte';
   import {
     applyFirstLine, applyRename, chooseFolder, choosePython, previewFirstLine, previewRename, rowStatus,
     undoFirstLine, type LinePreview, type LineResult, type Outcome, type Preview, type Row,
@@ -9,7 +10,7 @@
 
   const defaultFormat = '第{num}章 {title}.txt';
   let folder = $state('');
-  let mode = $state<'rename' | 'line' | 'split'>('rename');
+  let mode = $state<'rename' | 'line' | 'split' | 'text'>('rename');
   let python = $state('');
   let nameFormat = $state(defaultFormat);
   let strategy = $state('content_first');
@@ -252,10 +253,14 @@
       onclick={() => setMode('line')}>Sửa dòng đầu</button>
     <button type="button" aria-pressed={mode === 'split'} disabled={busy !== null}
       onclick={() => setMode('split')}>Chia chương</button>
+    <button type="button" aria-pressed={mode === 'text'} disabled={busy !== null}
+      onclick={() => setMode('text')}>Công cụ văn bản</button>
   </nav>
 
   {#if mode === 'split'}
     <SplitWorkbench {python} onPickPython={pickPython} parentBusy={busy !== null} />
+  {:else if mode === 'text'}
+    <TextToolsWorkbench {python} onPickPython={pickPython} parentBusy={busy !== null} />
   {:else}
   <section class="heading">
     <div>

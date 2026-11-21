@@ -93,6 +93,36 @@ export type SplitOutcome = {
   failure: { filename: string; error: string } | null;
 };
 
+export type TocMode = 'append' | 'replace';
+
+export type TextChange = {
+  index: number;
+  line_number: number;
+  before: string;
+  after: string;
+};
+
+export type TextPreview = {
+  revision: number;
+  summary: {
+    file: string;
+    match_count: number;
+    changed_count: number;
+    toc_entries: number | null;
+    changes: TextChange[];
+  };
+  has_changes: boolean;
+};
+
+export type TextResult = {
+  outcome: {
+    file: string;
+    backup: string;
+    changed_count: number;
+  };
+  undo_revision: number | null;
+};
+
 export const chooseFolder = () => invoke<string | null>('choose_folder');
 export const choosePython = () => invoke<string | null>('choose_python');
 export const previewRename = (options: Options) => invoke<Preview>('preview_rename', { options });
@@ -147,6 +177,15 @@ export const applySplit = (
   nameFormat: string,
   overwrite: boolean,
 ) => invoke<SplitOutcome>('apply_split', { revision, prefaceMode, nameFormat, overwrite });
+
+export const chooseTextFile = () => invoke<string | null>('choose_text_file');
+export const chooseTocFile = () => invoke<string | null>('choose_toc_file');
+export const previewRenumber = (findRegex: string, replaceFormat: string, startNum: number) =>
+  invoke<TextPreview>('preview_renumber', { findRegex, replaceFormat, startNum });
+export const previewApplyToc = (tocRegex: string, mainRegex: string, mode: TocMode) =>
+  invoke<TextPreview>('preview_apply_toc', { tocRegex, mainRegex, mode });
+export const applyTextEdit = (revision: number) => invoke<TextResult>('apply_text_edit', { revision });
+export const undoTextEdit = (revision: number) => invoke<TextResult>('undo_text_edit', { revision });
 
 const issueLabels: Record<Row['issues'][number], string> = {
   invalid_target: 'Tên đích không hợp lệ',
