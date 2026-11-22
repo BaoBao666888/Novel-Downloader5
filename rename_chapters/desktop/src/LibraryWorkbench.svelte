@@ -3,6 +3,7 @@
   import {
     clearReaderTranslationCache,
     exportReaderNameSetText,
+    getLibraryStats,
     getReaderBookVpSet,
     getReaderGlobalDicts,
     getReaderNameSets,
@@ -31,6 +32,7 @@
     type LibraryChapterList,
     type LibraryItem,
     type LibraryPage,
+    type LibraryStats,
     type NameRightSuggestion,
     type NameSetState,
     type NameSuggestItem,
@@ -41,6 +43,11 @@
     type TranslationCacheStats,
     type TranslationMode,
   } from './studio';
+  import { translate, type I18nKey } from './i18n';
+  import type { AppLocale } from './ui-prefs';
+
+  let { locale = 'vi' }: { locale?: AppLocale } = $props();
+  const t = (key: I18nKey, params?: Record<string, string | number>) => translate(locale, key, params);
 
   let books = $state<LibraryItem[]>([]);
   let selected = $state<number | null>(null);
@@ -125,6 +132,11 @@
   let selectionNameDialog: HTMLDialogElement;
   let nameManagerDialog: HTMLDialogElement;
   let nameSuggestDialog: HTMLDialogElement;
+  let statsDialog: HTMLDialogElement;
+
+  let libraryStats = $state<LibraryStats | null>(null);
+  let statsBusy = $state(false);
+  let statsError = $state('');
 
   const current = $derived(books.find((book) => book.id === selected));
   const visible = $derived(
@@ -898,6 +910,23 @@
       pending = null;
     }
   }
+
+  async function loadStatsData(refreshStale: boolean) {
+    statsBusy = true;
+    statsError = '';
+    try {
+      libraryStats = await getLibraryStats(refreshStale);
+    } catch (cause) {
+      statsError = String(cause);
+    } finally {
+      statsBusy = false;
+    }
+  }
+
+  async function openStatsModal() {
+    statsDialog.showModal();
+    await loadStatsData(false);
+  }
 </script>
 
 <svelte:window onkeydown={onReaderKeydown} />
@@ -911,6 +940,15 @@
     </p>
   </div>
   <div class="heading-actions">
+    <button
+      id="library-stats-btn"
+      class="button"
+      type="button"
+      disabled={pending !== null}
+      onclick={openStatsModal}
+    >
+      {t('stats.btn')}
+    </button>
     <button class="button" type="button" disabled={pending !== null} onclick={openNameManager}>
       Name riêng ({Object.keys(nameSetState.sets[nameSetState.active_set] ?? {}).length})
     </button>
@@ -1698,6 +1736,67 @@
   <div class="dialog-actions">
     <button type="button" class="button" onclick={() => removeDialog.close()}>Hủy</button>
     <button type="button" class="button primary" onclick={removeBook}>Bỏ khỏi thư viện</button>
+  </div>
+</dialog>
+
+<dialog id="library-stats-dialog" class="modal-box" bind:this={statsDialog} aria-labelledby="library-stats-title">
+  <div class="modal-head">
+    <div>
+      <h2 id="library-stats-title">{t('stats.title')}</h2>
+      <p class="modal-hint">{t('stats.subtitle')}</p>
+    </div>
+    <button
+      id="library-stats-refresh-btn"
+      type="button"
+      class="button primary"
+      disabled={statsBusy}
+      onclick={() => loadStatsData(true)}
+    >
+      {statsBusy ? t('stats.refreshing') : t('stats.refresh')}
+    </button>
+  </div>
+
+  {#if statsError}
+    <p class="notice error" role="alert">{statsError}</p>
+  {/if}
+
+  {#if libraryStats}
+    <div class="stats-grid">
+      <div class="stat-kpi-card">
+        <span class="stat-kpi-label">{t('stats.books')}</span>
+        <strong class="stat-kpi-value">{libraryStats.book_count.toLocaleString()}</strong>
+        <span class="stat-kpi-sub">
+          {t('stats.books_sub', {
+            txt: libraryStats.txt_count,
+            zip: libraryStats.zip_count,
+            measured: libraryStats.measured_books,
+            total: libraryStats.book_count,
+          })}
+        </span>
+      </div>
+      <div class="stat-kpi-card">
+        <span class="stat-kpi-label">{t('stats.chapters')}</span>
+        <strong class="stat-kpi-value">{libraryStats.total_chapters.toLocaleString()}</strong>
+        <span class="stat-kpi-sub">{t('stats.chars')}: {libraryStats.total_chars.toLocaleString()}</span>
+      </div>
+      <div class="stat-kpi-card">
+        <span class="stat-kpi-label">{t('stats.words')}</span>
+        <strong class="stat-kpi-value">{libraryStats.total_words.toLocaleString()}</strong>
+        <span class="stat-kpi-sub">{t('stats.source_size')}: {formatSize(libraryStats.total_source_bytes)}</span>
+      </div>
+      <div class="stat-kpi-card">
+        <span class="stat-kpi-label">{t('stats.compressed_size')}</span>
+        <strong class="stat-kpi-value">{formatSize(libraryStats.total_compressed_bytes)}</strong>
+        <span class="stat-kpi-sub">
+          {t('stats.compression_saved', { pct: libraryStats.compression_ratio_percent })}
+        </span>
+      </div>
+    </div>
+    <p class="field-help">{t('stats.elapsed', { ms: libraryStats.elapsed_ms })}</p>
+  {/if}
+
+  <div class="dialog-actions">
+    <button type="button" class="button" onclick={() => statsDialog.close()}>{t('stats.close')}</button>
   </div>
 </dialog>
 

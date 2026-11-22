@@ -12,9 +12,11 @@ export type AccentPreset = 'ocean' | 'forest' | 'indigo' | 'amber' | 'rose';
 export type SurfaceStyle = 'editorial' | 'glass' | 'crisp';
 export type DensityMode = 'comfortable' | 'compact';
 export type MotionMode = 'full' | 'reduced' | 'none';
+export type AppLocale = 'vi' | 'en';
 
 export type UiPrefs = {
   version: 1;
+  locale: AppLocale;
   theme: ThemeMode;
   accent: AccentPreset;
   surface: SurfaceStyle;
@@ -27,6 +29,7 @@ const LEGACY_THEME_KEY = 'novel-studio-theme';
 
 export const DEFAULT_UI_PREFS: UiPrefs = {
   version: 1,
+  locale: 'vi',
   theme: 'system',
   accent: 'ocean',
   surface: 'editorial',
@@ -41,6 +44,7 @@ export function loadUiPrefs(): UiPrefs {
       const parsed = JSON.parse(raw) as Partial<UiPrefs>;
       return {
         version: 1,
+        locale: isOneOf(parsed.locale, ['vi', 'en']) ? parsed.locale : DEFAULT_UI_PREFS.locale,
         theme: isOneOf(parsed.theme, ['light', 'dark', 'system']) ? parsed.theme : DEFAULT_UI_PREFS.theme,
         accent: isOneOf(parsed.accent, ['ocean', 'forest', 'indigo', 'amber', 'rose']) ? parsed.accent : DEFAULT_UI_PREFS.accent,
         surface: isOneOf(parsed.surface, ['editorial', 'glass', 'crisp']) ? parsed.surface : DEFAULT_UI_PREFS.surface,
@@ -66,6 +70,7 @@ export function resolveTheme(mode: ThemeMode): 'light' | 'dark' {
 export function applyUiPrefs(prefs: UiPrefs): 'light' | 'dark' {
   const resolved = resolveTheme(prefs.theme);
   const root = document.documentElement;
+  root.lang = prefs.locale;
   root.dataset.theme = resolved;
   root.dataset.accent = prefs.accent;
   root.dataset.surface = prefs.surface;

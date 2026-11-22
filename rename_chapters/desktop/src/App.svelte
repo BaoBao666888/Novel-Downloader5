@@ -10,26 +10,31 @@
   import WikiWorkbench from './WikiWorkbench.svelte';
   import {
     applyFirstLine, applyRename, chooseFolder, choosePython, previewFirstLine, previewRename, rowStatus,
-    undoFirstLine, type LinePreview, type LineResult, type Outcome, type Preview, type Row,
+    undoFirstLine, vbookGetRuntimeConfig, vbookPickCustomJavaPath, vbookRunnerStatus, vbookSetCustomJavaPath,
+    type LinePreview, type LineResult, type Outcome, type Preview, type Row, type VBookRunnerStatus,
   } from './studio';
-  import { applyUiPrefs, loadUiPrefs, resolveTheme, type UiPrefs } from './ui-prefs';
+  import {
+    applyUiPrefs, loadUiPrefs, resolveTheme,
+    type AccentPreset, type AppLocale, type DensityMode, type MotionMode, type SurfaceStyle, type ThemeMode, type UiPrefs,
+  } from './ui-prefs';
+  import { SUPPORTED_LOCALES, translate, type I18nKey } from './i18n';
 
   const defaultFormat = '第{num}章 {title}.txt';
   const areas = [
-    { id: 'library', label: 'Thư viện' },
-    { id: 'edit', label: 'Biên tập' },
-    { id: 'files', label: 'Tệp' },
-    { id: 'upload', label: 'Đăng tải' },
+    { id: 'library', labelKey: 'nav.library' as I18nKey },
+    { id: 'edit', labelKey: 'nav.edit' as I18nKey },
+    { id: 'files', labelKey: 'nav.files' as I18nKey },
+    { id: 'upload', labelKey: 'nav.upload' as I18nKey },
   ] as const;
   const editTools = [
-    { id: 'rename', label: 'Đổi tên chương' },
-    { id: 'line', label: 'Sửa dòng đầu' },
-    { id: 'split', label: 'Chia chương' },
-    { id: 'text', label: 'Công cụ văn bản' },
+    { id: 'rename', labelKey: 'subnav.rename' as I18nKey },
+    { id: 'line', labelKey: 'subnav.line' as I18nKey },
+    { id: 'split', labelKey: 'subnav.split' as I18nKey },
+    { id: 'text', labelKey: 'subnav.text' as I18nKey },
   ] as const;
   const fileTools = [
-    { id: 'archive', label: 'Giải nén ZIP' },
-    { id: 'merge', label: 'Ghép tệp TXT' },
+    { id: 'archive', labelKey: 'subnav.archive' as I18nKey },
+    { id: 'merge', labelKey: 'subnav.merge' as I18nKey },
   ] as const;
   type Area = typeof areas[number]['id'];
   type EditTool = typeof editTools[number]['id'];
@@ -69,6 +74,15 @@
   let formatInput = $state<HTMLInputElement | undefined>(undefined);
   let confirmation = $state<HTMLDialogElement | undefined>(undefined);
   let lineConfirmation = $state<HTMLDialogElement | undefined>(undefined);
+  let settingsDialog = $state<HTMLDialogElement | undefined>(undefined);
+  let runtimeStatus = $state<VBookRunnerStatus | null>(null);
+  let customJavaDraft = $state('');
+  let settingsNotice = $state('');
+  let settingsError = $state('');
+  let settingsBusy = $state(false);
+
+  const t = (key: I18nKey, params?: Record<string, string | number>) =>
+    translate(uiPrefs.locale, key, params);
 
   const eligible = $derived(new Set(mode === 'line' ? preview?.rows.map((row) => row.filename) : preview?.eligible));
   const search = $derived(query.trim().toLowerCase());
@@ -89,6 +103,60 @@
 
   function toggleTheme() {
     uiPrefs = { ...uiPrefs, theme: dark ? 'light' : 'dark' };
+  }
+
+  async function openSettingsModal() {
+    settingsNotice = '';
+    settingsError = '';
+    settingsDialog?.showModal();
+    settingsBusy = true;
+    try {
+      const [status, cfg] = await Promise.all([vbookRunnerStatus(), vbookGetRuntimeConfig()]);
+      runtimeStatus = status;
+      customJavaDraft = cfg.custom_java_path ?? '';
+    } catch (cause) {
+      settingsError = String(cause);
+    } finally {
+      settingsBusy = false;
+    }
+  }
+
+  async function pickCustomJava() {
+    if (settingsBusy) return;
+    settingsBusy = true;
+    settingsError = '';
+    settingsNotice = '';
+    try {
+      const next = await vbookPickCustomJavaPath();
+      if (next) {
+        runtimeStatus = next;
+        const cfg = await vbookGetRuntimeConfig();
+        customJavaDraft = cfg.custom_java_path ?? '';
+        settingsNotice = t('settings.java_saved');
+      }
+    } catch (cause) {
+      settingsError = String(cause);
+    } finally {
+      settingsBusy = false;
+    }
+  }
+
+  async function saveCustomJava(pathOverride?: string | null) {
+    if (settingsBusy) return;
+    settingsBusy = true;
+    settingsError = '';
+    settingsNotice = '';
+    try {
+      const value = pathOverride === undefined ? (customJavaDraft.trim() || null) : pathOverride;
+      const next = await vbookSetCustomJavaPath(value);
+      runtimeStatus = next;
+      if (value === null) customJavaDraft = '';
+      settingsNotice = t('settings.java_saved');
+    } catch (cause) {
+      settingsError = String(cause);
+    } finally {
+      settingsBusy = false;
+    }
   }
 
   function clearPreview() {
@@ -299,47 +367,49 @@
 <header class="masthead">
   <div class="brand">
     <span class="book-mark" aria-hidden="true"></span>
-    <span>Novel Studio</span>
+    <span>{t('app.name')}</span>
   </div>
-  <nav class="area-nav" aria-label="Khu vực chính">
+  <nav class="area-nav" aria-label={t('nav.aria')}>
     {#each areas as item (item.id)}
       <button type="button" aria-pressed={area === item.id} disabled={busy !== null}
-        onclick={() => changeArea(item.id)}>{item.label}</button>
+        onclick={() => changeArea(item.id)}>{t(item.labelKey)}</button>
     {/each}
   </nav>
   <div class="masthead-end">
-    <button type="button" class="theme" aria-label={dark ? 'Bật giao diện sáng' : 'Bật giao diện tối'}
-      onclick={toggleTheme}>{dark ? '☀' : '☾'} <span>{dark ? 'Sáng' : 'Tối'}</span></button>
+    <button type="button" class="theme settings-trigger" id="studio-settings-btn"
+      onclick={openSettingsModal}>{t('topbar.settings')}</button>
+    <button type="button" class="theme" aria-label={dark ? t('topbar.theme_to_light') : t('topbar.theme_to_dark')}
+      onclick={toggleTheme}>{dark ? '☀' : '☾'} <span>{dark ? t('topbar.theme_light') : t('topbar.theme_dark')}</span></button>
   </div>
 </header>
 
 <main>
   {#if area === 'library'}
-    <nav class="mode-switch" aria-label="Nguồn truyện">
+    <nav class="mode-switch" aria-label={t('subnav.library_aria')}>
       <button type="button" aria-pressed={libraryTool === 'library'} disabled={busy !== null}
-        onclick={() => changeLibraryTool('library')}>Truyện đã lưu</button>
+        onclick={() => changeLibraryTool('library')}>{t('subnav.library')}</button>
       <button type="button" aria-pressed={libraryTool === 'vbook'} disabled={busy !== null}
-        onclick={() => changeLibraryTool('vbook')}>Nguồn VBook</button>
+        onclick={() => changeLibraryTool('vbook')}>{t('subnav.vbook')}</button>
       <button type="button" aria-pressed={libraryTool === 'wiki'} disabled={busy !== null}
-        onclick={() => changeLibraryTool('wiki')}>Wikidich</button>
+        onclick={() => changeLibraryTool('wiki')}>{t('subnav.wiki')}</button>
     </nav>
   {:else if area === 'edit'}
-    <nav class="mode-switch" aria-label="Công cụ biên tập">
+    <nav class="mode-switch" aria-label={t('subnav.edit_aria')}>
       {#each editTools as tool (tool.id)}
         <button type="button" aria-pressed={editTool === tool.id} disabled={busy !== null}
-          onclick={() => changeEditTool(tool.id)}>{tool.label}</button>
+          onclick={() => changeEditTool(tool.id)}>{t(tool.labelKey)}</button>
       {/each}
     </nav>
   {:else if area === 'files'}
-    <nav class="mode-switch" aria-label="Công cụ tệp">
+    <nav class="mode-switch" aria-label={t('subnav.files_aria')}>
       {#each fileTools as tool (tool.id)}
         <button type="button" aria-pressed={fileTool === tool.id} disabled={busy !== null}
-          onclick={() => changeFileTool(tool.id)}>{tool.label}</button>
+          onclick={() => changeFileTool(tool.id)}>{t(tool.labelKey)}</button>
       {/each}
     </nav>
   {/if}
   {#if visited.has('library')}
-    <div hidden={mode !== 'library'}><LibraryWorkbench /></div>
+    <div hidden={mode !== 'library'}><LibraryWorkbench locale={uiPrefs.locale} /></div>
   {/if}
   {#if visited.has('vbook')}
     <div hidden={mode !== 'vbook'}><VBookExtensionsWorkbench parentBusy={busy !== null} /></div>
@@ -596,4 +666,166 @@
       <button type="button" class="button primary" onclick={saveLines}>Lưu dòng đầu</button>
     {/if}
   </div>
+</dialog>
+
+<dialog id="studio-settings-dialog" class="settings-dialog" bind:this={settingsDialog} aria-labelledby="studio-settings-title">
+  <div class="settings-head">
+    <div>
+      <h2 id="studio-settings-title">{t('settings.title')}</h2>
+      <p>{t('settings.subtitle')}</p>
+    </div>
+    <button type="button" class="button" onclick={() => settingsDialog?.close()}>{t('settings.close')}</button>
+  </div>
+
+  {#if settingsError}
+    <p class="notice error" role="alert">{settingsError}</p>
+  {:else if settingsNotice}
+    <p class="notice" role="status">{settingsNotice}</p>
+  {/if}
+
+  <section class="settings-section">
+    <h3>{t('settings.section_language')}</h3>
+    <div class="settings-field">
+      <label for="studio-locale-select">{t('settings.language_label')}</label>
+      <select
+        id="studio-locale-select"
+        value={uiPrefs.locale}
+        onchange={(e) => {
+          uiPrefs = { ...uiPrefs, locale: e.currentTarget.value as AppLocale };
+        }}
+      >
+        {#each SUPPORTED_LOCALES as item (item.code)}
+          <option value={item.code}>{item.nativeLabel} ({item.label})</option>
+        {/each}
+      </select>
+      <p class="field-help">{t('settings.language_hint')}</p>
+    </div>
+  </section>
+
+  <section class="settings-section">
+    <h3>{t('settings.section_appearance')}</h3>
+    <div class="settings-grid">
+      <label class="settings-field">
+        <span>{t('settings.theme_label')}</span>
+        <select
+          value={uiPrefs.theme}
+          onchange={(e) => {
+            uiPrefs = { ...uiPrefs, theme: e.currentTarget.value as ThemeMode };
+          }}
+        >
+          <option value="system">{t('settings.theme_system')}</option>
+          <option value="light">{t('settings.theme_light')}</option>
+          <option value="dark">{t('settings.theme_dark')}</option>
+        </select>
+      </label>
+      <label class="settings-field">
+        <span>{t('settings.accent_label')}</span>
+        <select
+          value={uiPrefs.accent}
+          onchange={(e) => {
+            uiPrefs = { ...uiPrefs, accent: e.currentTarget.value as AccentPreset };
+          }}
+        >
+          <option value="ocean">Ocean Blue</option>
+          <option value="forest">Forest</option>
+          <option value="indigo">Indigo</option>
+          <option value="amber">Amber</option>
+          <option value="rose">Rose</option>
+        </select>
+      </label>
+      <label class="settings-field">
+        <span>{t('settings.surface_label')}</span>
+        <select
+          value={uiPrefs.surface}
+          onchange={(e) => {
+            uiPrefs = { ...uiPrefs, surface: e.currentTarget.value as SurfaceStyle };
+          }}
+        >
+          <option value="editorial">Editorial</option>
+          <option value="glass">Glass</option>
+          <option value="crisp">Crisp</option>
+        </select>
+      </label>
+      <label class="settings-field">
+        <span>{t('settings.density_label')}</span>
+        <select
+          value={uiPrefs.density}
+          onchange={(e) => {
+            uiPrefs = { ...uiPrefs, density: e.currentTarget.value as DensityMode };
+          }}
+        >
+          <option value="comfortable">Comfortable</option>
+          <option value="compact">Compact</option>
+        </select>
+      </label>
+      <label class="settings-field">
+        <span>{t('settings.motion_label')}</span>
+        <select
+          value={uiPrefs.motion}
+          onchange={(e) => {
+            uiPrefs = { ...uiPrefs, motion: e.currentTarget.value as MotionMode };
+          }}
+        >
+          <option value="full">Full</option>
+          <option value="reduced">Reduced</option>
+          <option value="none">None</option>
+        </select>
+      </label>
+    </div>
+  </section>
+
+  <section class="settings-section">
+    <div class="settings-runtime-head">
+      <h3>{t('settings.section_runtime')}</h3>
+      {#if runtimeStatus}
+        <span
+          class="runtime-status-pill"
+          class:is-ready={runtimeStatus.ready}
+          class:is-mock={runtimeStatus.mock_mode}
+        >
+          {runtimeStatus.mock_mode
+            ? t('settings.runtime_mock')
+            : runtimeStatus.ready
+              ? t('settings.runtime_ready')
+              : t('settings.runtime_missing')}
+        </span>
+      {/if}
+    </div>
+    <p class="field-help">{t('settings.runtime_note')}</p>
+    <div class="settings-field">
+      <label for="studio-custom-java-input">{t('settings.java_custom_label')}</label>
+      <div class="settings-path-row">
+        <input
+          id="studio-custom-java-input"
+          type="text"
+          bind:value={customJavaDraft}
+          placeholder={t('settings.java_custom_placeholder')}
+          disabled={settingsBusy}
+        />
+        <button type="button" class="button" disabled={settingsBusy} onclick={pickCustomJava}>
+          {t('settings.java_pick')}
+        </button>
+      </div>
+      <div class="settings-path-actions">
+        <button type="button" class="button primary" disabled={settingsBusy} onclick={() => saveCustomJava()}>
+          {t('settings.java_save')}
+        </button>
+        <button type="button" class="button" disabled={settingsBusy} onclick={() => saveCustomJava(null)}>
+          {t('settings.java_clear')}
+        </button>
+      </div>
+    </div>
+    {#if runtimeStatus}
+      <div class="stat-box">
+        <div>
+          <span>{t('settings.java_resolved_label')}</span>
+          <strong>{runtimeStatus.java_path ?? runtimeStatus.message}</strong>
+        </div>
+        <div>
+          <span>{t('settings.jar_label')}</span>
+          <strong>{runtimeStatus.jar_path ?? '—'}</strong>
+        </div>
+      </div>
+    {/if}
+  </section>
 </dialog>

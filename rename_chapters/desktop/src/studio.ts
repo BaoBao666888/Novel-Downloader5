@@ -1119,7 +1119,33 @@ export type VBookAiReply = {
   model: string;
 };
 
+export type VBookRunnerRuntimeConfig = {
+  custom_java_path: string | null;
+};
+
+export type LibraryStats = {
+  book_count: number;
+  txt_count: number;
+  zip_count: number;
+  measured_books: number;
+  total_chapters: number;
+  total_words: number;
+  total_chars: number;
+  total_source_bytes: number;
+  total_compressed_bytes: number;
+  compression_ratio_percent: number;
+  elapsed_ms: number;
+};
+
 export const vbookRunnerStatus = () => invoke<VBookRunnerStatus>('vbook_runner_status');
+export const vbookGetRuntimeConfig = () =>
+  invoke<VBookRunnerRuntimeConfig>('vbook_get_runtime_config');
+export const vbookSetCustomJavaPath = (path: string | null) =>
+  invoke<VBookRunnerStatus>('vbook_set_custom_java_path', { path });
+export const vbookPickCustomJavaPath = () =>
+  invoke<VBookRunnerStatus | null>('vbook_pick_custom_java_path');
+export const getLibraryStats = (refreshStale = false) =>
+  invoke<LibraryStats>('library_stats', { refreshStale });
 export const vbookSearch = (installedId: string, query: string, page: string | null = null) =>
   invoke<VBookSearchPage>('vbook_search', { installedId, query, page });
 export const vbookDetail = (installedId: string, url: string) =>
