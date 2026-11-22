@@ -4,10 +4,12 @@
 //! Toàn bộ I/O mạng, lưu kho khóa/cookie và picker phụ thuộc nền tảng được tách
 //! qua các trait và kiểu dữ liệu thuần trong module này.
 
+pub mod backup_zip;
 pub mod engine;
 pub mod html;
 pub mod model;
 pub mod multipart;
+pub mod objects;
 pub mod policy;
 pub mod protocol;
 pub mod reconcile;
