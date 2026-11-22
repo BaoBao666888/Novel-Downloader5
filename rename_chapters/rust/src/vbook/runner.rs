@@ -171,6 +171,46 @@ pub struct RunnerStatus {
     pub message: String,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq, Default, Serialize, Deserialize)]
+pub struct RunnerRuntimeConfig {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub custom_java_path: Option<String>,
+}
+
+pub const RUNTIME_CONFIG_FILENAME: &str = "runtime-config.json";
+
+pub fn load_runtime_config(dir: &Path) -> Result<RunnerRuntimeConfig, CoreError> {
+    let path = dir.join(RUNTIME_CONFIG_FILENAME);
+    match std::fs::read_to_string(&path) {
+        Ok(raw) => Ok(serde_json::from_str(&raw)?),
+        Err(err) if err.kind() == std::io::ErrorKind::NotFound => {
+            Ok(RunnerRuntimeConfig::default())
+        }
+        Err(err) => Err(err.into()),
+    }
+}
+
+pub fn save_runtime_config(
+    dir: &Path,
+    config: &RunnerRuntimeConfig,
+) -> Result<RunnerRuntimeConfig, CoreError> {
+    std::fs::create_dir_all(dir)?;
+    let normalized = RunnerRuntimeConfig {
+        custom_java_path: config
+            .custom_java_path
+            .as_deref()
+            .map(str::trim)
+            .filter(|s| !s.is_empty())
+            .map(ToOwned::to_owned),
+    };
+    let mut tmp = tempfile::NamedTempFile::new_in(dir)?;
+    serde_json::to_writer_pretty(&mut tmp, &normalized)?;
+    std::io::Write::flush(&mut tmp)?;
+    tmp.as_file().sync_all()?;
+    tmp.persist(dir.join(RUNTIME_CONFIG_FILENAME))?;
+    Ok(normalized)
+}
+
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct RunnerExecConfig {
     pub storage_path: String,
@@ -187,18 +227,36 @@ pub trait VBookScriptExecutor {
     ) -> Result<Value, CoreError>;
 }
 
-#[derive(Debug, Default)]
-pub struct JavaVBookRunnerExecutor;
+#[derive(Debug, Default, Clone)]
+pub struct JavaVBookRunnerExecutor {
+    custom_java_path: Option<PathBuf>,
+}
 
 impl JavaVBookRunnerExecutor {
+    pub fn discover() -> Self {
+        Self {
+            custom_java_path: None,
+        }
+    }
+
+    pub fn with_custom_java(custom_java: Option<PathBuf>) -> Self {
+        Self {
+            custom_java_path: custom_java,
+        }
+    }
+
     pub fn probe_status() -> RunnerStatus {
+        Self::probe_status_with_java(None)
+    }
+
+    pub fn probe_status_with_java(custom_java: Option<&Path>) -> RunnerStatus {
         let jar = find_runner_jar();
-        let java = find_java_bin(jar.as_deref());
+        let java = find_java_bin_with_custom(jar.as_deref(), custom_java);
         let ready = jar.is_some() && java.is_some();
         let message = match (&java, &jar) {
             (Some(_), Some(_)) => "Java 21 & vbook_runner sẵn sàng.".to_owned(),
             (None, Some(_)) => {
-                "Chưa tìm thấy Java 21+ (hãy đặt tools/jre hoặc biến NOVEL_STUDIO_JAVA_BIN)."
+                "Chưa tìm thấy Java 21+ (hãy chọn đường dẫn java.exe trong Cài đặt hoặc tải JRE)."
                     .to_owned()
             }
             (Some(_), None) => {
@@ -230,8 +288,8 @@ impl VBookScriptExecutor for JavaVBookRunnerExecutor {
         let jar = find_runner_jar().ok_or(
             "Không tìm thấy vbook_runner.jar (kiểm tra tools/vbook_runner/vbook_runner.jar).",
         )?;
-        let java = find_java_bin(Some(&jar))
-            .ok_or("Không tìm thấy Java 21+ (kiểm tra tools/jre/bin/java.exe hoặc JAVA_HOME).")?;
+        let java = find_java_bin_with_custom(Some(&jar), self.custom_java_path.as_deref())
+            .ok_or("Không tìm thấy Java 21+ (kiểm tra tools/jre/bin/java.exe hoặc Cài đặt).")?;
 
         let args_json = serde_json::to_string(args)?;
         let config_json = serde_json::to_string(config)?;
@@ -325,7 +383,23 @@ pub fn find_runner_jar() -> Option<PathBuf> {
 }
 
 pub fn find_java_bin(jar_hint: Option<&Path>) -> Option<PathBuf> {
+    find_java_bin_with_custom(jar_hint, None)
+}
+
+pub fn find_java_bin_with_custom(
+    jar_hint: Option<&Path>,
+    custom_java: Option<&Path>,
+) -> Option<PathBuf> {
     let java_name = if cfg!(windows) { "java.exe" } else { "java" };
+    if let Some(custom) = custom_java {
+        if custom.is_file() {
+            return Some(custom.to_path_buf());
+        }
+        let nested = custom.join("bin").join(java_name);
+        if nested.is_file() {
+            return Some(nested);
+        }
+    }
     if let Ok(raw) = env::var(ENV_JAVA_BIN) {
         let path = PathBuf::from(raw.trim());
         if path.is_file() {
@@ -1173,14 +1247,22 @@ pub enum CoreVBookExecutor {
 
 impl CoreVBookExecutor {
     pub fn open(mock_mode: bool) -> Self {
+        Self::open_with_java(mock_mode, None)
+    }
+
+    pub fn open_with_java(mock_mode: bool, custom_java: Option<PathBuf>) -> Self {
         if mock_mode {
             Self::Mock(MockVBookRunnerExecutor)
         } else {
-            Self::Java(JavaVBookRunnerExecutor)
+            Self::Java(JavaVBookRunnerExecutor::with_custom_java(custom_java))
         }
     }
 
     pub fn probe_status(mock_mode: bool) -> RunnerStatus {
+        Self::probe_status_with_java(mock_mode, None)
+    }
+
+    pub fn probe_status_with_java(mock_mode: bool, custom_java: Option<&Path>) -> RunnerStatus {
         if mock_mode {
             RunnerStatus {
                 ready: true,
@@ -1192,7 +1274,7 @@ impl CoreVBookExecutor {
                         .to_owned(),
             }
         } else {
-            JavaVBookRunnerExecutor::probe_status()
+            JavaVBookRunnerExecutor::probe_status_with_java(custom_java)
         }
     }
 }
@@ -1664,5 +1746,41 @@ mod tests {
                 _ => unreachable!(),
             }
         }
+    }
+
+    #[test]
+    fn runtime_config_persists_and_custom_java_path_takes_priority() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let empty = load_runtime_config(dir.path()).expect("default load");
+        assert_eq!(empty.custom_java_path, None);
+
+        let fake_java = dir
+            .path()
+            .join(if cfg!(windows) { "java.exe" } else { "java" });
+        std::fs::write(&fake_java, b"stub").expect("write stub");
+
+        let saved = save_runtime_config(
+            dir.path(),
+            &RunnerRuntimeConfig {
+                custom_java_path: Some(format!("  {}  ", fake_java.display())),
+            },
+        )
+        .expect("save cfg");
+        assert_eq!(
+            saved.custom_java_path.as_deref(),
+            Some(fake_java.to_string_lossy().as_ref())
+        );
+
+        let reloaded = load_runtime_config(dir.path()).expect("reload cfg");
+        assert_eq!(reloaded, saved);
+
+        let chosen = find_java_bin_with_custom(None, Some(&fake_java));
+        assert_eq!(chosen.as_deref(), Some(fake_java.as_path()));
+
+        let status = CoreVBookExecutor::probe_status_with_java(false, Some(&fake_java));
+        assert_eq!(
+            status.java_path.as_deref(),
+            Some(fake_java.to_string_lossy().as_ref())
+        );
     }
 }
