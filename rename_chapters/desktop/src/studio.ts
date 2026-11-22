@@ -314,6 +314,252 @@ export const refreshMerge = () => invoke<MergePreview>('refresh_merge');
 export const applyMerge = (revision: number, options: MergeOptions) =>
   invoke<MergeOutcome>('apply_merge', { revision, options });
 
+export type JobMode = 'new' | 'existing';
+export type JobStatus =
+  | 'planned'
+  | 'scheduled'
+  | 'linked'
+  | 'queued'
+  | 'running'
+  | 'sending'
+  | 'verifying'
+  | 'waiting'
+  | 'uncertain'
+  | 'failed'
+  | 'complete';
+export type UploadStage =
+  | 'prepare'
+  | 'authorize'
+  | 'history'
+  | 'createVolume'
+  | 'upload'
+  | 'publish'
+  | 'verify'
+  | 'verifyWait';
+export type VolumeStatus = 'planned' | 'created' | 'uploaded' | 'verified';
+export type CreditPosition = 'start' | 'end' | { line: number };
+
+export type ChapterValidationReport = {
+  errors: string[];
+  warnings: string[];
+  bytes: number;
+};
+
+export type ScannedChapter = {
+  filename: string;
+  title: string;
+  number: number | null;
+  bytes: number;
+  firstLine: string;
+};
+
+export type FolderChapterScan = {
+  folder: string;
+  chapters: ScannedChapter[];
+  validation: ChapterValidationReport;
+};
+
+export type CreateJobInput = {
+  folder: string;
+  mode: JobMode;
+  account: string;
+  titleVi: string;
+  titleCn: string;
+  authorCn: string;
+  descVi: string;
+  bookUrl: string;
+  volumeName: string;
+  volumeNote: string;
+  append: boolean;
+  creditText: string;
+  creditPosition: CreditPosition;
+};
+
+export type ProgressSnapshot = {
+  id: string;
+  title: string;
+  status: JobStatus;
+  active: boolean;
+  phase: string;
+  detail: string;
+  error: string;
+  done: number;
+  max: number;
+  percent: number;
+};
+
+export type JobVolumeView = {
+  key: string;
+  name: string;
+  note: string;
+  append: boolean;
+  remoteId: string;
+  status: VolumeStatus;
+  chapterCount: number;
+  chapterIds: string[];
+};
+
+export type JobChapterView = {
+  id: string;
+  title: string;
+  number: number | null;
+  bytes: number;
+  available: boolean;
+  hasOriginal: boolean;
+};
+
+export type JobView = {
+  id: string;
+  title: string;
+  account: string;
+  mode: JobMode;
+  status: JobStatus;
+  stage: UploadStage;
+  bookId: string;
+  bookUrl: string;
+  publishedUrl: string | null;
+  error: string;
+  verificationMessage: string | null;
+  scheduleMessage: string | null;
+  scheduledAt: number | null;
+  afterJobId: string | null;
+  createdAt: number;
+  completedAt: number | null;
+  writeAttempted: boolean;
+  needsReconcile: boolean;
+  filesReleased: boolean;
+  scheduleRevision: number;
+  totalBytes: number;
+  chapterCount: number;
+  availableChapterCount: number;
+  progress: ProgressSnapshot;
+  retryLabel: string | null;
+  uploadIssue: string | null;
+  pendingConflicts: string[];
+  validation: ChapterValidationReport;
+  volumes: JobVolumeView[];
+  chapters: JobChapterView[];
+  canSchedule: boolean;
+  scheduleBlockReason: string | null;
+  canDelete: boolean;
+  deleteBlockReason: string | null;
+  canExportRecovery: boolean;
+};
+
+export type ScheduleRow = {
+  id: string;
+  at: number;
+  key: string;
+  running: boolean;
+  afterJobId: string | null;
+  immediate: boolean;
+  cancelRequested: boolean;
+  startupRetry: boolean;
+};
+
+export type CrashRecoveryReport = {
+  uncertainIds: string[];
+  failedIds: string[];
+};
+
+export type StorageStats = {
+  objectFiles: number;
+  objectBytes: number;
+};
+
+export type SweepResult = {
+  files: number;
+  bytes: number;
+};
+
+export type StorageCleanupReport = {
+  releasedJobs: number;
+  swept: SweepResult;
+};
+
+export type UploadWorkspaceSnapshot = {
+  allowedHost: string;
+  crashRecovery: CrashRecoveryReport;
+  jobs: JobView[];
+  schedules: ScheduleRow[];
+  ledgerCount: number;
+  storage: StorageStats;
+};
+
+export type RecoveryChapterItem = {
+  title: string;
+  filename: string;
+  available: boolean;
+};
+
+export type RecoveryVolume = {
+  name: string;
+  note: string;
+  append: boolean;
+  remoteId: string;
+  chapters: RecoveryChapterItem[];
+};
+
+export type RecoveryReport = {
+  schema: number;
+  jobId: string;
+  title: string;
+  mode: JobMode;
+  bookUrl: string;
+  bookId: string;
+  metadata: {
+    fields: Array<[string, string]>;
+    selectedLabels: Record<string, Array<{ value: string; label: string; required: boolean }>>;
+  };
+  volumes: RecoveryVolume[];
+  availableChapters: number;
+  missingChapters: number;
+  text: string;
+};
+
+export type ExportRecoveryOutcome = {
+  path: string;
+  report: RecoveryReport;
+};
+
+export type BackupZipInspection = {
+  path: string;
+  report: RecoveryReport;
+};
+
+export type RestoreBackupOutcome = {
+  restoredJobId: string;
+  snapshot: UploadWorkspaceSnapshot;
+};
+
+export type CleanupStorageOutcome = {
+  report: StorageCleanupReport;
+  snapshot: UploadWorkspaceSnapshot;
+};
+
+export const listUploadWorkspace = () => invoke<UploadWorkspaceSnapshot>('list_upload_workspace');
+export const chooseUploadFolder = () => invoke<FolderChapterScan | null>('choose_upload_folder');
+export const scanUploadFolder = (folder: string) =>
+  invoke<FolderChapterScan>('scan_upload_folder', { folder });
+export const createUploadJob = (input: CreateJobInput) =>
+  invoke<UploadWorkspaceSnapshot>('create_upload_job', { input });
+export const scheduleUploadJob = (id: string, atMs: number, allowDuplicate: boolean) =>
+  invoke<UploadWorkspaceSnapshot>('schedule_upload_job', { id, atMs, allowDuplicate });
+export const linkUploadJob = (id: string, parentId: string, allowDuplicate: boolean) =>
+  invoke<UploadWorkspaceSnapshot>('link_upload_job', { id, parentId, allowDuplicate });
+export const cancelUploadSchedule = (id: string) =>
+  invoke<UploadWorkspaceSnapshot>('cancel_upload_schedule', { id });
+export const deleteUploadJob = (id: string) =>
+  invoke<UploadWorkspaceSnapshot>('delete_upload_job', { id });
+export const previewUploadJobRecovery = (id: string) =>
+  invoke<RecoveryReport>('preview_upload_job_recovery', { id });
+export const exportUploadJobRecovery = (id: string, suggestedName: string) =>
+  invoke<ExportRecoveryOutcome | null>('export_upload_job_recovery', { id, suggestedName });
+export const pickUploadBackupZip = () => invoke<BackupZipInspection | null>('pick_upload_backup_zip');
+export const restoreUploadBackupZip = (zipPath: string, account: string) =>
+  invoke<RestoreBackupOutcome>('restore_upload_backup_zip', { zipPath, account });
+export const cleanupUploadStorage = () => invoke<CleanupStorageOutcome>('cleanup_upload_storage');
+
 const issueLabels: Record<Row['issues'][number], string> = {
   invalid_target: 'Tên đích không hợp lệ',
   duplicate_target: 'Trùng tên trong danh sách',

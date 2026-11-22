@@ -5,6 +5,7 @@
   import MergeWorkbench from './MergeWorkbench.svelte';
   import SplitWorkbench from './SplitWorkbench.svelte';
   import TextToolsWorkbench from './TextToolsWorkbench.svelte';
+  import UploadWorkbench from './UploadWorkbench.svelte';
   import {
     applyFirstLine, applyRename, chooseFolder, choosePython, previewFirstLine, previewRename, rowStatus,
     undoFirstLine, type LinePreview, type LineResult, type Outcome, type Preview, type Row,
@@ -16,6 +17,7 @@
     { id: 'library', label: 'Thư viện' },
     { id: 'edit', label: 'Biên tập' },
     { id: 'files', label: 'Tệp' },
+    { id: 'upload', label: 'Đăng tải' },
   ] as const;
   const editTools = [
     { id: 'rename', label: 'Đổi tên chương' },
@@ -30,12 +32,14 @@
   type Area = typeof areas[number]['id'];
   type EditTool = typeof editTools[number]['id'];
   type FileTool = typeof fileTools[number]['id'];
-  type Mode = EditTool | FileTool | 'library';
+  type Mode = EditTool | FileTool | 'library' | 'upload';
   let folder = $state('');
   let area = $state<Area>('edit');
   let editTool = $state<EditTool>('rename');
   let fileTool = $state<FileTool>('archive');
-  let mode: Mode = $derived(area === 'edit' ? editTool : area === 'files' ? fileTool : 'library');
+  let mode: Mode = $derived(
+    area === 'edit' ? editTool : area === 'files' ? fileTool : area === 'upload' ? 'upload' : 'library',
+  );
   let visited = $state(new Set<Mode>());
   let lastRenameTool: 'rename' | 'line' = 'rename';
   let python = $state('');
@@ -94,7 +98,7 @@
   function changeArea(next: Area) {
     if (area === next || busy) return;
     area = next;
-    if (next !== 'edit') visited = new Set(visited).add(next === 'files' ? fileTool : 'library');
+    if (next !== 'edit') visited = new Set(visited).add(next === 'files' ? fileTool : next);
     window.scrollTo(0, 0);
   }
 
@@ -328,6 +332,9 @@
   {/if}
   {#if visited.has('merge')}
     <div hidden={mode !== 'merge'}><MergeWorkbench parentBusy={busy !== null} /></div>
+  {/if}
+  {#if visited.has('upload')}
+    <div hidden={mode !== 'upload'}><UploadWorkbench parentBusy={busy !== null} /></div>
   {/if}
   {#if mode === 'rename' || mode === 'line'}
   <section class="heading">
