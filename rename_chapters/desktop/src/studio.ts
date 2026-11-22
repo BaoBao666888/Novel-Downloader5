@@ -560,6 +560,68 @@ export const restoreUploadBackupZip = (zipPath: string, account: string) =>
   invoke<RestoreBackupOutcome>('restore_upload_backup_zip', { zipPath, account });
 export const cleanupUploadStorage = () => invoke<CleanupStorageOutcome>('cleanup_upload_storage');
 
+export type SessionSecretStatus = {
+  configured: boolean;
+  readable: boolean;
+  masked: string;
+};
+
+export type SessionCheckResult = {
+  authenticated: boolean;
+  account: string;
+  host: string;
+  message: string;
+};
+
+export type LiveRunProgress = {
+  jobId: string;
+  title: string;
+  stage: UploadStage;
+  phase: string;
+  bytes: number;
+  total: number;
+  percent: number;
+  active: boolean;
+};
+
+export type UploadRuntimeStatus = {
+  activeRun: LiveRunProgress | null;
+  autoScheduleEnabled: boolean;
+  lastMessage: string | null;
+  lastError: string | null;
+  verifiedAccount: string | null;
+  mockMode: boolean;
+};
+
+export type VerifyNowOutcome = {
+  record: { id: string; status: JobStatus; message: string } | null;
+  snapshot: UploadWorkspaceSnapshot;
+};
+
+export type RunDueVerificationsOutcome = {
+  checkedCount: number;
+  snapshot: UploadWorkspaceSnapshot;
+};
+
+export const getUploadSessionStatus = () =>
+  invoke<SessionSecretStatus>('get_upload_session_status');
+export const saveUploadSessionCookie = (cookie: string) =>
+  invoke<SessionSecretStatus>('save_upload_session_cookie', { cookie });
+export const clearUploadSessionCookie = () =>
+  invoke<SessionSecretStatus>('clear_upload_session_cookie');
+export const checkUploadSession = () => invoke<SessionCheckResult>('check_upload_session');
+export const getUploadRuntimeStatus = () =>
+  invoke<UploadRuntimeStatus>('get_upload_runtime_status');
+export const setUploadAutoSchedule = (enabled: boolean) =>
+  invoke<UploadRuntimeStatus>('set_upload_auto_schedule', { enabled });
+export const startUploadJobNow = (id: string, revision: number, consentIds: string[]) =>
+  invoke<UploadRuntimeStatus>('start_upload_job_now', { id, revision, consentIds });
+export const stopActiveUpload = () => invoke<boolean>('stop_active_upload');
+export const verifyUploadJobNow = (id: string) =>
+  invoke<VerifyNowOutcome>('verify_upload_job_now', { id });
+export const runDueUploadVerifications = () =>
+  invoke<RunDueVerificationsOutcome>('run_due_upload_verifications');
+
 const issueLabels: Record<Row['issues'][number], string> = {
   invalid_target: 'Tên đích không hợp lệ',
   duplicate_target: 'Trùng tên trong danh sách',

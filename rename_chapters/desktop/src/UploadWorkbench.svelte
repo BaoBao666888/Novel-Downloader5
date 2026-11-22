@@ -1,26 +1,41 @@
 <script lang="ts">
+  import { listen, type UnlistenFn } from '@tauri-apps/api/event';
   import { onMount, tick } from 'svelte';
   import {
     cancelUploadSchedule,
+    checkUploadSession,
     chooseUploadFolder,
     cleanupUploadStorage,
+    clearUploadSessionCookie,
     createUploadJob,
     deleteUploadJob,
     exportUploadJobRecovery,
+    getUploadRuntimeStatus,
+    getUploadSessionStatus,
     linkUploadJob,
     listUploadWorkspace,
     pickUploadBackupZip,
     previewUploadJobRecovery,
     restoreUploadBackupZip,
+    runDueUploadVerifications,
+    saveUploadSessionCookie,
     scanUploadFolder,
     scheduleUploadJob,
+    setUploadAutoSchedule,
+    startUploadJobNow,
+    stopActiveUpload,
+    verifyUploadJobNow,
     type BackupZipInspection,
     type CreditPosition,
     type FolderChapterScan,
     type JobMode,
     type JobStatus,
     type JobView,
+    type LiveRunProgress,
     type RecoveryReport,
+    type SessionCheckResult,
+    type SessionSecretStatus,
+    type UploadRuntimeStatus,
     type UploadWorkspaceSnapshot,
   } from './studio';
 
@@ -44,6 +59,9 @@
   ]);
 
   let snapshot = $state<UploadWorkspaceSnapshot | null>(null);
+  let sessionStatus = $state<SessionSecretStatus | null>(null);
+  let runtime = $state<UploadRuntimeStatus | null>(null);
+  let liveProgress = $state<LiveRunProgress | null>(null);
   let selectedId = $state<string | null>(null);
   let query = $state('');
   let statusFilter = $state<'all' | 'pending' | 'attention' | 'complete'>('all');
@@ -60,11 +78,24 @@
     | 'export'
     | 'import'
     | 'cleanup'
+    | 'session'
+    | 'verify'
+    | 'start'
     | null
   >(null);
   let error = $state('');
   let notice = $state('');
   let recoveryDismissed = $state(false);
+
+  // Session DPAPI dialog state
+  let sessionDialog: HTMLDialogElement | undefined = $state();
+  let sessionCookieInput = $state('');
+  let sessionCheck = $state<SessionCheckResult | null>(null);
+  let sessionError = $state('');
+
+  // Start immediate confirm dialog state
+  let startConfirmDialog: HTMLDialogElement | undefined = $state();
+  let startConflictConsent = $state(false);
 
   // Create job dialog state
   let createDialog: HTMLDialogElement | undefined = $state();
@@ -122,7 +153,18 @@
     const q = query.trim().toLowerCase();
     return jobs.filter((job) => {
       if (statusFilter === 'pending') {
-        if (!['planned', 'scheduled', 'linked', 'queued', 'running', 'sending', 'verifying', 'waiting'].includes(job.status)) {
+        if (
+          ![
+            'planned',
+            'scheduled',
+            'linked',
+            'queued',
+            'running',
+            'sending',
+            'verifying',
+            'waiting',
+          ].includes(job.status)
+        ) {
           return false;
         }
       } else if (statusFilter === 'attention') {
@@ -141,6 +183,20 @@
   });
 
   const selectedJob = $derived(jobs.find((job) => job.id === selectedId) ?? null);
+  const activeRunForSelected = $derived.by(() => {
+    const active = liveProgress?.active ? liveProgress : runtime?.activeRun;
+    if (!active || !active.active || !selectedJob || active.jobId !== selectedJob.id) return null;
+    return active;
+  });
+  const anyRunActive = $derived(Boolean(liveProgress?.active || runtime?.activeRun?.active));
+
+  const sessionPillLabel = $derived.by(() => {
+    if (runtime?.verifiedAccount) return `Phiên: ${runtime.verifiedAccount}`;
+    if (sessionStatus?.configured && sessionStatus.readable) return `Phiên DPAPI (${sessionStatus.masked})`;
+    if (sessionStatus?.configured) return 'Phiên lỗi giải mã';
+    return 'Chưa nối phiên';
+  });
+
   const eligibleParents = $derived.by(() => {
     if (!selectedJob) return [];
     return jobs.filter(
@@ -163,7 +219,31 @@
   );
 
   onMount(() => {
+    let unlisten: UnlistenFn | undefined;
+    let pollTimer: number | undefined;
+
     void refreshWorkspace();
+
+    void listen<LiveRunProgress>('upload-progress', (event) => {
+      liveProgress = event.payload;
+      if (!event.payload.active) {
+        liveProgress = null;
+        void syncRuntimeAndWorkspace();
+      }
+    }).then((fn) => {
+      unlisten = fn;
+    });
+
+    pollTimer = window.setInterval(() => {
+      if (anyRunActive) {
+        void syncRuntimeAndWorkspace();
+      }
+    }, 1500);
+
+    return () => {
+      unlisten?.();
+      if (pollTimer !== undefined) window.clearInterval(pollTimer);
+    };
   });
 
   function statusLabel(status: JobStatus): string {
@@ -195,7 +275,14 @@
 
   function statusTone(status: JobStatus): 'accent' | 'warn' | 'muted' {
     if (status === 'uncertain' || status === 'failed') return 'warn';
-    if (status === 'complete' || status === 'scheduled' || status === 'linked' || status === 'running' || status === 'sending' || status === 'verifying') {
+    if (
+      status === 'complete' ||
+      status === 'scheduled' ||
+      status === 'linked' ||
+      status === 'running' ||
+      status === 'sending' ||
+      status === 'verifying'
+    ) {
       return 'accent';
     }
     return 'muted';
@@ -252,17 +339,196 @@
     chapterPage = 0;
   }
 
+  async function syncRuntimeAndWorkspace() {
+    try {
+      const [nextSnap, nextRt, nextSess] = await Promise.all([
+        listUploadWorkspace(),
+        getUploadRuntimeStatus(),
+        getUploadSessionStatus(),
+      ]);
+      applySnapshot(nextSnap);
+      runtime = nextRt;
+      sessionStatus = nextSess;
+      if (nextRt.activeRun?.active) {
+        liveProgress = nextRt.activeRun;
+      } else {
+        liveProgress = null;
+        if (nextRt.lastError) error = nextRt.lastError;
+        else if (nextRt.lastMessage) notice = nextRt.lastMessage;
+      }
+    } catch (cause) {
+      error = String(cause);
+    }
+  }
+
   async function refreshWorkspace() {
     if (busy !== null) return;
     busy = 'load';
     error = '';
     try {
-      const next = await listUploadWorkspace();
-      applySnapshot(next);
+      const [nextSnap, nextSess, nextRt] = await Promise.all([
+        listUploadWorkspace(),
+        getUploadSessionStatus(),
+        getUploadRuntimeStatus(),
+      ]);
+      applySnapshot(nextSnap);
+      sessionStatus = nextSess;
+      runtime = nextRt;
     } catch (cause) {
       error = String(cause);
     } finally {
       busy = null;
+    }
+  }
+
+  function openSessionDialog() {
+    if (isBusy) return;
+    sessionCookieInput = '';
+    sessionCheck = null;
+    sessionError = '';
+    sessionDialog?.showModal();
+  }
+
+  async function handleSaveSession() {
+    if (isBusy) return;
+    busy = 'session';
+    sessionError = '';
+    sessionCheck = null;
+    try {
+      sessionStatus = await saveUploadSessionCookie(sessionCookieInput);
+      runtime = await getUploadRuntimeStatus();
+      sessionCookieInput = '';
+      notice = 'Đã mã hóa và lưu Cookie phiên bằng Windows DPAPI.';
+    } catch (cause) {
+      sessionError = String(cause);
+    } finally {
+      busy = null;
+    }
+  }
+
+  async function handleCheckSession() {
+    if (isBusy) return;
+    busy = 'session';
+    sessionError = '';
+    try {
+      sessionCheck = await checkUploadSession();
+      runtime = await getUploadRuntimeStatus();
+      if (sessionCheck.authenticated) {
+        notice = sessionCheck.message;
+      }
+    } catch (cause) {
+      sessionError = String(cause);
+    } finally {
+      busy = null;
+    }
+  }
+
+  async function handleClearSession() {
+    if (isBusy) return;
+    busy = 'session';
+    sessionError = '';
+    sessionCheck = null;
+    try {
+      sessionStatus = await clearUploadSessionCookie();
+      runtime = await getUploadRuntimeStatus();
+      notice = 'Đã xóa tệp phiên DPAPI khỏi máy.';
+    } catch (cause) {
+      sessionError = String(cause);
+    } finally {
+      busy = null;
+    }
+  }
+
+  function openStartConfirm() {
+    if (!selectedJob || isBusy || anyRunActive) return;
+    if (!sessionStatus?.configured || !sessionStatus.readable) {
+      openSessionDialog();
+      sessionError = 'Cần lưu Cookie phiên hợp lệ trước khi bắt đầu tải lên.';
+      return;
+    }
+    startConflictConsent = selectedJob.pendingConflicts.length === 0;
+    startConfirmDialog?.showModal();
+  }
+
+  async function confirmStartNow() {
+    if (!selectedJob || isBusy) return;
+    startConfirmDialog?.close();
+    busy = 'start';
+    error = '';
+    notice = '';
+    try {
+      runtime = await startUploadJobNow(
+        selectedJob.id,
+        selectedJob.scheduleRevision,
+        selectedJob.pendingConflicts,
+      );
+      if (runtime.activeRun) {
+        liveProgress = runtime.activeRun;
+      }
+      notice = `Đang bắt đầu lượt gửi «${selectedJob.title}»…`;
+    } catch (cause) {
+      error = String(cause);
+    } finally {
+      busy = null;
+    }
+  }
+
+  async function handleStopActive() {
+    if (isBusy) return;
+    try {
+      const stopped = await stopActiveUpload();
+      if (stopped) {
+        notice = 'Đã gửi yêu cầu dừng lượt tải đang chạy; sẽ giữ trạng thái an toàn để đối chiếu.';
+      }
+    } catch (cause) {
+      error = String(cause);
+    }
+  }
+
+  async function handleVerifySelected() {
+    if (!selectedJob || isBusy) return;
+    busy = 'verify';
+    error = '';
+    notice = '';
+    try {
+      const out = await verifyUploadJobNow(selectedJob.id);
+      applySnapshot(out.snapshot, selectedJob.id);
+      if (out.record) {
+        notice = `${statusLabel(out.record.status)}: ${out.record.message}`;
+      } else {
+        notice = 'Đã kiểm tra trạng thái công việc.';
+      }
+    } catch (cause) {
+      error = String(cause);
+    } finally {
+      busy = null;
+    }
+  }
+
+  async function handleRunDueVerifications() {
+    if (isBusy) return;
+    busy = 'verify';
+    error = '';
+    notice = '';
+    try {
+      const out = await runDueUploadVerifications();
+      applySnapshot(out.snapshot);
+      notice = `Đã đối chiếu ${out.checkedCount} mục đến hạn trong sổ kiểm tra.`;
+    } catch (cause) {
+      error = String(cause);
+    } finally {
+      busy = null;
+    }
+  }
+
+  async function toggleAutoSchedule(checked: boolean) {
+    try {
+      runtime = await setUploadAutoSchedule(checked);
+      notice = checked
+        ? 'Đã bật tự chạy lịch hẹn / đối chiếu nền mỗi 15 giây.'
+        : 'Đã tắt tự chạy lịch hẹn nền.';
+    } catch (cause) {
+      error = String(cause);
     }
   }
 
@@ -271,7 +537,7 @@
     createFolderPath = '';
     createScan = null;
     createMode = 'new';
-    createAccount = 'local-draft';
+    createAccount = runtime?.verifiedAccount || 'local-draft';
     createTitleVi = '';
     createTitleCn = '';
     createAuthorCn = '';
@@ -347,7 +613,7 @@
       const created = next.jobs.find((j) => !beforeIds.has(j.id));
       applySnapshot(next, created?.id);
       createDialog?.close();
-      notice = `Đã tạo công việc «${created?.title ?? 'mới'}» ở trạng thái Dự kiến (an toàn, chưa gửi mạng).`;
+      notice = `Đã tạo công việc «${created?.title ?? 'mới'}» ở trạng thái Dự kiến (chưa gửi mạng).`;
     } catch (cause) {
       createError = String(cause);
     } finally {
@@ -485,7 +751,7 @@
       const inspected = await pickUploadBackupZip();
       if (inspected) {
         backupInspection = inspected;
-        importAccount = 'local-draft';
+        importAccount = runtime?.verifiedAccount || 'local-draft';
         await tick();
         importDialog?.showModal();
       }
@@ -553,15 +819,34 @@
   <div>
     <h1>Đăng tải &amp; Khôi phục</h1>
     <p>
-      Quản lý kế hoạch đăng truyện cục bộ, giữ bất biến file gốc, chống hẹn trùng/đăng đè, phục hồi sau crash và sao lưu ZIP sạch.
+      Quản lý kế hoạch đăng truyện, giữ nguyên tệp gốc, truyền stream UTF-8 BOM an toàn, đối chiếu server và sao lưu ZIP sạch.
     </p>
   </div>
-  <div class="proof-actions">
-    <button class="button" type="button" onclick={pickAndInspectBackup} disabled={isBusy}>
-      {busy === 'import' ? 'Đang mở ZIP…' : 'Nhập ZIP sao lưu'}
+  <div class="proof-actions heading-actions">
+    <button
+      class="button session-pill"
+      class:connected={Boolean(runtime?.verifiedAccount)}
+      type="button"
+      onclick={openSessionDialog}
+      disabled={isBusy}
+    >
+      <span class="session-dot" aria-hidden="true"></span>
+      <span>{sessionPillLabel}</span>
+      {#if runtime?.mockMode}
+        <span class="badge accent">Mock</span>
+      {/if}
+    </button>
+    <button
+      class="button"
+      type="button"
+      title="Nhập gói ZIP sao lưu công việc"
+      onclick={pickAndInspectBackup}
+      disabled={isBusy}
+    >
+      {busy === 'import' ? 'Đang mở…' : 'Nhập ZIP'}
     </button>
     <button class="button primary" type="button" onclick={openCreateDialog} disabled={isBusy}>
-      Tạo công việc mới
+      Tạo công việc
     </button>
   </div>
 </section>
@@ -657,16 +942,36 @@
     {#if snapshot}
       <div class="shelf-foot">
         <div class="stat-box">
-          <div><span>Lịch hẹn / liên kết</span><strong>{snapshot.schedules.length}</strong></div>
-          <div><span>Sổ đối chiếu</span><strong>{snapshot.ledgerCount}</strong></div>
+          <div><span>Lịch hẹn / liên kết</span><strong class="num-stat">{snapshot.schedules.length}</strong></div>
+          <div><span>Sổ đối chiếu</span><strong class="num-stat">{snapshot.ledgerCount}</strong></div>
           <div>
             <span>Kho đối tượng cục bộ</span>
-            <strong>{snapshot.storage.objectFiles} tệp · {formatBytes(snapshot.storage.objectBytes)}</strong>
+            <strong class="num-stat">{snapshot.storage.objectFiles} tệp · {formatBytes(snapshot.storage.objectBytes)}</strong>
           </div>
         </div>
-        <button type="button" class="button subtle cleanup-btn" onclick={handleCleanupStorage} disabled={isBusy}>
-          {busy === 'cleanup' ? 'Đang dọn…' : 'Dọn tệp thừa'}
-        </button>
+        <label class="checkbox-field auto-sched-check">
+          <input
+            type="checkbox"
+            checked={Boolean(runtime?.autoScheduleEnabled)}
+            onchange={(e) => toggleAutoSchedule(e.currentTarget.checked)}
+          />
+          <span>Tự chạy lịch hẹn &amp; đối chiếu nền</span>
+        </label>
+        <div class="foot-actions">
+          {#if snapshot.ledgerCount > 0}
+            <button
+              type="button"
+              class="button subtle"
+              onclick={handleRunDueVerifications}
+              disabled={isBusy || anyRunActive}
+            >
+              {busy === 'verify' ? 'Đang kiểm tra…' : 'Đối chiếu đến hạn'}
+            </button>
+          {/if}
+          <button type="button" class="button subtle" onclick={handleCleanupStorage} disabled={isBusy}>
+            {busy === 'cleanup' ? 'Đang dọn…' : 'Dọn tệp thừa'}
+          </button>
+        </div>
       </div>
     {/if}
   </aside>
@@ -681,7 +986,11 @@
             <span class="badge">{selectedJob.mode === 'new' ? 'Truyện mới' : 'Thêm chương'}</span>
           </div>
           <p class="summary num-stat">
-            {selectedJob.progress.phase} · {selectedJob.progress.detail} · Tài khoản: {selectedJob.account}
+            {activeRunForSelected ? activeRunForSelected.phase : selectedJob.progress.phase}
+            · {activeRunForSelected && activeRunForSelected.total > 0
+              ? `${Math.ceil(activeRunForSelected.bytes / 1024)}/${Math.ceil(activeRunForSelected.total / 1024)} KB`
+              : selectedJob.progress.detail}
+            · Tài khoản: {selectedJob.account}
           </p>
         </div>
         <div class="proof-actions">
@@ -707,7 +1016,7 @@
 
       {#if selectedJob.status === 'uncertain' || selectedJob.needsReconcile}
         <p class="notice error" role="alert">
-          <strong>Cần đối chiếu trước khi gửi lại:</strong> Không tự động retry request ghi vì đã đánh dấu có tương tác với server. Hãy sao lưu dữ liệu hoặc kiểm tra trạng thái thực tế trước khi thao tác tiếp.
+          <strong>Cần đối chiếu trước khi gửi lại:</strong> Không tự động retry request ghi vì đã đánh dấu có tương tác với server. Hãy dùng <em>Đối chiếu ngay</em> hoặc sao lưu ZIP trước khi thao tác tiếp.
         </p>
       {/if}
 
@@ -739,8 +1048,14 @@
 
       <div class="proof-body detail-body">
         <div class="progress-row">
-          <progress class="upload-progress" value={selectedJob.progress.percent} max="100"></progress>
-          <span class="num-stat">{selectedJob.progress.percent}%</span>
+          <progress
+            class="upload-progress"
+            value={activeRunForSelected ? activeRunForSelected.percent : selectedJob.progress.percent}
+            max="100"
+          ></progress>
+          <span class="num-stat">
+            {activeRunForSelected ? activeRunForSelected.percent : selectedJob.progress.percent}%
+          </span>
         </div>
 
         <dl class="meta-grid">
@@ -865,28 +1180,63 @@
 
       <footer class="proof-footer">
         <span>
-          {#if selectedJob.status === 'uncertain'}
+          {#if activeRunForSelected}
+            Đang truyền stream multipart (UTF-8 BOM trên đường truyền)…
+          {:else if selectedJob.status === 'uncertain'}
             Đã khóa gửi tự động cho tới khi đối chiếu với server
+          {:else if selectedJob.status === 'waiting'}
+            Đã tải xong bước gửi · có thể bấm Đối chiếu ngay để kiểm tra server
           {:else if selectedJob.scheduleBlockReason && !selectedJob.canSchedule}
             {selectedJob.scheduleBlockReason}
           {:else}
-            An toàn cục bộ · Chưa kích hoạt gửi mạng thật ở chặng này
+            Sẵn sàng hẹn lịch hoặc gửi theo xác nhận người dùng
           {/if}
         </span>
         <div class="proof-actions">
-          {#if selectedJob.status === 'scheduled' || selectedJob.status === 'linked'}
-            <button type="button" class="button" disabled={isBusy} onclick={handleCancelSchedule}>
-              {busy === 'cancel' ? 'Đang hủy…' : selectedJob.status === 'linked' ? 'Hủy liên kết' : 'Hủy lịch'}
+          {#if activeRunForSelected}
+            <button type="button" class="button" onclick={handleStopActive}>
+              Dừng tải
             </button>
-          {/if}
-          {#if selectedJob.canSchedule}
-            <button type="button" class="button" disabled={isBusy || !eligibleParents.length} onclick={openLinkDialog}
-              title={eligibleParents.length ? 'Chạy sau khi một công việc cùng tài khoản hoàn tất' : 'Chưa có công việc trước cùng tài khoản'}>
-              Liên kết sau…
-            </button>
-            <button type="button" class="button primary" disabled={isBusy} onclick={openScheduleDialog}>
-              {selectedJob.status === 'scheduled' ? 'Đổi lịch…' : 'Hẹn giờ đăng…'}
-            </button>
+          {:else}
+            {#if selectedJob.status === 'waiting' || selectedJob.status === 'uncertain'}
+              <button type="button" class="button" disabled={isBusy || anyRunActive} onclick={handleVerifySelected}>
+                {busy === 'verify' ? 'Đang đối chiếu…' : 'Đối chiếu ngay'}
+              </button>
+            {/if}
+            {#if selectedJob.status === 'scheduled' || selectedJob.status === 'linked'}
+              <button type="button" class="button" disabled={isBusy || anyRunActive} onclick={handleCancelSchedule}>
+                {busy === 'cancel' ? 'Đang hủy…' : selectedJob.status === 'linked' ? 'Hủy liên kết' : 'Hủy lịch'}
+              </button>
+            {/if}
+            {#if selectedJob.canSchedule}
+              <button
+                type="button"
+                class="button"
+                disabled={isBusy || anyRunActive || !eligibleParents.length}
+                onclick={openLinkDialog}
+                title={eligibleParents.length ? 'Chạy sau khi một công việc cùng tài khoản hoàn tất' : 'Chưa có công việc trước cùng tài khoản'}
+              >
+                Liên kết sau…
+              </button>
+              <button
+                type="button"
+                class="button"
+                disabled={isBusy || anyRunActive}
+                onclick={openScheduleDialog}
+              >
+                {selectedJob.status === 'scheduled' ? 'Đổi lịch…' : 'Hẹn giờ đăng…'}
+              </button>
+            {/if}
+            {#if selectedJob.status === 'planned' || selectedJob.status === 'failed'}
+              <button
+                type="button"
+                class="button primary"
+                disabled={isBusy || anyRunActive}
+                onclick={openStartConfirm}
+              >
+                {selectedJob.retryLabel === 'Thử lại' ? 'Thử lại…' : 'Bắt đầu tải lên…'}
+              </button>
+            {/if}
           {/if}
         </div>
       </footer>
@@ -895,12 +1245,118 @@
         <div class="paper" aria-hidden="true"><span></span><span></span><span></span></div>
         <h3>Quản lý công việc Upload &amp; Khôi phục</h3>
         <p>
-          Tạo công việc mới từ thư mục tệp .txt (tách riêng bản upload &amp; giữ nguyên file gốc) hoặc nhập lại từ gói ZIP sao lưu.
+          Tạo công việc mới từ thư mục tệp .txt (giữ nguyên file gốc), cấu hình phiên đăng nhập DPAPI hoặc nhập lại từ gói ZIP sao lưu.
         </p>
       </div>
     {/if}
   </section>
 </div>
+
+<dialog bind:this={sessionDialog} aria-labelledby="session-dialog-title">
+  <h2 id="session-dialog-title">Phiên đăng nhập {snapshot?.allowedHost ?? 'wikicv.org'}</h2>
+  <p>
+    Cookie phiên được mã hóa riêng theo tài khoản Windows bằng <strong>Windows DPAPI</strong> (<code>session.dpapi</code>), không lưu bản rõ vào state hoặc gói ZIP sao lưu.
+  </p>
+
+  {#if sessionError}
+    <p role="alert" class="notice error modal-notice">{sessionError}</p>
+  {/if}
+
+  {#if sessionCheck}
+    <p role="status" class="notice modal-notice" class:error={!sessionCheck.authenticated}>
+      {sessionCheck.message}
+    </p>
+  {/if}
+
+  <div class="stat-box scan-summary">
+    <div>
+      <span>Trạng thái lưu cục bộ</span>
+      <strong>
+        {#if sessionStatus?.configured && sessionStatus.readable}
+          Đã lưu ({sessionStatus.masked})
+        {:else if sessionStatus?.configured}
+          Lỗi giải mã DPAPI
+        {:else}
+          Chưa cấu hình
+        {/if}
+      </strong>
+    </div>
+    <div>
+      <span>Tài khoản đã xác thực</span>
+      <strong>{runtime?.verifiedAccount || 'Chưa kiểm tra'}</strong>
+    </div>
+  </div>
+
+  <div class="modal-form">
+    <label for="session-cookie-input">Dán chuỗi Cookie mới</label>
+    <textarea
+      id="session-cookie-input"
+      rows="3"
+      bind:value={sessionCookieInput}
+      placeholder="connect.sid=...; ..."
+    ></textarea>
+  </div>
+
+  <div class="dialog-actions">
+    {#if sessionStatus?.configured}
+      <button type="button" class="button" onclick={handleClearSession} disabled={isBusy}>
+        Xóa phiên
+      </button>
+    {/if}
+    <button
+      type="button"
+      class="button"
+      onclick={handleCheckSession}
+      disabled={isBusy || !sessionStatus?.configured}
+    >
+      {busy === 'session' ? 'Đang kiểm tra…' : 'Kiểm tra phiên'}
+    </button>
+    <button
+      type="button"
+      class="button primary"
+      onclick={handleSaveSession}
+      disabled={isBusy || !sessionCookieInput.trim()}
+    >
+      Lưu phiên (DPAPI)
+    </button>
+    <button type="button" class="button" onclick={() => sessionDialog?.close()}>Đóng</button>
+  </div>
+</dialog>
+
+<dialog bind:this={startConfirmDialog} aria-labelledby="start-confirm-title">
+  <h2 id="start-confirm-title">Xác nhận bắt đầu tải lên</h2>
+  {#if selectedJob}
+    <p>
+      Chuẩn bị gửi <strong>{selectedJob.title}</strong> ({selectedJob.chapterCount} chương · {formatBytes(selectedJob.totalBytes)}) bằng tài khoản <strong>{selectedJob.account}</strong>.
+    </p>
+    <p>
+      Nếu rớt kết nối giữa chừng khi đang gửi dữ liệu, hệ thống sẽ chuyển sang <em>Chờ xác nhận / Cần kiểm tra</em> để đối chiếu, không tự gửi lặp tránh trùng chương.
+    </p>
+
+    {#if selectedJob.pendingConflicts.length > 0}
+      <p role="alert" class="notice error modal-notice">
+        Phát hiện {selectedJob.pendingConflicts.length} công việc cùng truyện đang ở trạng thái chờ.
+      </p>
+      <label class="checkbox-field">
+        <input type="checkbox" bind:checked={startConflictConsent} />
+        <span>Tôi đã kiểm tra và xác nhận vẫn muốn tải lên</span>
+      </label>
+    {/if}
+  {/if}
+  <div class="dialog-actions">
+    <button type="button" class="button" onclick={() => startConfirmDialog?.close()} disabled={isBusy}>
+      Hủy
+    </button>
+    <button
+      type="button"
+      class="button primary"
+      onclick={confirmStartNow}
+      disabled={isBusy || !startConflictConsent}
+    >
+      Xác nhận gửi
+    </button>
+  </div>
+</dialog>
 
 <dialog class="wide-dialog" bind:this={createDialog} aria-labelledby="create-job-title">
   <h2 id="create-job-title">Tạo công việc đăng tải mới</h2>
@@ -931,7 +1387,7 @@
       <div class="stat-box scan-summary">
         <div>
           <span>Số chương tìm thấy</span>
-          <strong>{createScan.chapters.length} chương · {formatBytes(createScan.validation.bytes)}</strong>
+          <strong class="num-stat">{createScan.chapters.length} chương · {formatBytes(createScan.validation.bytes)}</strong>
         </div>
         {#if createScan.validation.errors.length > 0}
           <div class="warn-stat">
@@ -1178,6 +1634,30 @@
 </dialog>
 
 <style>
+  .heading-actions {
+    flex-shrink: 0;
+  }
+
+  .session-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 13px;
+    white-space: nowrap;
+  }
+  .session-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 999px;
+    background: var(--muted);
+    opacity: 0.55;
+    flex-shrink: 0;
+  }
+  .session-pill.connected .session-dot {
+    background: var(--accent);
+    opacity: 1;
+  }
+
   .crash-banner,
   .standalone-notice {
     display: flex;
@@ -1233,7 +1713,7 @@
     margin: 0;
     padding: 0;
     list-style: none;
-    max-height: 38vh;
+    max-height: 36vh;
     overflow: auto;
   }
   .shelf-items button {
@@ -1280,9 +1760,6 @@
     background: var(--accent-soft);
     border-color: color-mix(in srgb, var(--accent) 42%, var(--line));
   }
-  .proof-footer {
-    flex-wrap: wrap;
-  }
   .job-row-meta small {
     color: var(--muted);
     font-size: 11.5px;
@@ -1300,9 +1777,17 @@
     padding: 0 16px 16px;
     border-top: 1px solid var(--line);
   }
-  .cleanup-btn {
-    width: 100%;
+  .auto-sched-check {
     margin-top: 10px;
+    font-size: 12.5px;
+  }
+  .foot-actions {
+    display: grid;
+    gap: 8px;
+    margin-top: 10px;
+  }
+  .foot-actions button {
+    width: 100%;
   }
 
   .job-head-info {
@@ -1412,6 +1897,9 @@
     font-size: 12px;
   }
 
+  .proof-footer {
+    flex-wrap: wrap;
+  }
   .idx-col {
     width: 48px;
     color: var(--muted);

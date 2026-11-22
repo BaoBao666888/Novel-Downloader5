@@ -2,5 +2,5 @@
   "identifier": "main",
   "description": "Local Novel Studio window. File access is implemented by the application commands.",
   "windows": ["main"],
-  "permissions": []
+  "permissions": ["core:event:default"]
 }
