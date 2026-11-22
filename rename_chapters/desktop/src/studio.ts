@@ -1,10 +1,19 @@
 import { invoke } from '@tauri-apps/api/core';
 
-export type WikiProfile = { name: string; has_script: boolean };
-export const listWikiProfiles = () => invoke<WikiProfile[]>('list_wiki_profiles');
-export const importWikiScript = (profile: string) => invoke<boolean>('import_wiki_script', { profile });
-export const openWiki = (profile: string, address: string, runScript: boolean) =>
-  invoke<void>('open_wiki', { options: { profile, address, run_script: runScript } });
+export const listWikiProfiles = () => invoke<string[]>('list_wiki_profiles');
+export const openWiki = (profile: string, address: string) =>
+  invoke<void>('open_wiki', { options: { profile, address } });
+
+export type CreditPlacement = 'start' | 'end' | { line: number };
+export type CreditPreview = { revision: number; rows: { name: string; error: string | null }[] };
+export type CreditSample = { before: string; credit: string; after: string };
+export type CreditResult = { report: { written: string[]; error: string | null }; can_undo: boolean };
+export const chooseCreditFolder = () => invoke<string | null>('choose_credit_folder');
+export const previewCredit = (text: string, position: CreditPlacement) =>
+  invoke<CreditPreview>('preview_credit', { options: { text, position } });
+export const sampleCredit = (revision: number, name: string) => invoke<CreditSample>('sample_credit', { revision, name });
+export const saveCredit = (revision: number, selection: string[]) => invoke<CreditResult>('save_credit', { revision, selection });
+export const undoCredit = () => invoke<CreditResult>('undo_credit');
 
 export type SourceKind = 'txt' | 'zip';
 export type LibraryItem = {

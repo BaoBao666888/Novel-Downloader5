@@ -4,7 +4,9 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use std::time::SystemTime;
 
-use novel_studio_core::{archive, first_line, merge, rename, rename_apply, split, text_tools};
+use novel_studio_core::{
+    archive, credit, first_line, merge, rename, rename_apply, split, text_tools,
+};
 use serde::{Deserialize, Serialize};
 
 #[derive(Default)]
@@ -22,6 +24,9 @@ pub struct Workspace {
     text_toc_file: Option<PathBuf>,
     text_plan: Option<(u32, text_tools::Plan)>,
     text_undo: Option<(u32, text_tools::Plan)>,
+    credit_folder: Option<PathBuf>,
+    credit_plan: Option<(u32, credit::Plan)>,
+    credit_undo: credit::Undo,
     archive_file: Option<PathBuf>,
     archive_output_dir: Option<PathBuf>,
     archive_plan: Option<(u32, archive::ArchivePlan)>,
@@ -55,6 +60,18 @@ pub struct TextPreview {
 pub struct TextResult {
     pub outcome: text_tools::ApplyOutcome,
     pub undo_revision: Option<u32>,
+}
+
+#[derive(Serialize)]
+pub struct CreditPreview {
+    revision: u32,
+    rows: Vec<credit::Row>,
+}
+
+#[derive(Serialize)]
+pub struct CreditResult {
+    report: credit::Report,
+    can_undo: bool,
 }
 
 #[derive(Serialize)]
@@ -481,6 +498,74 @@ impl Workspace {
         Ok(TextResult {
             outcome,
             undo_revision: Some(undo_rev),
+        })
+    }
+
+    pub fn select_credit_folder(&mut self, folder: PathBuf) -> Result<String, String> {
+        let path = folder.canonicalize().map_err(|err| err.to_string())?;
+        if !path.is_dir() {
+            return Err("Hãy chọn một thư mục.".into());
+        }
+        self.credit_folder = Some(path);
+        self.credit_plan = None;
+        self.credit_undo = credit::Undo::default();
+        Ok(folder.display().to_string())
+    }
+
+    pub fn preview_credit(&mut self, options: credit::Options) -> Result<CreditPreview, String> {
+        self.credit_plan = None;
+        let folder = self
+            .credit_folder
+            .clone()
+            .ok_or("Hãy chọn thư mục chứa TXT.")?;
+        let (rows, plan) = credit::preview(folder, options).map_err(|err| err.to_string())?;
+        let revision = self.next_revision();
+        self.credit_plan = Some((revision, plan));
+        Ok(CreditPreview { revision, rows })
+    }
+
+    fn credit_plan(&self, revision: u32) -> Result<&credit::Plan, String> {
+        self.credit_plan
+            .as_ref()
+            .filter(|(id, _)| *id == revision)
+            .map(|(_, plan)| plan)
+            .ok_or_else(|| "Bản xem trước đã hết hiệu lực.".into())
+    }
+
+    pub fn sample_credit(&self, revision: u32, name: &str) -> Result<credit::Sample, String> {
+        self.credit_plan(revision)?
+            .sample(name)
+            .map_err(|err| err.to_string())
+    }
+
+    pub fn save_credit(
+        &mut self,
+        revision: u32,
+        selection: Vec<String>,
+    ) -> Result<CreditResult, String> {
+        let (report, undo) = self
+            .credit_plan(revision)?
+            .apply(selection)
+            .map_err(|err| err.to_string())?;
+        self.credit_plan = None;
+        if !undo.is_empty() {
+            self.credit_undo = undo;
+        }
+        Ok(CreditResult {
+            report,
+            can_undo: !self.credit_undo.is_empty(),
+        })
+    }
+
+    pub fn undo_credit(&mut self) -> Result<CreditResult, String> {
+        self.credit_plan = None;
+        if self.credit_undo.is_empty() {
+            return Err("Chưa có lần lưu credit để hoàn tác.".into());
+        }
+        let report = self.credit_undo.apply().map_err(|err| err.to_string())?;
+        Ok(CreditResult {
+            report,
+            can_undo: !self.credit_undo.is_empty(),
         })
     }
 

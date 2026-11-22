@@ -2,13 +2,15 @@
 
 use std::sync::{Mutex, MutexGuard};
 
-use novel_studio_core::{archive, first_line, merge, rename, rename_apply, split, text_tools};
+use novel_studio_core::{
+    archive, credit, first_line, merge, rename, rename_apply, split, text_tools,
+};
 use tauri::{Manager, WebviewWindow};
 use tauri_plugin_dialog::DialogExt;
 
 use workspace::{
-    ArchivePreview, LinePreview, LineResult, MergePreview, Preview, SplitOptions, SplitPreview,
-    SplitSelection, TextPreview, TextResult, Workspace,
+    ArchivePreview, CreditPreview, CreditResult, LinePreview, LineResult, MergePreview, Preview,
+    SplitOptions, SplitPreview, SplitSelection, TextPreview, TextResult, Workspace,
 };
 
 mod library_commands;
@@ -442,6 +444,76 @@ async fn apply_text_edit(
     .map_err(|err| err.to_string())?
 }
 
+async fn run_credit<T: Send + 'static>(
+    app: tauri::AppHandle,
+    action: impl FnOnce(&mut Workspace) -> Result<T, String> + Send + 'static,
+) -> Result<T, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        let workspace = app.state::<Mutex<Workspace>>();
+        let mut guard = state(&workspace)?;
+        action(&mut guard)
+    })
+    .await
+    .map_err(|err| err.to_string())?
+}
+
+#[tauri::command]
+async fn choose_credit_folder(window: WebviewWindow) -> Result<Option<String>, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        let Some(folder) = window
+            .dialog()
+            .file()
+            .set_parent(&window)
+            .set_title("Chọn thư mục để thêm credit")
+            .blocking_pick_folder()
+        else {
+            return Ok(None);
+        };
+        let folder = folder.into_path().map_err(|err| err.to_string())?;
+        let workspace = window.state::<Mutex<Workspace>>();
+        state(&workspace)?.select_credit_folder(folder).map(Some)
+    })
+    .await
+    .map_err(|err| err.to_string())?
+}
+
+#[tauri::command]
+async fn preview_credit(
+    app: tauri::AppHandle,
+    options: credit::Options,
+) -> Result<CreditPreview, String> {
+    run_credit(app, move |workspace| workspace.preview_credit(options)).await
+}
+
+#[tauri::command]
+async fn sample_credit(
+    app: tauri::AppHandle,
+    revision: u32,
+    name: String,
+) -> Result<credit::Sample, String> {
+    run_credit(app, move |workspace| {
+        workspace.sample_credit(revision, &name)
+    })
+    .await
+}
+
+#[tauri::command]
+async fn save_credit(
+    app: tauri::AppHandle,
+    revision: u32,
+    selection: Vec<String>,
+) -> Result<CreditResult, String> {
+    run_credit(app, move |workspace| {
+        workspace.save_credit(revision, selection)
+    })
+    .await
+}
+
+#[tauri::command]
+async fn undo_credit(app: tauri::AppHandle) -> Result<CreditResult, String> {
+    run_credit(app, Workspace::undo_credit).await
+}
+
 #[tauri::command]
 async fn undo_text_edit(app: tauri::AppHandle, revision: u32) -> Result<TextResult, String> {
     tauri::async_runtime::spawn_blocking(move || {
@@ -647,6 +719,11 @@ fn main() {
             preview_replace,
             apply_text_edit,
             undo_text_edit,
+            choose_credit_folder,
+            preview_credit,
+            sample_credit,
+            save_credit,
+            undo_credit,
             choose_archive_file,
             choose_archive_output_dir,
             inspect_archive,
@@ -660,7 +737,6 @@ fn main() {
             library_commands::list_library_chapters,
             library_commands::read_library_chapter,
             wiki_browser::list_wiki_profiles,
-            wiki_browser::import_wiki_script,
             wiki_browser::open_wiki,
             translate_commands::get_translate_server_config,
             translate_commands::save_translate_server_config,

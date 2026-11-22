@@ -1,4 +1,5 @@
 pub mod archive;
+pub mod credit;
 pub mod first_line;
 pub mod library;
 pub mod merge;

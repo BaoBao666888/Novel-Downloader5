@@ -114,7 +114,7 @@ enum PythonResponse {
     },
 }
 
-fn sha256(bytes: &[u8]) -> [u8; 32] {
+pub(crate) fn sha256(bytes: &[u8]) -> [u8; 32] {
     Sha256::digest(bytes).into()
 }
 
@@ -414,9 +414,13 @@ fn create_backup_file(target: &Path, original_bytes: &[u8]) -> Result<PathBuf, C
     Err("Không thể tạo tên tệp sao lưu duy nhất.".into())
 }
 
-pub fn apply(plan: &Plan) -> Result<(ApplyOutcome, Plan), CoreError> {
-    let metadata = fs::symlink_metadata(&plan.file)
-        .map_err(|err| format!("Không thể kiểm tra tệp đích: {err}"))?;
+pub(crate) fn write_reviewed(
+    file: &Path,
+    expected: [u8; 32],
+    new_bytes: &[u8],
+) -> Result<PathBuf, CoreError> {
+    let metadata =
+        fs::symlink_metadata(file).map_err(|err| format!("Không thể kiểm tra tệp đích: {err}"))?;
     if !metadata.is_file() {
         return Err("Đích không phải tệp thường.".into());
     }
@@ -424,33 +428,36 @@ pub fn apply(plan: &Plan) -> Result<(ApplyOutcome, Plan), CoreError> {
         return Err("Tệp đang ở chế độ chỉ đọc (read-only).".into());
     }
 
-    let current_bytes = fs::read(&plan.file)
-        .map_err(|err| format!("Không thể đọc tệp nguồn trước khi ghi: {err}"))?;
-    if sha256(&current_bytes) != plan.original_sha256 {
+    let current_bytes =
+        fs::read(file).map_err(|err| format!("Không thể đọc tệp nguồn trước khi ghi: {err}"))?;
+    if sha256(&current_bytes) != expected {
         return Err("Nội dung tệp đã thay đổi sau khi xem trước. Hãy xem trước lại.".into());
     }
 
-    let parent = plan
-        .file
+    let parent = file
         .parent()
         .filter(|path| !path.as_os_str().is_empty())
         .unwrap_or_else(|| Path::new("."));
     let mut staged = tempfile::NamedTempFile::new_in(parent)?;
-    staged.write_all(&plan.new_bytes)?;
+    staged.write_all(new_bytes)?;
     staged.as_file().set_permissions(metadata.permissions())?;
     staged.as_file().sync_all()?;
 
-    let backup = create_backup_file(&plan.file, &current_bytes)?;
-    if fs::read(&plan.file)? != current_bytes {
+    let backup = create_backup_file(file, &current_bytes)?;
+    if fs::read(file)? != current_bytes {
         return Err("Nội dung tệp đã thay đổi trong lúc chuẩn bị lưu. Hãy xem trước lại.".into());
     }
-    staged.persist(&plan.file).map_err(|err| {
+    staged.persist(file).map_err(|err| {
         format!(
             "Không thể ghi tệp (bản sao lưu tại {}): {err}",
             backup.display()
         )
     })?;
+    Ok(backup)
+}
 
+pub fn apply(plan: &Plan) -> Result<(ApplyOutcome, Plan), CoreError> {
+    let backup = write_reviewed(&plan.file, plan.original_sha256, &plan.new_bytes)?;
     let outcome = ApplyOutcome {
         file: plan.file.display().to_string(),
         backup: backup.display().to_string(),

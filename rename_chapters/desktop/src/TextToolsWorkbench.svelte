@@ -1,4 +1,5 @@
 <script lang="ts">
+  import CreditWorkbench from './CreditWorkbench.svelte';
   import RegexHistory from './RegexHistory.svelte';
   import { listSavedRegexes, recordRegexUsage, type SavedRegex } from './regex-presets';
   import {
@@ -28,9 +29,11 @@
     renumber: 'Đánh số lại chương',
     toc: 'Áp mục lục vào truyện',
     replace: 'Tìm & thay thế',
+    credit: 'Thêm credit',
   } as const;
   type Tool = keyof typeof toolTitles;
   let tool = $state<Tool>('renumber');
+  let creditOpened = $state(false);
   let mainFile = $state('');
   let tocFile = $state('');
 
@@ -61,11 +64,11 @@
   let error = $state('');
   let needsPreview = $state(false);
 
-  let confirmDialog: HTMLDialogElement;
+  let confirmDialog = $state<HTMLDialogElement>();
   let replaceInput = $state<HTMLInputElement | undefined>(undefined);
 
   const isBusy = $derived(busy !== null || parentBusy);
-  const canPreview = $derived(!isBusy && Boolean(mainFile) && (
+  const canPreview = $derived(tool !== 'credit' && !isBusy && Boolean(mainFile) && (
     tool === 'renumber' ? Number.isSafeInteger(startNum) : tool === 'toc' ? Boolean(tocFile) : searchText.length > 0
   ));
   const filteredChanges = $derived.by(() => {
@@ -114,7 +117,8 @@
   function switchTool(next: Tool) {
     if (tool === next || isBusy) return;
     tool = next;
-    savedRegexes = listSavedRegexes(next);
+    if (next === 'credit') creditOpened = true;
+    else savedRegexes = listSavedRegexes(next);
     preview = null;
     error = '';
     needsPreview = false;
@@ -220,7 +224,7 @@
   }
 
   async function confirmApply() {
-    confirmDialog.close();
+    confirmDialog?.close();
     if (!preview || !preview.has_changes || effectiveSelectedCount === 0 || isBusy) return;
     busy = 'apply';
     error = '';
@@ -260,6 +264,7 @@
   }
 </script>
 
+{#if tool !== 'credit'}
 <section class="heading">
   <div>
     <h1>{toolTitles[tool]}</h1>
@@ -275,6 +280,7 @@
     {busy === 'main' ? 'Đang mở…' : mainFile ? 'Đổi tệp truyện' : 'Chọn tệp .txt'}
   </button>
 </section>
+{/if}
 
 <div class="subtool-bar" role="group" aria-label="Chọn công cụ văn bản">
   {#each Object.keys(toolTitles) as key (key)}
@@ -284,6 +290,11 @@
   {/each}
 </div>
 
+{#if creditOpened}
+  <div hidden={tool !== 'credit'}><CreditWorkbench /></div>
+{/if}
+
+{#if tool !== 'credit'}
 <div class={tool === 'toc' ? 'path-grid' : ''}>
   <div class="folder-line">
     <span class="folder-label">Tệp truyện chính</span>
@@ -615,7 +626,7 @@
           class="button primary"
           type="button"
           disabled={isBusy || !preview || !preview.has_changes || effectiveSelectedCount === 0}
-          onclick={() => confirmDialog.showModal()}
+          onclick={() => confirmDialog?.showModal()}
         >
           Lưu thay đổi
         </button>
@@ -640,7 +651,8 @@
     <p>Và {chosenForDialog.length - 5} thay đổi khác.</p>
   {/if}
   <div class="dialog-actions">
-    <button type="button" class="button" onclick={() => confirmDialog.close()}>Hủy</button>
+    <button type="button" class="button" onclick={() => confirmDialog?.close()}>Hủy</button>
     <button type="button" class="button primary" onclick={confirmApply}>Xác nhận lưu</button>
   </div>
 </dialog>
+{/if}
