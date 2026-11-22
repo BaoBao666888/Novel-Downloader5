@@ -1,6 +1,7 @@
 pub mod archive;
 pub mod first_line;
 pub mod library;
+pub mod merge;
 mod names;
 mod python;
 pub mod rename;
