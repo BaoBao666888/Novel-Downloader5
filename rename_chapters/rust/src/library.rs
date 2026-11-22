@@ -6,7 +6,7 @@ use std::path::{Path, PathBuf};
 
 use serde::{Deserialize, Serialize};
 
-use crate::{CoreError, archive};
+use crate::{CoreError, archive, python};
 
 const FORMAT_VERSION: u32 = 1;
 const PAGE_BYTES: usize = 16 * 1024;
@@ -361,7 +361,7 @@ impl Library {
                         }
                     } else {
                         let raw = fs::read(&path)?;
-                        let (text, encoding) = decode_txt_bytes(&raw)?;
+                        let (text, encoding) = decode_txt_bytes(&raw, interpreter)?;
                         let txt_spans = detect_txt_chapters(&text);
                         CachedToc {
                             stamp,
@@ -518,7 +518,7 @@ fn clean_zip_chapter_title(display_name: &str) -> String {
     }
 }
 
-fn decode_txt_bytes(raw: &[u8]) -> Result<(String, String), CoreError> {
+fn decode_txt_bytes(raw: &[u8], interpreter: Option<&Path>) -> Result<(String, String), CoreError> {
     if let Some(rest) = raw.strip_prefix(b"\xef\xbb\xbf") {
         let text = std::str::from_utf8(rest)
             .map_err(|_| "Tệp TXT không dùng UTF-8 hợp lệ.")?
@@ -546,11 +546,24 @@ fn decode_txt_bytes(raw: &[u8]) -> Result<(String, String), CoreError> {
             .replace('\r', "\n");
         return Ok((text, "utf-16be".to_owned()));
     }
-    let text = std::str::from_utf8(raw)
-        .map_err(|_| "Tệp TXT hiện cần dùng UTF-8 hoặc UTF-16 có BOM.")?
+    if let Ok(utf8) = std::str::from_utf8(raw) {
+        return Ok((
+            utf8.replace("\r\n", "\n").replace('\r', "\n"),
+            "utf-8".to_owned(),
+        ));
+    }
+    // Fallback to GB18030/GBK decoding via Python stdlib for Chinese raw TXT files.
+    let decoded = python::run(
+        "import sys; sys.stdout.buffer.write(sys.stdin.buffer.read().decode('gb18030').encode('utf-8'))",
+        &[],
+        Some(raw),
+        interpreter,
+    )
+    .map_err(|_| "Tệp TXT không phải UTF-8, UTF-16 hay GB18030 hợp lệ.")?;
+    let text = String::from_utf8(decoded)?
         .replace("\r\n", "\n")
         .replace('\r', "\n");
-    Ok((text, "utf-8".to_owned()))
+    Ok((text, "gb18030".to_owned()))
 }
 
 struct TxtChapterSpan {
@@ -918,5 +931,35 @@ with zipfile.ZipFile(sys.argv[1], "w") as zf:
         .unwrap();
         let updated_toc = reopened.chapters_cached(id, &mut cache, None).unwrap();
         assert_eq!(updated_toc.chapters.len(), 3);
+    }
+
+    #[test]
+    fn decodes_gb18030_txt_chapters_directly_in_library() {
+        let root = tempfile::tempdir().unwrap();
+        let data = root.path().join("data");
+        let source = root.path().join("raw_gbk.txt");
+        let script = r#"
+import sys
+with open(sys.argv[1], "wb") as f:
+    f.write("第1章 江湖夜雨\r\n正文第一段\r\n第2章 剑气长存\r\n正文第二段".encode("gb18030"))
+"#;
+        let py = if cfg!(windows) { "python" } else { "python3" };
+        assert!(
+            std::process::Command::new(py)
+                .args(["-I", "-B", "-c", script])
+                .arg(&source)
+                .status()
+                .unwrap()
+                .success()
+        );
+
+        let library = Library::new(data);
+        let id = library.import(vec![source]).unwrap().entries[0].id;
+        let toc = library.chapters(id, None).unwrap();
+        assert_eq!(toc.encoding, "gb18030");
+        assert_eq!(toc.chapters.len(), 2);
+        assert_eq!(toc.chapters[0].title, "第1章 江湖夜雨");
+        let ch2 = library.read_chapter(id, 1, None).unwrap();
+        assert!(ch2.text.contains("正文第二段"));
     }
 }
