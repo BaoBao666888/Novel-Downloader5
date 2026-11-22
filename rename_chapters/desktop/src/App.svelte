@@ -6,6 +6,7 @@
   import SplitWorkbench from './SplitWorkbench.svelte';
   import TextToolsWorkbench from './TextToolsWorkbench.svelte';
   import UploadWorkbench from './UploadWorkbench.svelte';
+  import VBookExtensionsWorkbench from './VBookExtensionsWorkbench.svelte';
   import WikiWorkbench from './WikiWorkbench.svelte';
   import {
     applyFirstLine, applyRename, chooseFolder, choosePython, previewFirstLine, previewRename, rowStatus,
@@ -33,7 +34,7 @@
   type Area = typeof areas[number]['id'];
   type EditTool = typeof editTools[number]['id'];
   type FileTool = typeof fileTools[number]['id'];
-  type LibraryTool = 'library' | 'wiki';
+  type LibraryTool = 'library' | 'vbook' | 'wiki';
   type Mode = EditTool | FileTool | LibraryTool | 'upload';
   let folder = $state('');
   let area = $state<Area>('edit');
@@ -317,6 +318,8 @@
     <nav class="mode-switch" aria-label="Nguồn truyện">
       <button type="button" aria-pressed={libraryTool === 'library'} disabled={busy !== null}
         onclick={() => changeLibraryTool('library')}>Truyện đã lưu</button>
+      <button type="button" aria-pressed={libraryTool === 'vbook'} disabled={busy !== null}
+        onclick={() => changeLibraryTool('vbook')}>Nguồn VBook</button>
       <button type="button" aria-pressed={libraryTool === 'wiki'} disabled={busy !== null}
         onclick={() => changeLibraryTool('wiki')}>Wikidich</button>
     </nav>
@@ -337,6 +340,9 @@
   {/if}
   {#if visited.has('library')}
     <div hidden={mode !== 'library'}><LibraryWorkbench /></div>
+  {/if}
+  {#if visited.has('vbook')}
+    <div hidden={mode !== 'vbook'}><VBookExtensionsWorkbench parentBusy={busy !== null} /></div>
   {/if}
   {#if visited.has('wiki')}
     <div hidden={mode !== 'wiki'}><WikiWorkbench /></div>

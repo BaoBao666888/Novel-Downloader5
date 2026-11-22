@@ -865,6 +865,137 @@ export const verifyUploadJobNow = (id: string) =>
 export const runDueUploadVerifications = () =>
   invoke<RunDueVerificationsOutcome>('run_due_upload_verifications');
 
+export type VBookExtensionType =
+  | 'novel'
+  | 'comic'
+  | 'chinese_novel'
+  | 'video'
+  | 'translate'
+  | 'ai'
+  | 'unknown';
+
+export type ExtensionRepo = {
+  url: string;
+  name: string;
+  author: string;
+  description: string;
+  enabled: boolean;
+  locked: boolean;
+  last_synced_at: number;
+  last_error: string | null;
+  plugin_count: number;
+};
+
+export type RemoteExtension = {
+  id: string;
+  name: string;
+  author: string;
+  version: number;
+  source: string;
+  host: string;
+  icon: string;
+  description: string;
+  ext_type: VBookExtensionType;
+  locale: string;
+  language: string;
+  country: string;
+  is_nsfw: boolean;
+  path: string;
+  repo_url: string;
+};
+
+export type InstalledExtension = {
+  id: string;
+  name: string;
+  author: string;
+  version: number;
+  source: string;
+  host: string;
+  regexp: string;
+  icon_data_url: string;
+  description: string;
+  locale: string;
+  ext_type: VBookExtensionType;
+  is_nsfw: boolean;
+  is_local: boolean;
+  is_encrypted: boolean;
+  pinned: boolean;
+  source_url: string;
+  repo_url: string;
+  scripts: Record<string, string>;
+  config_schema: Record<string, unknown>;
+  actions: Record<string, unknown>;
+  user_config: Record<string, unknown>;
+  local_storage: Record<string, string>;
+  created_at: number;
+  updated_at: number;
+};
+
+export type ExtensionUpdate = {
+  installed_id: string;
+  remote: RemoteExtension;
+  installed_version: number;
+  remote_version: number;
+};
+
+export type CatalogExtensionView = {
+  remote: RemoteExtension;
+  installed: boolean;
+  installed_id: string | null;
+  installed_version: number | null;
+  update_available: boolean;
+};
+
+export type VBookWorkspaceSnapshot = {
+  repos: ExtensionRepo[];
+  updates: ExtensionUpdate[];
+  installed: InstalledExtension[];
+  catalog: CatalogExtensionView[];
+  types: string[];
+  languages: string[];
+  authors: string[];
+};
+
+export type VBookRefreshError = {
+  repo_url: string;
+  message: string;
+};
+
+export type VBookRefreshResult = {
+  snapshot: VBookWorkspaceSnapshot;
+  errors: VBookRefreshError[];
+  fetched_repos: number;
+  total_remote: number;
+};
+
+export type VBookBatchUpdateResult = {
+  snapshot: VBookWorkspaceSnapshot;
+  updated_ids: string[];
+  failed: VBookRefreshError[];
+};
+
+export const vbookGetSnapshot = () => invoke<VBookWorkspaceSnapshot>('vbook_get_snapshot');
+export const vbookAddRepo = (url: string) =>
+  invoke<VBookWorkspaceSnapshot>('vbook_add_repo', { url });
+export const vbookRemoveRepo = (url: string) =>
+  invoke<VBookWorkspaceSnapshot>('vbook_remove_repo', { url });
+export const vbookToggleRepo = (url: string, enabled: boolean) =>
+  invoke<VBookWorkspaceSnapshot>('vbook_toggle_repo', { url, enabled });
+export const vbookRefreshRepos = () => invoke<VBookRefreshResult>('vbook_refresh_repos');
+export const vbookInstallFromUrl = (url: string, targetInstalledId: string | null = null) =>
+  invoke<InstalledExtension>('vbook_install_from_url', { url, targetInstalledId });
+export const vbookUpdateExtension = (installedId: string) =>
+  invoke<InstalledExtension>('vbook_update_extension', { installedId });
+export const vbookUpdateAll = () => invoke<VBookBatchUpdateResult>('vbook_update_all');
+export const vbookPickAndInstallLocalZip = () =>
+  invoke<InstalledExtension | null>('vbook_pick_and_install_local_zip');
+export const vbookUninstallExtension = (installedId: string) =>
+  invoke<VBookWorkspaceSnapshot>('vbook_uninstall_extension', { installedId });
+export const vbookTogglePinExtension = (installedId: string, pinned: boolean) =>
+  invoke<VBookWorkspaceSnapshot>('vbook_toggle_pin_extension', { installedId, pinned });
+export const vbookSaveExtensionConfig = (installedId: string, configJson: string) =>
+  invoke<InstalledExtension>('vbook_save_extension_config', { installedId, configJson });
+
 const issueLabels: Record<Row['issues'][number], string> = {
   invalid_target: 'Tên đích không hợp lệ',
   duplicate_target: 'Trùng tên trong danh sách',
