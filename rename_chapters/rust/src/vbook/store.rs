@@ -645,6 +645,23 @@ impl VBookExtensionStore {
         Ok(cloned)
     }
 
+    pub fn package_dir(&self, installed_id: &str) -> PathBuf {
+        self.packages_dir().join(installed_id)
+    }
+
+    pub fn storage_file(&self, installed_id: &str) -> Result<PathBuf, CoreError> {
+        let dir = self.root.join("storage");
+        fs::create_dir_all(&dir)?;
+        Ok(dir.join(format!("{installed_id}.json")))
+    }
+
+    pub fn get_installed(&self, installed_id: &str) -> Result<InstalledExtension, CoreError> {
+        self.load_installed()?
+            .into_iter()
+            .find(|e| e.id == installed_id)
+            .ok_or_else(|| "Không tìm thấy nguồn mở rộng đã cài.".into())
+    }
+
     pub fn save_extension_config_json(
         &self,
         installed_id: &str,
