@@ -68,6 +68,8 @@ struct PreviewRequest<'a> {
     action: &'static str,
     archive: &'a str,
     entry_index: usize,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    byte_limit: Option<usize>,
 }
 
 #[derive(Serialize)]
@@ -181,13 +183,32 @@ pub fn preview_entry(
     entry_index: usize,
     interpreter: Option<&Path>,
 ) -> Result<EntryPreview, CoreError> {
-    let archive_str = plan.archive_path.to_string_lossy();
+    read_entry_with_limit(&plan.archive_path, entry_index, None, interpreter)
+}
+
+pub fn read_entry_text(
+    archive: &Path,
+    entry_index: usize,
+    byte_limit: usize,
+    interpreter: Option<&Path>,
+) -> Result<EntryPreview, CoreError> {
+    read_entry_with_limit(archive, entry_index, Some(byte_limit), interpreter)
+}
+
+fn read_entry_with_limit(
+    archive: &Path,
+    entry_index: usize,
+    byte_limit: Option<usize>,
+    interpreter: Option<&Path>,
+) -> Result<EntryPreview, CoreError> {
+    let archive_str = archive.to_string_lossy();
     let response: PreviewResponse = python::json(
         include_str!("archive_source.py"),
         PreviewRequest {
             action: "preview",
             archive: &archive_str,
             entry_index,
+            byte_limit,
         },
         interpreter,
     )?;

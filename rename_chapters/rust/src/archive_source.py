@@ -97,6 +97,8 @@ def inspect_archive(req):
 def preview_entry(req):
     archive_path = Path(req["archive"])
     entry_index = int(req["entry_index"])
+    byte_limit = int(req.get("byte_limit") or PREVIEW_BYTE_LIMIT)
+    byte_limit = max(1024, min(byte_limit, 2 * 1024 * 1024))
     try:
         with zipfile.ZipFile(archive_path, "r") as zf:
             infos = zf.infolist()
@@ -106,11 +108,12 @@ def preview_entry(req):
             if info.is_dir():
                 return {"status": "error", "message": "Không thể xem trước thư mục."}
             with zf.open(info, "r") as stream:
-                sample = stream.read(PREVIEW_BYTE_LIMIT + 1)
-            truncated = len(sample) > PREVIEW_BYTE_LIMIT
+                sample = stream.read(byte_limit + 1)
+            truncated = len(sample) > byte_limit
             if truncated:
-                sample = sample[:PREVIEW_BYTE_LIMIT]
+                sample = sample[:byte_limit]
             text, encoding = decode_text_preview(sample)
+            text = text.replace("\r\n", "\n").replace("\r", "\n")
             return {
                 "status": "ok",
                 "display_name": decode_member_name(info),
