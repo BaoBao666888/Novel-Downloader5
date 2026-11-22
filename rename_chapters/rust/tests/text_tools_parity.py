@@ -2,6 +2,7 @@
 
 import json
 from pathlib import Path
+import re
 import subprocess
 import sys
 import unittest
@@ -82,6 +83,44 @@ class TextToolsParity(unittest.TestCase):
                 self.assertEqual(actual["status"], "ok")
                 self.assertEqual(actual["new_content"], expected_text)
                 self.assertEqual(actual["count"], expected_count)
+
+    def replace(self, content, search, replacement, **options):
+        return run_adapter({
+            "action": "replace", "content": content, "search": search, "replacement": replacement,
+            "use_regex": False, "whole_word": False, "match_case": False, **options,
+        })
+
+    def test_literal_replacement_keeps_backslashes_in_every_matching_mode(self):
+        class ReadOnlyWidget:
+            def get(self, *_):
+                return "file Files dòng"
+
+        # These legacy modes pass plain text to re.subn as a regex replacement template.
+        for whole_word in (False, True):
+            with self.subTest(whole_word=whole_word):
+                with self.assertRaises(re.error):
+                    TextOperations.replace_all(ReadOnlyWidget(), "file", r"C:\Truyen", match_word=whole_word)
+                result = self.replace("file Files dòng", "file", r"C:\Truyen", whole_word=whole_word)
+                self.assertEqual(result["status"], "ok")
+                self.assertEqual(result["new_content"], r"C:\Truyen Files dòng" if whole_word else r"C:\Truyen C:\Truyens dòng")
+
+    def test_whole_word_groups_regex_alternatives_and_counts_only_real_edits(self):
+        result = self.replace("a aa abcX abc", r"a|abc", "a", use_regex=True, whole_word=True)
+        self.assertEqual(result["count"], 2)
+        self.assertEqual(result["new_content"], "a aa abcX a")
+        self.assertEqual(result["changes"], [{"index": 1, "line_number": 1, "before": "abc", "after": "a"}])
+
+    def test_groups_zero_width_and_newlines(self):
+        result = self.replace("😀\r\nAB\rCuối\n", r"(?m)^(?=(A)(B)$)", "$2$$\n", use_regex=True)
+        self.assertEqual(result["new_content"], "😀\r\nB$\r\nAB\rCuối\n")
+        self.assertEqual(result["changes"][0]["before"], "")
+        self.assertEqual(result["changes"][0]["line_number"], 2)
+        multiline = self.replace("A\r\nB\nCuối", "A\nB", "Chương\nMới", match_case=True)
+        self.assertEqual(multiline["new_content"], "Chương\r\nMới\nCuối")
+
+    def test_invalid_patterns_and_replacement_groups_are_reported(self):
+        self.assertIn("Regex tìm kiếm", self.replace("abc", "[", "x", use_regex=True)["message"])
+        self.assertIn("Mẫu thay thế", self.replace("abc", r"(z)", "$2", use_regex=True)["message"])
 
 
 if __name__ == "__main__":

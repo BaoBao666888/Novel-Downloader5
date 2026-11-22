@@ -68,6 +68,23 @@ struct ApplyTocRequest<'a> {
     mode: &'static str,
 }
 
+#[derive(Serialize, Deserialize)]
+pub struct ReplaceOptions {
+    pub search: String,
+    pub replacement: String,
+    pub use_regex: bool,
+    pub whole_word: bool,
+    pub match_case: bool,
+}
+
+#[derive(Serialize)]
+struct ReplaceRequest<'a> {
+    action: &'static str,
+    content: &'a str,
+    #[serde(flatten)]
+    options: ReplaceOptions,
+}
+
 #[derive(Deserialize)]
 #[serde(tag = "status", rename_all = "snake_case")]
 enum PythonResponse {
@@ -96,7 +113,8 @@ fn read_utf8_with_bom_and_eol(
     let text =
         std::str::from_utf8(body).map_err(|err| format!("Tệp không phải UTF-8 hợp lệ: {err}"))?;
     let eol = if text.contains("\r\n") { "\r\n" } else { "\n" };
-    Ok((raw.clone(), has_bom, eol, text.to_owned()))
+    let text = text.to_owned();
+    Ok((raw, has_bom, eol, text))
 }
 
 fn encode_with_bom_and_eol(content_lf: &str, has_bom: bool, eol: &str) -> Vec<u8> {
@@ -243,6 +261,41 @@ pub fn preview_apply_toc(
     }
 }
 
+pub fn preview_replace(
+    file: &Path,
+    options: ReplaceOptions,
+    interpreter: Option<&Path>,
+) -> Result<Plan, CoreError> {
+    let (raw, has_bom, _, text) = read_utf8_with_bom_and_eol(file)?;
+    let response: PythonResponse = python::json(
+        include_str!("text_tools_source.py"),
+        ReplaceRequest {
+            action: "replace",
+            content: &text,
+            options,
+        },
+        interpreter,
+    )?;
+    match response {
+        PythonResponse::Ok {
+            new_content,
+            count,
+            toc_entries,
+            changes,
+        } => Ok(Plan {
+            file: file.to_path_buf(),
+            original_sha256: sha256(&raw),
+            original_bytes: raw,
+            // The replacement adapter retains the original newlines outside edits.
+            new_bytes: encode_with_bom_and_eol(&new_content, has_bom, "\n"),
+            match_count: count,
+            toc_entries,
+            changes,
+        }),
+        PythonResponse::Error { message } => Err(message.into()),
+    }
+}
+
 fn create_backup_file(target: &Path, original_bytes: &[u8]) -> Result<PathBuf, CoreError> {
     let parent = target.parent().unwrap_or_else(|| Path::new("."));
     let name = target
@@ -263,7 +316,7 @@ fn create_backup_file(target: &Path, original_bytes: &[u8]) -> Result<PathBuf, C
         {
             Ok(mut file) => {
                 file.write_all(original_bytes)?;
-                file.sync_all().ok();
+                file.sync_all()?;
                 return Ok(candidate);
             }
             Err(err) if err.kind() == std::io::ErrorKind::AlreadyExists => continue,
@@ -289,8 +342,21 @@ pub fn apply(plan: &Plan) -> Result<(ApplyOutcome, Plan), CoreError> {
         return Err("Nội dung tệp đã thay đổi sau khi xem trước. Hãy xem trước lại.".into());
     }
 
+    let parent = plan
+        .file
+        .parent()
+        .filter(|path| !path.as_os_str().is_empty())
+        .unwrap_or_else(|| Path::new("."));
+    let mut staged = tempfile::NamedTempFile::new_in(parent)?;
+    staged.write_all(&plan.new_bytes)?;
+    staged.as_file().set_permissions(metadata.permissions())?;
+    staged.as_file().sync_all()?;
+
     let backup = create_backup_file(&plan.file, &current_bytes)?;
-    fs::write(&plan.file, &plan.new_bytes).map_err(|err| {
+    if fs::read(&plan.file)? != current_bytes {
+        return Err("Nội dung tệp đã thay đổi trong lúc chuẩn bị lưu. Hãy xem trước lại.".into());
+    }
+    staged.persist(&plan.file).map_err(|err| {
         format!(
             "Không thể ghi tệp (bản sao lưu tại {}): {err}",
             backup.display()
@@ -377,5 +443,36 @@ mod tests {
         .unwrap();
         assert_eq!(replace_plan.changes.len(), 2);
         assert_eq!(replace_plan.changes[1].after, "第2章 Cao trào");
+    }
+
+    #[test]
+    fn replacement_preserves_mixed_endings_bom_and_rolls_back_exactly() {
+        let dir = tempfile::tempdir().unwrap();
+        let file = dir.path().join("story.txt");
+        let original = "\u{feff}第1章\r\nMột chương\n第2章\rDòng mới";
+        let expected = "\u{feff}Chương 1\r\nMột chương\nChương 2\rDòng mới";
+        fs::write(&file, original).unwrap();
+        let plan = preview_replace(
+            &file,
+            ReplaceOptions {
+                search: r"(?m)^第(\d+)章$".into(),
+                replacement: "Chương $1".into(),
+                use_regex: true,
+                whole_word: true,
+                match_case: false,
+            },
+            None,
+        )
+        .unwrap();
+        assert_eq!(plan.match_count, 2);
+        assert_eq!(plan.changes[1].line_number, 3);
+        assert_eq!(plan.new_bytes, expected.as_bytes());
+        assert_eq!(fs::read(&file).unwrap(), original.as_bytes());
+
+        let (outcome, undo) = apply(&plan).unwrap();
+        assert_eq!(fs::read(&file).unwrap(), expected.as_bytes());
+        assert_eq!(fs::read(outcome.backup).unwrap(), original.as_bytes());
+        apply(&undo).unwrap();
+        assert_eq!(fs::read(&file).unwrap(), original.as_bytes());
     }
 }

@@ -1,6 +1,6 @@
 # Novel Studio Desktop
 
-Bản development đầu tiên của desktop Tauri 2 và Svelte. Màn hình **Đổi tên chương** dùng chung Rust core với CLI.
+Bản thử nghiệm desktop Tauri 2 và Svelte, dùng Rust core để xử lý file.
 
 ## Chạy trên Windows x64
 
@@ -26,7 +26,9 @@ cargo build --locked --manifest-path src-tauri/Cargo.toml --features custom-prot
 
 Bản development nằm trong `src-tauri/target/debug/novel-studio-desktop.exe`. Frontend được nhúng vào exe. Cần WebView2 và Python trên máy chạy. Lệnh đổi tên kiểm tra lại các file đã duyệt và dùng primitive chống ghi đè của Rust core. Nếu filesystem báo lỗi giữa batch, màn hình hiện số file đã đổi và file dừng.
 
-Desktop có hai thao tác độc lập cho TXT trong thư mục được chọn. `Đổi tên chương` đổi tên file đã duyệt. `Sửa dòng đầu` gợi ý từ mẫu tên, cho nhập dòng riêng và hiển thị dòng cũ/mới trước khi lưu. Lần lưu gần nhất có thể hoàn tác trong phiên. Các bản sao trước khi ghi nằm cạnh file và đường dẫn xuất hiện trong kết quả. Chia chương vẫn chạy qua CLI.
+`Đổi tên chương` và `Sửa dòng đầu` làm việc với các TXT trong thư mục đã chọn. `Chia chương` hỗ trợ chỉnh mốc và xuất chương. `Giải nén ZIP` cho chọn các mục cần xuất và đọc thử TXT.
+
+Trong `Công cụ văn bản`, chọn một TXT để đánh số lại, áp mục lục hoặc Tìm & thay thế. Tìm & thay thế hỗ trợ văn bản thường, regex, khớp cả từ và phân biệt hoa thường. Trong regex, dùng `$1` cho nhóm bắt thứ nhất và `$$` cho một dấu đô la. Trước khi lưu, đối chiếu các đoạn theo số dòng. App lưu bản sao `.bak` cạnh tệp và cho hoàn tác lần lưu gần nhất trong phiên.
 
 
 ## Build setup Windows từ WSL

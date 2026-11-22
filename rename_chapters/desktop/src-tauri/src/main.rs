@@ -409,6 +409,19 @@ async fn preview_apply_toc(
 }
 
 #[tauri::command]
+async fn preview_replace(
+    app: tauri::AppHandle,
+    options: text_tools::ReplaceOptions,
+) -> Result<TextPreview, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        let workspace = app.state::<Mutex<Workspace>>();
+        state(&workspace)?.preview_replace(options)
+    })
+    .await
+    .map_err(|err| err.to_string())?
+}
+
+#[tauri::command]
 async fn apply_text_edit(app: tauri::AppHandle, revision: u32) -> Result<TextResult, String> {
     tauri::async_runtime::spawn_blocking(move || {
         let workspace = app.state::<Mutex<Workspace>>();
@@ -549,6 +562,7 @@ fn main() {
             choose_toc_file,
             preview_renumber,
             preview_apply_toc,
+            preview_replace,
             apply_text_edit,
             undo_text_edit,
             choose_archive_file,

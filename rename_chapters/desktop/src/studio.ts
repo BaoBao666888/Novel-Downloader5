@@ -222,6 +222,13 @@ export const previewRenumber = (findRegex: string, replaceFormat: string, startN
   invoke<TextPreview>('preview_renumber', { findRegex, replaceFormat, startNum });
 export const previewApplyToc = (tocRegex: string, mainRegex: string, mode: TocMode) =>
   invoke<TextPreview>('preview_apply_toc', { tocRegex, mainRegex, mode });
+export const previewReplace = (options: {
+  search: string;
+  replacement: string;
+  use_regex: boolean;
+  whole_word: boolean;
+  match_case: boolean;
+}) => invoke<TextPreview>('preview_replace', { options });
 export const applyTextEdit = (revision: number) => invoke<TextResult>('apply_text_edit', { revision });
 export const undoTextEdit = (revision: number) => invoke<TextResult>('undo_text_edit', { revision });
 

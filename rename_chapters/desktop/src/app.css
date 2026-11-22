@@ -680,6 +680,7 @@ td .row-error, .row-error { color: var(--warning); }
   margin-bottom: 14px;
 }
 .subtool-pill {
+  min-height: 36px;
   padding: 6px 13px;
   border-radius: 999px;
   border: 1px solid var(--line);
@@ -700,9 +701,19 @@ td .row-error, .row-error { color: var(--warning); }
   border-color: color-mix(in srgb, var(--accent) 40%, var(--line));
   color: var(--accent);
 }
-.line-col { width: 76px; color: var(--muted); }
-.diff-before { color: var(--muted); overflow-wrap: anywhere; }
-.diff-after { font-weight: 650; color: var(--accent); overflow-wrap: anywhere; }
+.line-col { width: 68px; color: var(--muted); }
+tbody .diff-line { position: static; background: transparent; font-variant-numeric: tabular-nums; }
+tbody tr:last-child .diff-line { border-bottom: 0; }
+.diff-before, .diff-after { white-space: break-spaces; overflow-wrap: anywhere; }
+.diff-before { color: var(--muted); }
+.diff-after { font-weight: 650; color: var(--accent); }
+.diff-empty { color: var(--muted); font-size: 12px; font-style: italic; }
+.field-help { margin-top: 8px; color: var(--muted); font-size: 12px; line-height: 1.5; }
+.replace-options { display: grid; margin-top: 8px; }
+.replace-options label {
+  display: flex; align-items: center; gap: 8px; min-height: 40px; margin: 0;
+}
+.replace-options input { margin: 0; accent-color: var(--accent); }
 
 /* Archive workbench */
 .stat-box {
@@ -802,6 +813,15 @@ dialog li span { font-size: 12px; color: var(--muted); }
 .line-comparison dd { margin: 3px 0 0; white-space: pre-wrap; overflow-wrap: anywhere; }
 
 /* Responsive */
+@media (min-width: 861px) and (max-height: 780px) {
+  main { padding-block: 16px 12px; }
+  .mode-switch, .heading, .folder-line { margin-bottom: 12px; }
+  .subtool-bar { margin-bottom: 10px; }
+  aside { padding-block: 16px; }
+  .proof-head, .proof-footer { min-height: 52px; padding-block: 8px; }
+  .proof-body { min-height: 240px; max-height: max(240px, calc(100dvh - 430px)); }
+  .empty { min-height: 240px; padding: 24px; }
+}
 @media (max-width: 860px) {
   .workspace { grid-template-columns: 1fr; }
   .path-grid { grid-template-columns: 1fr; }

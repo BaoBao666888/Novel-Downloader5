@@ -5,6 +5,7 @@
     chooseTocFile,
     previewApplyToc,
     previewRenumber,
+    previewReplace,
     undoTextEdit,
     type TextPreview,
     type TextResult,
@@ -21,7 +22,13 @@
 
   const PAGE_SIZE = 40;
 
-  let tool = $state<'renumber' | 'toc'>('renumber');
+  const toolTitles = {
+    renumber: 'Đánh số lại chương',
+    toc: 'Áp mục lục vào truyện',
+    replace: 'Tìm & thay thế',
+  } as const;
+  type Tool = keyof typeof toolTitles;
+  let tool = $state<Tool>('renumber');
   let mainFile = $state('');
   let tocFile = $state('');
 
@@ -34,6 +41,12 @@
   let tocRegex = $state('^(第\\d+章)');
   let mainRegex = $state('^第\\d+章$');
   let tocMode = $state<TocMode>('append');
+
+  let searchText = $state('');
+  let replacement = $state('');
+  let useRegex = $state(false);
+  let wholeWord = $state(false);
+  let matchCase = $state(false);
 
   let preview = $state<TextPreview | null>(null);
   let outcome = $state<{ result: TextResult; undone: boolean } | null>(null);
@@ -48,6 +61,9 @@
   let replaceInput = $state<HTMLInputElement | undefined>(undefined);
 
   const isBusy = $derived(busy !== null || parentBusy);
+  const canPreview = $derived(!isBusy && Boolean(mainFile) && (
+    tool === 'renumber' ? Number.isSafeInteger(startNum) : tool === 'toc' ? Boolean(tocFile) : searchText.length > 0
+  ));
   const filteredChanges = $derived.by(() => {
     const list = preview?.summary.changes ?? [];
     const q = query.trim().toLowerCase();
@@ -71,7 +87,7 @@
     error = '';
   }
 
-  function switchTool(next: 'renumber' | 'toc') {
+  function switchTool(next: Tool) {
     if (tool === next || isBusy) return;
     tool = next;
     preview = null;
@@ -131,17 +147,25 @@
   }
 
   async function runPreview() {
-    if (!mainFile || isBusy) return;
-    if (tool === 'toc' && !tocFile) return;
+    if (!canPreview) return;
     busy = 'preview';
     error = '';
     outcome = null;
     page = 0;
     try {
-      preview =
-        tool === 'renumber'
-          ? await previewRenumber(findRegex, replaceFormat, Number(startNum) || 1)
-          : await previewApplyToc(tocRegex, mainRegex, tocMode);
+      switch (tool) {
+        case 'renumber':
+          preview = await previewRenumber(findRegex, replaceFormat, startNum);
+          break;
+        case 'toc':
+          preview = await previewApplyToc(tocRegex, mainRegex, tocMode);
+          break;
+        case 'replace':
+          preview = await previewReplace({
+            search: searchText, replacement, use_regex: useRegex, whole_word: wholeWord, match_case: matchCase,
+          });
+          break;
+      }
       needsPreview = false;
     } catch (cause) {
       preview = null;
@@ -163,6 +187,8 @@
       preview = null;
       needsPreview = true;
     } catch (cause) {
+      preview = null;
+      needsPreview = true;
       error = String(cause);
     } finally {
       busy = null;
@@ -190,11 +216,13 @@
 
 <section class="heading">
   <div>
-    <h1>{tool === 'renumber' ? 'Đánh số lại chương' : 'Áp mục lục vào truyện'}</h1>
+    <h1>{toolTitles[tool]}</h1>
     <p>
       {tool === 'renumber'
         ? 'Tìm chuỗi đánh số chương bằng regex, đối chiếu thay đổi rồi lưu an toàn kèm bản sao lưu.'
-        : 'Khớp số chương từ tệp mục lục để bổ sung hoặc thay thế tiêu đề trong tệp truyện chính.'}
+        : tool === 'toc'
+          ? 'Khớp số chương từ tệp mục lục để bổ sung hoặc thay thế tiêu đề trong tệp truyện chính.'
+          : 'Duyệt từng chỗ thay đổi trong tệp truyện trước khi lưu.'}
     </p>
   </div>
   <button class="button primary" type="button" onclick={pickMainFile} disabled={isBusy}>
@@ -203,24 +231,11 @@
 </section>
 
 <div class="subtool-bar" role="group" aria-label="Chọn công cụ văn bản">
-  <button
-    type="button"
-    class="subtool-pill"
-    aria-pressed={tool === 'renumber'}
-    disabled={isBusy}
-    onclick={() => switchTool('renumber')}
-  >
-    Đánh số lại chương
-  </button>
-  <button
-    type="button"
-    class="subtool-pill"
-    aria-pressed={tool === 'toc'}
-    disabled={isBusy}
-    onclick={() => switchTool('toc')}
-  >
-    Áp mục lục vào truyện
-  </button>
+  {#each Object.keys(toolTitles) as key (key)}
+    {@const option = key as Tool}
+    <button type="button" class="subtool-pill" aria-pressed={tool === option}
+      disabled={isBusy} onclick={() => switchTool(option)}>{toolTitles[option]}</button>
+  {/each}
 </div>
 
 <div class={tool === 'toc' ? 'path-grid' : ''}>
@@ -241,7 +256,7 @@
 
 <div class="workspace">
   <aside aria-label="Cấu hình xử lý văn bản">
-    <h2>{tool === 'renumber' ? 'Quy tắc đánh số lại' : 'Quy tắc khớp mục lục'}</h2>
+    <h2>{tool === 'renumber' ? 'Quy tắc đánh số lại' : tool === 'toc' ? 'Quy tắc khớp mục lục' : 'Nội dung cần sửa'}</h2>
     <fieldset disabled={isBusy}>
       {#if tool === 'renumber'}
         <label for="renum-find">Regex tìm tiêu đề cần đánh số</label>
@@ -301,7 +316,7 @@
           bind:value={startNum}
           oninput={markStale}
         />
-      {:else}
+      {:else if tool === 'toc'}
         <label for="toc-regex">Regex tệp mục lục (cần nhóm bắt (...))</label>
         <input
           id="toc-regex"
@@ -347,6 +362,24 @@
           <option value="append">Bổ sung tiêu đề sau khóa</option>
           <option value="replace">Thay thế toàn bộ bằng dòng mục lục</option>
         </select>
+      {:else}
+        <label for="replace-search">Tìm</label>
+        <textarea id="replace-search" rows="2" class:format={useRegex} bind:value={searchText}
+          spellcheck={false} oninput={markStale}></textarea>
+        <label for="replace-value">Thay bằng</label>
+        <textarea id="replace-value" rows="2" class:format={useRegex} bind:value={replacement}
+          aria-describedby="replace-help" spellcheck={false} oninput={markStale}></textarea>
+        <p class="field-help" id="replace-help">
+          Để trống nếu muốn xóa đoạn tìm thấy.{#if useRegex}{' '}Dùng <code>$1</code> cho nhóm bắt và <code>$$</code> cho dấu đô la.{/if}
+        </p>
+        <details>
+          <summary>Tùy chọn tìm kiếm</summary>
+          <div class="replace-options">
+            <label><input type="checkbox" bind:checked={useRegex} onchange={markStale} /> Biểu thức chính quy</label>
+            <label><input type="checkbox" bind:checked={wholeWord} onchange={markStale} /> Khớp cả từ</label>
+            <label><input type="checkbox" bind:checked={matchCase} onchange={markStale} /> Phân biệt hoa thường</label>
+          </div>
+        </details>
       {/if}
     </fieldset>
 
@@ -354,7 +387,7 @@
       class="button preview-button"
       type="button"
       onclick={runPreview}
-      disabled={!mainFile || (tool === 'toc' && !tocFile) || isBusy}
+      disabled={!canPreview}
     >
       {busy === 'preview' ? 'Đang đối chiếu…' : 'Xem trước thay đổi'}
     </button>
@@ -374,6 +407,7 @@
         {#if preview}
           <p class="summary">
             {preview.summary.changed_count} chỗ thay đổi
+            {#if tool === 'replace'} trong {preview.summary.match_count} kết quả tìm thấy{/if}
             {#if preview.summary.toc_entries !== null}
               · {preview.summary.toc_entries} mục trong mục lục
             {/if}
@@ -439,10 +473,16 @@
           <tbody>
             {#each pagedChanges as item (item.index)}
               <tr>
-                <td class="line-col"><code>#{item.line_number}</code></td>
-                <td><span class="diff-before">{item.before}</span></td>
+                <th class="line-col diff-line" scope="row">{item.line_number}</th>
+                <td>
+                  {#if item.before}<span class="diff-before">{item.before}</span>
+                  {:else}<span class="diff-empty">Vị trí chèn</span>{/if}
+                </td>
                 <td class="direction" aria-hidden="true">→</td>
-                <td><span class="diff-after">{item.after}</span></td>
+                <td>
+                  {#if item.after}<span class="diff-after">{item.after}</span>
+                  {:else}<span class="diff-empty">Đã xóa</span>{/if}
+                </td>
               </tr>
             {/each}
           </tbody>
@@ -456,16 +496,19 @@
             <h3>{busy === 'apply' ? 'Đang lưu thay đổi…' : 'Đang hoàn tác…'}</h3>
           {:else if !mainFile}
             <h3>Chọn tệp truyện .txt</h3>
-            <p>Mọi thao tác đều đối chiếu trước, kiểm tra SHA-256 và tạo tệp .bak trước khi ghi.</p>
           {:else if tool === 'toc' && !tocFile}
             <h3>Chọn thêm tệp mục lục .txt</h3>
             <p>Bấm "Chọn mục lục…" ở thanh phía trên để nạp danh sách tiêu đề chương.</p>
+          {:else if preview && filteredChanges.length === 0 && query.trim() && preview.summary.changes.length}
+            <h3>Không có dòng nào khớp bộ lọc</h3>
           {:else if preview && !preview.has_changes}
-            <h3>Không có thay đổi nào được tìm thấy</h3>
-            <p>Kiểm tra lại biểu thức regex hoặc chế độ khớp bên trái.</p>
+            <h3>{tool === 'replace' && preview.summary.match_count === 0 ? 'Không tìm thấy nội dung' : 'Nội dung không đổi'}</h3>
+            {#if tool === 'replace' && preview.summary.match_count === 0}
+              <p>Thử đổi nội dung tìm hoặc tùy chọn khớp từ.</p>
+            {/if}
           {:else}
             <h3>{needsPreview ? 'Xem trước lại để tiếp tục' : 'Sẵn sàng đối chiếu'}</h3>
-            <p>Chỉnh biểu thức bên trái rồi bấm Xem trước thay đổi.</p>
+            <p>{tool === 'replace' ? 'Nhập nội dung cần tìm rồi bấm Xem trước thay đổi.' : 'Chỉnh biểu thức bên trái rồi bấm Xem trước thay đổi.'}</p>
           {/if}
         </div>
       {/if}
@@ -507,8 +550,8 @@
   <ul>
     {#each (preview?.summary.changes ?? []).slice(0, 5) as item (item.index)}
       <li>
-        <span>Dòng {item.line_number}: {item.before}</span>
-        <strong>→ {item.after}</strong>
+        <span>Dòng {item.line_number} · {item.before || 'Vị trí chèn'}</span>
+        <strong>{item.after || 'Xóa đoạn này'}</strong>
       </li>
     {/each}
   </ul>

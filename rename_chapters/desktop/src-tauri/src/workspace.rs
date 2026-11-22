@@ -326,17 +326,7 @@ impl Workspace {
             self.interpreter.as_deref(),
         )
         .map_err(|err| err.to_string())?;
-        let summary = plan.summary();
-        let has_changes = plan.has_changes();
-        let revision = self.next_revision();
-        if has_changes {
-            self.text_plan = Some((revision, plan));
-        }
-        Ok(TextPreview {
-            revision,
-            summary,
-            has_changes,
-        })
+        Ok(self.prepare_text_plan(plan))
     }
 
     pub fn preview_apply_toc(
@@ -363,17 +353,35 @@ impl Workspace {
             self.interpreter.as_deref(),
         )
         .map_err(|err| err.to_string())?;
+        Ok(self.prepare_text_plan(plan))
+    }
+
+    pub fn preview_replace(
+        &mut self,
+        options: text_tools::ReplaceOptions,
+    ) -> Result<TextPreview, String> {
+        self.text_plan = None;
+        let file = self
+            .text_main_file
+            .as_ref()
+            .ok_or("Hãy chọn tệp .txt cần xử lý trước.")?;
+        let plan = text_tools::preview_replace(file, options, self.interpreter.as_deref())
+            .map_err(|err| err.to_string())?;
+        Ok(self.prepare_text_plan(plan))
+    }
+
+    fn prepare_text_plan(&mut self, plan: text_tools::Plan) -> TextPreview {
         let summary = plan.summary();
         let has_changes = plan.has_changes();
         let revision = self.next_revision();
         if has_changes {
             self.text_plan = Some((revision, plan));
         }
-        Ok(TextPreview {
+        TextPreview {
             revision,
             summary,
             has_changes,
-        })
+        }
     }
 
     pub fn apply_text_edit(&mut self, revision: u32) -> Result<TextResult, String> {
@@ -393,10 +401,12 @@ impl Workspace {
     pub fn undo_text_edit(&mut self, revision: u32) -> Result<TextResult, String> {
         let (_, plan) = self
             .text_undo
-            .take_if(|(id, _)| *id == revision)
+            .as_ref()
+            .filter(|(id, _)| *id == revision)
             .ok_or("Lần sửa này không còn khả dụng để hoàn tác.")?;
         self.text_plan = None;
-        let (outcome, _) = text_tools::apply(&plan).map_err(|err| err.to_string())?;
+        let (outcome, _) = text_tools::apply(plan).map_err(|err| err.to_string())?;
+        self.text_undo = None;
         Ok(TextResult {
             outcome,
             undo_revision: None,
