@@ -14,5 +14,6 @@ pub mod policy;
 pub mod protocol;
 pub mod reconcile;
 pub mod recovery;
+pub mod runner;
 pub mod store;
 pub mod verifier;
