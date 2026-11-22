@@ -423,10 +423,14 @@ async fn preview_replace(
 }
 
 #[tauri::command]
-async fn apply_text_edit(app: tauri::AppHandle, revision: u32) -> Result<TextResult, String> {
+async fn apply_text_edit(
+    app: tauri::AppHandle,
+    revision: u32,
+    selected_indices: Option<Vec<usize>>,
+) -> Result<TextResult, String> {
     tauri::async_runtime::spawn_blocking(move || {
         let workspace = app.state::<Mutex<Workspace>>();
-        state(&workspace)?.apply_text_edit(revision)
+        state(&workspace)?.apply_text_edit(revision, selected_indices)
     })
     .await
     .map_err(|err| err.to_string())?

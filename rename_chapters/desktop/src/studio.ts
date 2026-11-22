@@ -296,7 +296,8 @@ export const previewReplace = (options: {
   whole_word: boolean;
   match_case: boolean;
 }) => invoke<TextPreview>('preview_replace', { options });
-export const applyTextEdit = (revision: number) => invoke<TextResult>('apply_text_edit', { revision });
+export const applyTextEdit = (revision: number, selectedIndices?: number[]) =>
+  invoke<TextResult>('apply_text_edit', { revision, selectedIndices: selectedIndices ?? null });
 export const undoTextEdit = (revision: number) => invoke<TextResult>('undo_text_edit', { revision });
 
 export const chooseArchiveFile = () => invoke<SplitSelection | null>('choose_archive_file');

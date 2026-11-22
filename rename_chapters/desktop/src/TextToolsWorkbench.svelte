@@ -51,6 +51,7 @@
   let matchCase = $state(false);
 
   let preview = $state<TextPreview | null>(null);
+  let selectedChanges = $state(new Set<number>());
   let outcome = $state<{ result: TextResult; undone: boolean } | null>(null);
   let undoRevision = $state<number | null>(null);
   let savedRegexes = $state<SavedRegex[]>(listSavedRegexes('renumber'));
@@ -83,6 +84,26 @@
   const pagedChanges = $derived(
     filteredChanges.slice(clampedPage * PAGE_SIZE, (clampedPage + 1) * PAGE_SIZE),
   );
+  const allFilteredSelected = $derived(
+    filteredChanges.length > 0 && filteredChanges.every((item) => selectedChanges.has(item.index)),
+  );
+  const effectiveSelectedCount = $derived(
+    tool === 'replace' ? selectedChanges.size : (preview?.summary.changed_count ?? 0),
+  );
+  const chosenForDialog = $derived(
+    tool === 'replace'
+      ? (preview?.summary.changes ?? []).filter((item) => selectedChanges.has(item.index))
+      : (preview?.summary.changes ?? []),
+  );
+
+  function toggleChangeIndices(indices: number[], checked: boolean) {
+    const next = new Set(selectedChanges);
+    for (const idx of indices) {
+      if (checked) next.add(idx);
+      else next.delete(idx);
+    }
+    selectedChanges = next;
+  }
 
   function markStale() {
     if (preview) needsPreview = true;
@@ -187,9 +208,11 @@
           savedRegexes = recordRegexUsage('replace', searchText, replacement);
           break;
       }
+      selectedChanges = new Set(preview?.summary.changes.map((c) => c.index) ?? []);
       needsPreview = false;
     } catch (cause) {
       preview = null;
+      selectedChanges = new Set();
       error = String(cause);
     } finally {
       busy = null;
@@ -198,14 +221,16 @@
 
   async function confirmApply() {
     confirmDialog.close();
-    if (!preview || !preview.has_changes || isBusy) return;
+    if (!preview || !preview.has_changes || effectiveSelectedCount === 0 || isBusy) return;
     busy = 'apply';
     error = '';
     try {
-      const result = await applyTextEdit(preview.revision);
+      const indices = tool === 'replace' ? Array.from(selectedChanges) : undefined;
+      const result = await applyTextEdit(preview.revision, indices);
       outcome = { result, undone: false };
       undoRevision = result.undo_revision;
       preview = null;
+      selectedChanges = new Set();
       needsPreview = true;
     } catch (cause) {
       preview = null;
@@ -492,6 +517,21 @@
         <table>
           <thead>
             <tr>
+              {#if tool === 'replace'}
+                <th class="check-cell" scope="col">
+                  <input
+                    type="checkbox"
+                    aria-label="Chọn tất cả thay đổi đang hiển thị"
+                    checked={allFilteredSelected}
+                    disabled={!filteredChanges.length || isBusy}
+                    onchange={(e) =>
+                      toggleChangeIndices(
+                        filteredChanges.map((item) => item.index),
+                        e.currentTarget.checked,
+                      )}
+                  />
+                </th>
+              {/if}
               <th class="line-col" scope="col">Dòng</th>
               <th scope="col">Hiện tại</th>
               <th class="direction" scope="col" aria-label="Đổi thành">→</th>
@@ -500,7 +540,18 @@
           </thead>
           <tbody>
             {#each pagedChanges as item (item.index)}
-              <tr>
+              <tr class:chosen={tool === 'replace' && selectedChanges.has(item.index)}>
+                {#if tool === 'replace'}
+                  <td class="check-cell">
+                    <input
+                      type="checkbox"
+                      aria-label={`Chọn thay đổi dòng ${item.line_number}`}
+                      checked={selectedChanges.has(item.index)}
+                      disabled={isBusy}
+                      onchange={(e) => toggleChangeIndices([item.index], e.currentTarget.checked)}
+                    />
+                  </td>
+                {/if}
                 <th class="line-col diff-line" scope="row">{item.line_number}</th>
                 <td>
                   {#if item.before}<span class="diff-before">{item.before}</span>
@@ -546,7 +597,9 @@
       <span aria-live="polite">
         {#if preview}
           {preview.has_changes
-            ? `${preview.summary.changed_count} chỗ sẽ được cập nhật (tự tạo bản sao .bak)`
+            ? tool === 'replace'
+              ? `${selectedChanges.size} / ${preview.summary.changed_count} thay đổi đã chọn (tự tạo .bak)`
+              : `${preview.summary.changed_count} chỗ sẽ được cập nhật (tự tạo bản sao .bak)`
             : 'Nội dung không đổi'}
         {:else}
           Chưa có bản đối chiếu
@@ -561,7 +614,7 @@
         <button
           class="button primary"
           type="button"
-          disabled={isBusy || !preview || !preview.has_changes}
+          disabled={isBusy || !preview || !preview.has_changes || effectiveSelectedCount === 0}
           onclick={() => confirmDialog.showModal()}
         >
           Lưu thay đổi
@@ -572,19 +625,19 @@
 </div>
 
 <dialog bind:this={confirmDialog} aria-labelledby="text-confirm-title">
-  <h2 id="text-confirm-title">Lưu {preview?.summary.changed_count ?? 0} thay đổi?</h2>
+  <h2 id="text-confirm-title">Lưu {effectiveSelectedCount} thay đổi?</h2>
   <p title={mainFile}>Tệp đích: <strong>{mainFile}</strong></p>
   <p>Bản gốc sẽ được tự động sao lưu thành tệp <code>.bak</code> ngay cạnh tệp nguồn và có thể hoàn tác trong phiên.</p>
   <ul>
-    {#each (preview?.summary.changes ?? []).slice(0, 5) as item (item.index)}
+    {#each chosenForDialog.slice(0, 5) as item (item.index)}
       <li>
         <span>Dòng {item.line_number} · {item.before || 'Vị trí chèn'}</span>
         <strong>{item.after || 'Xóa đoạn này'}</strong>
       </li>
     {/each}
   </ul>
-  {#if (preview?.summary.changes.length ?? 0) > 5}
-    <p>Và {(preview?.summary.changes.length ?? 0) - 5} thay đổi khác.</p>
+  {#if chosenForDialog.length > 5}
+    <p>Và {chosenForDialog.length - 5} thay đổi khác.</p>
   {/if}
   <div class="dialog-actions">
     <button type="button" class="button" onclick={() => confirmDialog.close()}>Hủy</button>

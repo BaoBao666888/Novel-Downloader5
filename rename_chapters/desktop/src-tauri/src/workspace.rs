@@ -460,12 +460,22 @@ impl Workspace {
         }
     }
 
-    pub fn apply_text_edit(&mut self, revision: u32) -> Result<TextResult, String> {
+    pub fn apply_text_edit(
+        &mut self,
+        revision: u32,
+        selected_indices: Option<Vec<usize>>,
+    ) -> Result<TextResult, String> {
         let (_, plan) = self
             .text_plan
             .take_if(|(id, _)| *id == revision)
             .ok_or("Bản xem trước công cụ văn bản đã hết hiệu lực. Hãy xem trước lại.")?;
-        let (outcome, undo_plan) = text_tools::apply(&plan).map_err(|err| err.to_string())?;
+        let effective = match selected_indices {
+            Some(indices) => plan
+                .filter_changes(&indices)
+                .map_err(|err| err.to_string())?,
+            None => plan,
+        };
+        let (outcome, undo_plan) = text_tools::apply(&effective).map_err(|err| err.to_string())?;
         let undo_rev = self.next_revision();
         self.text_undo = Some((undo_rev, undo_plan));
         Ok(TextResult {

@@ -180,6 +180,7 @@ def run_replace(req):
         return offset + bisect_left(crlf_offsets, offset)
 
     changes = []
+    spans = []
     parts = []
     previous = 0
     count = 0
@@ -194,15 +195,23 @@ def run_replace(req):
         if "\n" in after:
             matched_break = newline.search(original, start, end)
             eol = matched_break[0] if matched_break else default_eol
-            parts.append(after.replace("\n", eol))
+            applied = after.replace("\n", eol)
         else:
-            parts.append(after)
+            applied = after
+        parts.append(applied)
         previous = end
+        start_byte = len(original[:start].encode("utf-8"))
+        end_byte = len(original[:end].encode("utf-8"))
         changes.append({
             "index": len(changes) + 1,
             "line_number": bisect_left(line_breaks, match.start()) + 1,
             "before": before,
             "after": after,
+        })
+        spans.append({
+            "start_byte": start_byte,
+            "end_byte": end_byte,
+            "applied_text": applied,
         })
 
     parts.append(original[previous:])
@@ -212,6 +221,7 @@ def run_replace(req):
         "count": count,
         "toc_entries": None,
         "changes": changes,
+        "spans": spans,
     }
 
 

@@ -20,6 +20,12 @@ pub struct TextChange {
     pub line_number: usize,
     pub before: String,
     pub after: String,
+    #[serde(default, skip_serializing)]
+    pub start_byte: Option<usize>,
+    #[serde(default, skip_serializing)]
+    pub end_byte: Option<usize>,
+    #[serde(default, skip_serializing)]
+    pub applied_text: Option<String>,
 }
 
 #[derive(Debug, Clone)]
@@ -86,6 +92,13 @@ struct ReplaceRequest<'a> {
 }
 
 #[derive(Deserialize)]
+struct ChangeSpan {
+    start_byte: usize,
+    end_byte: usize,
+    applied_text: String,
+}
+
+#[derive(Deserialize)]
 #[serde(tag = "status", rename_all = "snake_case")]
 enum PythonResponse {
     Ok {
@@ -93,6 +106,8 @@ enum PythonResponse {
         count: usize,
         toc_entries: Option<usize>,
         changes: Vec<TextChange>,
+        #[serde(default)]
+        spans: Vec<ChangeSpan>,
     },
     Error {
         message: String,
@@ -145,6 +160,66 @@ impl Plan {
         self.original_bytes != self.new_bytes
     }
 
+    pub fn filter_changes(&self, selected_indices: &[usize]) -> Result<Self, CoreError> {
+        use std::collections::HashSet;
+
+        let wanted: HashSet<usize> = selected_indices.iter().copied().collect();
+        if wanted.is_empty() {
+            return Err("Hãy chọn ít nhất một thay đổi để áp dụng.".into());
+        }
+        let chosen: Vec<TextChange> = self
+            .changes
+            .iter()
+            .filter(|c| wanted.contains(&c.index))
+            .cloned()
+            .collect();
+        if chosen.is_empty() || chosen.len() != wanted.len() {
+            return Err("Danh sách thay đổi được chọn không hợp lệ.".into());
+        }
+        if chosen.len() == self.changes.len() {
+            return Ok(self.clone());
+        }
+
+        let has_bom = self.original_bytes.starts_with(b"\xef\xbb\xbf");
+        let body = if has_bom {
+            &self.original_bytes[3..]
+        } else {
+            &self.original_bytes[..]
+        };
+
+        let mut rebuilt = Vec::with_capacity(self.original_bytes.len());
+        if has_bom {
+            rebuilt.extend_from_slice(b"\xef\xbb\xbf");
+        }
+        let mut cursor = 0usize;
+        for change in &chosen {
+            let (Some(start), Some(end), Some(applied)) = (
+                change.start_byte,
+                change.end_byte,
+                change.applied_text.as_deref(),
+            ) else {
+                return Err("Thao tác này không hỗ trợ chọn từng dòng thay đổi.".into());
+            };
+            if start < cursor || end < start || end > body.len() {
+                return Err("Vị trí thay đổi không hợp lệ.".into());
+            }
+            rebuilt.extend_from_slice(&body[cursor..start]);
+            rebuilt.extend_from_slice(applied.as_bytes());
+            cursor = end;
+        }
+        rebuilt.extend_from_slice(&body[cursor..]);
+
+        Ok(Self {
+            file: self.file.clone(),
+            original_sha256: self.original_sha256,
+            original_bytes: self.original_bytes.clone(),
+            new_bytes: rebuilt,
+            match_count: self.match_count,
+            toc_entries: self.toc_entries,
+            changes: chosen,
+        })
+    }
+
     pub fn undo_plan(&self) -> Self {
         Self {
             file: self.file.clone(),
@@ -161,6 +236,9 @@ impl Plan {
                     line_number: c.line_number,
                     before: c.after.clone(),
                     after: c.before.clone(),
+                    start_byte: None,
+                    end_byte: None,
+                    applied_text: None,
                 })
                 .collect(),
         }
@@ -195,6 +273,7 @@ pub fn preview_renumber(
             count,
             toc_entries,
             changes,
+            ..
         } => {
             let new_bytes = encode_with_bom_and_eol(&new_content, has_bom, eol);
             Ok(Plan {
@@ -245,6 +324,7 @@ pub fn preview_apply_toc(
             count,
             toc_entries,
             changes,
+            ..
         } => {
             let new_bytes = encode_with_bom_and_eol(&new_content, has_bom, eol);
             Ok(Plan {
@@ -281,17 +361,25 @@ pub fn preview_replace(
             new_content,
             count,
             toc_entries,
-            changes,
-        } => Ok(Plan {
-            file: file.to_path_buf(),
-            original_sha256: sha256(&raw),
-            original_bytes: raw,
-            // The replacement adapter retains the original newlines outside edits.
-            new_bytes: encode_with_bom_and_eol(&new_content, has_bom, "\n"),
-            match_count: count,
-            toc_entries,
-            changes,
-        }),
+            mut changes,
+            spans,
+        } => {
+            for (change, span) in changes.iter_mut().zip(spans) {
+                change.start_byte = Some(span.start_byte);
+                change.end_byte = Some(span.end_byte);
+                change.applied_text = Some(span.applied_text);
+            }
+            Ok(Plan {
+                file: file.to_path_buf(),
+                original_sha256: sha256(&raw),
+                original_bytes: raw,
+                // The replacement adapter retains the original newlines outside edits.
+                new_bytes: encode_with_bom_and_eol(&new_content, has_bom, "\n"),
+                match_count: count,
+                toc_entries,
+                changes,
+            })
+        }
         PythonResponse::Error { message } => Err(message.into()),
     }
 }
@@ -474,5 +562,38 @@ mod tests {
         assert_eq!(fs::read(outcome.backup).unwrap(), original.as_bytes());
         apply(&undo).unwrap();
         assert_eq!(fs::read(&file).unwrap(), original.as_bytes());
+    }
+
+    #[test]
+    fn selective_replace_applies_only_checked_matches_and_undoes_cleanly() {
+        let dir = tempfile::tempdir().unwrap();
+        let file = dir.path().join("selective.txt");
+        let original = b"\xef\xbb\xbfold one\r\nold two\r\nold three\r\n";
+        fs::write(&file, original).unwrap();
+
+        let plan = preview_replace(
+            &file,
+            ReplaceOptions {
+                search: "old".into(),
+                replacement: "new".into(),
+                use_regex: false,
+                whole_word: true,
+                match_case: true,
+            },
+            None,
+        )
+        .unwrap();
+        assert_eq!(plan.changes.len(), 3);
+
+        let subset = plan.filter_changes(&[1, 3]).unwrap();
+        assert_eq!(subset.changes.len(), 2);
+        let (outcome, undo_plan) = apply(&subset).unwrap();
+        assert_eq!(outcome.changed_count, 2);
+        assert_eq!(
+            fs::read(&file).unwrap(),
+            b"\xef\xbb\xbfnew one\r\nold two\r\nnew three\r\n"
+        );
+        apply(&undo_plan).unwrap();
+        assert_eq!(fs::read(&file).unwrap(), original);
     }
 }
