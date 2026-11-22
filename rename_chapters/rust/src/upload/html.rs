@@ -643,6 +643,56 @@ fn find_pagination_starts(root: &ElementNode) -> Vec<usize> {
     starts
 }
 
+fn works_book_nodes(list: &ElementNode) -> Vec<&ElementNode> {
+    let mut infos: Vec<_> = list
+        .child_elements()
+        .filter(|child| child.has_class("book-info"))
+        .collect();
+    if infos.is_empty() {
+        list.find_all(&|el| el.has_class("book-info"), &mut infos);
+    }
+    infos
+}
+
+pub(crate) fn parse_works_catalog_page(
+    html: &str,
+    host: &str,
+) -> Result<(Option<usize>, Vec<crate::wiki_works::WorkRow>), CoreError> {
+    let root = parse_html(html);
+    let total = root
+        .find_first(&|el| el.has_class("book-count"))
+        .and_then(|node| parse_chapter_count_text(&node.text()));
+    let list = root
+        .find_first(&|el| el.has_class("book-list"))
+        .ok_or("Trang không có danh sách Works.")?;
+    let rows = works_book_nodes(list)
+        .into_iter()
+        .map(|info| {
+            let id = info
+                .find_first(&|el| el.tag == "input" && el.attr("name") == Some("bookId"))
+                .and_then(|node| node.attr("value"))
+                .filter(|id| !id.trim().is_empty())
+                .ok_or("Một mục Works thiếu ID truyện.")?;
+            let title = info
+                .find_first(&|el| el.has_class("book-title"))
+                .ok_or("Một mục Works thiếu tên truyện.")?;
+            let url = resolve_wiki_url(title.attr("href").unwrap_or_default(), host)?;
+            canonical_wiki_book_path(&url, host)?;
+            let chapter_count = info
+                .find_first(&|el| el.has_class("book-chapter-count"))
+                .and_then(|el| parse_chapter_count_text(&el.text()));
+            Ok(crate::wiki_works::WorkRow {
+                id: id.to_owned(),
+                title: title.text(),
+                url: Some(url),
+                chapter_count,
+                local_only: false,
+            })
+        })
+        .collect::<Result<_, CoreError>>()?;
+    Ok((total, rows))
+}
+
 pub fn parse_works_page(
     html: &str,
     book_id: &str,
@@ -660,15 +710,7 @@ pub fn parse_works_page(
         .min()
         .unwrap_or(0);
 
-    let mut infos = Vec::new();
-    for child in list.child_elements() {
-        if child.has_class("book-info") {
-            infos.push(child);
-        }
-    }
-    if infos.is_empty() {
-        list.find_all(&|el| el.has_class("book-info"), &mut infos);
-    }
+    let infos = works_book_nodes(list);
 
     let matched = infos.into_iter().find_map(|info| {
         info.find_first(&|el| {

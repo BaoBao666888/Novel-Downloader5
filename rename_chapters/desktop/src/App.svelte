@@ -3,6 +3,7 @@
   import ArchiveWorkbench from './ArchiveWorkbench.svelte';
   import LibraryWorkbench from './LibraryWorkbench.svelte';
   import MergeWorkbench from './MergeWorkbench.svelte';
+  import SettingsServices from './SettingsServices.svelte';
   import SplitWorkbench from './SplitWorkbench.svelte';
   import TextToolsWorkbench from './TextToolsWorkbench.svelte';
   import UploadWorkbench from './UploadWorkbench.svelte';
@@ -14,7 +15,7 @@
     type LinePreview, type LineResult, type Outcome, type Preview, type Row, type VBookRunnerStatus,
   } from './studio';
   import {
-    applyUiPrefs, loadUiPrefs, resolveTheme,
+    applyUiPrefs, DEFAULT_UI_PREFS, loadUiPrefs, resolveTheme,
     type AccentPreset, type AppLocale, type DensityMode, type MotionMode, type SurfaceStyle, type ThemeMode, type UiPrefs,
   } from './ui-prefs';
   import { SUPPORTED_LOCALES, translate, type I18nKey } from './i18n';
@@ -25,6 +26,7 @@
     { id: 'edit', labelKey: 'nav.edit' as I18nKey },
     { id: 'files', labelKey: 'nav.files' as I18nKey },
     { id: 'upload', labelKey: 'nav.upload' as I18nKey },
+    { id: 'settings', labelKey: 'topbar.settings' as I18nKey },
   ] as const;
   const editTools = [
     { id: 'rename', labelKey: 'subnav.rename' as I18nKey },
@@ -40,14 +42,14 @@
   type EditTool = typeof editTools[number]['id'];
   type FileTool = typeof fileTools[number]['id'];
   type LibraryTool = 'library' | 'vbook' | 'wiki';
-  type Mode = EditTool | FileTool | LibraryTool | 'upload';
+  type Mode = EditTool | FileTool | LibraryTool | 'upload' | 'settings';
   let folder = $state('');
   let area = $state<Area>('edit');
   let editTool = $state<EditTool>('rename');
   let fileTool = $state<FileTool>('archive');
   let libraryTool = $state<LibraryTool>('library');
   let mode: Mode = $derived(
-    area === 'edit' ? editTool : area === 'files' ? fileTool : area === 'upload' ? 'upload' : libraryTool,
+    area === 'edit' ? editTool : area === 'files' ? fileTool : area === 'library' ? libraryTool : area,
   );
   let visited = $state(new Set<Mode>());
   let lastRenameTool: 'rename' | 'line' = 'rename';
@@ -74,7 +76,9 @@
   let formatInput = $state<HTMLInputElement | undefined>(undefined);
   let confirmation = $state<HTMLDialogElement | undefined>(undefined);
   let lineConfirmation = $state<HTMLDialogElement | undefined>(undefined);
-  let settingsDialog = $state<HTMLDialogElement | undefined>(undefined);
+  const settingsGroups = ['general', 'appearance', 'account', 'translation', 'runtime'] as const;
+  type SettingsGroup = typeof settingsGroups[number];
+  let settingsGroup = $state<SettingsGroup>('general');
   let runtimeStatus = $state<VBookRunnerStatus | null>(null);
   let customJavaDraft = $state('');
   let settingsNotice = $state('');
@@ -105,10 +109,9 @@
     uiPrefs = { ...uiPrefs, theme: dark ? 'light' : 'dark' };
   }
 
-  async function openSettingsModal() {
+  async function loadRuntimeSettings() {
     settingsNotice = '';
     settingsError = '';
-    settingsDialog?.showModal();
     settingsBusy = true;
     try {
       const [status, cfg] = await Promise.all([vbookRunnerStatus(), vbookGetRuntimeConfig()]);
@@ -157,6 +160,16 @@
     } finally {
       settingsBusy = false;
     }
+  }
+
+  function chooseSettingsGroup(group: SettingsGroup) {
+    settingsGroup = group;
+    if (group === 'runtime' && !settingsBusy) void loadRuntimeSettings();
+  }
+
+  function showSettings(group: SettingsGroup) {
+    changeArea('settings');
+    if (area === 'settings') chooseSettingsGroup(group);
   }
 
   function clearPreview() {
@@ -376,8 +389,6 @@
     {/each}
   </nav>
   <div class="masthead-end">
-    <button type="button" class="theme settings-trigger" id="studio-settings-btn"
-      onclick={openSettingsModal}>{t('topbar.settings')}</button>
     <button type="button" class="theme" aria-label={dark ? t('topbar.theme_to_light') : t('topbar.theme_to_dark')}
       onclick={toggleTheme}>{dark ? '☀' : '☾'} <span>{dark ? t('topbar.theme_light') : t('topbar.theme_dark')}</span></button>
   </div>
@@ -409,13 +420,13 @@
     </nav>
   {/if}
   {#if visited.has('library')}
-    <div hidden={mode !== 'library'}><LibraryWorkbench locale={uiPrefs.locale} /></div>
+    <div hidden={mode !== 'library'}><LibraryWorkbench locale={uiPrefs.locale} onTranslationSettings={() => showSettings('translation')} /></div>
   {/if}
   {#if visited.has('vbook')}
     <div hidden={mode !== 'vbook'}><VBookExtensionsWorkbench parentBusy={busy !== null} /></div>
   {/if}
   {#if visited.has('wiki')}
-    <div hidden={mode !== 'wiki'}><WikiWorkbench /></div>
+    <div hidden={mode !== 'wiki'}><WikiWorkbench onAccountSettings={() => showSettings('account')} /></div>
   {/if}
   {#if visited.has('split')}
     <div hidden={mode !== 'split'}><SplitWorkbench {python} onPickPython={pickPython} parentBusy={busy !== null} /></div>
@@ -430,7 +441,195 @@
     <div hidden={mode !== 'merge'}><MergeWorkbench parentBusy={busy !== null} /></div>
   {/if}
   {#if visited.has('upload')}
-    <div hidden={mode !== 'upload'}><UploadWorkbench parentBusy={busy !== null} /></div>
+    <div hidden={mode !== 'upload'}><UploadWorkbench parentBusy={busy !== null} active={mode === 'upload'} onAccountSettings={() => showSettings('account')} /></div>
+  {/if}
+  {#if mode === 'settings'}
+<section class="settings-page" aria-labelledby="studio-settings-title">
+  <header class="heading">
+    <h1 id="studio-settings-title">{t('settings.title')}</h1>
+  </header>
+  <div class="settings-layout">
+    <nav class="settings-navigation" aria-label={t('settings.title')}>
+      {#each settingsGroups as group (group)}
+        <button type="button" class="button" aria-current={settingsGroup === group ? 'page' : undefined}
+          onclick={() => chooseSettingsGroup(group)}>{t(`settings.group_${group}`)}</button>
+      {/each}
+    </nav>
+    <div class="settings-content">
+      {#key settingsGroup}
+      <div class="settings-panel">
+  {#if settingsGroup === 'general'}
+  <section class="settings-section">
+    <h2>{t('settings.group_general')}</h2>
+    <div class="settings-field">
+      <label for="studio-locale-select">{t('settings.language_label')}</label>
+      <select
+        id="studio-locale-select"
+        value={uiPrefs.locale}
+        onchange={(e) => {
+          uiPrefs = { ...uiPrefs, locale: e.currentTarget.value as AppLocale };
+        }}
+      >
+        {#each SUPPORTED_LOCALES as item (item.code)}
+          <option value={item.code}>{item.nativeLabel} ({item.label})</option>
+        {/each}
+      </select>
+      <p class="field-help">{t('settings.language_hint')}</p>
+    </div>
+
+  </section>
+
+  {:else if settingsGroup === 'appearance'}
+  <section class="settings-section">
+    <h2>{t('settings.section_appearance')}</h2>
+    <div class="settings-grid">
+      <label class="settings-field">
+        <span>{t('settings.theme_label')}</span>
+        <select
+          value={uiPrefs.theme}
+          onchange={(e) => {
+            uiPrefs = { ...uiPrefs, theme: e.currentTarget.value as ThemeMode };
+          }}
+        >
+          <option value="system">{t('settings.theme_system')}</option>
+          <option value="light">{t('settings.theme_light')}</option>
+          <option value="dark">{t('settings.theme_dark')}</option>
+        </select>
+      </label>
+      <label class="settings-field">
+        <span>{t('settings.accent_label')}</span>
+        <select
+          value={uiPrefs.accent}
+          onchange={(e) => {
+            uiPrefs = { ...uiPrefs, accent: e.currentTarget.value as AccentPreset };
+          }}
+        >
+          <option value="ocean">Ocean Blue</option>
+          <option value="forest">Forest</option>
+          <option value="indigo">Indigo</option>
+          <option value="amber">Amber</option>
+          <option value="rose">Rose</option>
+        </select>
+      </label>
+      <label class="settings-field">
+        <span>{t('settings.surface_label')}</span>
+        <select
+          value={uiPrefs.surface}
+          onchange={(e) => {
+            uiPrefs = { ...uiPrefs, surface: e.currentTarget.value as SurfaceStyle };
+          }}
+        >
+          <option value="editorial">Editorial</option>
+          <option value="glass">Glass</option>
+          <option value="crisp">Crisp</option>
+        </select>
+      </label>
+      <label class="settings-field">
+        <span>{t('settings.density_label')}</span>
+        <select
+          value={uiPrefs.density}
+          onchange={(e) => {
+            uiPrefs = { ...uiPrefs, density: e.currentTarget.value as DensityMode };
+          }}
+        >
+          <option value="comfortable">Comfortable</option>
+          <option value="compact">Compact</option>
+        </select>
+      </label>
+      <label class="settings-field">
+        <span>{t('settings.motion_label')}</span>
+        <select
+          value={uiPrefs.motion}
+          onchange={(e) => {
+            uiPrefs = { ...uiPrefs, motion: e.currentTarget.value as MotionMode };
+          }}
+        >
+          <option value="full">Full</option>
+          <option value="reduced">Reduced</option>
+          <option value="none">None</option>
+        </select>
+      </label>
+    </div>
+    <div><button class="button" type="button" onclick={() => {
+      const { locale } = uiPrefs;
+      uiPrefs = { ...DEFAULT_UI_PREFS, locale };
+    }}>{t('settings.appearance_reset')}</button></div>
+  </section>
+
+  {:else if settingsGroup === 'runtime'}
+  <section class="settings-section">
+    <h2>{t('settings.group_runtime')}</h2>
+    <div class="settings-field">
+      <span>Python</span>
+      <div class="settings-path-row">
+        <input type="text" aria-label="Python" readonly value={python || t('settings.python_default')} />
+        <button class="button" type="button" onclick={pickPython} disabled={busy !== null}>{t('settings.python_pick')}</button>
+      </div>
+    </div>
+    {#if error && busy === null}<p role="alert" class="notice error">{error}</p>{/if}
+    {#if settingsError}<p role="alert" class="notice error">{settingsError}</p>
+    {:else if settingsNotice}<p role="status" class="notice">{settingsNotice}</p>{/if}
+    <div class="settings-runtime-head">
+      <h3>{t('settings.section_runtime')}</h3>
+      {#if runtimeStatus}
+        <span
+          class="runtime-status-pill"
+          class:is-ready={runtimeStatus.ready}
+          class:is-mock={runtimeStatus.mock_mode}
+        >
+          {runtimeStatus.mock_mode
+            ? t('settings.runtime_mock')
+            : runtimeStatus.ready
+              ? t('settings.runtime_ready')
+              : t('settings.runtime_missing')}
+        </span>
+      {/if}
+    </div>
+    <p class="field-help">{t('settings.runtime_note')}</p>
+    <div class="settings-field">
+      <label for="studio-custom-java-input">{t('settings.java_custom_label')}</label>
+      <div class="settings-path-row">
+        <input
+          id="studio-custom-java-input"
+          type="text"
+          bind:value={customJavaDraft}
+          placeholder={t('settings.java_custom_placeholder')}
+          disabled={settingsBusy}
+        />
+        <button type="button" class="button" disabled={settingsBusy} onclick={pickCustomJava}>
+          {t('settings.java_pick')}
+        </button>
+      </div>
+      <div class="settings-path-actions">
+        <button type="button" class="button primary" disabled={settingsBusy} onclick={() => saveCustomJava()}>
+          {t('settings.java_save')}
+        </button>
+        <button type="button" class="button" disabled={settingsBusy} onclick={() => saveCustomJava(null)}>
+          {t('settings.java_clear')}
+        </button>
+      </div>
+    </div>
+    {#if runtimeStatus}
+      <div class="stat-box">
+        <div>
+          <span>{t('settings.java_resolved_label')}</span>
+          <strong>{runtimeStatus.java_path ?? runtimeStatus.message}</strong>
+        </div>
+        <div>
+          <span>{t('settings.jar_label')}</span>
+          <strong>{runtimeStatus.jar_path ?? '—'}</strong>
+        </div>
+      </div>
+    {/if}
+  </section>
+  {:else}
+    <SettingsServices group={settingsGroup} />
+  {/if}
+      </div>
+      {/key}
+    </div>
+  </div>
+</section>
   {/if}
   {#if mode === 'rename' || mode === 'line'}
   <section class="heading">
@@ -666,166 +865,4 @@
       <button type="button" class="button primary" onclick={saveLines}>Lưu dòng đầu</button>
     {/if}
   </div>
-</dialog>
-
-<dialog id="studio-settings-dialog" class="settings-dialog" bind:this={settingsDialog} aria-labelledby="studio-settings-title">
-  <div class="settings-head">
-    <div>
-      <h2 id="studio-settings-title">{t('settings.title')}</h2>
-      <p>{t('settings.subtitle')}</p>
-    </div>
-    <button type="button" class="button" onclick={() => settingsDialog?.close()}>{t('settings.close')}</button>
-  </div>
-
-  {#if settingsError}
-    <p class="notice error" role="alert">{settingsError}</p>
-  {:else if settingsNotice}
-    <p class="notice" role="status">{settingsNotice}</p>
-  {/if}
-
-  <section class="settings-section">
-    <h3>{t('settings.section_language')}</h3>
-    <div class="settings-field">
-      <label for="studio-locale-select">{t('settings.language_label')}</label>
-      <select
-        id="studio-locale-select"
-        value={uiPrefs.locale}
-        onchange={(e) => {
-          uiPrefs = { ...uiPrefs, locale: e.currentTarget.value as AppLocale };
-        }}
-      >
-        {#each SUPPORTED_LOCALES as item (item.code)}
-          <option value={item.code}>{item.nativeLabel} ({item.label})</option>
-        {/each}
-      </select>
-      <p class="field-help">{t('settings.language_hint')}</p>
-    </div>
-  </section>
-
-  <section class="settings-section">
-    <h3>{t('settings.section_appearance')}</h3>
-    <div class="settings-grid">
-      <label class="settings-field">
-        <span>{t('settings.theme_label')}</span>
-        <select
-          value={uiPrefs.theme}
-          onchange={(e) => {
-            uiPrefs = { ...uiPrefs, theme: e.currentTarget.value as ThemeMode };
-          }}
-        >
-          <option value="system">{t('settings.theme_system')}</option>
-          <option value="light">{t('settings.theme_light')}</option>
-          <option value="dark">{t('settings.theme_dark')}</option>
-        </select>
-      </label>
-      <label class="settings-field">
-        <span>{t('settings.accent_label')}</span>
-        <select
-          value={uiPrefs.accent}
-          onchange={(e) => {
-            uiPrefs = { ...uiPrefs, accent: e.currentTarget.value as AccentPreset };
-          }}
-        >
-          <option value="ocean">Ocean Blue</option>
-          <option value="forest">Forest</option>
-          <option value="indigo">Indigo</option>
-          <option value="amber">Amber</option>
-          <option value="rose">Rose</option>
-        </select>
-      </label>
-      <label class="settings-field">
-        <span>{t('settings.surface_label')}</span>
-        <select
-          value={uiPrefs.surface}
-          onchange={(e) => {
-            uiPrefs = { ...uiPrefs, surface: e.currentTarget.value as SurfaceStyle };
-          }}
-        >
-          <option value="editorial">Editorial</option>
-          <option value="glass">Glass</option>
-          <option value="crisp">Crisp</option>
-        </select>
-      </label>
-      <label class="settings-field">
-        <span>{t('settings.density_label')}</span>
-        <select
-          value={uiPrefs.density}
-          onchange={(e) => {
-            uiPrefs = { ...uiPrefs, density: e.currentTarget.value as DensityMode };
-          }}
-        >
-          <option value="comfortable">Comfortable</option>
-          <option value="compact">Compact</option>
-        </select>
-      </label>
-      <label class="settings-field">
-        <span>{t('settings.motion_label')}</span>
-        <select
-          value={uiPrefs.motion}
-          onchange={(e) => {
-            uiPrefs = { ...uiPrefs, motion: e.currentTarget.value as MotionMode };
-          }}
-        >
-          <option value="full">Full</option>
-          <option value="reduced">Reduced</option>
-          <option value="none">None</option>
-        </select>
-      </label>
-    </div>
-  </section>
-
-  <section class="settings-section">
-    <div class="settings-runtime-head">
-      <h3>{t('settings.section_runtime')}</h3>
-      {#if runtimeStatus}
-        <span
-          class="runtime-status-pill"
-          class:is-ready={runtimeStatus.ready}
-          class:is-mock={runtimeStatus.mock_mode}
-        >
-          {runtimeStatus.mock_mode
-            ? t('settings.runtime_mock')
-            : runtimeStatus.ready
-              ? t('settings.runtime_ready')
-              : t('settings.runtime_missing')}
-        </span>
-      {/if}
-    </div>
-    <p class="field-help">{t('settings.runtime_note')}</p>
-    <div class="settings-field">
-      <label for="studio-custom-java-input">{t('settings.java_custom_label')}</label>
-      <div class="settings-path-row">
-        <input
-          id="studio-custom-java-input"
-          type="text"
-          bind:value={customJavaDraft}
-          placeholder={t('settings.java_custom_placeholder')}
-          disabled={settingsBusy}
-        />
-        <button type="button" class="button" disabled={settingsBusy} onclick={pickCustomJava}>
-          {t('settings.java_pick')}
-        </button>
-      </div>
-      <div class="settings-path-actions">
-        <button type="button" class="button primary" disabled={settingsBusy} onclick={() => saveCustomJava()}>
-          {t('settings.java_save')}
-        </button>
-        <button type="button" class="button" disabled={settingsBusy} onclick={() => saveCustomJava(null)}>
-          {t('settings.java_clear')}
-        </button>
-      </div>
-    </div>
-    {#if runtimeStatus}
-      <div class="stat-box">
-        <div>
-          <span>{t('settings.java_resolved_label')}</span>
-          <strong>{runtimeStatus.java_path ?? runtimeStatus.message}</strong>
-        </div>
-        <div>
-          <span>{t('settings.jar_label')}</span>
-          <strong>{runtimeStatus.jar_path ?? '—'}</strong>
-        </div>
-      </div>
-    {/if}
-  </section>
 </dialog>

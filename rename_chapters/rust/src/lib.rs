@@ -13,5 +13,6 @@ pub mod text_tools;
 pub mod translate;
 pub mod upload;
 pub mod vbook;
+pub mod wiki_works;
 
 pub type CoreError = Box<dyn std::error::Error + Send + Sync>;

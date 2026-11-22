@@ -4,6 +4,15 @@ export const listWikiProfiles = () => invoke<string[]>('list_wiki_profiles');
 export const openWiki = (profile: string, address: string) =>
   invoke<void>('open_wiki', { options: { profile, address } });
 
+export type WikiWork = { id: string; title: string; url: string | null; chapter_count: number | null; local_only: boolean };
+export type WikiWorks = { account: string; server_count: number | null; rows: WikiWork[] };
+export const loadWikiWorks = (account: string) => invoke<WikiWorks>('load_wiki_works', { account });
+export const importWikiWorks = () => invoke<WikiWorks | null>('import_wiki_works');
+export const syncWikiWorks = (account: string) => invoke<WikiWorks>('sync_wiki_works', { account });
+export const cancelWikiSync = () => invoke<void>('cancel_wiki_sync');
+export const removeLocalWikiWorks = (account: string, ids: string[]) =>
+  invoke<WikiWorks>('remove_local_wiki_works', { account, ids });
+
 export type CreditPlacement = 'start' | 'end' | { line: number };
 export type CreditPreview = { revision: number; rows: { name: string; error: string | null }[] };
 export type CreditSample = { before: string; credit: string; after: string };

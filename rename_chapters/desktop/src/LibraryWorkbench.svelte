@@ -8,7 +8,6 @@
     getReaderGlobalDicts,
     getReaderNameSets,
     getReaderTranslationCacheStats,
-    getTranslateServerConfig,
     importLibrary,
     importReaderNameSetText,
     listLibrary,
@@ -21,7 +20,6 @@
     removeLibrary,
     saveReaderGlobalDicts,
     saveReaderNameSets,
-    saveTranslateServerConfig,
     suggestReaderName,
     translateLibraryChapter,
     updateReaderBookVpEntry,
@@ -38,7 +36,6 @@
     type NameSuggestItem,
     type ReadingCursor,
     type SelectionNameMapResult,
-    type TranslateBatchConfig,
     type TranslatedChapterView,
     type TranslationCacheStats,
     type TranslationMode,
@@ -46,7 +43,7 @@
   import { translate, type I18nKey } from './i18n';
   import type { AppLocale } from './ui-prefs';
 
-  let { locale = 'vi' }: { locale?: AppLocale } = $props();
+  let { locale = 'vi', onTranslationSettings }: { locale?: AppLocale; onTranslationSettings: () => void } = $props();
   const t = (key: I18nKey, params?: Record<string, string | number>) => translate(locale, key, params);
 
   let books = $state<LibraryItem[]>([]);
@@ -106,15 +103,6 @@
   let suggestBusy = $state(false);
 
   // Server Config & Cache Stats
-  let serverConfig = $state<TranslateBatchConfig>({
-    serverUrl: 'https://dichngay.com/translate/text',
-    maxChars: 9000,
-    delayMs: 250,
-    retryCount: 2,
-    retryBackoffMs: 700,
-    timeoutSec: 60,
-    targetLang: 'vi',
-  });
   let cacheStats = $state<TranslationCacheStats>({
     translation_memory_count: 0,
     translation_unit_map_count: 0,
@@ -360,15 +348,13 @@
 
   async function refreshBookDictionaries(bookId: number | null) {
     try {
-      const [ns, gd, cfg, stats] = await Promise.all([
+      const [ns, gd, stats] = await Promise.all([
         getReaderNameSets(bookId),
         getReaderGlobalDicts(),
-        getTranslateServerConfig(),
         getReaderTranslationCacheStats(),
       ]);
       nameSetState = ns;
       globalDicts = gd;
-      serverConfig = cfg;
       cacheStats = stats;
       if (bookId !== null) {
         const [vp, hist] = await Promise.all([
@@ -796,19 +782,6 @@
       await refreshBookDictionaries(selected);
       await retranslatePreservingRatio();
       nameTab = 'entries';
-    } catch (cause) {
-      readError = String(cause);
-    } finally {
-      pending = null;
-    }
-  }
-
-  async function saveServerSettings(event: SubmitEvent) {
-    event.preventDefault();
-    if (pending !== null) return;
-    pending = 'save';
-    try {
-      serverConfig = await saveTranslateServerConfig(serverConfig);
     } catch (cause) {
       readError = String(cause);
     } finally {
@@ -1615,17 +1588,11 @@
       </table>
     </div>
   {:else if nameTab === 'server'}
-    <form class="server-form" onsubmit={saveServerSettings}>
-      <div class="field-grid">
-        <label class="field-label">
-          <span>Endpoint DichNgay Server</span>
-          <input type="text" required bind:value={serverConfig.serverUrl} />
-        </label>
-        <label class="field-label">
-          <span>Số ký tự tối đa mỗi batch (500–9000)</span>
-          <input type="number" min="500" max="9000" bind:value={serverConfig.maxChars} />
-        </label>
-      </div>
+    <div class="server-form">
+      <div><button type="button" class="button" onclick={() => {
+        nameManagerDialog?.close();
+        onTranslationSettings();
+      }}>Cài đặt dịch thuật</button></div>
       <div class="cache-card">
         <div>
           <strong>Bộ nhớ dịch (Translation Memory)</strong>
@@ -1642,12 +1609,7 @@
           Xóa toàn bộ Cache dịch
         </button>
       </div>
-      <div class="dialog-actions">
-        <button type="submit" class="button primary" disabled={pending !== null}>
-          Lưu cấu hình Server
-        </button>
-      </div>
-    </form>
+    </div>
   {/if}
 </dialog>
 

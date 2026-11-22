@@ -21,6 +21,7 @@ mod upload_runtime;
 mod vbook_browser;
 mod vbook_commands;
 mod wiki_browser;
+mod wiki_commands;
 mod winhttp_transport;
 mod workspace;
 
@@ -687,6 +688,7 @@ fn main() {
             app.manage(Mutex::new(Workspace::with_interpreter(bundled)));
             app.manage(Mutex::new(novel_studio_core::library::ReadCache::default()));
             app.manage(upload_runtime::UploadRuntime::default());
+            app.manage(wiki_commands::WikiWorksRuntime::default());
             let bridge_state = vbook_browser::VBookBrowserBridgeState::default();
             if let Ok(vbook_dir) = vbook_commands::resolve_vbook_dir(app.handle()) {
                 let _ = bridge_state.init(app.handle().clone(), vbook_dir.join("browser-sessions"));
@@ -746,6 +748,11 @@ fn main() {
             library_commands::library_stats,
             wiki_browser::list_wiki_profiles,
             wiki_browser::open_wiki,
+            wiki_commands::load_wiki_works,
+            wiki_commands::import_wiki_works,
+            wiki_commands::sync_wiki_works,
+            wiki_commands::cancel_wiki_sync,
+            wiki_commands::remove_local_wiki_works,
             translate_commands::get_translate_server_config,
             translate_commands::save_translate_server_config,
             translate_commands::get_reader_name_sets,

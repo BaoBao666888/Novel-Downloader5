@@ -38,7 +38,7 @@ pub trait UploadHttpTransport {
     ) -> Result<TransportReply, CoreError>;
 }
 
-struct TransportReadAdapter<'a>(&'a mut dyn UploadHttpTransport);
+pub struct TransportReadAdapter<'a>(pub &'a mut dyn UploadHttpTransport);
 
 impl ReadHttp for TransportReadAdapter<'_> {
     fn get_html(&mut self, url: &str, cancel: &ReadCancellation) -> Result<String, VerifierError> {

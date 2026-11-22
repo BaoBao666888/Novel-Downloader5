@@ -895,33 +895,33 @@ dialog li span { font-size: 12px; color: var(--muted); }
   th, td { padding-inline: 6px; }
 }
 
-/* Studio General Settings & Library Stats Modals */
-.settings-dialog {
-  width: min(640px, calc(100vw - 24px));
-  max-height: 86vh;
-  overflow: auto;
-}
-.settings-head {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 12px;
-  margin-bottom: 14px;
-}
-.settings-head h2 { margin: 0; font-size: 19px; }
-.settings-head p { margin: 4px 0 0; font-size: 13px; }
-.settings-section {
-  margin-top: 14px;
-  padding-top: 14px;
-  border-top: 1px solid var(--line);
+/* Settings */
+.settings-layout {
   display: grid;
-  gap: 10px;
+  grid-template-columns: minmax(155px, 220px) minmax(0, 1fr);
+  align-items: start;
+  gap: 18px;
+  max-width: 1080px;
 }
-.settings-section h3 {
-  margin: 0;
-  font-size: 14px;
-  font-weight: 700;
-  color: var(--ink);
+.settings-navigation { display: grid; gap: 5px; }
+.settings-navigation .button { text-align: left; justify-content: flex-start; min-height: 42px; }
+.settings-navigation [aria-current="page"] { border-color: var(--accent); background: var(--selection); color: var(--accent); }
+.settings-content {
+  min-width: 0;
+  padding: var(--space-panel);
+  background: var(--sheet);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+}
+.settings-panel { animation: settings-enter var(--motion-base) var(--ease-out); }
+@keyframes settings-enter { from { opacity: .5; transform: translateY(3px); } }
+.settings-section { display: grid; gap: 14px; }
+.settings-section h2 { font-size: 18px; margin: 0; }
+.settings-section h3 { font-size: 14px; margin: 0; }
+.settings-toggle { display: flex; align-items: center; gap: 8px; }
+@media (max-width: 650px) {
+  .settings-layout { grid-template-columns: minmax(0, 1fr); gap: 12px; }
+  .settings-navigation { display: flex; flex-wrap: wrap; }
 }
 .settings-grid {
   display: grid;

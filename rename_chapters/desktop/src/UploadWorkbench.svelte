@@ -3,10 +3,8 @@
   import { onMount, tick } from 'svelte';
   import {
     cancelUploadSchedule,
-    checkUploadSession,
     chooseUploadFolder,
     cleanupUploadStorage,
-    clearUploadSessionCookie,
     createUploadJob,
     deleteUploadJob,
     exportUploadJobRecovery,
@@ -18,10 +16,8 @@
     previewUploadJobRecovery,
     restoreUploadBackupZip,
     runDueUploadVerifications,
-    saveUploadSessionCookie,
     scanUploadFolder,
     scheduleUploadJob,
-    setUploadAutoSchedule,
     startUploadJobNow,
     stopActiveUpload,
     verifyUploadJobNow,
@@ -33,7 +29,6 @@
     type JobView,
     type LiveRunProgress,
     type RecoveryReport,
-    type SessionCheckResult,
     type SessionSecretStatus,
     type UploadRuntimeStatus,
     type UploadWorkspaceSnapshot,
@@ -41,9 +36,20 @@
 
   type Props = {
     parentBusy: boolean;
+    active: boolean;
+    onAccountSettings: () => void;
   };
 
-  let { parentBusy }: Props = $props();
+  let { parentBusy, active, onAccountSettings }: Props = $props();
+  $effect(() => { if (active) void reloadAccountState(); });
+
+  async function reloadAccountState() {
+    try {
+      [sessionStatus, runtime] = await Promise.all([getUploadSessionStatus(), getUploadRuntimeStatus()]);
+    } catch (cause) {
+      error = String(cause);
+    }
+  }
 
   const CHAPTER_PAGE_SIZE = 40;
   const PARENT_STATUSES = new Set<JobStatus>([
@@ -78,7 +84,6 @@
     | 'export'
     | 'import'
     | 'cleanup'
-    | 'session'
     | 'verify'
     | 'start'
     | null
@@ -86,12 +91,6 @@
   let error = $state('');
   let notice = $state('');
   let recoveryDismissed = $state(false);
-
-  // Session DPAPI dialog state
-  let sessionDialog: HTMLDialogElement | undefined = $state();
-  let sessionCookieInput = $state('');
-  let sessionCheck = $state<SessionCheckResult | null>(null);
-  let sessionError = $state('');
 
   // Start immediate confirm dialog state
   let startConfirmDialog: HTMLDialogElement | undefined = $state();
@@ -381,69 +380,10 @@
     }
   }
 
-  function openSessionDialog() {
-    if (isBusy) return;
-    sessionCookieInput = '';
-    sessionCheck = null;
-    sessionError = '';
-    sessionDialog?.showModal();
-  }
-
-  async function handleSaveSession() {
-    if (isBusy) return;
-    busy = 'session';
-    sessionError = '';
-    sessionCheck = null;
-    try {
-      sessionStatus = await saveUploadSessionCookie(sessionCookieInput);
-      runtime = await getUploadRuntimeStatus();
-      sessionCookieInput = '';
-      notice = 'Đã mã hóa và lưu Cookie phiên bằng Windows DPAPI.';
-    } catch (cause) {
-      sessionError = String(cause);
-    } finally {
-      busy = null;
-    }
-  }
-
-  async function handleCheckSession() {
-    if (isBusy) return;
-    busy = 'session';
-    sessionError = '';
-    try {
-      sessionCheck = await checkUploadSession();
-      runtime = await getUploadRuntimeStatus();
-      if (sessionCheck.authenticated) {
-        notice = sessionCheck.message;
-      }
-    } catch (cause) {
-      sessionError = String(cause);
-    } finally {
-      busy = null;
-    }
-  }
-
-  async function handleClearSession() {
-    if (isBusy) return;
-    busy = 'session';
-    sessionError = '';
-    sessionCheck = null;
-    try {
-      sessionStatus = await clearUploadSessionCookie();
-      runtime = await getUploadRuntimeStatus();
-      notice = 'Đã xóa tệp phiên DPAPI khỏi máy.';
-    } catch (cause) {
-      sessionError = String(cause);
-    } finally {
-      busy = null;
-    }
-  }
-
   function openStartConfirm() {
     if (!selectedJob || isBusy || anyRunActive) return;
     if (!sessionStatus?.configured || !sessionStatus.readable) {
-      openSessionDialog();
-      sessionError = 'Cần lưu Cookie phiên hợp lệ trước khi bắt đầu tải lên.';
+      onAccountSettings();
       return;
     }
     startConflictConsent = selectedJob.pendingConflicts.length === 0;
@@ -518,17 +458,6 @@
       error = String(cause);
     } finally {
       busy = null;
-    }
-  }
-
-  async function toggleAutoSchedule(checked: boolean) {
-    try {
-      runtime = await setUploadAutoSchedule(checked);
-      notice = checked
-        ? 'Đã bật tự chạy lịch hẹn / đối chiếu nền mỗi 15 giây.'
-        : 'Đã tắt tự chạy lịch hẹn nền.';
-    } catch (cause) {
-      error = String(cause);
     }
   }
 
@@ -827,7 +756,7 @@
       class="button session-pill"
       class:connected={Boolean(runtime?.verifiedAccount)}
       type="button"
-      onclick={openSessionDialog}
+      onclick={onAccountSettings}
       disabled={isBusy}
     >
       <span class="session-dot" aria-hidden="true"></span>
@@ -949,14 +878,6 @@
             <strong class="num-stat">{snapshot.storage.objectFiles} tệp · {formatBytes(snapshot.storage.objectBytes)}</strong>
           </div>
         </div>
-        <label class="checkbox-field auto-sched-check">
-          <input
-            type="checkbox"
-            checked={Boolean(runtime?.autoScheduleEnabled)}
-            onchange={(e) => toggleAutoSchedule(e.currentTarget.checked)}
-          />
-          <span>Tự chạy lịch hẹn &amp; đối chiếu nền</span>
-        </label>
         <div class="foot-actions">
           {#if snapshot.ledgerCount > 0}
             <button
@@ -1251,77 +1172,6 @@
     {/if}
   </section>
 </div>
-
-<dialog bind:this={sessionDialog} aria-labelledby="session-dialog-title">
-  <h2 id="session-dialog-title">Phiên đăng nhập {snapshot?.allowedHost ?? 'wikicv.org'}</h2>
-  <p>
-    Cookie phiên được mã hóa riêng theo tài khoản Windows bằng <strong>Windows DPAPI</strong> (<code>session.dpapi</code>), không lưu bản rõ vào state hoặc gói ZIP sao lưu.
-  </p>
-
-  {#if sessionError}
-    <p role="alert" class="notice error modal-notice">{sessionError}</p>
-  {/if}
-
-  {#if sessionCheck}
-    <p role="status" class="notice modal-notice" class:error={!sessionCheck.authenticated}>
-      {sessionCheck.message}
-    </p>
-  {/if}
-
-  <div class="stat-box scan-summary">
-    <div>
-      <span>Trạng thái lưu cục bộ</span>
-      <strong>
-        {#if sessionStatus?.configured && sessionStatus.readable}
-          Đã lưu ({sessionStatus.masked})
-        {:else if sessionStatus?.configured}
-          Lỗi giải mã DPAPI
-        {:else}
-          Chưa cấu hình
-        {/if}
-      </strong>
-    </div>
-    <div>
-      <span>Tài khoản đã xác thực</span>
-      <strong>{runtime?.verifiedAccount || 'Chưa kiểm tra'}</strong>
-    </div>
-  </div>
-
-  <div class="modal-form">
-    <label for="session-cookie-input">Dán chuỗi Cookie mới</label>
-    <textarea
-      id="session-cookie-input"
-      rows="3"
-      bind:value={sessionCookieInput}
-      placeholder="connect.sid=...; ..."
-    ></textarea>
-  </div>
-
-  <div class="dialog-actions">
-    {#if sessionStatus?.configured}
-      <button type="button" class="button" onclick={handleClearSession} disabled={isBusy}>
-        Xóa phiên
-      </button>
-    {/if}
-    <button
-      type="button"
-      class="button"
-      onclick={handleCheckSession}
-      disabled={isBusy || !sessionStatus?.configured}
-    >
-      {busy === 'session' ? 'Đang kiểm tra…' : 'Kiểm tra phiên'}
-    </button>
-    <button
-      type="button"
-      class="button primary"
-      onclick={handleSaveSession}
-      disabled={isBusy || !sessionCookieInput.trim()}
-    >
-      Lưu phiên (DPAPI)
-    </button>
-    <button type="button" class="button" onclick={() => sessionDialog?.close()}>Đóng</button>
-  </div>
-</dialog>
 
 <dialog bind:this={startConfirmDialog} aria-labelledby="start-confirm-title">
   <h2 id="start-confirm-title">Xác nhận bắt đầu tải lên</h2>
@@ -1776,10 +1626,6 @@
   .shelf-foot {
     padding: 0 16px 16px;
     border-top: 1px solid var(--line);
-  }
-  .auto-sched-check {
-    margin-top: 10px;
-    font-size: 12.5px;
   }
   .foot-actions {
     display: grid;
