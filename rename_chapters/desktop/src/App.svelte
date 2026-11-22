@@ -3,6 +3,7 @@
   import ArchiveWorkbench from './ArchiveWorkbench.svelte';
   import LibraryWorkbench from './LibraryWorkbench.svelte';
   import MergeWorkbench from './MergeWorkbench.svelte';
+  import ReaderWebSettings from './ReaderWebSettings.svelte';
   import SettingsServices from './SettingsServices.svelte';
   import SplitWorkbench from './SplitWorkbench.svelte';
   import TextToolsWorkbench from './TextToolsWorkbench.svelte';
@@ -72,11 +73,12 @@
   let error = $state('');
   let needsPreview = $state(false);
   let uiPrefs = $state<UiPrefs>(loadUiPrefs());
+  let readerFullscreen = $state(false);
   let dark = $derived(resolveTheme(uiPrefs.theme) === 'dark');
   let formatInput = $state<HTMLInputElement | undefined>(undefined);
   let confirmation = $state<HTMLDialogElement | undefined>(undefined);
   let lineConfirmation = $state<HTMLDialogElement | undefined>(undefined);
-  const settingsGroups = ['general', 'appearance', 'account', 'translation', 'runtime'] as const;
+  const settingsGroups = ['general', 'appearance', 'account', 'translation', 'web', 'runtime'] as const;
   type SettingsGroup = typeof settingsGroups[number];
   let settingsGroup = $state<SettingsGroup>('general');
   let runtimeStatus = $state<VBookRunnerStatus | null>(null);
@@ -377,7 +379,7 @@
   }
 </script>
 
-<header class="masthead">
+<header class="masthead" hidden={readerFullscreen} inert={readerFullscreen}>
   <div class="brand">
     <span class="book-mark" aria-hidden="true"></span>
     <span>{t('app.name')}</span>
@@ -395,7 +397,7 @@
 </header>
 
 <main>
-  {#if area === 'library'}
+  {#if area === 'library' && !readerFullscreen}
     <nav class="mode-switch" aria-label={t('subnav.library_aria')}>
       <button type="button" aria-pressed={libraryTool === 'library'} disabled={busy !== null}
         onclick={() => changeLibraryTool('library')}>{t('subnav.library')}</button>
@@ -420,7 +422,8 @@
     </nav>
   {/if}
   {#if visited.has('library')}
-    <div hidden={mode !== 'library'}><LibraryWorkbench locale={uiPrefs.locale} onTranslationSettings={() => showSettings('translation')} /></div>
+    <div hidden={mode !== 'library'}><LibraryWorkbench locale={uiPrefs.locale} active={mode === 'library'}
+      onFullscreenChange={(enabled) => (readerFullscreen = enabled)} onTranslationSettings={() => showSettings('translation')} /></div>
   {/if}
   {#if visited.has('vbook')}
     <div hidden={mode !== 'vbook'}><VBookExtensionsWorkbench parentBusy={busy !== null} /></div>
@@ -622,6 +625,8 @@
       </div>
     {/if}
   </section>
+  {:else if settingsGroup === 'web'}
+    <ReaderWebSettings />
   {:else}
     <SettingsServices group={settingsGroup} />
   {/if}

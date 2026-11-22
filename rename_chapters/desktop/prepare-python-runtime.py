@@ -35,7 +35,7 @@ def verified_archive(cache):
 def stage_runtime():
     relative_path = f"runtime/python-{VERSION}/"
     options = json.loads((TAURI / "tauri.nsis.conf.json").read_text(encoding="utf-8"))
-    if options["bundle"]["resources"] != {relative_path: "runtime/python/"}:
+    if options["bundle"]["resources"].get(relative_path) != "runtime/python/":
         raise RuntimeError("The NSIS resource mapping must match the verified Python version")
 
     destination = TAURI / relative_path
@@ -56,5 +56,21 @@ def stage_runtime():
     print(f"CPython {VERSION} x64 verified and staged for NSIS.")
 
 
+def require_runner():
+    runner = TAURI / "runtime/vbook_runner.jar"
+    if not runner.is_file():
+        raise RuntimeError("Stage vbook_runner.jar using sync-wsl-build.py --runner-jar before packaging.")
+    with ZipFile(runner) as archive:
+        manifest = archive.read("META-INF/MANIFEST.MF")
+        main = next((line.split(b":", 1)[1].strip() for line in manifest.splitlines()
+                     if line.startswith(b"Main-Class:")), b"")
+        if not main or main.replace(b".", b"/").decode("ascii") + ".class" not in archive.namelist():
+            raise RuntimeError("The staged vbook_runner.jar must be an executable JAR.")
+        if "vbook/BrowserBridgeClient.class" not in archive.namelist():
+            raise RuntimeError("The staged vbook_runner.jar must support the browser bridge.")
+    print("Staged vBook runner is ready.")
+
+
 if __name__ == "__main__":
+    require_runner()
     stage_runtime()

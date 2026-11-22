@@ -228,6 +228,7 @@ h1, h2, h3, p { margin: 0; }
 }
 
 /* Masthead */
+.masthead[hidden] { display: none; }
 .masthead {
   height: 58px;
   border-bottom: 1px solid var(--line);

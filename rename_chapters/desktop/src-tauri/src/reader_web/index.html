@@ -1,0 +1,21 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Đọc truyện · Novel Studio</title>
+  <link rel="stylesheet" href="/reader.css">
+  <script src="/reader.js" defer></script>
+</head>
+<body>
+  <header><h1>Novel Studio</h1><label for="books">Chọn truyện</label><select id="books" disabled></select></header>
+  <main>
+    <p id="status" role="status">Đang mở thư viện…</p>
+    <label id="toc-picker" hidden>Mục lục <select id="toc"></select></label>
+    <article aria-labelledby="title" hidden><h2 id="title"></h2><div id="content"></div></article>
+    <nav aria-label="Điều hướng đọc" hidden>
+      <button id="previous" type="button">Trước</button><span id="position" aria-live="polite"></span><button id="next" type="button">Sau</button>
+    </nav>
+  </main>
+</body>
+</html>

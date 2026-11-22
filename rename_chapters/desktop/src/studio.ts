@@ -1,5 +1,10 @@
 import { invoke } from '@tauri-apps/api/core';
 
+export type ReaderWebStatus = { url: string | null; lan: boolean };
+export const getReaderWebStatus = () => invoke<ReaderWebStatus>('reader_web_status');
+export const startReaderWeb = (lan: boolean, port: number) => invoke<ReaderWebStatus>('start_reader_web', { lan, port });
+export const stopReaderWeb = () => invoke<ReaderWebStatus>('stop_reader_web');
+
 export const listWikiProfiles = () => invoke<string[]>('list_wiki_profiles');
 export const openWiki = (profile: string, address: string) =>
   invoke<void>('open_wiki', { options: { profile, address } });

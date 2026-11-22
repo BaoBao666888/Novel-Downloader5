@@ -1,4 +1,6 @@
 <script lang="ts">
+  import { getCurrentWindow } from '@tauri-apps/api/window';
+  import { defaultReaderPrefs, loadReaderPrefs, saveReaderPrefs } from './reader-preferences';
   import { onMount } from 'svelte';
   import {
     clearReaderTranslationCache,
@@ -43,7 +45,10 @@
   import { translate, type I18nKey } from './i18n';
   import type { AppLocale } from './ui-prefs';
 
-  let { locale = 'vi', onTranslationSettings }: { locale?: AppLocale; onTranslationSettings: () => void } = $props();
+  let { locale = 'vi', active, onFullscreenChange, onTranslationSettings }: {
+    locale?: AppLocale; active: boolean; onFullscreenChange: (enabled: boolean) => void;
+    onTranslationSettings: () => void;
+  } = $props();
   const t = (key: I18nKey, params?: Record<string, string | number>) => translate(locale, key, params);
 
   let books = $state<LibraryItem[]>([]);
@@ -115,6 +120,28 @@
   let message = $state('');
 
   let reader: HTMLDivElement;
+  let readingOptions: HTMLDialogElement;
+  let fullscreen = $state(false);
+  let fullscreenBusy = $state(false);
+  let readerPrefs = $state(loadReaderPrefs());
+  $effect(() => saveReaderPrefs(readerPrefs));
+
+  async function toggleFullscreen() {
+    if (fullscreenBusy || !current) return;
+    const ratio = currentScrollRatio();
+    try {
+      fullscreenBusy = true;
+      await getCurrentWindow().setFullscreen(!fullscreen);
+      fullscreen = !fullscreen;
+      onFullscreenChange(fullscreen);
+      restoreScrollRatio(ratio);
+      reader?.focus({ preventScroll: true });
+    } catch (cause) {
+      readError = `Không đổi được chế độ toàn màn hình. ${String(cause)}`;
+    } finally {
+      fullscreenBusy = false;
+    }
+  }
   let chapterTextNode = $state<HTMLDivElement | null>(null);
   let removeDialog: HTMLDialogElement;
   let selectionNameDialog: HTMLDialogElement;
@@ -151,6 +178,10 @@
     }
     return chapter.text;
   });
+
+  const titleIsFirstLine = $derived(
+    displayedChapterText.trimStart().split('\n', 1)[0]?.trim() === displayedChapterTitle.trim(),
+  );
 
   const activeDictEntries = $derived.by((): Record<string, string> => {
     if (dictScope === 'global') {
@@ -286,15 +317,13 @@
   }
 
   function onReaderKeydown(event: KeyboardEvent) {
-    if (pending !== null || selected === null) return;
-    if (
-      selectionNameDialog?.open ||
-      nameManagerDialog?.open ||
-      nameSuggestDialog?.open ||
-      removeDialog?.open
-    ) {
+    if (!active || selected === null || event.defaultPrevented || document.querySelector('dialog[open]')) return;
+    if ((event.key === 'Escape' && fullscreen) || event.key === 'F11') {
+      event.preventDefault();
+      void toggleFullscreen();
       return;
     }
+    if (pending !== null) return;
     if (event.altKey && event.key === 'ArrowLeft') {
       event.preventDefault();
       if (readMode === 'chapter' && chapter && chapter.index > 0) {
@@ -911,14 +940,8 @@
 
 <svelte:window onkeydown={onReaderKeydown} />
 
-<section class="heading">
-  <div>
-    <h1>Thư viện &amp; Dịch thuật</h1>
-    <p>
-      Đọc TXT / ZIP theo mục lục chương, dịch trực tiếp qua DichNgay / TM Translate Beta với
-      Translation Memory và sửa Name riêng theo ngữ cảnh bôi đen (Edit Name V3).
-    </p>
-  </div>
+<section class="heading" hidden={fullscreen} inert={fullscreen}>
+  <h1>Thư viện</h1>
   <div class="heading-actions">
     <button
       id="library-stats-btn"
@@ -929,19 +952,19 @@
     >
       {t('stats.btn')}
     </button>
-    <button class="button" type="button" disabled={pending !== null} onclick={openNameManager}>
-      Name riêng ({Object.keys(nameSetState.sets[nameSetState.active_set] ?? {}).length})
-    </button>
+    {#if !current}
+      <button class="button subtle" type="button" disabled={pending !== null} onclick={openNameManager}>Từ điển</button>
+    {/if}
     <button class="button primary" type="button" disabled={pending !== null} onclick={addBooks}>
-      {pending === 'import' ? 'Đang mở…' : 'Thêm TXT / ZIP'}
+      {pending === 'import' ? 'Đang mở…' : 'Thêm truyện…'}
     </button>
   </div>
 </section>
 
 <div class="workspace">
-  <aside class="shelf" aria-label="Tệp trong thư viện">
+  <aside class="shelf" aria-label="Truyện đã lưu" hidden={fullscreen} inert={fullscreen}>
     <div class="shelf-head">
-      <h2>Tệp đã lưu</h2>
+      <h2>Truyện đã lưu</h2>
       {#if books.length}
         <input
           type="search"
@@ -979,9 +1002,9 @@
                 </span>
               </div>
               <div class="book-row-meta">
-                <small>{book.path}</small>
+                <small>{selected === book.id ? 'Đang mở' : book.last_chapter !== undefined ? `Chương ${book.last_chapter + 1}` : 'Chưa đọc'}</small>
                 <small class="num-stat">
-                  {#if book.last_chapter !== undefined}Ch.{book.last_chapter + 1}{book.size > 0 ? ' · ' : ''}{/if}{formatSize(book.size)}
+                  {formatSize(book.size)}
                 </small>
               </div>
             </button>
@@ -993,112 +1016,44 @@
         {pending === 'load'
           ? 'Đang mở thư viện…'
           : books.length
-            ? 'Không tìm thấy tên phù hợp.'
-            : 'Chưa có truyện nào. Bấm Thêm TXT / ZIP để bắt đầu.'}
+            ? 'Không tìm thấy truyện.'
+            : 'Thư viện đang trống.'}
       </p>
     {/if}
   </aside>
 
   <section
     class="proof reader"
+    class:reader-fullscreen={fullscreen}
     aria-label="Khung đọc"
     aria-busy={pending === 'read' || pending === 'translate'}
   >
     {#if current}
-      <header class="proof-head">
+      <header class="proof-head reader-header">
         <div class="reader-title-group">
           <h2>{current.title}</h2>
-          {#if readMode === 'chapter' && chapter}
-            <p class="summary num-stat">
-              {displayedChapterTitle} · Chương {chapter.index + 1}/{chapter.total_chapters} · {chapter.encoding}
-              {#if viewLang === 'trans' && translatedView}
-                · {translatedView.unit_count} cụm · Bộ: {translatedView.active_set} (v{translatedView.name_set_version})
-              {/if}
-            </p>
-          {:else if readMode === 'page' && page}
-            <p class="summary num-stat">Chế độ đọc theo trang · Trang {cursors.length}</p>
-          {/if}
         </div>
         <div class="proof-actions">
           {#if readMode === 'chapter' && chapter}
-            <div class="lang-segmented" role="group" aria-label="Chế độ ngôn ngữ">
-              <button
-                type="button"
-                class="seg-btn"
-                class:active={viewLang === 'raw'}
-                disabled={pending !== null}
-                onclick={() => switchViewLang('raw')}
-              >
-                RAW
+            <div class="lang-segmented" role="group" aria-label="Nội dung truyện">
+              <button type="button" class="seg-btn" class:active={viewLang === 'raw'}
+                aria-pressed={viewLang === 'raw'} disabled={pending !== null} onclick={() => switchViewLang('raw')}>
+                Bản gốc
               </button>
-              <button
-                type="button"
-                class="seg-btn"
-                class:active={viewLang === 'trans'}
-                disabled={pending !== null}
-                onclick={() => switchViewLang('trans')}
-              >
-                {pending === 'translate' ? 'Đang dịch…' : 'DỊCH'}
+              <button type="button" class="seg-btn" class:active={viewLang === 'trans'}
+                aria-pressed={viewLang === 'trans'} disabled={pending !== null} onclick={() => switchViewLang('trans')}>
+                {pending === 'translate' ? 'Đang dịch…' : 'Bản dịch'}
               </button>
             </div>
-            <select
-              class="mode-select"
-              aria-label="Chế độ dịch"
-              bind:value={translateMode}
-              disabled={pending !== null}
-              onchange={onTranslateModeChange}
-            >
-              <option value="server">DichNgay Server</option>
-              <option value="tm_translate_beta">TM Translate Beta</option>
-            </select>
-            {#if viewLang === 'trans'}
-              <button
-                class="button subtle"
-                type="button"
-                disabled={pending !== null}
-                title="Xóa cache dịch của chương này và dịch lại"
-                onclick={reloadCurrentChapterTranslation}
-              >
-                Tải lại chương
-              </button>
-            {/if}
-            <button
-              class="button subtle"
-              type="button"
-              disabled={pending !== null}
-              onclick={openNameManager}
-            >
-              Name riêng
-            </button>
           {/if}
           {#if hasChapters}
-            <button
-              class="button subtle"
-              type="button"
-              aria-expanded={tocOpen}
-              disabled={pending !== null}
-              onclick={() => (tocOpen = !tocOpen)}
-            >
-              Mục lục ({toc?.chapters.length ?? 0})
-            </button>
+            <button class="button subtle" type="button" aria-expanded={tocOpen}
+              disabled={pending !== null} onclick={() => (tocOpen = !tocOpen)}>Mục lục</button>
           {/if}
-          {#if current.kind === 'txt' && hasChapters}
-            <button
-              class="button subtle"
-              type="button"
-              disabled={pending !== null}
-              onclick={toggleReadMode}
-            >
-              {readMode === 'chapter' ? 'Đọc theo trang' : 'Đọc theo chương'}
-            </button>
-          {/if}
-          <button
-            class="button subtle"
-            type="button"
-            disabled={pending !== null}
-            onclick={() => removeDialog.showModal()}
-          >
-            Bỏ khỏi thư viện
+          <button class="button subtle" type="button" onclick={() => readingOptions.showModal()}>Tùy chọn</button>
+          <button class="button" type="button" aria-pressed={fullscreen} title="F11"
+            disabled={fullscreenBusy} onclick={toggleFullscreen}>
+            {fullscreen ? 'Thoát toàn màn hình' : 'Toàn màn hình'}
           </button>
         </div>
       </header>
@@ -1108,7 +1063,6 @@
       <div class="selection-bar" role="region" aria-label="Thao tác đoạn bôi đen">
         <span class="selection-preview">
           Đã bôi đen: <strong>“{selectionSnapshot.text}”</strong>
-          <small class="num-stat">({selectionSnapshot.startOffset}–{selectionSnapshot.endOffset})</small>
         </span>
         <div class="selection-actions">
           <button
@@ -1117,7 +1071,7 @@
             disabled={pending !== null}
             onclick={openSelectionEditNameModal}
           >
-            Sửa Name theo đoạn chọn
+            Sửa tên đã chọn
           </button>
           <button
             type="button"
@@ -1163,7 +1117,6 @@
               >
                 <span class="toc-idx num-stat">{item.index + 1}</span>
                 <span class="toc-name">{item.title}</span>
-                <small class="num-stat">{formatSize(item.size)}</small>
               </button>
             </li>
           {/each}
@@ -1174,6 +1127,11 @@
     <!-- svelte-ignore a11y_no_noninteractive_tabindex, a11y_no_noninteractive_element_interactions (The scrollable reading region needs keyboard focus and text selection detection.) -->
     <div
       class="proof-body reading-body"
+      data-paper={readerPrefs.paper}
+      data-spacing={readerPrefs.spacing}
+      data-width={readerPrefs.width}
+      data-font={readerPrefs.font}
+      style:--reader-size={readerPrefs.size + 'px'}
       bind:this={reader}
       role="region"
       tabindex="0"
@@ -1182,15 +1140,17 @@
       onkeyup={captureChapterSelection}
     >
       {#if readMode === 'chapter' && chapter}
+        {#key `${selected}-${chapter.index}`}
         <article class="reading-page">
-          <h3 class="chapter-heading">{displayedChapterTitle}</h3>
+          <h3 class="chapter-heading" class:visually-hidden={titleIsFirstLine}>{displayedChapterTitle}</h3>
           {#if chapter.truncated}
             <p class="notice">Chương vượt quá 2 MB, đang hiển thị phần đầu.</p>
           {/if}
           <div class="chapter-text" bind:this={chapterTextNode}>{displayedChapterText}</div>
         </article>
+        {/key}
       {:else if readMode === 'page' && page?.text}
-        <div class="reading-page">{page.text}</div>
+        <div class="reading-page reading-plain">{page.text}</div>
       {:else if !readError}
         <div class="empty">
           <div class="paper" aria-hidden="true"><span></span><span></span><span></span></div>
@@ -1199,11 +1159,7 @@
           {:else if page}
             <h3>Tệp không có nội dung</h3>
           {:else}
-            <h3>{books.length ? 'Chọn một truyện để đọc' : 'Thêm TXT hoặc ZIP để bắt đầu đọc'}</h3>
-            <p>
-              Hỗ trợ đọc RAW hoặc DỊCH trực tiếp, tự động tra Translation Memory và bôi đen văn bản
-              để sửa Name riêng theo ngữ cảnh (Edit Name V3).
-            </p>
+            <h3>{books.length ? 'Chọn một truyện để đọc' : 'Thêm truyện để bắt đầu đọc'}</h3>
           {/if}
         </div>
       {/if}
@@ -1213,9 +1169,6 @@
       <footer class="proof-footer">
         <span class="num-stat" aria-live="polite">
           Chương {chapter.index + 1} / {chapter.total_chapters}
-          {#if viewLang === 'trans' && translatedView}
-            · TM hit {translatedView.cache_hit_count}/{translatedView.cache_hit_count + translatedView.missing_count}
-          {/if}
         </span>
         <div class="proof-actions">
           <button
@@ -1399,7 +1352,7 @@
       class:active={nameTab === 'server'}
       onclick={() => (nameTab = 'server')}
     >
-      Server &amp; Cache ({cacheStats.translation_memory_count} TM)
+      Bộ nhớ dịch
     </button>
   </div>
 
@@ -1589,15 +1542,16 @@
     </div>
   {:else if nameTab === 'server'}
     <div class="server-form">
-      <div><button type="button" class="button" onclick={() => {
+      <div><button type="button" class="button" onclick={async () => {
         nameManagerDialog?.close();
-        onTranslationSettings();
+        if (fullscreen) await toggleFullscreen();
+        if (!fullscreen) onTranslationSettings();
       }}>Cài đặt dịch thuật</button></div>
       <div class="cache-card">
         <div>
-          <strong>Bộ nhớ dịch (Translation Memory)</strong>
+          <strong>Bộ nhớ dịch</strong>
           <p class="modal-hint num-stat">
-            {cacheStats.translation_memory_count} câu đã lưu · {cacheStats.chapter_cache_count} chương đã cache · {cacheStats.translation_unit_map_count} dòng Unit Map
+            {cacheStats.translation_memory_count} câu đã lưu · {cacheStats.chapter_cache_count} chương đã lưu
           </p>
         </div>
         <button
@@ -1606,7 +1560,7 @@
           disabled={pending !== null}
           onclick={clearAllTranslationMemory}
         >
-          Xóa toàn bộ Cache dịch
+          Xóa bộ nhớ dịch
         </button>
       </div>
     </div>
@@ -1699,6 +1653,60 @@
   </div>
 </dialog>
 
+<dialog bind:this={readingOptions} class="modal-box" aria-labelledby="reader-options-title">
+  <h2 id="reader-options-title">Tùy chọn đọc</h2>
+  <div class="settings-grid reader-options">
+    <label class="settings-field">Cỡ chữ · {readerPrefs.size}
+      <input type="range" min="15" max="32" bind:value={readerPrefs.size} />
+    </label>
+    <label class="settings-field">Kiểu chữ
+      <select bind:value={readerPrefs.font}><option value="serif">Có chân</option><option value="sans">Không chân</option></select>
+    </label>
+    <label class="settings-field">Giãn dòng
+      <select bind:value={readerPrefs.spacing}><option value="normal">Vừa</option><option value="relaxed">Thoáng</option></select>
+    </label>
+    <label class="settings-field">Khổ đọc
+      <select bind:value={readerPrefs.width}><option value="narrow">Hẹp</option><option value="normal">Vừa</option><option value="wide">Rộng</option></select>
+    </label>
+    <label class="settings-field">Màu trang
+      <select bind:value={readerPrefs.paper}><option value="app">Theo ứng dụng</option><option value="sepia">Giấy ấm</option><option value="night">Đọc ban đêm</option></select>
+    </label>
+    {#if hasChapters}
+      <label class="settings-field">Nguồn bản dịch
+        <select bind:value={translateMode} disabled={pending !== null} onchange={onTranslateModeChange}>
+          <option value="server">Dịch Ngay</option><option value="tm_translate_beta">Bộ nhớ dịch (thử nghiệm)</option>
+        </select>
+      </label>
+    {/if}
+  </div>
+  <div class="reading-actions">
+    <button class="button subtle" type="button" disabled={pending !== null}
+      onclick={() => { readingOptions.close(); void openNameManager(); }}>Từ điển</button>
+    {#if readMode === 'chapter' && chapter}
+      {#if viewLang === 'trans'}
+        <button class="button subtle" type="button" disabled={pending !== null}
+          onclick={() => { readingOptions.close(); void reloadCurrentChapterTranslation(); }}>Dịch lại chương</button>
+      {/if}
+    {/if}
+    {#if current?.kind === 'txt' && hasChapters && toc?.encoding.startsWith('utf-8')}
+      <button class="button subtle" type="button" disabled={pending !== null}
+        onclick={() => { readingOptions.close(); void toggleReadMode(); }}>
+        {readMode === 'chapter' ? 'Đọc theo trang' : 'Đọc theo chương'}
+      </button>
+    {/if}
+    <button class="button subtle" type="button" disabled={pending !== null}
+      onclick={async () => {
+        readingOptions.close();
+        if (fullscreen) await toggleFullscreen();
+        if (!fullscreen) removeDialog.showModal();
+      }}>Bỏ khỏi thư viện</button>
+  </div>
+  <div class="dialog-actions">
+    <button class="button" type="button" onclick={() => { readerPrefs = { ...defaultReaderPrefs }; }}>Mặc định</button>
+    <button class="button primary" type="button" onclick={() => readingOptions.close()}>Xong</button>
+  </div>
+</dialog>
+
 <dialog bind:this={removeDialog} aria-labelledby="remove-book-title">
   <h2 id="remove-book-title">Bỏ khỏi thư viện?</h2>
   <p>{current?.title}. Tệp gốc vẫn ở vị trí hiện tại trên máy.</p>
@@ -1770,6 +1778,7 @@
 </dialog>
 
 <style>
+  .heading[hidden], .shelf[hidden] { display: none; }
   .heading-actions { display: flex; align-items: center; gap: 10px; flex-wrap: nowrap; flex-shrink: 0; }
   .shelf { min-width: 0; padding: 0; overflow: hidden; }
   .shelf-head { display: grid; gap: 12px; padding: 16px; }
@@ -1818,13 +1827,6 @@
   .seg-btn.active {
     background: var(--accent); color: #fff;
   }
-  .mode-select {
-    width: auto !important;
-    min-width: 154px;
-    min-height: 30px !important;
-    padding: 2px 26px 2px 10px !important;
-    font-size: 12.5px !important;
-  }
 
   .selection-bar {
     display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap;
@@ -1850,7 +1852,7 @@
     border: 1px solid var(--line); border-radius: var(--radius-sm); background: var(--sheet);
   }
   .toc-list button {
-    width: 100%; display: grid; grid-template-columns: 40px minmax(0, 1fr) auto;
+    width: 100%; display: grid; grid-template-columns: 40px minmax(0, 1fr);
     align-items: center; gap: 8px; padding: 7px 10px;
     border: 0; border-bottom: 1px solid var(--line);
     background: transparent; color: var(--ink); text-align: start; font-size: 13px;
@@ -1861,23 +1863,63 @@
   .toc-list button.active { background: var(--selection); color: var(--accent); font-weight: 600; }
   .toc-idx { color: var(--muted); font-size: 12px; }
   .toc-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .toc-list small { color: var(--muted); font-size: 11.5px; }
 
-  .reading-body:focus-visible { outline-offset: -3px; }
+  .reader-header { align-items: center; gap: 10px; }
+  .reader-header h2 { margin: 0; font-size: 17px; }
+  .reader-header .proof-actions { margin-left: auto; }
+  .reader-fullscreen {
+    position: fixed; inset: 0; z-index: 30; border: 0; border-radius: 0;
+    display: flex; flex-direction: column; background: var(--sheet);
+  }
+  .reader-fullscreen .proof-head, .reader-fullscreen .proof-footer { padding-inline: clamp(18px, 5vw, 72px); }
+  .reader-fullscreen .reading-body { flex: 1 1 auto; min-height: 0; max-height: none; }
+  .reader-fullscreen .toc-panel { flex-shrink: 0; }
+  .reading-body {
+    --reader-ink: var(--ink);
+    --reader-page: var(--sheet);
+    --reader-rule: var(--line);
+    --reader-spacing: 1.72;
+    --reader-width: 66ch;
+    --reader-font: Cambria, Georgia, serif;
+    color: var(--reader-ink); background: var(--reader-page);
+    min-height: clamp(320px, 54vh, 760px);
+    max-height: clamp(320px, 61vh, 840px);
+    transition: background-color var(--motion-fast) var(--ease-out), color var(--motion-fast) var(--ease-out);
+  }
+  .reading-body[data-paper='sepia'] { --reader-ink: #33261b; --reader-page: #f6ecda; --reader-rule: #d8c4a7; }
+  .reading-body[data-paper='night'] { --reader-ink: #e3dfd6; --reader-page: #171b22; --reader-rule: #374151; }
+  .reading-body[data-spacing='relaxed'] { --reader-spacing: 1.96; }
+  .reading-body[data-width='narrow'] { --reader-width: 53ch; }
+  .reading-body[data-width='wide'] { --reader-width: 82ch; }
+  .reading-body[data-font='sans'] { --reader-font: system-ui, sans-serif; }
+  .reader-options { margin-block: 18px; }
+  .reading-actions { display: flex; gap: 8px; flex-wrap: wrap; padding-block: 10px; border-top: 1px solid var(--line); }
+  .reading-body:focus-visible {
+    outline: 1px solid color-mix(in srgb, var(--accent) 55%, transparent);
+    outline-offset: -1px;
+  }
   .reading-page {
-    max-width: 68ch; margin-inline: auto; padding: 20px clamp(16px, 3vw, 34px) 28px;
-    font: 400 18px/1.72 Cambria, "Times New Roman", serif;
-    white-space: pre-wrap; overflow-wrap: anywhere;
+    box-sizing: content-box;
+    max-width: var(--reader-width); margin-inline: auto; padding: 20px clamp(16px, 3vw, 34px) 28px;
+    font: 400 var(--reader-size, 20px)/var(--reader-spacing) var(--reader-font);
+    overflow-wrap: anywhere;
   }
   .chapter-heading {
-    font: 600 22px/1.3 Cambria, "Times New Roman", serif;
+    font: 600 1.15em/1.36 var(--reader-font);
     letter-spacing: -0.015em;
-    color: var(--ink);
+    color: var(--reader-ink);
     margin: 0 0 18px;
     padding-bottom: 10px;
-    border-bottom: 1px solid var(--line);
+    border-bottom: 1px solid var(--reader-rule);
   }
-  .chapter-text { white-space: pre-wrap; }
+  .chapter-text, .reading-plain { white-space: pre-wrap; }
+  .chapter-heading.visually-hidden {
+    position: absolute; clip-path: inset(50%); width: 1px; height: 1px;
+    overflow: hidden; margin: 0; padding: 0; border: 0;
+  }
+
+  .reading-page { animation: page-appear var(--motion-fast) var(--ease-out); }
+  @keyframes page-appear { from { opacity: .7; } }
 
   .modal-box {
     width: min(560px, calc(100vw - 28px));

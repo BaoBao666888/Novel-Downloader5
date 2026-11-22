@@ -71,5 +71,14 @@ def sync(repo, dest):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("destination", type=Path)
+    parser.add_argument("--runner-jar", type=Path, help="Stage the locally built vBook runner for NSIS")
     args = parser.parse_args()
-    sync(Path(__file__).resolve().parents[2], args.destination.expanduser().resolve())
+    dest = args.destination.expanduser().resolve()
+    sync(Path(__file__).resolve().parents[2], dest)
+    if args.runner_jar is not None:
+        jar = args.runner_jar.expanduser().resolve(strict=True)
+        staged = dest / PREFIX / "desktop/src-tauri/runtime/vbook_runner.jar"
+        staged.parent.mkdir(parents=True, exist_ok=True)
+        if not staged.exists() or not filecmp.cmp(jar, staged, shallow=False):
+            shutil.copy2(jar, staged)
+        print("Staged vbook_runner.jar from the selected local artifact.")

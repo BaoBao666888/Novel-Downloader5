@@ -31,6 +31,7 @@ export const vi = {
   'settings.group_appearance': 'Giao diện',
   'settings.group_account': 'Tài khoản',
   'settings.group_translation': 'Dịch thuật',
+  'settings.group_web': 'Dịch vụ web',
   'settings.group_runtime': 'Môi trường chạy',
   'settings.python_default': 'Mặc định',
   'settings.python_pick': 'Chọn Python…',
@@ -52,7 +53,7 @@ export const vi = {
   'settings.motion_label': 'Hiệu ứng chuyển động',
 
   'settings.section_runtime': 'Runtime & Phụ thuộc mở rộng',
-  'settings.runtime_note': 'Setup chỉ đóng gói thành phần riêng như vbook_runner.jar. Các runtime công khai như Java 21 hoặc WebView2 sẽ không tự tải khi chưa hỏi ý kiến người dùng.',
+  'settings.runtime_note': 'Cần Java 21 để mở nguồn VBook.',
   'settings.runtime_ready': 'Sẵn sàng',
   'settings.runtime_mock': 'Chế độ Mock',
   'settings.runtime_missing': 'Chưa cấu hình',
@@ -63,7 +64,7 @@ export const vi = {
   'settings.java_clear': 'Mặc định',
   'settings.java_saved': 'Đã cập nhật đường dẫn Java runtime.',
   'settings.java_resolved_label': 'Java đang dùng',
-  'settings.jar_label': 'vbook_runner.jar',
+  'settings.jar_label': 'Thành phần VBook',
   'settings.close': 'Đóng',
 
   'stats.btn': 'Thống kê',

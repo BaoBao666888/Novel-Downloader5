@@ -5,6 +5,7 @@ pub mod library;
 pub mod merge;
 mod names;
 mod python;
+mod reader_zip;
 pub mod rename;
 pub mod rename_apply;
 pub mod split;

@@ -33,6 +33,7 @@ export const en: Record<I18nKey, string> = {
   'settings.group_appearance': 'Appearance',
   'settings.group_account': 'Account',
   'settings.group_translation': 'Translation',
+  'settings.group_web': 'Web sharing',
   'settings.group_runtime': 'Runtime',
   'settings.python_default': 'Default',
   'settings.python_pick': 'Choose Python…',
@@ -54,7 +55,7 @@ export const en: Record<I18nKey, string> = {
   'settings.motion_label': 'Motion',
 
   'settings.section_runtime': 'Runtime & Extension Dependencies',
-  'settings.runtime_note': 'Setup only bundles private components like vbook_runner.jar. Public runtimes such as Java 21 or WebView2 are never downloaded without asking the user first.',
+  'settings.runtime_note': 'Java 21 is required to open VBook sources.',
   'settings.runtime_ready': 'Ready',
   'settings.runtime_mock': 'Mock Mode',
   'settings.runtime_missing': 'Not Configured',
@@ -65,7 +66,7 @@ export const en: Record<I18nKey, string> = {
   'settings.java_clear': 'Reset',
   'settings.java_saved': 'Updated Java runtime path.',
   'settings.java_resolved_label': 'Active Java',
-  'settings.jar_label': 'vbook_runner.jar',
+  'settings.jar_label': 'VBook component',
   'settings.close': 'Close',
 
   'stats.btn': 'Statistics',

@@ -14,6 +14,7 @@ use workspace::{
 };
 
 mod library_commands;
+mod reader_web;
 mod secret_store;
 mod translate_commands;
 mod upload_commands;
@@ -688,6 +689,7 @@ fn main() {
             app.manage(Mutex::new(Workspace::with_interpreter(bundled)));
             app.manage(Mutex::new(novel_studio_core::library::ReadCache::default()));
             app.manage(upload_runtime::UploadRuntime::default());
+            app.manage(reader_web::ReaderWeb::default());
             app.manage(wiki_commands::WikiWorksRuntime::default());
             let bridge_state = vbook_browser::VBookBrowserBridgeState::default();
             if let Ok(vbook_dir) = vbook_commands::resolve_vbook_dir(app.handle()) {
@@ -738,6 +740,9 @@ fn main() {
             inspect_archive,
             preview_archive_entry,
             extract_archive,
+            reader_web::reader_web_status,
+            reader_web::start_reader_web,
+            reader_web::stop_reader_web,
             library_commands::list_library,
             library_commands::import_library,
             library_commands::import_library_paths,

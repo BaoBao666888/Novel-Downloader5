@@ -91,7 +91,7 @@
   let exploreError = $state('');
   let exploreBusy = $state(false);
 
-  // Modal Thử Engine (tts / translate / ai)
+  // Modal Dùng thử (tts / translate / ai)
   let engineDialog = $state<HTMLDialogElement | undefined>(undefined);
   let engineTarget = $state<InstalledExtension | null>(null);
   let engineError = $state('');
@@ -762,10 +762,7 @@
 
 <section class="heading">
   <div>
-    <h1>Nguồn mở rộng VBook</h1>
-    <p>
-      Hỗ trợ đầy đủ Tiểu thuyết, Truyện tranh, Video, Âm thanh, TTS, Dịch thuật, Trợ lý AI, Diễn đàn &amp; Tin tức theo chuẩn vbook-beta.
-    </p>
+    <h1>Nguồn VBook</h1>
   </div>
   <div class="proof-actions heading-actions">
     <button class="button" type="button" onclick={openReposDialog} disabled={isBusy}>
@@ -820,15 +817,10 @@
     {#if runnerStatus}
       <span
         class={runnerStatus.ready ? 'badge accent runner-badge' : 'badge warn runner-badge'}
-        title={`${runnerStatus.message}${runnerStatus.browser_bridge_ready ? ' · WebView2 Browser Bridge sẵn sàng' : ''}`}
       >
         {runnerStatus.mock_mode
-          ? 'Runner Mock'
-          : runnerStatus.ready
-            ? runnerStatus.browser_bridge_ready
-              ? 'Runner + Bridge'
-              : 'Runner sẵn sàng'
-            : 'Chưa có Java 21 / runner'}
+          ? 'Đang dùng dữ liệu mẫu'
+          : runnerStatus.ready ? 'Có thể mở nguồn' : 'Cần thiết lập trong Cài đặt'}
       </span>
     {/if}
     {#if activeTab === 'updates' && updates.length > 0}
@@ -845,7 +837,7 @@
       <div class="empty">
         <div class="paper" aria-hidden="true"><span></span><span></span><span></span></div>
         <h3>Mọi nguồn đã ở phiên bản mới nhất</h3>
-        <p>Khi kho có phiên bản lớn hơn bản đã cài, danh sách cần cập nhật sẽ hiển thị tại đây.</p>
+        <p>Các nguồn đã được cập nhật.</p>
         <div class="empty-actions">
           <button class="button" type="button" onclick={refreshAllRepos} disabled={isBusy}>Làm mới kho</button>
           <button class="button" type="button" onclick={() => (activeTab = 'catalog')}>Mở Kho nguồn</button>
@@ -946,7 +938,7 @@
             <div class="ext-foot">
               {#if isEngineType(ext.ext_type)}
                 <button class="mini-btn accent-btn" type="button" onclick={() => openEngineDialog(ext)} disabled={isBusy}>
-                  Thử Engine
+                  Dùng thử
                 </button>
               {:else}
                 <button class="mini-btn accent-btn" type="button" onclick={() => openExploreDialog(ext)} disabled={isBusy}>
@@ -1277,7 +1269,7 @@
     <div class="explore-col">
       <h4>Kết quả (<span class="num">{exploreResults.length}</span>)</h4>
       {#if exploreResults.length === 0}
-        <p class="muted-hint">Bấm Tìm kiếm để chạy script <code>search.js</code> trên nguồn.</p>
+        <p class="muted-hint">Tìm theo tên truyện.</p>
       {:else}
         <ul class="explore-list">
           {#each exploreResults as item (item.link)}
@@ -1313,7 +1305,7 @@
 
       <h4>Mục lục (<span class="num">{exploreToc.length}</span>)</h4>
       {#if exploreToc.length === 0}
-        <p class="muted-hint">Chọn một mục kết quả để nạp <code>detail.js</code> và <code>toc.js</code>.</p>
+        <p class="muted-hint">Chọn truyện để xem mục lục.</p>
       {:else}
         <ul class="explore-list">
           {#each exploreToc as ch (ch.index)}
@@ -1363,7 +1355,7 @@
               {/each}
             </ul>
           {:else if exploreChap.kind === 'media_tracks'}
-            <p class="muted-hint">Chọn nguồn phát để chạy <code>track.js</code>:</p>
+            <p class="muted-hint">Chọn nguồn phát.</p>
             <div class="track-list">
               {#each exploreChap.tracks as tr (tr.data)}
                 <div class="track-row">
@@ -1374,7 +1366,7 @@
                     onclick={() => runResolveTrack(tr.data)}
                     disabled={exploreBusy}
                   >
-                    Giải mã phát
+                    Mở nguồn
                   </button>
                 </div>
               {/each}
@@ -1392,7 +1384,7 @@
               </div>
             {/if}
           {:else}
-            <pre class="chap-text">{JSON.stringify(exploreChap.data, null, 2)}</pre>
+            <p class="muted-hint">Định dạng này chưa mở được trong ứng dụng.</p>
           {/if}
         </div>
       {/if}
@@ -1406,7 +1398,7 @@
 
 <dialog id="vbook-engine-dialog" class="vbook-dialog" bind:this={engineDialog}>
   <h3>
-    Thử Engine: {engineTarget?.name ?? ''}
+    Dùng thử: {engineTarget?.name ?? ''}
     {#if engineTarget}
       <span class="badge muted">{typeLabel(engineTarget.ext_type)}</span>
     {/if}
@@ -1439,7 +1431,7 @@
             <span class="badge accent">{ttsResult.mime_type}</span>
             <span class="badge num">{ttsResult.byte_len} bytes</span>
           </div>
-          <p class="muted-hint">Base64 đầu ra sẵn sàng phát: {ttsResult.base64_data.slice(0, 48)}…</p>
+          <p class="muted-hint">Đã tạo giọng đọc.</p>
         </div>
       {/if}
     </div>

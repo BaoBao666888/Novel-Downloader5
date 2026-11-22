@@ -7,7 +7,8 @@ use std::time::Instant;
 
 use serde::{Deserialize, Serialize};
 
-use crate::{CoreError, archive, python};
+use crate::{CoreError, reader_zip};
+use encoding_rs::{GB18030, WINDOWS_1252};
 
 const FORMAT_VERSION: u32 = 1;
 const PAGE_BYTES: usize = 16 * 1024;
@@ -132,6 +133,13 @@ pub struct Item {
     size: u64,
     #[serde(skip_serializing_if = "Option::is_none")]
     last_chapter: Option<usize>,
+}
+
+#[derive(Serialize)]
+pub struct ShelfBook {
+    pub id: u32,
+    pub title: String,
+    pub kind: SourceKind,
 }
 
 #[derive(Default)]
@@ -269,6 +277,18 @@ impl Library {
         Ok(self.load()?.items())
     }
 
+    pub fn reading_shelf(&self) -> Result<Vec<ShelfBook>, CoreError> {
+        Ok(self
+            .list()?
+            .into_iter()
+            .map(|entry| ShelfBook {
+                id: entry.id,
+                title: entry.title,
+                kind: entry.kind,
+            })
+            .collect())
+    }
+
     pub fn import(&self, files: Vec<PathBuf>) -> Result<ImportResult, CoreError> {
         let paths = files
             .into_iter()
@@ -363,7 +383,6 @@ impl Library {
         &self,
         id: u32,
         cache: &'a mut ReadCache,
-        interpreter: Option<&Path>,
     ) -> Result<(PathBuf, &'a CachedToc), CoreError> {
         let path = self.lookup_path(id)?;
         let metadata = fs::symlink_metadata(&path)
@@ -379,16 +398,17 @@ impl Library {
         if !cache_hit {
             let built = match source_kind(&path) {
                 Some(SourceKind::Zip) => {
-                    let (_, info) = archive::inspect(&path, interpreter)?;
-                    let mut txt_entries: Vec<_> = info
-                        .entries
+                    let mut entries = reader_zip::list(&path)?;
+                    entries.sort_by(|a, b| natural_cmp(&a.name, &b.name));
+                    let zip_entries = entries
                         .into_iter()
-                        .filter(|e| e.safe && e.is_txt)
-                        .collect();
-                    txt_entries.sort_by(|a, b| natural_cmp(&a.display_name, &b.display_name));
-                    let zip_entries = txt_entries
-                        .into_iter()
-                        .map(|e| (e.index, clean_zip_chapter_title(&e.display_name), e.size))
+                        .map(|entry| {
+                            (
+                                entry.index,
+                                clean_zip_chapter_title(&entry.name),
+                                entry.size,
+                            )
+                        })
                         .collect();
                     CachedToc {
                         stamp,
@@ -411,8 +431,22 @@ impl Library {
                         }
                     } else {
                         let raw = fs::read(&path)?;
-                        let (text, encoding) = decode_txt_bytes(&raw, interpreter)?;
-                        let txt_spans = detect_txt_chapters(&text);
+                        let (text, encoding) = decode_txt_bytes(&raw)?;
+                        let mut txt_spans = detect_txt_chapters(&text);
+                        if txt_spans.is_empty()
+                            && !text.is_empty()
+                            && !encoding.starts_with("utf-8")
+                        {
+                            txt_spans.push(TxtChapterSpan {
+                                title: path
+                                    .file_stem()
+                                    .unwrap_or_default()
+                                    .to_string_lossy()
+                                    .into_owned(),
+                                start_byte: 0,
+                                end_byte: text.len(),
+                            });
+                        }
                         CachedToc {
                             stamp,
                             kind: SourceKind::Txt,
@@ -439,9 +473,9 @@ impl Library {
         &self,
         id: u32,
         cache: &mut ReadCache,
-        interpreter: Option<&Path>,
+        _interpreter: Option<&Path>,
     ) -> Result<ChapterList, CoreError> {
-        let (_, cached) = self.ensure_cached_toc(id, cache, interpreter)?;
+        let (_, cached) = self.ensure_cached_toc(id, cache)?;
         let chapters = match cached.kind {
             SourceKind::Zip => cached
                 .zip_entries
@@ -487,9 +521,20 @@ impl Library {
         id: u32,
         chapter_index: usize,
         cache: &mut ReadCache,
-        interpreter: Option<&Path>,
+        _interpreter: Option<&Path>,
     ) -> Result<ChapterContent, CoreError> {
-        let (path, cached) = self.ensure_cached_toc(id, cache, interpreter)?;
+        let content = self.read_chapter_without_progress(id, chapter_index, cache)?;
+        self.save_last_chapter(id, chapter_index);
+        Ok(content)
+    }
+
+    pub fn read_chapter_without_progress(
+        &self,
+        id: u32,
+        chapter_index: usize,
+        cache: &mut ReadCache,
+    ) -> Result<ChapterContent, CoreError> {
+        let (path, cached) = self.ensure_cached_toc(id, cache)?;
         let content = match cached.kind {
             SourceKind::Zip => {
                 let total_chapters = cached.zip_entries.len();
@@ -497,15 +542,15 @@ impl Library {
                     .zip_entries
                     .get(chapter_index)
                     .ok_or("Chương yêu cầu không tồn tại trong tệp ZIP.")?;
-                let preview =
-                    archive::read_entry_text(&path, *entry_index, MAX_CHAPTER_BYTES, interpreter)?;
+                let (bytes, truncated) = reader_zip::read(&path, *entry_index, MAX_CHAPTER_BYTES)?;
+                let (text, encoding) = decode_zip_text(&bytes, truncated);
                 ChapterContent {
                     index: chapter_index,
                     title: title.clone(),
-                    text: preview.text,
-                    encoding: preview.encoding,
+                    text,
+                    encoding,
                     total_chapters,
-                    truncated: preview.truncated,
+                    truncated,
                 }
             }
             SourceKind::Txt => {
@@ -538,7 +583,6 @@ impl Library {
                 }
             }
         };
-        self.save_last_chapter(id, chapter_index);
         Ok(content)
     }
 
@@ -551,7 +595,7 @@ impl Library {
     pub fn stats_with_interpreter(
         &self,
         refresh_stale: bool,
-        interpreter: Option<&Path>,
+        _interpreter: Option<&Path>,
     ) -> Result<LibraryStats, CoreError> {
         let started = Instant::now();
         let _lock = self.lock()?;
@@ -573,10 +617,7 @@ impl Library {
                     .metrics
                     .as_ref()
                     .is_some_and(|existing| existing.stamp == stamp);
-                if !fresh
-                    && let Ok(metrics) =
-                        measure_book_metrics(&entry.path, stamp, &metadata, interpreter)
-                {
+                if !fresh && let Ok(metrics) = measure_book_metrics(&entry.path, stamp, &metadata) {
                     entry.metrics = Some(metrics);
                     mutated = true;
                 }
@@ -738,7 +779,6 @@ fn measure_book_metrics(
     path: &Path,
     stamp: String,
     metadata: &Metadata,
-    interpreter: Option<&Path>,
 ) -> Result<BookMetrics, CoreError> {
     match source_kind(path) {
         Some(SourceKind::Txt) => {
@@ -754,7 +794,7 @@ fn measure_book_metrics(
                 });
             }
             let raw = fs::read(path)?;
-            let text = match decode_txt_bytes(&raw, interpreter) {
+            let text = match decode_txt_bytes(&raw) {
                 Ok((t, _)) => t,
                 Err(_) => String::from_utf8_lossy(&raw).into_owned(),
             };
@@ -790,13 +830,8 @@ fn measure_book_metrics(
             })
         }
         Some(SourceKind::Zip) => {
-            let (_, info) = archive::inspect(path, interpreter)?;
-            let mut txt_entries: Vec<_> = info
-                .entries
-                .into_iter()
-                .filter(|e| e.safe && e.is_txt)
-                .collect();
-            txt_entries.sort_by(|a, b| natural_cmp(&a.display_name, &b.display_name));
+            let mut txt_entries = reader_zip::list(path)?;
+            txt_entries.sort_by(|a, b| natural_cmp(&a.name, &b.name));
             let chapter_count = txt_entries.len();
             let raw_sum: u64 = txt_entries.iter().map(|e| e.size).sum();
             let source_bytes = raw_sum.max(metadata.len());
@@ -813,14 +848,14 @@ fn measure_book_metrics(
             };
             for idx in (0..txt_entries.len()).step_by(step).take(sample_limit) {
                 let entry = &txt_entries[idx];
-                if let Ok(content) =
-                    archive::read_entry_text(path, entry.index, MAX_CHAPTER_BYTES, interpreter)
+                if let Ok((bytes, truncated)) =
+                    reader_zip::read(path, entry.index, MAX_CHAPTER_BYTES)
                 {
+                    let (text, _) = decode_zip_text(&bytes, truncated);
                     sampled_bytes = sampled_bytes.saturating_add(entry.size.max(1));
-                    sampled_words = sampled_words
-                        .saturating_add(content.text.split_whitespace().count() as u64);
-                    sampled_chars =
-                        sampled_chars.saturating_add(content.text.chars().count() as u64);
+                    sampled_words =
+                        sampled_words.saturating_add(text.split_whitespace().count() as u64);
+                    sampled_chars = sampled_chars.saturating_add(text.chars().count() as u64);
                 }
             }
             let (word_count, char_count) = if sampled_bytes > 0 && raw_sum > 0 {
@@ -870,7 +905,7 @@ fn clean_zip_chapter_title(display_name: &str) -> String {
     }
 }
 
-fn decode_txt_bytes(raw: &[u8], interpreter: Option<&Path>) -> Result<(String, String), CoreError> {
+fn decode_txt_bytes(raw: &[u8]) -> Result<(String, String), CoreError> {
     if let Some(rest) = raw.strip_prefix(b"\xef\xbb\xbf") {
         let text = std::str::from_utf8(rest)
             .map_err(|_| "Tệp TXT không dùng UTF-8 hợp lệ.")?
@@ -904,18 +939,41 @@ fn decode_txt_bytes(raw: &[u8], interpreter: Option<&Path>) -> Result<(String, S
             "utf-8".to_owned(),
         ));
     }
-    // Fallback to GB18030/GBK decoding via Python stdlib for Chinese raw TXT files.
-    let decoded = python::run(
-        "import sys; sys.stdout.buffer.write(sys.stdin.buffer.read().decode('gb18030').encode('utf-8'))",
-        &[],
-        Some(raw),
-        interpreter,
+    let text = GB18030
+        .decode_without_bom_handling_and_without_replacement(raw)
+        .ok_or("Tệp TXT không phải UTF-8, UTF-16 hay GB18030 hợp lệ.")?;
+    Ok((
+        text.replace("\r\n", "\n").replace('\r', "\n"),
+        "gb18030".to_owned(),
+    ))
+}
+
+fn decode_zip_text(raw: &[u8], truncated: bool) -> (String, String) {
+    let utf8 = raw.strip_prefix(b"\xef\xbb\xbf").unwrap_or(raw);
+    if truncated
+        && let Err(error) = std::str::from_utf8(utf8)
+        && error.error_len().is_none()
+        && let Ok((text, encoding)) =
+            decode_txt_bytes(&raw[..raw.len() - (utf8.len() - error.valid_up_to())])
+    {
+        return (text, encoding);
+    }
+    if let Ok(decoded) = decode_txt_bytes(raw) {
+        return decoded;
+    }
+    if raw.starts_with(b"\xef\xbb\xbf") {
+        return (
+            String::from_utf8_lossy(utf8)
+                .replace("\r\n", "\n")
+                .replace('\r', "\n"),
+            "utf-8-lossy".to_owned(),
+        );
+    }
+    let (text, _) = WINDOWS_1252.decode_without_bom_handling(raw);
+    (
+        text.replace("\r\n", "\n").replace('\r', "\n"),
+        "windows-1252".to_owned(),
     )
-    .map_err(|_| "Tệp TXT không phải UTF-8, UTF-16 hay GB18030 hợp lệ.")?;
-    let text = String::from_utf8(decoded)?
-        .replace("\r\n", "\n")
-        .replace('\r', "\n");
-    Ok((text, "gb18030".to_owned()))
 }
 
 struct TxtChapterSpan {

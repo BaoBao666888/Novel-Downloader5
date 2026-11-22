@@ -1,0 +1,12 @@
+:root { color-scheme: light dark; font: 16px/1.5 system-ui, sans-serif; background: Canvas; color: CanvasText; }
+body { margin: 0; }
+header, main { padding: 16px clamp(16px, 5vw, 36px); margin: auto; max-width: 860px; }
+header { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; border-bottom: 1px solid color-mix(in srgb, CanvasText 20%, Canvas); }
+h1 { font-size: 1.15rem; margin: 0; margin-inline-end: auto; }
+select, button { border: 1px solid ButtonBorder; border-radius: 6px; padding: 7px 10px; min-height: 42px; font: inherit; }
+header select { width: min(340px, 100%); }
+article { padding-block: 18px; max-width: 65ch; margin-inline: auto; overflow-wrap: anywhere; font: 400 1.22rem/1.76 Georgia, serif; }
+h2 { font-size: 1.4rem; line-height: 1.28; }
+#content { white-space: pre-wrap; }
+nav { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+[hidden] { display: none !important; }
