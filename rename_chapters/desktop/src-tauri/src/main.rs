@@ -11,6 +11,7 @@ use workspace::{
     TextPreview, TextResult, Workspace,
 };
 
+mod library_commands;
 mod workspace;
 
 fn state<'a>(
@@ -569,7 +570,11 @@ fn main() {
             choose_archive_output_dir,
             inspect_archive,
             preview_archive_entry,
-            extract_archive
+            extract_archive,
+            library_commands::list_library,
+            library_commands::import_library,
+            library_commands::remove_library,
+            library_commands::read_library
         ])
         .run(tauri::generate_context!())
         .expect("failed to start Novel Studio");

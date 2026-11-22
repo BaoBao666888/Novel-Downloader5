@@ -1,5 +1,15 @@
 import { invoke } from '@tauri-apps/api/core';
 
+export type LibraryItem = { id: number; title: string; path: string };
+export type ReadingCursor = { offset: number; stamp: string };
+export type LibraryPage = { text: string; next: ReadingCursor | null };
+
+export const listLibrary = () => invoke<LibraryItem[]>('list_library');
+export const importLibrary = () => invoke<{ entries: LibraryItem[]; added: number } | null>('import_library');
+export const removeLibrary = (id: number) => invoke<LibraryItem[]>('remove_library', { id });
+export const readLibrary = (id: number, cursor: ReadingCursor | null) =>
+  invoke<LibraryPage>('read_library', { id, cursor });
+
 type Match = { num: string | null; title: string | null; source: string };
 
 export type Row = {

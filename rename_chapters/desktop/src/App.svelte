@@ -1,6 +1,7 @@
 <script lang="ts">
   import { tick } from 'svelte';
   import ArchiveWorkbench from './ArchiveWorkbench.svelte';
+  import LibraryWorkbench from './LibraryWorkbench.svelte';
   import SplitWorkbench from './SplitWorkbench.svelte';
   import TextToolsWorkbench from './TextToolsWorkbench.svelte';
   import {
@@ -10,8 +11,26 @@
   import { applyUiPrefs, loadUiPrefs, resolveTheme, type UiPrefs } from './ui-prefs';
 
   const defaultFormat = '第{num}章 {title}.txt';
+  const areas = [
+    { id: 'library', label: 'Thư viện' },
+    { id: 'edit', label: 'Biên tập' },
+    { id: 'files', label: 'Tệp' },
+  ] as const;
+  const editTools = [
+    { id: 'rename', label: 'Đổi tên chương' },
+    { id: 'line', label: 'Sửa dòng đầu' },
+    { id: 'split', label: 'Chia chương' },
+    { id: 'text', label: 'Công cụ văn bản' },
+  ] as const;
+  type Area = typeof areas[number]['id'];
+  type EditTool = typeof editTools[number]['id'];
+  type Mode = EditTool | 'library' | 'archive';
   let folder = $state('');
-  let mode = $state<'rename' | 'line' | 'split' | 'text' | 'archive'>('rename');
+  let area = $state<Area>('edit');
+  let editTool = $state<EditTool>('rename');
+  let mode: Mode = $derived(area === 'edit' ? editTool : area === 'files' ? 'archive' : 'library');
+  let visited = $state(new Set<Mode>());
+  let lastRenameTool: 'rename' | 'line' = 'rename';
   let python = $state('');
   let nameFormat = $state(defaultFormat);
   let strategy = $state('content_first');
@@ -65,12 +84,25 @@
     query = '';
   }
 
-  function setMode(next: typeof mode) {
-    if (mode === next || busy) return;
-    mode = next;
-    clearPreview();
-    error = '';
-    needsPreview = false;
+  function changeArea(next: Area) {
+    if (area === next || busy) return;
+    area = next;
+    if (next !== 'edit') visited = new Set(visited).add(next === 'files' ? 'archive' : 'library');
+    window.scrollTo(0, 0);
+  }
+
+  function changeEditTool(next: EditTool) {
+    if (editTool === next || busy) return;
+    editTool = next;
+    if (next === 'text' || next === 'split') {
+      visited = new Set(visited).add(next);
+    } else if (next !== lastRenameTool) {
+      lastRenameTool = next;
+      clearPreview();
+      error = '';
+      needsPreview = false;
+    }
+    window.scrollTo(0, 0);
   }
 
   function changedRules() {
@@ -240,6 +272,12 @@
     <span class="book-mark" aria-hidden="true"></span>
     <span>Novel Studio</span>
   </div>
+  <nav class="area-nav" aria-label="Khu vực chính">
+    {#each areas as item (item.id)}
+      <button type="button" aria-pressed={area === item.id} disabled={busy !== null}
+        onclick={() => changeArea(item.id)}>{item.label}</button>
+    {/each}
+  </nav>
   <div class="masthead-end">
     <button type="button" class="theme" aria-label={dark ? 'Bật giao diện sáng' : 'Bật giao diện tối'}
       onclick={toggleTheme}>{dark ? '☀' : '☾'} <span>{dark ? 'Sáng' : 'Tối'}</span></button>
@@ -247,26 +285,27 @@
 </header>
 
 <main>
-  <nav class="mode-switch" aria-label="Công cụ xử lý chương">
-    <button type="button" aria-pressed={mode === 'rename'} disabled={busy !== null}
-      onclick={() => setMode('rename')}>Đổi tên chương</button>
-    <button type="button" aria-pressed={mode === 'line'} disabled={busy !== null}
-      onclick={() => setMode('line')}>Sửa dòng đầu</button>
-    <button type="button" aria-pressed={mode === 'split'} disabled={busy !== null}
-      onclick={() => setMode('split')}>Chia chương</button>
-    <button type="button" aria-pressed={mode === 'text'} disabled={busy !== null}
-      onclick={() => setMode('text')}>Công cụ văn bản</button>
-    <button type="button" aria-pressed={mode === 'archive'} disabled={busy !== null}
-      onclick={() => setMode('archive')}>Giải nén ZIP</button>
-  </nav>
-
-  {#if mode === 'split'}
-    <SplitWorkbench {python} onPickPython={pickPython} parentBusy={busy !== null} />
-  {:else if mode === 'text'}
-    <TextToolsWorkbench {python} onPickPython={pickPython} parentBusy={busy !== null} />
-  {:else if mode === 'archive'}
-    <ArchiveWorkbench {python} onPickPython={pickPython} parentBusy={busy !== null} />
-  {:else}
+  {#if area === 'edit'}
+    <nav class="mode-switch" aria-label="Công cụ biên tập">
+      {#each editTools as tool (tool.id)}
+        <button type="button" aria-pressed={editTool === tool.id} disabled={busy !== null}
+          onclick={() => changeEditTool(tool.id)}>{tool.label}</button>
+      {/each}
+    </nav>
+  {/if}
+  {#if visited.has('library')}
+    <div hidden={mode !== 'library'}><LibraryWorkbench /></div>
+  {/if}
+  {#if visited.has('split')}
+    <div hidden={mode !== 'split'}><SplitWorkbench {python} onPickPython={pickPython} parentBusy={busy !== null} /></div>
+  {/if}
+  {#if visited.has('text')}
+    <div hidden={mode !== 'text'}><TextToolsWorkbench {python} onPickPython={pickPython} parentBusy={busy !== null} /></div>
+  {/if}
+  {#if visited.has('archive')}
+    <div hidden={mode !== 'archive'}><ArchiveWorkbench {python} onPickPython={pickPython} parentBusy={busy !== null} /></div>
+  {/if}
+  {#if mode === 'rename' || mode === 'line'}
   <section class="heading">
     <div>
       <h1>{mode === 'rename' ? 'Đổi tên chương' : 'Sửa dòng đầu'}</h1>
