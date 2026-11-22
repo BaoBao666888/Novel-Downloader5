@@ -12,7 +12,10 @@ use workspace::{
 };
 
 mod library_commands;
+mod secret_store;
 mod upload_commands;
+mod upload_runtime;
+mod winhttp_transport;
 mod workspace;
 
 fn state<'a>(
@@ -607,6 +610,11 @@ fn main() {
                 .filter(|path| cfg!(windows) && path.is_file());
             app.manage(Mutex::new(Workspace::with_interpreter(bundled)));
             app.manage(Mutex::new(novel_studio_core::library::ReadCache::default()));
+            app.manage(upload_runtime::UploadRuntime::default());
+            upload_runtime::spawn_scheduler_loop(
+                app.handle().clone(),
+                upload_commands::upload_workspace_dir,
+            );
             Ok(())
         })
         .plugin(tauri_plugin_dialog::init())
@@ -661,6 +669,16 @@ fn main() {
             upload_commands::pick_upload_backup_zip,
             upload_commands::restore_upload_backup_zip,
             upload_commands::cleanup_upload_storage,
+            upload_commands::get_upload_session_status,
+            upload_commands::save_upload_session_cookie,
+            upload_commands::clear_upload_session_cookie,
+            upload_commands::check_upload_session,
+            upload_commands::get_upload_runtime_status,
+            upload_commands::set_upload_auto_schedule,
+            upload_commands::start_upload_job_now,
+            upload_commands::stop_active_upload,
+            upload_commands::verify_upload_job_now,
+            upload_commands::run_due_upload_verifications,
             choose_merge_folder,
             choose_merge_output,
             refresh_merge,

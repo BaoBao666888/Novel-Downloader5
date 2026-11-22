@@ -15,9 +15,10 @@ novel-studio-core = { path = "../../rust" }
 serde = { version = "1", features = ["derive"] }
 tauri = { version = "2", features = [] }
 tauri-plugin-dialog = "2"
+tempfile = "3"
+
+[target.'cfg(windows)'.dependencies]
+windows-sys = { version = "0.61", features = ["Win32_Foundation", "Win32_Networking_WinHttp", "Win32_Security_Cryptography"] }
 
 [features]
 custom-protocol = ["tauri/custom-protocol"]
-
-[dev-dependencies]
-tempfile = "3"

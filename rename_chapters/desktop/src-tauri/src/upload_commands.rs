@@ -1,9 +1,15 @@
+use std::collections::HashSet;
 use std::path::{Path, PathBuf};
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use novel_studio_core::CoreError;
+use novel_studio_core::upload::engine::SystemClock;
 use novel_studio_core::upload::objects::UNUSED_OBJECT_GRACE_MS;
+use novel_studio_core::upload::protocol::DEFAULT_WIKI_HOST;
+use novel_studio_core::upload::reconcile::ReconcileRecord;
 use novel_studio_core::upload::recovery::RecoveryReport;
+use novel_studio_core::upload::verifier::ReadCancellation;
+use novel_studio_core::upload::worker::{SessionCheckResult, UploadWorker};
 use novel_studio_core::upload::workspace::{
     CreateJobInput, FolderChapterScan, StorageCleanupReport, UploadWorkspace,
     UploadWorkspaceSnapshot,
@@ -11,6 +17,10 @@ use novel_studio_core::upload::workspace::{
 use serde::{Deserialize, Serialize};
 use tauri::{AppHandle, Manager, WebviewWindow};
 use tauri_plugin_dialog::DialogExt;
+
+use crate::secret_store::{SessionSecretStatus, SessionSecretStore};
+use crate::upload_runtime::{UploadRuntime, UploadRuntimeStatus};
+use crate::winhttp_transport::open_desktop_transport;
 
 const UPLOAD_WORKSPACE_ENV: &str = "NOVEL_STUDIO_UPLOAD_DIR";
 
@@ -52,7 +62,7 @@ pub(crate) fn resolve_workspace_dir(
     Ok(base_local_data?.join("upload-workspace"))
 }
 
-fn upload_workspace_dir(app: &AppHandle) -> Result<PathBuf, String> {
+pub fn upload_workspace_dir(app: &AppHandle) -> Result<PathBuf, String> {
     let override_dir = std::env::var(UPLOAD_WORKSPACE_ENV).ok();
     resolve_workspace_dir(
         override_dir.as_deref(),
@@ -305,6 +315,167 @@ pub async fn cleanup_upload_storage(app: AppHandle) -> Result<CleanupStorageOutc
         Ok(CleanupStorageOutcome { report, snapshot })
     })
     .await
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct VerifyNowOutcome {
+    pub record: Option<ReconcileRecord>,
+    pub snapshot: UploadWorkspaceSnapshot,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RunDueVerificationsOutcome {
+    pub checked_count: usize,
+    pub snapshot: UploadWorkspaceSnapshot,
+}
+
+#[tauri::command]
+pub async fn get_upload_session_status(app: AppHandle) -> Result<SessionSecretStatus, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        let dir = upload_workspace_dir(&app)?;
+        Ok(SessionSecretStore::new(dir).status())
+    })
+    .await
+    .map_err(|err| err.to_string())?
+}
+
+#[tauri::command]
+pub async fn save_upload_session_cookie(
+    app: AppHandle,
+    cookie: String,
+) -> Result<SessionSecretStatus, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        let dir = upload_workspace_dir(&app)?;
+        let status = SessionSecretStore::new(dir).save(&cookie)?;
+        app.state::<UploadRuntime>().set_verified_result(
+            None,
+            Some("Đã lưu Cookie phiên bằng Windows DPAPI.".to_owned()),
+        );
+        Ok(status)
+    })
+    .await
+    .map_err(|err| err.to_string())?
+}
+
+#[tauri::command]
+pub async fn clear_upload_session_cookie(app: AppHandle) -> Result<SessionSecretStatus, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        let dir = upload_workspace_dir(&app)?;
+        let store = SessionSecretStore::new(dir);
+        store.clear()?;
+        app.state::<UploadRuntime>()
+            .set_verified_result(None, Some("Đã xóa phiên đăng nhập đã lưu.".to_owned()));
+        Ok(store.status())
+    })
+    .await
+    .map_err(|err| err.to_string())?
+}
+
+#[tauri::command]
+pub async fn check_upload_session(app: AppHandle) -> Result<SessionCheckResult, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        let dir = upload_workspace_dir(&app)?;
+        let cookie = SessionSecretStore::new(dir.clone()).load()?;
+        let mut transport = open_desktop_transport(DEFAULT_WIKI_HOST, cookie.as_deref())
+            .map_err(|err| err.to_string())?;
+        let cancel = ReadCancellation::new();
+        let res = UploadWorker::new(dir)
+            .check_session(&mut transport, &cancel)
+            .map_err(|err| err.to_string())?;
+        let acct = res.authenticated.then(|| res.account.clone());
+        app.state::<UploadRuntime>()
+            .set_verified_result(acct, Some(res.message.clone()));
+        Ok(res)
+    })
+    .await
+    .map_err(|err| err.to_string())?
+}
+
+#[tauri::command]
+pub async fn get_upload_runtime_status(app: AppHandle) -> Result<UploadRuntimeStatus, String> {
+    Ok(app.state::<UploadRuntime>().status())
+}
+
+#[tauri::command]
+pub async fn set_upload_auto_schedule(
+    app: AppHandle,
+    enabled: bool,
+) -> Result<UploadRuntimeStatus, String> {
+    Ok(app.state::<UploadRuntime>().set_auto_schedule(enabled))
+}
+
+#[tauri::command]
+pub async fn start_upload_job_now(
+    app: AppHandle,
+    id: String,
+    revision: u64,
+    consent_ids: Vec<String>,
+) -> Result<UploadRuntimeStatus, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        let dir = upload_workspace_dir(&app)?;
+        let consent: HashSet<String> = consent_ids.into_iter().collect();
+        app.state::<UploadRuntime>()
+            .start_immediate(app.clone(), dir, id, revision, consent)
+    })
+    .await
+    .map_err(|err| err.to_string())?
+}
+
+#[tauri::command]
+pub async fn stop_active_upload(app: AppHandle) -> Result<bool, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        let dir = upload_workspace_dir(&app)?;
+        app.state::<UploadRuntime>().stop_active(dir)
+    })
+    .await
+    .map_err(|err| err.to_string())?
+}
+
+#[tauri::command]
+pub async fn verify_upload_job_now(app: AppHandle, id: String) -> Result<VerifyNowOutcome, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        let dir = upload_workspace_dir(&app)?;
+        let cookie = SessionSecretStore::new(dir.clone()).load()?;
+        let mut transport = open_desktop_transport(DEFAULT_WIKI_HOST, cookie.as_deref())
+            .map_err(|err| err.to_string())?;
+        let cancel = ReadCancellation::new();
+        let record = UploadWorker::new(dir.clone())
+            .verify_job_now(&id, &mut transport, &SystemClock, &cancel)
+            .map_err(|err| err.to_string())?;
+        let snapshot = UploadWorkspace::new(dir)
+            .snapshot()
+            .map_err(|err| err.to_string())?;
+        Ok(VerifyNowOutcome { record, snapshot })
+    })
+    .await
+    .map_err(|err| err.to_string())?
+}
+
+#[tauri::command]
+pub async fn run_due_upload_verifications(
+    app: AppHandle,
+) -> Result<RunDueVerificationsOutcome, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        let dir = upload_workspace_dir(&app)?;
+        let cookie = SessionSecretStore::new(dir.clone()).load()?;
+        let mut transport = open_desktop_transport(DEFAULT_WIKI_HOST, cookie.as_deref())
+            .map_err(|err| err.to_string())?;
+        let cancel = ReadCancellation::new();
+        let updated = UploadWorker::new(dir.clone())
+            .run_due_verifications(&mut transport, &SystemClock, &cancel)
+            .map_err(|err| err.to_string())?;
+        let snapshot = UploadWorkspace::new(dir)
+            .snapshot()
+            .map_err(|err| err.to_string())?;
+        Ok(RunDueVerificationsOutcome {
+            checked_count: updated.len(),
+            snapshot,
+        })
+    })
+    .await
+    .map_err(|err| err.to_string())?
 }
 
 #[cfg(test)]
