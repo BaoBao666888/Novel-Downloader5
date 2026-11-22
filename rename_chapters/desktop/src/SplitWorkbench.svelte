@@ -1,5 +1,7 @@
 <script lang="ts">
   import { tick } from 'svelte';
+  import RegexHistory from './RegexHistory.svelte';
+  import { listSavedRegexes, recordRegexUsage, type SavedRegex } from './regex-presets';
   import {
     addSplitBoundary,
     applySplit,
@@ -47,6 +49,7 @@
 
   let preview = $state<SplitPreview | null>(null);
   let outcome = $state<SplitOutcome | null>(null);
+  let savedRegexes = $state<SavedRegex[]>(listSavedRegexes('split'));
   let query = $state('');
   let page = $state(0);
   let expandedContext = $state(new Set<number>());
@@ -170,6 +173,7 @@
         preface_mode: prefaceMode,
         name_format: nameFormat,
       });
+      savedRegexes = recordRegexUsage('split', pattern);
       outputDir = preview.output_dir;
       needsPreview = false;
     } catch (cause) {
@@ -353,6 +357,14 @@
         <input type="checkbox" bind:checked={overwrite} />
         <span>Cho phép ghi đè tệp đã có trong thư mục xuất</span>
       </label>
+
+      <RegexHistory
+        scope="split"
+        items={savedRegexes}
+        disabled={isBusy}
+        onApply={(item) => applyPreset(item.pattern)}
+        onChange={(next) => (savedRegexes = next)}
+      />
     </fieldset>
 
     <button

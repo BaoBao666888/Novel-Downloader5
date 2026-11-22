@@ -197,6 +197,37 @@ export type ExtractOutcome = {
   failure: { entry: string; error: string } | null;
 };
 
+export type MergeEntry = {
+  filename: string;
+  path: string;
+  size: number;
+  first_line: string;
+};
+
+export type MergePreview = {
+  revision: number;
+  output_file: string;
+  info: {
+    folder: string;
+    default_output: string;
+    entries: MergeEntry[];
+    total_size: number;
+  };
+};
+
+export type MergeOptions = {
+  filenames: string[];
+  separator: string;
+  include_filename_heading: boolean;
+  overwrite: boolean;
+};
+
+export type MergeOutcome = {
+  output_file: string;
+  merged_count: number;
+  total_chars: number;
+};
+
 export const chooseFolder = () => invoke<string | null>('choose_folder');
 export const choosePython = () => invoke<string | null>('choose_python');
 export const previewRename = (options: Options) => invoke<Preview>('preview_rename', { options });
@@ -275,6 +306,12 @@ export const previewArchiveEntry = (revision: number, entryIndex: number) =>
   invoke<EntryPreview>('preview_archive_entry', { revision, entryIndex });
 export const extractArchive = (revision: number, indices: number[], overwrite: boolean) =>
   invoke<ExtractOutcome>('extract_archive', { revision, indices, overwrite });
+
+export const chooseMergeFolder = () => invoke<MergePreview | null>('choose_merge_folder');
+export const chooseMergeOutput = () => invoke<string | null>('choose_merge_output');
+export const refreshMerge = () => invoke<MergePreview>('refresh_merge');
+export const applyMerge = (revision: number, options: MergeOptions) =>
+  invoke<MergeOutcome>('apply_merge', { revision, options });
 
 const issueLabels: Record<Row['issues'][number], string> = {
   invalid_target: 'Tên đích không hợp lệ',

@@ -1,4 +1,6 @@
 <script lang="ts">
+  import RegexHistory from './RegexHistory.svelte';
+  import { listSavedRegexes, recordRegexUsage, type SavedRegex } from './regex-presets';
   import {
     applyTextEdit,
     chooseTextFile,
@@ -51,6 +53,7 @@
   let preview = $state<TextPreview | null>(null);
   let outcome = $state<{ result: TextResult; undone: boolean } | null>(null);
   let undoRevision = $state<number | null>(null);
+  let savedRegexes = $state<SavedRegex[]>(listSavedRegexes('renumber'));
   let query = $state('');
   let page = $state(0);
   let busy = $state<'main' | 'toc' | 'preview' | 'apply' | 'undo' | null>(null);
@@ -90,11 +93,26 @@
   function switchTool(next: Tool) {
     if (tool === next || isBusy) return;
     tool = next;
+    savedRegexes = listSavedRegexes(next);
     preview = null;
     error = '';
     needsPreview = false;
     query = '';
     page = 0;
+  }
+
+  function applySavedRegex(item: SavedRegex) {
+    if (tool === 'renumber') {
+      findRegex = item.pattern;
+      if (item.secondary) replaceFormat = item.secondary;
+    } else if (tool === 'toc') {
+      tocRegex = item.pattern;
+      if (item.secondary) mainRegex = item.secondary;
+    } else {
+      searchText = item.pattern;
+      replacement = item.secondary ?? '';
+    }
+    markStale();
   }
 
   function insertNumToken() {
@@ -156,14 +174,17 @@
       switch (tool) {
         case 'renumber':
           preview = await previewRenumber(findRegex, replaceFormat, startNum);
+          savedRegexes = recordRegexUsage('renumber', findRegex, replaceFormat);
           break;
         case 'toc':
           preview = await previewApplyToc(tocRegex, mainRegex, tocMode);
+          savedRegexes = recordRegexUsage('toc', tocRegex, mainRegex);
           break;
         case 'replace':
           preview = await previewReplace({
             search: searchText, replacement, use_regex: useRegex, whole_word: wholeWord, match_case: matchCase,
           });
+          savedRegexes = recordRegexUsage('replace', searchText, replacement);
           break;
       }
       needsPreview = false;
@@ -381,6 +402,13 @@
           </div>
         </details>
       {/if}
+      <RegexHistory
+        scope={tool}
+        items={savedRegexes}
+        disabled={isBusy}
+        onApply={applySavedRegex}
+        onChange={(next) => (savedRegexes = next)}
+      />
     </fieldset>
 
     <button

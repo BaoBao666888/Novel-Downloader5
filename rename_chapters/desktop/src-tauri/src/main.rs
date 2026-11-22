@@ -2,13 +2,13 @@
 
 use std::sync::{Mutex, MutexGuard};
 
-use novel_studio_core::{archive, first_line, rename, rename_apply, split, text_tools};
+use novel_studio_core::{archive, first_line, merge, rename, rename_apply, split, text_tools};
 use tauri::{Manager, WebviewWindow};
 use tauri_plugin_dialog::DialogExt;
 
 use workspace::{
-    ArchivePreview, LinePreview, LineResult, Preview, SplitOptions, SplitPreview, SplitSelection,
-    TextPreview, TextResult, Workspace,
+    ArchivePreview, LinePreview, LineResult, MergePreview, Preview, SplitOptions, SplitPreview,
+    SplitSelection, TextPreview, TextResult, Workspace,
 };
 
 mod library_commands;
@@ -524,6 +524,71 @@ async fn extract_archive(
     .map_err(|err| err.to_string())?
 }
 
+#[tauri::command]
+async fn choose_merge_folder(window: WebviewWindow) -> Result<Option<MergePreview>, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        let Some(folder) = window
+            .dialog()
+            .file()
+            .set_parent(&window)
+            .set_title("Chọn thư mục chứa các tệp .txt cần ghép")
+            .blocking_pick_folder()
+        else {
+            return Ok(None);
+        };
+        let folder = folder.into_path().map_err(|err| err.to_string())?;
+        let workspace = window.state::<Mutex<Workspace>>();
+        state(&workspace)?.select_merge_folder(folder).map(Some)
+    })
+    .await
+    .map_err(|err| err.to_string())?
+}
+
+#[tauri::command]
+async fn choose_merge_output(window: WebviewWindow) -> Result<Option<String>, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        let Some(file) = window
+            .dialog()
+            .file()
+            .set_parent(&window)
+            .set_title("Chọn tệp .txt đầu ra sau khi ghép")
+            .add_filter("Text file", &["txt"])
+            .blocking_save_file()
+        else {
+            return Ok(None);
+        };
+        let file = file.into_path().map_err(|err| err.to_string())?;
+        let workspace = window.state::<Mutex<Workspace>>();
+        state(&workspace)?.select_merge_output(file).map(Some)
+    })
+    .await
+    .map_err(|err| err.to_string())?
+}
+
+#[tauri::command]
+async fn refresh_merge(app: tauri::AppHandle) -> Result<MergePreview, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        let workspace = app.state::<Mutex<Workspace>>();
+        state(&workspace)?.refresh_merge()
+    })
+    .await
+    .map_err(|err| err.to_string())?
+}
+
+#[tauri::command]
+async fn apply_merge(
+    app: tauri::AppHandle,
+    revision: u32,
+    options: merge::MergeOptions,
+) -> Result<merge::MergeOutcome, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        let workspace = app.state::<Mutex<Workspace>>();
+        state(&workspace)?.apply_merge(revision, options)
+    })
+    .await
+    .map_err(|err| err.to_string())?
+}
+
 fn main() {
     tauri::Builder::default()
         .setup(|app| {
@@ -577,7 +642,11 @@ fn main() {
             library_commands::remove_library,
             library_commands::read_library,
             library_commands::list_library_chapters,
-            library_commands::read_library_chapter
+            library_commands::read_library_chapter,
+            choose_merge_folder,
+            choose_merge_output,
+            refresh_merge,
+            apply_merge
         ])
         .run(tauri::generate_context!())
         .expect("failed to start Novel Studio");

@@ -2,6 +2,7 @@
   import { tick } from 'svelte';
   import ArchiveWorkbench from './ArchiveWorkbench.svelte';
   import LibraryWorkbench from './LibraryWorkbench.svelte';
+  import MergeWorkbench from './MergeWorkbench.svelte';
   import SplitWorkbench from './SplitWorkbench.svelte';
   import TextToolsWorkbench from './TextToolsWorkbench.svelte';
   import {
@@ -22,13 +23,19 @@
     { id: 'split', label: 'Chia chương' },
     { id: 'text', label: 'Công cụ văn bản' },
   ] as const;
+  const fileTools = [
+    { id: 'archive', label: 'Giải nén ZIP' },
+    { id: 'merge', label: 'Ghép tệp TXT' },
+  ] as const;
   type Area = typeof areas[number]['id'];
   type EditTool = typeof editTools[number]['id'];
-  type Mode = EditTool | 'library' | 'archive';
+  type FileTool = typeof fileTools[number]['id'];
+  type Mode = EditTool | FileTool | 'library';
   let folder = $state('');
   let area = $state<Area>('edit');
   let editTool = $state<EditTool>('rename');
-  let mode: Mode = $derived(area === 'edit' ? editTool : area === 'files' ? 'archive' : 'library');
+  let fileTool = $state<FileTool>('archive');
+  let mode: Mode = $derived(area === 'edit' ? editTool : area === 'files' ? fileTool : 'library');
   let visited = $state(new Set<Mode>());
   let lastRenameTool: 'rename' | 'line' = 'rename';
   let python = $state('');
@@ -87,7 +94,14 @@
   function changeArea(next: Area) {
     if (area === next || busy) return;
     area = next;
-    if (next !== 'edit') visited = new Set(visited).add(next === 'files' ? 'archive' : 'library');
+    if (next !== 'edit') visited = new Set(visited).add(next === 'files' ? fileTool : 'library');
+    window.scrollTo(0, 0);
+  }
+
+  function changeFileTool(next: FileTool) {
+    if (fileTool === next || busy) return;
+    fileTool = next;
+    visited = new Set(visited).add(next);
     window.scrollTo(0, 0);
   }
 
@@ -292,6 +306,13 @@
           onclick={() => changeEditTool(tool.id)}>{tool.label}</button>
       {/each}
     </nav>
+  {:else if area === 'files'}
+    <nav class="mode-switch" aria-label="Công cụ tệp">
+      {#each fileTools as tool (tool.id)}
+        <button type="button" aria-pressed={fileTool === tool.id} disabled={busy !== null}
+          onclick={() => changeFileTool(tool.id)}>{tool.label}</button>
+      {/each}
+    </nav>
   {/if}
   {#if visited.has('library')}
     <div hidden={mode !== 'library'}><LibraryWorkbench /></div>
@@ -304,6 +325,9 @@
   {/if}
   {#if visited.has('archive')}
     <div hidden={mode !== 'archive'}><ArchiveWorkbench {python} onPickPython={pickPython} parentBusy={busy !== null} /></div>
+  {/if}
+  {#if visited.has('merge')}
+    <div hidden={mode !== 'merge'}><MergeWorkbench parentBusy={busy !== null} /></div>
   {/if}
   {#if mode === 'rename' || mode === 'line'}
   <section class="heading">

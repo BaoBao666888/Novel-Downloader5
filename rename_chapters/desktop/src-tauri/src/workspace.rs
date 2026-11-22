@@ -4,7 +4,7 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use std::time::SystemTime;
 
-use novel_studio_core::{archive, first_line, rename, rename_apply, split, text_tools};
+use novel_studio_core::{archive, first_line, merge, rename, rename_apply, split, text_tools};
 use serde::{Deserialize, Serialize};
 
 #[derive(Default)]
@@ -25,6 +25,16 @@ pub struct Workspace {
     archive_file: Option<PathBuf>,
     archive_output_dir: Option<PathBuf>,
     archive_plan: Option<(u32, archive::ArchivePlan)>,
+    merge_folder: Option<PathBuf>,
+    merge_output_file: Option<PathBuf>,
+    merge_revision: Option<u32>,
+}
+
+#[derive(Serialize)]
+pub struct MergePreview {
+    pub revision: u32,
+    pub output_file: String,
+    pub info: merge::MergeInspection,
 }
 
 #[derive(Serialize)]
@@ -270,6 +280,68 @@ impl Workspace {
             self.interpreter.as_deref(),
         )
         .map_err(|err| err.to_string())
+    }
+
+    pub fn select_merge_folder(&mut self, folder: PathBuf) -> Result<MergePreview, String> {
+        let canonical = folder.canonicalize().map_err(|err| err.to_string())?;
+        if !canonical.is_dir() {
+            return Err("Hãy chọn một thư mục chứa tệp .txt.".into());
+        }
+        let default_out = merge::default_merge_output(&canonical);
+        let info = merge::inspect_folder(&canonical).map_err(|err| err.to_string())?;
+        let revision = self.next_revision();
+        self.merge_folder = Some(canonical);
+        self.merge_output_file = Some(default_out.clone());
+        self.merge_revision = Some(revision);
+        Ok(MergePreview {
+            revision,
+            output_file: default_out.display().to_string(),
+            info,
+        })
+    }
+
+    pub fn select_merge_output(&mut self, file: PathBuf) -> Result<String, String> {
+        let label = file.display().to_string();
+        self.merge_output_file = Some(file);
+        Ok(label)
+    }
+
+    pub fn refresh_merge(&mut self) -> Result<MergePreview, String> {
+        let folder = self
+            .merge_folder
+            .clone()
+            .ok_or("Hãy chọn thư mục chứa tệp .txt trước.")?;
+        let info = merge::inspect_folder(&folder).map_err(|err| err.to_string())?;
+        let output_file = self
+            .merge_output_file
+            .clone()
+            .unwrap_or_else(|| merge::default_merge_output(&folder));
+        let revision = self.next_revision();
+        self.merge_revision = Some(revision);
+        Ok(MergePreview {
+            revision,
+            output_file: output_file.display().to_string(),
+            info,
+        })
+    }
+
+    pub fn apply_merge(
+        &self,
+        revision: u32,
+        options: merge::MergeOptions,
+    ) -> Result<merge::MergeOutcome, String> {
+        if self.merge_revision != Some(revision) {
+            return Err("Danh sách ghép đã hết hiệu lực. Hãy quét lại thư mục.".into());
+        }
+        let folder = self
+            .merge_folder
+            .as_ref()
+            .ok_or("Hãy chọn thư mục chứa tệp .txt trước.")?;
+        let output = self
+            .merge_output_file
+            .clone()
+            .unwrap_or_else(|| merge::default_merge_output(folder));
+        merge::execute_merge(folder, &output, options).map_err(|err| err.to_string())
     }
 
     pub fn select_text_file(&mut self, file: PathBuf) -> Result<String, String> {
