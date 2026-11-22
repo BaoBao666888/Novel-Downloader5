@@ -1395,6 +1395,10 @@ pub fn build_exec_config(ext: &InstalledExtension, storage_path: &Path) -> Runne
     }
 }
 
+pub fn encode_json_string(value: &str) -> Result<String, CoreError> {
+    Ok(serde_json::to_string(value)?)
+}
+
 pub fn unwrap_vbook_response(raw: &Value) -> Result<(Value, Option<String>), CoreError> {
     let Some(obj) = raw.as_object() else {
         return Ok((raw.clone(), None));

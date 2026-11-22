@@ -18,6 +18,7 @@ mod secret_store;
 mod translate_commands;
 mod upload_commands;
 mod upload_runtime;
+mod vbook_browser;
 mod vbook_commands;
 mod wiki_browser;
 mod winhttp_transport;
@@ -686,6 +687,11 @@ fn main() {
             app.manage(Mutex::new(Workspace::with_interpreter(bundled)));
             app.manage(Mutex::new(novel_studio_core::library::ReadCache::default()));
             app.manage(upload_runtime::UploadRuntime::default());
+            let bridge_state = vbook_browser::VBookBrowserBridgeState::default();
+            if let Ok(vbook_dir) = vbook_commands::resolve_vbook_dir(app.handle()) {
+                let _ = bridge_state.init(app.handle().clone(), vbook_dir.join("browser-sessions"));
+            }
+            app.manage(bridge_state);
             upload_runtime::spawn_scheduler_loop(
                 app.handle().clone(),
                 upload_commands::upload_workspace_dir,
@@ -798,6 +804,7 @@ fn main() {
             vbook_commands::vbook_get_runtime_config,
             vbook_commands::vbook_set_custom_java_path,
             vbook_commands::vbook_pick_custom_java_path,
+            vbook_commands::vbook_save_chapter_to_library,
             vbook_commands::vbook_search,
             vbook_commands::vbook_detail,
             vbook_commands::vbook_toc,

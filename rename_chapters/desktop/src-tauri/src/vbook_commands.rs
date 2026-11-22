@@ -1,6 +1,7 @@
 use std::fs;
 use std::path::{Path, PathBuf};
 
+use novel_studio_core::library;
 use novel_studio_core::vbook::model::{
     InstalledExtension, VBookBatchUpdateResult, VBookRefreshResult, VBookWorkspaceSnapshot,
 };
@@ -14,6 +15,8 @@ use novel_studio_core::vbook::store::VBookExtensionStore;
 use tauri::{AppHandle, Manager, WebviewWindow};
 use tauri_plugin_dialog::DialogExt;
 
+use crate::translate_commands::library_workspace_dir;
+use crate::vbook_browser::VBookBrowserBridgeState;
 use crate::winhttp_transport::open_desktop_vbook_transport;
 
 pub const VBOOK_DIR_ENV: &str = "NOVEL_STUDIO_VBOOK_DIR";
@@ -39,11 +42,26 @@ fn load_custom_java_path(app: &AppHandle) -> Option<PathBuf> {
         .map(PathBuf::from)
 }
 
-fn open_executor(app: &AppHandle) -> CoreVBookExecutor {
-    CoreVBookExecutor::open_with_java(is_mock_runner_enabled(), load_custom_java_path(app))
+fn bridge_runtime_info(app: &AppHandle) -> (Option<String>, Option<String>, bool) {
+    if let Some(state) = app.try_state::<VBookBrowserBridgeState>() {
+        let (url, token) = state.bridge_info();
+        let ready = state.is_ready();
+        return (url, token, ready);
+    }
+    (None, None, false)
 }
 
-fn resolve_vbook_dir(app: &AppHandle) -> Result<PathBuf, String> {
+fn open_executor(app: &AppHandle) -> CoreVBookExecutor {
+    let (bridge_url, bridge_token, _) = bridge_runtime_info(app);
+    CoreVBookExecutor::open_with_runtime(
+        is_mock_runner_enabled(),
+        load_custom_java_path(app),
+        bridge_url,
+        bridge_token,
+    )
+}
+
+pub fn resolve_vbook_dir(app: &AppHandle) -> Result<PathBuf, String> {
     if let Ok(raw) = std::env::var(VBOOK_DIR_ENV) {
         let trimmed = raw.trim();
         if !trimmed.is_empty() {
@@ -274,9 +292,11 @@ pub async fn vbook_save_extension_config(
 pub async fn vbook_runner_status(app: AppHandle) -> Result<RunnerStatus, String> {
     tauri::async_runtime::spawn_blocking(move || {
         let custom_java = load_custom_java_path(&app);
-        Ok(CoreVBookExecutor::probe_status_with_java(
+        let (_, _, bridge_ready) = bridge_runtime_info(&app);
+        Ok(CoreVBookExecutor::probe_status_with_runtime(
             is_mock_runner_enabled(),
             custom_java.as_deref(),
+            bridge_ready,
         ))
     })
     .await
@@ -307,9 +327,11 @@ pub async fn vbook_set_custom_java_path(
             },
         )
         .map_err(|err| err.to_string())?;
-        Ok(CoreVBookExecutor::probe_status_with_java(
+        let (_, _, bridge_ready) = bridge_runtime_info(&app);
+        Ok(CoreVBookExecutor::probe_status_with_runtime(
             is_mock_runner_enabled(),
             saved.custom_java_path.as_deref().map(Path::new),
+            bridge_ready,
         ))
     })
     .await
@@ -340,10 +362,65 @@ pub async fn vbook_pick_custom_java_path(
             },
         )
         .map_err(|err| err.to_string())?;
-        Ok(Some(CoreVBookExecutor::probe_status_with_java(
+        let (_, _, bridge_ready) = bridge_runtime_info(window.app_handle());
+        Ok(Some(CoreVBookExecutor::probe_status_with_runtime(
             is_mock_runner_enabled(),
             saved.custom_java_path.as_deref().map(Path::new),
+            bridge_ready,
         )))
+    })
+    .await
+    .map_err(|err| err.to_string())?
+}
+
+fn sanitize_filename_part(raw: &str, fallback: &str) -> String {
+    let cleaned: String = raw
+        .trim()
+        .chars()
+        .map(|c| {
+            if c.is_control() || matches!(c, '<' | '>' | ':' | '"' | '/' | '\\' | '|' | '?' | '*') {
+                ' '
+            } else {
+                c
+            }
+        })
+        .collect();
+    let collapsed = cleaned.split_whitespace().collect::<Vec<_>>().join(" ");
+    let truncated: String = collapsed.chars().take(64).collect();
+    if truncated.is_empty() {
+        fallback.to_owned()
+    } else {
+        truncated
+    }
+}
+
+#[tauri::command]
+pub async fn vbook_save_chapter_to_library(
+    app: AppHandle,
+    book_title: String,
+    chapter_title: String,
+    content: String,
+) -> Result<library::ImportResult, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        let body = content.trim();
+        if body.is_empty() {
+            return Err("Nội dung chương trống, không thể lưu vào Thư viện.".to_owned());
+        }
+        let lib_dir = library_workspace_dir(&app)?;
+        let saved_dir = lib_dir.join("vbook-saved");
+        fs::create_dir_all(&saved_dir).map_err(|err| err.to_string())?;
+        let safe_book = sanitize_filename_part(&book_title, "VBook");
+        let safe_chap = sanitize_filename_part(&chapter_title, "Chuong");
+        let file_path = saved_dir.join(format!("{safe_book} - {safe_chap}.txt"));
+        let full_text = if chapter_title.trim().is_empty() {
+            format!("{body}\n")
+        } else {
+            format!("{}\n\n{body}\n", chapter_title.trim())
+        };
+        fs::write(&file_path, full_text.as_bytes()).map_err(|err| err.to_string())?;
+        library::Library::new(lib_dir)
+            .import(vec![file_path])
+            .map_err(|err| err.to_string())
     })
     .await
     .map_err(|err| err.to_string())?
