@@ -1,3 +1,7 @@
+use std::io::{BufRead, BufReader, BufWriter, Read, Write};
+use std::net::TcpStream;
+use std::time::Duration;
+
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
@@ -6,9 +10,135 @@ use crate::translate::text::{
     count_cjk_chars, normalize_for_compare, normalize_text_for_translation,
     normalize_translated_text,
 };
+use crate::upload::protocol::parse_https_url;
+use crate::upload::session::{DEFAULT_USER_AGENT, MAX_RESPONSE_BYTES};
 
 pub const DEFAULT_DICHNGAY_URL: &str = "https://dichngay.com/translate/text";
 pub const DEFAULT_DICHNGAY_REFERER: &str = "https://dichngay.com/";
+
+/// Transport HTTP loopback (`http://127.0.0.1:<port>`) phục vụ kiểm thử nội bộ và smoke test
+/// cho luồng dịch thuật mà không gọi ra mạng thật.
+pub struct LoopbackTranslateTransport {
+    port: u16,
+    path_override: Option<String>,
+}
+
+impl LoopbackTranslateTransport {
+    pub fn new(base_url: &str) -> Result<Self, CoreError> {
+        let trimmed = base_url.trim().trim_end_matches('/');
+        let Some(rest) = trimmed.strip_prefix("http://127.0.0.1:") else {
+            return Err(
+                "Loopback translate transport chỉ chấp nhận http://127.0.0.1:<port>.".into(),
+            );
+        };
+        let (port_str, path_opt) = match rest.split_once('/') {
+            Some((p, tail)) => (p, Some(format!("/{tail}"))),
+            None => (rest, None),
+        };
+        let port: u16 = port_str
+            .parse()
+            .map_err(|_| "Port loopback dịch thuật không hợp lệ.")?;
+        Ok(Self {
+            port,
+            path_override: path_opt,
+        })
+    }
+}
+
+impl TranslationHttpTransport for LoopbackTranslateTransport {
+    fn post_dichngay_json(
+        &mut self,
+        server_url: &str,
+        body_json: &str,
+        timeout_sec: u64,
+    ) -> Result<String, CoreError> {
+        let (host, path_and_query) = if let Ok(parsed) = parse_https_url(server_url) {
+            (parsed.host, format!("{}{}", parsed.path, parsed.suffix))
+        } else {
+            (
+                "dichngay.com".to_owned(),
+                self.path_override
+                    .clone()
+                    .unwrap_or_else(|| "/translate/text".to_owned()),
+            )
+        };
+        let timeout = Duration::from_secs(timeout_sec.clamp(5, 180));
+        let mut stream = TcpStream::connect(("127.0.0.1", self.port))?;
+        stream.set_read_timeout(Some(timeout))?;
+        stream.set_write_timeout(Some(timeout))?;
+        let bytes = body_json.as_bytes();
+        {
+            let mut writer = BufWriter::new(&mut stream);
+            write!(writer, "POST {path_and_query} HTTP/1.1\r\n")?;
+            write!(writer, "Host: {host}\r\n")?;
+            write!(writer, "Connection: close\r\n")?;
+            write!(writer, "User-Agent: {DEFAULT_USER_AGENT}\r\n")?;
+            write!(writer, "Content-Type: application/json\r\n")?;
+            write!(writer, "Referer: {DEFAULT_DICHNGAY_REFERER}\r\n")?;
+            write!(writer, "Content-Length: {}\r\n\r\n", bytes.len())?;
+            writer.write_all(bytes)?;
+            writer.flush()?;
+        }
+
+        let mut reader = BufReader::new(stream);
+        let mut status_line = String::new();
+        if reader.read_line(&mut status_line)? == 0 {
+            return Err("Server dịch đóng kết nối trước khi gửi HTTP status.".into());
+        }
+        let status: u16 = status_line
+            .split_whitespace()
+            .nth(1)
+            .and_then(|s| s.parse().ok())
+            .ok_or("Phản hồi HTTP từ server dịch không hợp lệ.")?;
+
+        let mut content_length: Option<usize> = None;
+        loop {
+            let mut line = String::new();
+            if reader.read_line(&mut line)? == 0 {
+                break;
+            }
+            let trimmed = line.trim_end_matches(['\r', '\n']);
+            if trimmed.is_empty() {
+                break;
+            }
+            if let Some((k, v)) = trimmed.split_once(':')
+                && k.trim().eq_ignore_ascii_case("content-length")
+            {
+                content_length = v.trim().parse().ok();
+            }
+        }
+
+        let mut body = Vec::new();
+        if let Some(len) = content_length {
+            if len > MAX_RESPONSE_BYTES {
+                return Err("Phản hồi dịch vượt quá kích thước cho phép.".into());
+            }
+            body.resize(len, 0);
+            if len > 0 {
+                reader.read_exact(&mut body)?;
+            }
+        } else {
+            let mut buf = [0u8; 16 * 1024];
+            loop {
+                let n = reader.read(&mut buf)?;
+                if n == 0 {
+                    break;
+                }
+                if body.len().saturating_add(n) > MAX_RESPONSE_BYTES {
+                    return Err("Phản hồi dịch vượt quá kích thước cho phép.".into());
+                }
+                body.extend_from_slice(&buf[..n]);
+            }
+        }
+
+        if !(200..300).contains(&status) {
+            return Err(format!("HTTP Error: {status}").into());
+        }
+        Ok(String::from_utf8_lossy(&body).into_owned())
+    }
+
+    fn sleep_ms(&mut self, _ms: u64) {}
+}
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct DichngayBatchPayload {

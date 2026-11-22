@@ -1,4 +1,7 @@
 use novel_studio_core::CoreError;
+use novel_studio_core::translate::dichngay::{
+    LoopbackTranslateTransport, TranslationHttpTransport,
+};
 use novel_studio_core::upload::engine::{FormRequest, TransportReply};
 use novel_studio_core::upload::multipart::MultipartPart;
 use novel_studio_core::upload::runner::UploadHttpTransport;
@@ -6,6 +9,55 @@ use novel_studio_core::upload::session::{LoopbackHttpTransport, SessionCookieJar
 use novel_studio_core::upload::verifier::{ReadCancellation, VerifierError};
 
 pub const MOCK_BASE_URL_ENV: &str = "NOVEL_STUDIO_UPLOAD_MOCK_BASE_URL";
+pub const TRANSLATE_MOCK_URL_ENV: &str = "NOVEL_STUDIO_TRANSLATE_MOCK_URL";
+
+pub enum DesktopTranslateTransport {
+    Loopback(LoopbackTranslateTransport),
+    #[cfg(windows)]
+    WinHttp(win_impl::WinHttpJsonTransport),
+}
+
+pub fn open_desktop_translate_transport(
+    server_url: &str,
+) -> Result<DesktopTranslateTransport, CoreError> {
+    if let Ok(mock_url) = std::env::var(TRANSLATE_MOCK_URL_ENV)
+        && !mock_url.trim().is_empty()
+    {
+        return Ok(DesktopTranslateTransport::Loopback(
+            LoopbackTranslateTransport::new(mock_url.trim())?,
+        ));
+    }
+    if server_url.trim().starts_with("http://127.0.0.1:") {
+        return Ok(DesktopTranslateTransport::Loopback(
+            LoopbackTranslateTransport::new(server_url.trim())?,
+        ));
+    }
+    #[cfg(windows)]
+    {
+        Ok(DesktopTranslateTransport::WinHttp(
+            win_impl::WinHttpJsonTransport::new()?,
+        ))
+    }
+    #[cfg(not(windows))]
+    {
+        Err("WinHTTP translate transport chỉ hỗ trợ trên Windows.".into())
+    }
+}
+
+impl TranslationHttpTransport for DesktopTranslateTransport {
+    fn post_dichngay_json(
+        &mut self,
+        server_url: &str,
+        body_json: &str,
+        timeout_sec: u64,
+    ) -> Result<String, CoreError> {
+        match self {
+            Self::Loopback(inner) => inner.post_dichngay_json(server_url, body_json, timeout_sec),
+            #[cfg(windows)]
+            Self::WinHttp(inner) => inner.post_dichngay_json(server_url, body_json, timeout_sec),
+        }
+    }
+}
 
 pub fn is_mock_transport_enabled() -> bool {
     std::env::var(MOCK_BASE_URL_ENV)
@@ -89,9 +141,13 @@ mod win_impl {
     use std::time::Instant;
 
     use novel_studio_core::CoreError;
+    use novel_studio_core::translate::dichngay::{
+        DEFAULT_DICHNGAY_REFERER, TranslationHttpTransport,
+    };
     use novel_studio_core::upload::engine::{FormRequest, TransportReply};
     use novel_studio_core::upload::html::{guard_read_html, percent_encode_component};
     use novel_studio_core::upload::multipart::{MultipartPart, write_multipart};
+    use novel_studio_core::upload::protocol::parse_https_url;
     use novel_studio_core::upload::runner::UploadHttpTransport;
     use novel_studio_core::upload::session::{
         DEFAULT_USER_AGENT, MAX_FORM_BODY_BYTES, MAX_RESPONSE_BYTES, SessionCookieJar,
@@ -525,6 +581,161 @@ mod win_impl {
                 status,
                 body: String::from_utf8_lossy(&body).into_owned(),
             })
+        }
+    }
+
+    pub struct WinHttpJsonTransport {
+        session: HInternet,
+    }
+
+    impl WinHttpJsonTransport {
+        pub fn new() -> Result<Self, CoreError> {
+            let ua = to_wide_null(DEFAULT_USER_AGENT);
+            let session = unsafe {
+                WinHttpOpen(
+                    ua.as_ptr(),
+                    WINHTTP_ACCESS_TYPE_DEFAULT_PROXY,
+                    std::ptr::null(),
+                    std::ptr::null(),
+                    0,
+                )
+            };
+            if session.is_null() {
+                return Err(last_win_err("Không khởi tạo được WinHTTP session cho dịch thuật").into());
+            }
+            let mut decomp: u32 =
+                WINHTTP_DECOMPRESSION_FLAG_GZIP | WINHTTP_DECOMPRESSION_FLAG_DEFLATE;
+            let _ = unsafe {
+                WinHttpSetOption(
+                    session,
+                    WINHTTP_OPTION_DECOMPRESSION,
+                    (&mut decomp as *mut u32).cast(),
+                    std::mem::size_of::<u32>() as u32,
+                )
+            };
+            Ok(Self {
+                session: HInternet(session),
+            })
+        }
+    }
+
+    impl TranslationHttpTransport for WinHttpJsonTransport {
+        fn post_dichngay_json(
+            &mut self,
+            server_url: &str,
+            body_json: &str,
+            timeout_sec: u64,
+        ) -> Result<String, CoreError> {
+            let parsed = parse_https_url(server_url)?;
+            let port = parsed.port.unwrap_or(443);
+            let host_w = to_wide_null(&parsed.host);
+            let conn_raw = unsafe { WinHttpConnect(self.session.0, host_w.as_ptr(), port, 0) };
+            if conn_raw.is_null() {
+                return Err(last_win_err("Không kết nối được tới server dịch HTTPS").into());
+            }
+            let conn = HInternet(conn_raw);
+
+            let method_w = to_wide_null("POST");
+            let path_q = format!("{}{}", parsed.path, parsed.suffix);
+            let path_w = to_wide_null(&path_q);
+            let req_raw = unsafe {
+                WinHttpOpenRequest(
+                    conn.0,
+                    method_w.as_ptr(),
+                    path_w.as_ptr(),
+                    std::ptr::null(),
+                    std::ptr::null(),
+                    std::ptr::null(),
+                    WINHTTP_FLAG_SECURE,
+                )
+            };
+            if req_raw.is_null() {
+                return Err(last_win_err("Không mở được HTTPS request cho dịch thuật").into());
+            }
+            let req = HInternet(req_raw);
+
+            let timeout_ms = (timeout_sec.clamp(5, 180) * 1000) as i32;
+            let _ = unsafe { WinHttpSetTimeouts(req.0, 15_000, 20_000, 30_000, timeout_ms) };
+
+            let disable_flags: u32 = WINHTTP_DISABLE_COOKIES;
+            let _ = unsafe {
+                WinHttpSetOption(
+                    req.0,
+                    WINHTTP_OPTION_DISABLE_FEATURE,
+                    (&disable_flags as *const u32).cast(),
+                    std::mem::size_of::<u32>() as u32,
+                )
+            };
+
+            let headers = [
+                ("Content-Type", "application/json; charset=UTF-8"),
+                ("Accept", "application/json, text/plain, */*"),
+                ("Referer", DEFAULT_DICHNGAY_REFERER),
+            ];
+            for (k, v) in headers {
+                let line = to_wide_null(&format!("{k}: {v}\r\n"));
+                if unsafe {
+                    WinHttpAddRequestHeaders(
+                        req.0,
+                        line.as_ptr(),
+                        u32::MAX,
+                        WINHTTP_ADDREQ_FLAG_ADD | WINHTTP_ADDREQ_FLAG_REPLACE,
+                    )
+                } == 0
+                {
+                    return Err(last_win_err("Không gắn được HTTP header dịch thuật").into());
+                }
+            }
+
+            let bytes = body_json.as_bytes();
+            let total_len = u32::try_from(bytes.len()).map_err(|_| "Payload dịch quá lớn.")?;
+            if unsafe {
+                WinHttpSendRequest(
+                    req.0,
+                    std::ptr::null(),
+                    0,
+                    std::ptr::null(),
+                    0,
+                    total_len,
+                    0,
+                )
+            } == 0
+            {
+                return Err(last_win_err("Không gửi được yêu cầu dịch HTTPS").into());
+            }
+
+            if total_len > 0 {
+                let mut writer = WinHttpBodyWriter { req: req.0 };
+                writer.write_all(bytes)?;
+            }
+
+            if unsafe { WinHttpReceiveResponse(req.0, std::ptr::null_mut()) } == 0 {
+                return Err(last_win_err("Không nhận được phản hồi từ server dịch").into());
+            }
+
+            let mut status: u32 = 0;
+            let mut status_len = std::mem::size_of::<u32>() as u32;
+            let mut idx: u32 = 0;
+            if unsafe {
+                WinHttpQueryHeaders(
+                    req.0,
+                    WINHTTP_QUERY_STATUS_CODE | WINHTTP_QUERY_FLAG_NUMBER,
+                    std::ptr::null(),
+                    (&mut status as *mut u32).cast(),
+                    &mut status_len,
+                    &mut idx,
+                )
+            } == 0
+            {
+                return Err(last_win_err("Không đọc được mã HTTP status từ server dịch").into());
+            }
+
+            if !(200..300).contains(&status) {
+                return Err(format!("HTTP Error: {status}").into());
+            }
+
+            let body = read_winhttp_body(req.0, None)?;
+            Ok(String::from_utf8_lossy(&body).into_owned())
         }
     }
 }

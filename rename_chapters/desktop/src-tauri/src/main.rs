@@ -13,6 +13,7 @@ use workspace::{
 
 mod library_commands;
 mod secret_store;
+mod translate_commands;
 mod upload_commands;
 mod upload_runtime;
 mod winhttp_transport;
@@ -652,10 +653,30 @@ fn main() {
             extract_archive,
             library_commands::list_library,
             library_commands::import_library,
+            library_commands::import_library_paths,
             library_commands::remove_library,
             library_commands::read_library,
             library_commands::list_library_chapters,
             library_commands::read_library_chapter,
+            translate_commands::get_translate_server_config,
+            translate_commands::save_translate_server_config,
+            translate_commands::get_reader_name_sets,
+            translate_commands::save_reader_name_sets,
+            translate_commands::update_reader_name_entry,
+            translate_commands::import_reader_name_set_text,
+            translate_commands::export_reader_name_set_text,
+            translate_commands::list_reader_name_history,
+            translate_commands::get_reader_book_vp_set,
+            translate_commands::update_reader_book_vp_entry,
+            translate_commands::get_reader_global_dicts,
+            translate_commands::save_reader_global_dicts,
+            translate_commands::translate_library_chapter,
+            translate_commands::map_reader_selection_to_name,
+            translate_commands::map_reader_selection_to_source,
+            translate_commands::suggest_reader_name,
+            translate_commands::get_reader_translation_cache_stats,
+            translate_commands::reload_reader_chapter_translation,
+            translate_commands::clear_reader_translation_cache,
             upload_commands::list_upload_workspace,
             upload_commands::choose_upload_folder,
             upload_commands::scan_upload_folder,

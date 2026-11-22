@@ -5,6 +5,7 @@ use novel_studio_core::{CoreError, library};
 use tauri::{AppHandle, Manager, WebviewWindow};
 use tauri_plugin_dialog::DialogExt;
 
+use crate::translate_commands::library_workspace_dir;
 use crate::workspace::Workspace;
 
 async fn run<T: Send + 'static>(
@@ -12,10 +13,7 @@ async fn run<T: Send + 'static>(
     action: impl FnOnce(library::Library, Option<PathBuf>) -> Result<T, CoreError> + Send + 'static,
 ) -> Result<T, String> {
     tauri::async_runtime::spawn_blocking(move || {
-        let directory = app
-            .path()
-            .app_local_data_dir()
-            .map_err(|err| err.to_string())?;
+        let directory = library_workspace_dir(&app)?;
         let interpreter = app
             .state::<Mutex<Workspace>>()
             .lock()
@@ -52,6 +50,18 @@ pub async fn import_library(
             .map(|file| file.into_path())
             .collect::<Result<Vec<PathBuf>, _>>()?;
         library.import(paths).map(Some)
+    })
+    .await
+}
+
+#[tauri::command]
+pub async fn import_library_paths(
+    app: AppHandle,
+    paths: Vec<String>,
+) -> Result<library::ImportResult, String> {
+    run(app, move |library, _| {
+        let buf_paths: Vec<PathBuf> = paths.into_iter().map(PathBuf::from).collect();
+        library.import(buf_paths)
     })
     .await
 }
