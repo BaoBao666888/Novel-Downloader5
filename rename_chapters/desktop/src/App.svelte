@@ -6,6 +6,7 @@
   import SplitWorkbench from './SplitWorkbench.svelte';
   import TextToolsWorkbench from './TextToolsWorkbench.svelte';
   import UploadWorkbench from './UploadWorkbench.svelte';
+  import WikiWorkbench from './WikiWorkbench.svelte';
   import {
     applyFirstLine, applyRename, chooseFolder, choosePython, previewFirstLine, previewRename, rowStatus,
     undoFirstLine, type LinePreview, type LineResult, type Outcome, type Preview, type Row,
@@ -32,13 +33,15 @@
   type Area = typeof areas[number]['id'];
   type EditTool = typeof editTools[number]['id'];
   type FileTool = typeof fileTools[number]['id'];
-  type Mode = EditTool | FileTool | 'library' | 'upload';
+  type LibraryTool = 'library' | 'wiki';
+  type Mode = EditTool | FileTool | LibraryTool | 'upload';
   let folder = $state('');
   let area = $state<Area>('edit');
   let editTool = $state<EditTool>('rename');
   let fileTool = $state<FileTool>('archive');
+  let libraryTool = $state<LibraryTool>('library');
   let mode: Mode = $derived(
-    area === 'edit' ? editTool : area === 'files' ? fileTool : area === 'upload' ? 'upload' : 'library',
+    area === 'edit' ? editTool : area === 'files' ? fileTool : area === 'upload' ? 'upload' : libraryTool,
   );
   let visited = $state(new Set<Mode>());
   let lastRenameTool: 'rename' | 'line' = 'rename';
@@ -98,7 +101,14 @@
   function changeArea(next: Area) {
     if (area === next || busy) return;
     area = next;
-    if (next !== 'edit') visited = new Set(visited).add(next === 'files' ? fileTool : next);
+    if (next !== 'edit') visited = new Set(visited).add(next === 'files' ? fileTool : next === 'library' ? libraryTool : next);
+    window.scrollTo(0, 0);
+  }
+
+  function changeLibraryTool(next: LibraryTool) {
+    if (libraryTool === next || busy) return;
+    libraryTool = next;
+    visited = new Set(visited).add(next);
     window.scrollTo(0, 0);
   }
 
@@ -303,7 +313,14 @@
 </header>
 
 <main>
-  {#if area === 'edit'}
+  {#if area === 'library'}
+    <nav class="mode-switch" aria-label="Nguồn truyện">
+      <button type="button" aria-pressed={libraryTool === 'library'} disabled={busy !== null}
+        onclick={() => changeLibraryTool('library')}>Truyện đã lưu</button>
+      <button type="button" aria-pressed={libraryTool === 'wiki'} disabled={busy !== null}
+        onclick={() => changeLibraryTool('wiki')}>Wikidich</button>
+    </nav>
+  {:else if area === 'edit'}
     <nav class="mode-switch" aria-label="Công cụ biên tập">
       {#each editTools as tool (tool.id)}
         <button type="button" aria-pressed={editTool === tool.id} disabled={busy !== null}
@@ -320,6 +337,9 @@
   {/if}
   {#if visited.has('library')}
     <div hidden={mode !== 'library'}><LibraryWorkbench /></div>
+  {/if}
+  {#if visited.has('wiki')}
+    <div hidden={mode !== 'wiki'}><WikiWorkbench /></div>
   {/if}
   {#if visited.has('split')}
     <div hidden={mode !== 'split'}><SplitWorkbench {python} onPickPython={pickPython} parentBusy={busy !== null} /></div>

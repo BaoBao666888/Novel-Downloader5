@@ -601,7 +601,9 @@ mod win_impl {
                 )
             };
             if session.is_null() {
-                return Err(last_win_err("Không khởi tạo được WinHTTP session cho dịch thuật").into());
+                return Err(
+                    last_win_err("Không khởi tạo được WinHTTP session cho dịch thuật").into(),
+                );
             }
             let mut decomp: u32 =
                 WINHTTP_DECOMPRESSION_FLAG_GZIP | WINHTTP_DECOMPRESSION_FLAG_DEFLATE;

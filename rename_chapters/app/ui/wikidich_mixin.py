@@ -57,31 +57,19 @@ class WikidichMixin:
         self._wd_data_store = {}
         self._wd_filtered_store = {}
         self._wd_new_chapters_store = {}
-        for site in ("wikidich", "koanchay"):
-            if site == "koanchay":
-                self.wikidich_data = {"username": None, "book_ids": [], "books": {}, "synced_at": None}
-                # Load filters riêng cho Koanchay nếu có trong config
-                kc_cfg = getattr(self, "app_config", {}).get("koanchay", {})
-                self.wikidich_filters = dict(kc_cfg.get("advanced_filter", initial_filters))
-                self.wikidich_filtered = []
-                self.wd_new_chapters = {}
-                self.wd_new_chapter_cache = {}
-                self.wd_fanqie_chapter_cache = {}
-            tab = ttk.Frame(self.notebook, padding="10")
-            self._wd_tabs[site] = tab
-            tab_label = "Koanchay" if site == "koanchay" else "Wikidich"
-            self.notebook.add(tab, text=tab_label)
-            if site == "koanchay":
-                self.notebook.tab(tab, state="hidden")
-            self._build_wikidich_tab_ui(tab, site)
-            self._wd_contexts[site] = self._wd_capture_context()
-            self._wd_site_states[site] = self._wd_capture_site_state()
-            # Capture UI state mapping
-            self._wd_capture_ui_state(site)
-            # Init stores
-            self._wd_data_store[site] = self.wikidich_data
-            self._wd_filtered_store[site] = self.wikidich_filtered
-            self._wd_new_chapters_store[site] = self.wd_new_chapters
+        site = "wikidich"
+        tab = ttk.Frame(self.notebook, padding="10")
+        self._wd_tabs[site] = tab
+        self.notebook.add(tab, text="Wikidich")
+        self._build_wikidich_tab_ui(tab, site)
+        self._wd_contexts[site] = self._wd_capture_context()
+        self._wd_site_states[site] = self._wd_capture_site_state()
+        # Capture UI state mapping
+        self._wd_capture_ui_state(site)
+        # Init stores
+        self._wd_data_store[site] = self.wikidich_data
+        self._wd_filtered_store[site] = self.wikidich_filtered
+        self._wd_new_chapters_store[site] = self.wd_new_chapters
 
         self.wd_new_chapters = initial_new
         self.wd_new_chapter_cache = initial_new_cache
@@ -861,7 +849,7 @@ class WikidichMixin:
     
     def _wd_switch_site(self, site):
         if site == "koanchay" and not self._wd_show_koanchay_enabled():
-            messagebox.showinfo("Koanchay đang ẩn", "Bật 'Hiện Koanchay' trong tab Cài đặt để dùng lại.")
+            messagebox.showinfo("Koanchay", "Tab Koanchay đã ngừng hỗ trợ.")
             return
         if site == getattr(self, "wd_site", ""):
             return
@@ -7453,7 +7441,7 @@ class WikidichMixin:
         if site not in ("wikidich", "koanchay"):
             return
         if site == "koanchay" and not self._wd_show_koanchay_enabled():
-            messagebox.showinfo("Koanchay đang ẩn", "Bật 'Hiện Koanchay' trong tab Cài đặt để dùng lại.")
+            messagebox.showinfo("Koanchay", "Tab Koanchay đã ngừng hỗ trợ.")
             return
         self._wd_show_site_tab(site)
 
@@ -7463,7 +7451,7 @@ class WikidichMixin:
         if not tab:
             return
         if site == "koanchay" and not self._wd_show_koanchay_enabled():
-            messagebox.showinfo("Koanchay đang ẩn", "Bật 'Hiện Koanchay' trong tab Cài đặt để dùng lại.")
+            messagebox.showinfo("Koanchay", "Tab Koanchay đã ngừng hỗ trợ.")
             return
         if site != getattr(self, "wd_site", "wikidich") and self._wd_extra_links_manager_alive():
             try:
@@ -7483,8 +7471,7 @@ class WikidichMixin:
             pass
 
     def _wd_show_koanchay_enabled(self):
-        settings = getattr(self, "ui_settings", {}) or {}
-        return bool(settings.get("show_koanchay", False))
+        return False
 
     def _wd_update_site_button_visibility(self):
         show_koanchay = self._wd_show_koanchay_enabled()

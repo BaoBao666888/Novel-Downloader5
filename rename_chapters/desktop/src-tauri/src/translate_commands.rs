@@ -296,10 +296,7 @@ pub async fn list_reader_name_history(
 }
 
 #[tauri::command]
-pub async fn get_reader_book_vp_set(
-    app: AppHandle,
-    book_id: u32,
-) -> Result<VpSetState, String> {
+pub async fn get_reader_book_vp_set(app: AppHandle, book_id: u32) -> Result<VpSetState, String> {
     let bkey = format!("lib_{book_id}");
     run_translate(app, move |store, _, _| store.get_book_vp_set(&bkey)).await
 }

@@ -161,21 +161,6 @@ class SettingsTabMixin:
             text="Tạo hiệu ứng highlight nhẹ khi di chuyển chuột quanh ứng dụng.",
         ).grid(row=1, column=0, sticky="w", pady=(4, 0))
 
-        wikidich_frame = ttk.LabelFrame(content, text="Wikidich", padding=14, style="Section.TLabelframe")
-        wikidich_frame.grid(row=2, column=0, columnspan=2, sticky="ew", pady=(12, 0))
-        wikidich_frame.columnconfigure(0, weight=1)
-        self.ui_show_koanchay_var = tk.BooleanVar(value=bool(self.ui_settings.get('show_koanchay', False)))
-        ttk.Checkbutton(
-            wikidich_frame,
-            text="Hiện Koanchay",
-            variable=self.ui_show_koanchay_var,
-            command=self._toggle_show_koanchay,
-        ).grid(row=0, column=0, sticky="w")
-        ttk.Label(
-            wikidich_frame,
-            text="Bật lại tab và nút chuyển Koanchay trong khu Wikidich.",
-        ).grid(row=1, column=0, sticky="w", pady=(4, 0))
-
         tray_frame = ttk.LabelFrame(content, text="Chạy nền / Khay hệ thống", padding=14, style="Section.TLabelframe")
         tray_frame.grid(row=3, column=0, columnspan=2, sticky="ew", pady=(12, 0))
         tray_frame.columnconfigure(0, weight=1)

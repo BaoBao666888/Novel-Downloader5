@@ -3381,7 +3381,6 @@ VÍ DỤ 3: Chia theo các dòng có 5 dấu sao trở lên
         wikidich_guide = """
         --- WIKIDICH / KOANCHAY ---
         - **Tải Works / Tải chi tiết**: dùng cookie từ trình duyệt tích hợp. Khi bị Cloudflare sẽ tạm dừng và **resume theo từng site**, kể cả sau khi mở lại app (thao tác lại Tải Works/Tải chi tiết). Domain đọc cookie/header bám theo domain cấu hình trong Cài đặt request.
-        - **Koanchay**: mặc định ẩn khỏi khu Wikidich. Muốn dùng lại, vào tab **Cài đặt** → **Wikidich** → bật **Hiện Koanchay**.
         - **Domain**: đổi domain Wikidich/Koanchay trong Cài đặt request; dữ liệu local sẽ tự rewrite theo domain mới.
         - **Works không chính chủ**: Sync ▾ → “Tải Works (không chính chủ)” (nhập URL/user_id). Chỉ chạy khi profile trống hoặc đang dùng Works không chính chủ; sẽ tắt “Chỉ đồng bộ số chương”, ẩn Auto Update/Chỉnh sửa/Cập nhật chương và ẩn khu Liên kết.
         - **DS Chương cho Works không chính chủ**: app sẽ tự lấy `bookId` thật trước khi tải danh sách chương.

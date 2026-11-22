@@ -1,5 +1,11 @@
 import { invoke } from '@tauri-apps/api/core';
 
+export type WikiProfile = { name: string; has_script: boolean };
+export const listWikiProfiles = () => invoke<WikiProfile[]>('list_wiki_profiles');
+export const importWikiScript = (profile: string) => invoke<boolean>('import_wiki_script', { profile });
+export const openWiki = (profile: string, address: string, runScript: boolean) =>
+  invoke<void>('open_wiki', { options: { profile, address, run_script: runScript } });
+
 export type SourceKind = 'txt' | 'zip';
 export type LibraryItem = {
   id: number;

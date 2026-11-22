@@ -16,6 +16,7 @@ mod secret_store;
 mod translate_commands;
 mod upload_commands;
 mod upload_runtime;
+mod wiki_browser;
 mod winhttp_transport;
 mod workspace;
 
@@ -658,6 +659,9 @@ fn main() {
             library_commands::read_library,
             library_commands::list_library_chapters,
             library_commands::read_library_chapter,
+            wiki_browser::list_wiki_profiles,
+            wiki_browser::import_wiki_script,
+            wiki_browser::open_wiki,
             translate_commands::get_translate_server_config,
             translate_commands::save_translate_server_config,
             translate_commands::get_reader_name_sets,
