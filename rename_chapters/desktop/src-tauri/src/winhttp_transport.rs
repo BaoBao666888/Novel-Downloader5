@@ -7,9 +7,11 @@ use novel_studio_core::upload::multipart::MultipartPart;
 use novel_studio_core::upload::runner::UploadHttpTransport;
 use novel_studio_core::upload::session::{LoopbackHttpTransport, SessionCookieJar};
 use novel_studio_core::upload::verifier::{ReadCancellation, VerifierError};
+use novel_studio_core::vbook::store::{LoopbackVBookTransport, VBookHttpTransport};
 
 pub const MOCK_BASE_URL_ENV: &str = "NOVEL_STUDIO_UPLOAD_MOCK_BASE_URL";
 pub const TRANSLATE_MOCK_URL_ENV: &str = "NOVEL_STUDIO_TRANSLATE_MOCK_URL";
+pub const VBOOK_MOCK_BASE_URL_ENV: &str = "NOVEL_STUDIO_VBOOK_MOCK_BASE_URL";
 
 pub enum DesktopTranslateTransport {
     Loopback(LoopbackTranslateTransport),
@@ -134,6 +136,55 @@ impl UploadHttpTransport for DesktopUploadTransport {
     }
 }
 
+pub enum DesktopVBookTransport {
+    Loopback(LoopbackVBookTransport),
+    #[cfg(windows)]
+    WinHttp(win_impl::WinHttpVBookTransport),
+}
+
+pub fn open_desktop_vbook_transport(url_hint: &str) -> Result<DesktopVBookTransport, CoreError> {
+    if let Ok(mock_url) = std::env::var(VBOOK_MOCK_BASE_URL_ENV)
+        && !mock_url.trim().is_empty()
+    {
+        return Ok(DesktopVBookTransport::Loopback(
+            LoopbackVBookTransport::new(Some(mock_url.trim().to_owned())),
+        ));
+    }
+    if url_hint.trim().starts_with("http://127.0.0.1:") {
+        return Ok(DesktopVBookTransport::Loopback(
+            LoopbackVBookTransport::new(None),
+        ));
+    }
+    #[cfg(windows)]
+    {
+        Ok(DesktopVBookTransport::WinHttp(
+            win_impl::WinHttpVBookTransport::new()?,
+        ))
+    }
+    #[cfg(not(windows))]
+    {
+        Err("WinHTTP vBook transport chỉ hỗ trợ trên Windows.".into())
+    }
+}
+
+impl VBookHttpTransport for DesktopVBookTransport {
+    fn get_text(&mut self, url: &str, timeout_sec: u64) -> Result<String, CoreError> {
+        match self {
+            Self::Loopback(inner) => inner.get_text(url, timeout_sec),
+            #[cfg(windows)]
+            Self::WinHttp(inner) => inner.get_text(url, timeout_sec),
+        }
+    }
+
+    fn get_bytes(&mut self, url: &str, timeout_sec: u64) -> Result<Vec<u8>, CoreError> {
+        match self {
+            Self::Loopback(inner) => inner.get_bytes(url, timeout_sec),
+            #[cfg(windows)]
+            Self::WinHttp(inner) => inner.get_bytes(url, timeout_sec),
+        }
+    }
+}
+
 #[cfg(windows)]
 mod win_impl {
     use std::ffi::c_void;
@@ -154,6 +205,7 @@ mod win_impl {
         SessionExchange,
     };
     use novel_studio_core::upload::verifier::{ReadCancellation, VerifierError};
+    use novel_studio_core::vbook::store::VBookHttpTransport;
     use windows_sys::Win32::Foundation::GetLastError;
     use windows_sys::Win32::Networking::WinHttp::{
         WINHTTP_ACCESS_TYPE_DEFAULT_PROXY, WINHTTP_ADDREQ_FLAG_ADD, WINHTTP_ADDREQ_FLAG_REPLACE,
@@ -436,6 +488,14 @@ mod win_impl {
         req: *mut c_void,
         cancel: Option<&ReadCancellation>,
     ) -> Result<Vec<u8>, CoreError> {
+        read_winhttp_body_limited(req, cancel, MAX_RESPONSE_BYTES)
+    }
+
+    fn read_winhttp_body_limited(
+        req: *mut c_void,
+        cancel: Option<&ReadCancellation>,
+        max_bytes: usize,
+    ) -> Result<Vec<u8>, CoreError> {
         let mut out = Vec::new();
         loop {
             if let Some(token) = cancel {
@@ -449,7 +509,7 @@ mod win_impl {
                 break;
             }
             let chunk = avail.min(64 * 1024) as usize;
-            if out.len().saturating_add(chunk) > MAX_RESPONSE_BYTES {
+            if out.len().saturating_add(chunk) > max_bytes {
                 return Err("Response quá lớn.".into());
             }
             let mut buf = vec![0u8; chunk];
@@ -738,6 +798,172 @@ mod win_impl {
 
             let body = read_winhttp_body(req.0, None)?;
             Ok(String::from_utf8_lossy(&body).into_owned())
+        }
+    }
+
+    pub struct WinHttpVBookTransport {
+        session: HInternet,
+    }
+
+    impl WinHttpVBookTransport {
+        pub fn new() -> Result<Self, CoreError> {
+            let ua = to_wide_null(DEFAULT_USER_AGENT);
+            let session = unsafe {
+                WinHttpOpen(
+                    ua.as_ptr(),
+                    WINHTTP_ACCESS_TYPE_DEFAULT_PROXY,
+                    std::ptr::null(),
+                    std::ptr::null(),
+                    0,
+                )
+            };
+            if session.is_null() {
+                return Err(last_win_err("Không khởi tạo được WinHTTP session cho VBook").into());
+            }
+            let mut decomp: u32 =
+                WINHTTP_DECOMPRESSION_FLAG_GZIP | WINHTTP_DECOMPRESSION_FLAG_DEFLATE;
+            let _ = unsafe {
+                WinHttpSetOption(
+                    session,
+                    WINHTTP_OPTION_DECOMPRESSION,
+                    (&mut decomp as *mut u32).cast(),
+                    std::mem::size_of::<u32>() as u32,
+                )
+            };
+            Ok(Self {
+                session: HInternet(session),
+            })
+        }
+
+        fn fetch_bytes(
+            &self,
+            url: &str,
+            timeout_sec: u64,
+            max_bytes: usize,
+        ) -> Result<Vec<u8>, CoreError> {
+            use novel_studio_core::vbook::catalog::resolve_relative_url;
+
+            let mut current = url.trim().to_owned();
+            for _ in 0..=MAX_REDIRECTS {
+                let (is_https, parsed) = if let Some(stripped) = current.strip_prefix("http://") {
+                    let rewritten = format!("https://{stripped}");
+                    (false, parse_https_url(&rewritten)?)
+                } else {
+                    (true, parse_https_url(&current)?)
+                };
+                let port = parsed.port.unwrap_or(if is_https { 443 } else { 80 });
+                let host_w = to_wide_null(&parsed.host);
+                let conn_raw = unsafe { WinHttpConnect(self.session.0, host_w.as_ptr(), port, 0) };
+                if conn_raw.is_null() {
+                    return Err(last_win_err("Không kết nối được tới kho VBook").into());
+                }
+                let conn = HInternet(conn_raw);
+
+                let method_w = to_wide_null("GET");
+                let path_q = format!("{}{}", parsed.path, parsed.suffix);
+                let path_w = to_wide_null(&path_q);
+                let flags = if is_https { WINHTTP_FLAG_SECURE } else { 0 };
+                let req_raw = unsafe {
+                    WinHttpOpenRequest(
+                        conn.0,
+                        method_w.as_ptr(),
+                        path_w.as_ptr(),
+                        std::ptr::null(),
+                        std::ptr::null(),
+                        std::ptr::null(),
+                        flags,
+                    )
+                };
+                if req_raw.is_null() {
+                    return Err(last_win_err("Không mở được request tới kho VBook").into());
+                }
+                let req = HInternet(req_raw);
+
+                let timeout_ms = (timeout_sec.clamp(5, 180) * 1000) as i32;
+                let _ = unsafe { WinHttpSetTimeouts(req.0, 15_000, 20_000, 30_000, timeout_ms) };
+                let disable_flags: u32 = WINHTTP_DISABLE_REDIRECTS | WINHTTP_DISABLE_COOKIES;
+                let _ = unsafe {
+                    WinHttpSetOption(
+                        req.0,
+                        WINHTTP_OPTION_DISABLE_FEATURE,
+                        (&disable_flags as *const u32).cast(),
+                        std::mem::size_of::<u32>() as u32,
+                    )
+                };
+
+                let accept = to_wide_null("Accept: application/json, application/zip, */*\r\n");
+                let _ = unsafe {
+                    WinHttpAddRequestHeaders(
+                        req.0,
+                        accept.as_ptr(),
+                        u32::MAX,
+                        WINHTTP_ADDREQ_FLAG_ADD | WINHTTP_ADDREQ_FLAG_REPLACE,
+                    )
+                };
+
+                if unsafe {
+                    WinHttpSendRequest(req.0, std::ptr::null(), 0, std::ptr::null(), 0, 0, 0)
+                } == 0
+                {
+                    return Err(last_win_err("Không gửi được yêu cầu tải từ kho VBook").into());
+                }
+                if unsafe { WinHttpReceiveResponse(req.0, std::ptr::null_mut()) } == 0 {
+                    return Err(last_win_err("Không nhận được phản hồi từ kho VBook").into());
+                }
+
+                let mut status: u32 = 0;
+                let mut status_len = std::mem::size_of::<u32>() as u32;
+                let mut idx: u32 = 0;
+                if unsafe {
+                    WinHttpQueryHeaders(
+                        req.0,
+                        WINHTTP_QUERY_STATUS_CODE | WINHTTP_QUERY_FLAG_NUMBER,
+                        std::ptr::null(),
+                        (&mut status as *mut u32).cast(),
+                        &mut status_len,
+                        &mut idx,
+                    )
+                } == 0
+                {
+                    return Err(last_win_err("Không đọc được HTTP status từ kho VBook").into());
+                }
+
+                if matches!(status, 301 | 302 | 303 | 307 | 308) {
+                    let raw_headers = query_raw_headers(req.0)?;
+                    let loc = raw_headers
+                        .lines()
+                        .find_map(|line| {
+                            let (k, v) = line.split_once(':')?;
+                            k.trim()
+                                .eq_ignore_ascii_case("location")
+                                .then(|| v.trim().to_owned())
+                        })
+                        .ok_or("Redirect thiếu header Location.")?;
+                    current = resolve_relative_url(&current, &loc);
+                    continue;
+                }
+
+                if !(200..300).contains(&status) {
+                    return Err(format!("Kho VBook trả HTTP {status}.").into());
+                }
+                return read_winhttp_body_limited(req.0, None, max_bytes);
+            }
+            Err("Quá nhiều lần chuyển hướng HTTP từ kho VBook.".into())
+        }
+    }
+
+    impl VBookHttpTransport for WinHttpVBookTransport {
+        fn get_text(&mut self, url: &str, timeout_sec: u64) -> Result<String, CoreError> {
+            let bytes = self.fetch_bytes(url, timeout_sec, MAX_RESPONSE_BYTES)?;
+            Ok(String::from_utf8(bytes)?)
+        }
+
+        fn get_bytes(&mut self, url: &str, timeout_sec: u64) -> Result<Vec<u8>, CoreError> {
+            self.fetch_bytes(
+                url,
+                timeout_sec,
+                novel_studio_core::vbook::package::MAX_PACKAGE_ZIP_BYTES,
+            )
         }
     }
 }

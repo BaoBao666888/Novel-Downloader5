@@ -18,6 +18,7 @@ mod secret_store;
 mod translate_commands;
 mod upload_commands;
 mod upload_runtime;
+mod vbook_commands;
 mod wiki_browser;
 mod winhttp_transport;
 mod workspace;
@@ -780,6 +781,18 @@ fn main() {
             upload_commands::stop_active_upload,
             upload_commands::verify_upload_job_now,
             upload_commands::run_due_upload_verifications,
+            vbook_commands::vbook_get_snapshot,
+            vbook_commands::vbook_add_repo,
+            vbook_commands::vbook_remove_repo,
+            vbook_commands::vbook_toggle_repo,
+            vbook_commands::vbook_refresh_repos,
+            vbook_commands::vbook_install_from_url,
+            vbook_commands::vbook_update_extension,
+            vbook_commands::vbook_update_all,
+            vbook_commands::vbook_pick_and_install_local_zip,
+            vbook_commands::vbook_uninstall_extension,
+            vbook_commands::vbook_toggle_pin_extension,
+            vbook_commands::vbook_save_extension_config,
             choose_merge_folder,
             choose_merge_output,
             refresh_merge,

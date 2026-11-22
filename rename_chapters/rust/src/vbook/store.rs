@@ -645,6 +645,16 @@ impl VBookExtensionStore {
         Ok(cloned)
     }
 
+    pub fn save_extension_config_json(
+        &self,
+        installed_id: &str,
+        config_json: &str,
+    ) -> Result<InstalledExtension, CoreError> {
+        let parsed: BTreeMap<String, Value> = serde_json::from_str(config_json)
+            .map_err(|err| format!("Cấu hình nguồn không hợp lệ: {err}"))?;
+        self.save_extension_config(installed_id, parsed)
+    }
+
     fn write_package_and_merge(
         &self,
         id: &str,
