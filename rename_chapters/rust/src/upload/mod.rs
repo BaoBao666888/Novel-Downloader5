@@ -9,4 +9,6 @@ pub mod model;
 pub mod multipart;
 pub mod policy;
 pub mod protocol;
+pub mod reconcile;
+pub mod recovery;
 pub mod store;
