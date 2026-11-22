@@ -10,7 +10,7 @@ import subprocess
 
 PREFIX = "rename_chapters/"
 FILES = {"LICENSE", *(PREFIX + name for name in (
-    "icon.ico", "app/__init__.py", "app/paths.py", "app/core/__init__.py",
+    ".cargo/config.toml", "icon.ico", "app/__init__.py", "app/paths.py", "app/core/__init__.py",
     "app/core/renamer.py", "app/core/text_ops.py", "rust/Cargo.toml", "rust/Cargo.lock",
     "desktop/.gitignore", "desktop/README.md", "desktop/index.html", "desktop/package.json",
     "desktop/package-lock.json", "desktop/tsconfig.json", "desktop/vite.config.ts",

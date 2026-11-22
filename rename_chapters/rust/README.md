@@ -83,5 +83,6 @@ Khi lỗi xuất hiện sau khi batch bắt đầu, xem các mục đã lưu và
 
 Từ thư mục này, chạy `cargo test --locked` và `cargo build --locked`. Python cần có Tkinter để import module TextOps cũ. Các bộ test chạy trên file tạm và không mở cửa sổ Tk.
 
-- Windows `python -B tests/split_parity.py target/debug/novel-studio-core.exe` và `python -B tests/rename_parity.py target/debug/novel-studio-core.exe`.
-- Linux/macOS `python3 -B tests/split_parity.py target/debug/novel-studio-core` và `python3 -B tests/rename_parity.py target/debug/novel-studio-core`.
+- Lấy thư mục đích từ `cargo metadata --offline --no-deps --format-version 1`, trường `target_directory`. Với cấu hình repo đầy đủ, đây là `../desktop/src-tauri/target` tính từ thư mục Rust.
+- Linux/macOS chạy `python3 -B tests/split_parity.py ../desktop/src-tauri/target/debug/novel-studio-core` và `python3 -B tests/rename_parity.py ../desktop/src-tauri/target/debug/novel-studio-core`.
+- Windows native dùng đường dẫn tương ứng có đuôi `.exe`. Build chéo thêm thư mục target triple vào trước `debug`.

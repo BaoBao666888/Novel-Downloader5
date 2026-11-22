@@ -46,6 +46,8 @@ npm run package:windows
 
 Lệnh sync chép Rust, desktop và các file cũ mà build/test dùng; Git, các thư mục ignore và dữ liệu cá nhân nằm ở checkout gốc. Lần sau chạy lại bước sync, thư mục build giữ cache và các output đã tạo.
 
+Chạy Cargo từ `rename_chapters/rust` hoặc `rename_chapters/desktop/src-tauri` trong cùng thư mục WSL. Cấu hình `rename_chapters/.cargo/config.toml` dùng chung `desktop/src-tauri/target` cho cả hai gói. Cargo vẫn tự tách output theo nền tảng và debug/release trong thư mục này. Dùng debug cho test và release để đóng gói. Có thể đối chiếu `target_directory` và `build_directory` bằng `cargo metadata --offline --no-deps --format-version 1`. [Cấu hình cache của Cargo](https://doc.rust-lang.org/cargo/reference/build-cache.html)
+
 Nếu dùng bộ NSIS riêng, thêm thư mục chứa `makensis` vào `PATH` và đặt `NSISDIR` trỏ tới bộ dữ liệu NSIS ở WSL. [Build NSIS trên Linux](https://nsis.sourceforge.io/Docs/AppendixG.html)
 
 Bản cài x64 nằm tại `src-tauri/target/x86_64-pc-windows-msvc/release/bundle/nsis/`. Lệnh chuẩn bị dùng CPython 3.14.10 embeddable từ Python.org, kiểm SHA-256 trước khi giải nén và giữ nguyên giấy phép kèm theo. Archive cache và runtime dàn dựng nằm trong `src-tauri/runtime/` đã ignore.
