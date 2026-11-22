@@ -1,5 +1,5 @@
 use std::cmp::Ordering;
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 use std::fs::{self, File, Metadata, OpenOptions};
 use std::io::{self, BufReader, Read, Seek, SeekFrom, Write};
 use std::path::{Path, PathBuf};
@@ -70,6 +70,8 @@ impl Default for Catalog {
 struct Entry {
     id: u32,
     path: PathBuf,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    last_chapter: Option<usize>,
 }
 
 #[derive(Serialize)]
@@ -79,6 +81,35 @@ pub struct Item {
     path: String,
     kind: SourceKind,
     size: u64,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    last_chapter: Option<usize>,
+}
+
+#[derive(Default)]
+pub struct ReadCache {
+    books: HashMap<u32, CachedToc>,
+}
+
+struct CachedToc {
+    stamp: String,
+    kind: SourceKind,
+    encoding: String,
+    zip_entries: Vec<(usize, String, u64)>,
+    txt_text: Option<String>,
+    txt_spans: Vec<TxtChapterSpan>,
+}
+
+impl ReadCache {
+    pub fn invalidate(&mut self, id: u32) {
+        self.books.remove(&id);
+    }
+
+    fn insert(&mut self, id: u32, entry: CachedToc) {
+        if self.books.len() >= 12 && !self.books.contains_key(&id) {
+            self.books.clear();
+        }
+        self.books.insert(id, entry);
+    }
 }
 
 #[derive(Serialize)]
@@ -127,6 +158,7 @@ impl Catalog {
                     path,
                     kind,
                     size,
+                    last_chapter: entry.last_chapter,
                 }
             })
             .collect()
@@ -214,7 +246,11 @@ impl Library {
                 catalog.next_id = id
                     .checked_add(1)
                     .ok_or("Thư viện đã đạt giới hạn số tệp.")?;
-                catalog.entries.push(Entry { id, path });
+                catalog.entries.push(Entry {
+                    id,
+                    path,
+                    last_chapter: None,
+                });
                 added += 1;
             }
         }
@@ -258,67 +294,132 @@ impl Library {
         read_page(File::open(path)?, cursor)
     }
 
-    pub fn chapters(&self, id: u32, interpreter: Option<&Path>) -> Result<ChapterList, CoreError> {
+    fn save_last_chapter(&self, id: u32, chapter_index: usize) {
+        let Ok(_lock) = self.lock() else {
+            return;
+        };
+        let Ok(mut catalog) = self.load() else {
+            return;
+        };
+        if let Some(entry) = catalog.entries.iter_mut().find(|entry| entry.id == id)
+            && entry.last_chapter != Some(chapter_index)
+        {
+            entry.last_chapter = Some(chapter_index);
+            let _ = self.save(&catalog);
+        }
+    }
+
+    fn ensure_cached_toc<'a>(
+        &self,
+        id: u32,
+        cache: &'a mut ReadCache,
+        interpreter: Option<&Path>,
+    ) -> Result<(PathBuf, &'a CachedToc), CoreError> {
         let path = self.lookup_path(id)?;
-        if !fs::symlink_metadata(&path).is_ok_and(|metadata| metadata.is_file()) {
+        let metadata = fs::symlink_metadata(&path)
+            .map_err(|_| "Không tìm thấy tệp nguồn tại vị trí đã lưu.")?;
+        if !metadata.is_file() {
             return Err("Không tìm thấy tệp nguồn tại vị trí đã lưu.".into());
         }
-        match source_kind(&path) {
-            Some(SourceKind::Zip) => {
-                let (_, info) = archive::inspect(&path, interpreter)?;
-                let mut txt_entries: Vec<_> = info
-                    .entries
-                    .into_iter()
-                    .filter(|e| e.safe && e.is_txt)
-                    .collect();
-                txt_entries.sort_by(|a, b| natural_cmp(&a.display_name, &b.display_name));
-                let chapters = txt_entries
-                    .into_iter()
-                    .enumerate()
-                    .map(|(idx, entry)| ChapterMeta {
-                        index: idx,
-                        title: clean_zip_chapter_title(&entry.display_name),
-                        size: entry.size,
-                    })
-                    .collect();
-                Ok(ChapterList {
-                    book_id: id,
-                    kind: SourceKind::Zip,
-                    encoding: "auto".to_owned(),
-                    chapters,
-                })
-            }
-            Some(SourceKind::Txt) => {
-                let meta = fs::metadata(&path)?;
-                if meta.len() > MAX_TXT_SCAN_BYTES {
-                    return Ok(ChapterList {
-                        book_id: id,
-                        kind: SourceKind::Txt,
-                        encoding: "utf-8".to_owned(),
-                        chapters: Vec::new(),
-                    });
+        let stamp = file_stamp(&metadata)?;
+        let cache_hit = cache
+            .books
+            .get(&id)
+            .is_some_and(|cached| cached.stamp == stamp);
+        if !cache_hit {
+            let built = match source_kind(&path) {
+                Some(SourceKind::Zip) => {
+                    let (_, info) = archive::inspect(&path, interpreter)?;
+                    let mut txt_entries: Vec<_> = info
+                        .entries
+                        .into_iter()
+                        .filter(|e| e.safe && e.is_txt)
+                        .collect();
+                    txt_entries.sort_by(|a, b| natural_cmp(&a.display_name, &b.display_name));
+                    let zip_entries = txt_entries
+                        .into_iter()
+                        .map(|e| (e.index, clean_zip_chapter_title(&e.display_name), e.size))
+                        .collect();
+                    CachedToc {
+                        stamp,
+                        kind: SourceKind::Zip,
+                        encoding: "auto".to_owned(),
+                        zip_entries,
+                        txt_text: None,
+                        txt_spans: Vec::new(),
+                    }
                 }
-                let raw = fs::read(&path)?;
-                let (text, encoding) = decode_txt_bytes(&raw)?;
-                let spans = detect_txt_chapters(&text);
-                let chapters = spans
-                    .into_iter()
-                    .enumerate()
-                    .map(|(idx, span)| ChapterMeta {
-                        index: idx,
-                        title: span.title,
-                        size: (span.end_byte - span.start_byte) as u64,
-                    })
-                    .collect();
-                Ok(ChapterList {
-                    book_id: id,
-                    kind: SourceKind::Txt,
-                    encoding,
-                    chapters,
-                })
-            }
-            None => Err("Định dạng tệp không được hỗ trợ.".into()),
+                Some(SourceKind::Txt) => {
+                    if metadata.len() > MAX_TXT_SCAN_BYTES {
+                        CachedToc {
+                            stamp,
+                            kind: SourceKind::Txt,
+                            encoding: "utf-8".to_owned(),
+                            zip_entries: Vec::new(),
+                            txt_text: None,
+                            txt_spans: Vec::new(),
+                        }
+                    } else {
+                        let raw = fs::read(&path)?;
+                        let (text, encoding) = decode_txt_bytes(&raw)?;
+                        let txt_spans = detect_txt_chapters(&text);
+                        CachedToc {
+                            stamp,
+                            kind: SourceKind::Txt,
+                            encoding,
+                            zip_entries: Vec::new(),
+                            txt_text: Some(text),
+                            txt_spans,
+                        }
+                    }
+                }
+                None => return Err("Định dạng tệp không được hỗ trợ.".into()),
+            };
+            cache.insert(id, built);
         }
+        Ok((path, cache.books.get(&id).expect("cached toc inserted")))
+    }
+
+    pub fn chapters(&self, id: u32, interpreter: Option<&Path>) -> Result<ChapterList, CoreError> {
+        let mut cache = ReadCache::default();
+        self.chapters_cached(id, &mut cache, interpreter)
+    }
+
+    pub fn chapters_cached(
+        &self,
+        id: u32,
+        cache: &mut ReadCache,
+        interpreter: Option<&Path>,
+    ) -> Result<ChapterList, CoreError> {
+        let (_, cached) = self.ensure_cached_toc(id, cache, interpreter)?;
+        let chapters = match cached.kind {
+            SourceKind::Zip => cached
+                .zip_entries
+                .iter()
+                .enumerate()
+                .map(|(idx, (_, title, size))| ChapterMeta {
+                    index: idx,
+                    title: title.clone(),
+                    size: *size,
+                })
+                .collect(),
+            SourceKind::Txt => cached
+                .txt_spans
+                .iter()
+                .enumerate()
+                .map(|(idx, span)| ChapterMeta {
+                    index: idx,
+                    title: span.title.clone(),
+                    size: (span.end_byte - span.start_byte) as u64,
+                })
+                .collect(),
+        };
+        Ok(ChapterList {
+            book_id: id,
+            kind: cached.kind,
+            encoding: cached.encoding.clone(),
+            chapters,
+        })
     }
 
     pub fn read_chapter(
@@ -327,40 +428,44 @@ impl Library {
         chapter_index: usize,
         interpreter: Option<&Path>,
     ) -> Result<ChapterContent, CoreError> {
-        let path = self.lookup_path(id)?;
-        if !fs::symlink_metadata(&path).is_ok_and(|metadata| metadata.is_file()) {
-            return Err("Không tìm thấy tệp nguồn tại vị trí đã lưu.".into());
-        }
-        match source_kind(&path) {
-            Some(SourceKind::Zip) => {
-                let (_, info) = archive::inspect(&path, interpreter)?;
-                let mut txt_entries: Vec<_> = info
-                    .entries
-                    .into_iter()
-                    .filter(|e| e.safe && e.is_txt)
-                    .collect();
-                txt_entries.sort_by(|a, b| natural_cmp(&a.display_name, &b.display_name));
-                let total_chapters = txt_entries.len();
-                let entry = txt_entries
+        let mut cache = ReadCache::default();
+        self.read_chapter_cached(id, chapter_index, &mut cache, interpreter)
+    }
+
+    pub fn read_chapter_cached(
+        &self,
+        id: u32,
+        chapter_index: usize,
+        cache: &mut ReadCache,
+        interpreter: Option<&Path>,
+    ) -> Result<ChapterContent, CoreError> {
+        let (path, cached) = self.ensure_cached_toc(id, cache, interpreter)?;
+        let content = match cached.kind {
+            SourceKind::Zip => {
+                let total_chapters = cached.zip_entries.len();
+                let (entry_index, title, _) = cached
+                    .zip_entries
                     .get(chapter_index)
                     .ok_or("Chương yêu cầu không tồn tại trong tệp ZIP.")?;
                 let preview =
-                    archive::read_entry_text(&path, entry.index, MAX_CHAPTER_BYTES, interpreter)?;
-                Ok(ChapterContent {
+                    archive::read_entry_text(&path, *entry_index, MAX_CHAPTER_BYTES, interpreter)?;
+                ChapterContent {
                     index: chapter_index,
-                    title: clean_zip_chapter_title(&entry.display_name),
+                    title: title.clone(),
                     text: preview.text,
                     encoding: preview.encoding,
                     total_chapters,
                     truncated: preview.truncated,
-                })
+                }
             }
-            Some(SourceKind::Txt) => {
-                let raw = fs::read(&path)?;
-                let (text, encoding) = decode_txt_bytes(&raw)?;
-                let spans = detect_txt_chapters(&text);
-                let total_chapters = spans.len();
-                let span = spans
+            SourceKind::Txt => {
+                let text = cached
+                    .txt_text
+                    .as_deref()
+                    .ok_or("Tệp TXT quá lớn để đọc theo chương; hãy dùng chế độ đọc theo trang.")?;
+                let total_chapters = cached.txt_spans.len();
+                let span = cached
+                    .txt_spans
                     .get(chapter_index)
                     .ok_or("Chương yêu cầu không tồn tại trong tệp TXT.")?;
                 let slice = &text[span.start_byte..span.end_byte];
@@ -373,17 +478,18 @@ impl Library {
                 } else {
                     (slice.to_owned(), false)
                 };
-                Ok(ChapterContent {
+                ChapterContent {
                     index: chapter_index,
                     title: span.title.clone(),
                     text: body,
-                    encoding,
+                    encoding: cached.encoding.clone(),
                     total_chapters,
                     truncated,
-                })
+                }
             }
-            None => Err("Định dạng tệp không được hỗ trợ.".into()),
-        }
+        };
+        self.save_last_chapter(id, chapter_index);
+        Ok(content)
     }
 }
 
@@ -775,5 +881,42 @@ with zipfile.ZipFile(sys.argv[1], "w") as zf:
         let first = library.read_chapter(id, 0, None).unwrap();
         assert_eq!(first.text, "Noi dung 2");
         assert_eq!(first.total_chapters, 2);
+    }
+
+    #[test]
+    fn persists_reading_progress_and_invalidates_toc_cache_on_change() {
+        let root = tempfile::tempdir().unwrap();
+        let data = root.path().join("data");
+        let source = root.path().join("series.txt");
+        fs::write(
+            &source,
+            "Chương 1: Mở\nNội dung 1\nChương 2: Tiếp\nNội dung 2\n",
+        )
+        .unwrap();
+
+        let library = Library::new(data.clone());
+        let imported = library.import(vec![source.clone()]).unwrap();
+        let id = imported.entries[0].id;
+        assert_eq!(imported.entries[0].last_chapter, None);
+
+        let mut cache = ReadCache::default();
+        let ch1 = library
+            .read_chapter_cached(id, 1, &mut cache, None)
+            .unwrap();
+        assert!(ch1.text.contains("Nội dung 2"));
+
+        // Re-opening library restores last_chapter from library.json
+        let reopened = Library::new(data);
+        let items = reopened.list().unwrap();
+        assert_eq!(items[0].last_chapter, Some(1));
+
+        // Mutating file invalidates cached TOC automatically
+        fs::write(
+            &source,
+            "Chương 1: Mở\nNội dung 1\nChương 2: Tiếp\nNội dung 2\nChương 3: Mới\nNội dung 3\n",
+        )
+        .unwrap();
+        let updated_toc = reopened.chapters_cached(id, &mut cache, None).unwrap();
+        assert_eq!(updated_toc.chapters.len(), 3);
     }
 }

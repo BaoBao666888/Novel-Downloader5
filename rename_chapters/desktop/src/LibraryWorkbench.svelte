@@ -60,6 +60,8 @@
   }
 
   function savedChapterIndex(bookId: number): number {
+    const fromCatalog = books.find((b) => b.id === bookId)?.last_chapter;
+    if (typeof fromCatalog === 'number' && fromCatalog >= 0) return fromCatalog;
     try {
       const raw = localStorage.getItem(`novel-studio-lib-ch-${bookId}`);
       const parsed = raw ? Number(raw) : 0;
@@ -70,10 +72,33 @@
   }
 
   function persistChapterIndex(bookId: number, idx: number) {
+    books = books.map((b) => (b.id === bookId ? { ...b, last_chapter: idx } : b));
     try {
       localStorage.setItem(`novel-studio-lib-ch-${bookId}`, String(idx));
     } catch {
       // ignore storage errors
+    }
+  }
+
+  function onReaderKeydown(event: KeyboardEvent) {
+    if (pending !== null || selected === null) return;
+    if (event.altKey && event.key === 'ArrowLeft') {
+      event.preventDefault();
+      if (readMode === 'chapter' && chapter && chapter.index > 0) {
+        void openChapter(chapter.index - 1);
+      } else if (readMode === 'page' && cursors.length >= 2) {
+        void loadPage(cursors.slice(0, -1));
+      }
+    } else if (event.altKey && event.key === 'ArrowRight') {
+      event.preventDefault();
+      if (readMode === 'chapter' && chapter && chapter.index + 1 < chapter.total_chapters) {
+        void openChapter(chapter.index + 1);
+      } else if (readMode === 'page' && page?.next) {
+        void loadPage([...cursors, page.next]);
+      }
+    } else if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'g' && hasChapters) {
+      event.preventDefault();
+      tocOpen = !tocOpen;
     }
   }
 
@@ -210,6 +235,8 @@
   }
 </script>
 
+<svelte:window onkeydown={onReaderKeydown} />
+
 <section class="heading">
   <div>
     <h1>Thư viện</h1>
@@ -262,9 +289,9 @@
               </div>
               <div class="book-row-meta">
                 <small>{book.path}</small>
-                {#if book.size > 0}
-                  <small class="num-stat">{formatSize(book.size)}</small>
-                {/if}
+                <small class="num-stat">
+                  {#if book.last_chapter !== undefined}Ch.{book.last_chapter + 1}{book.size > 0 ? ' · ' : ''}{/if}{formatSize(book.size)}
+                </small>
               </div>
             </button>
           </li>

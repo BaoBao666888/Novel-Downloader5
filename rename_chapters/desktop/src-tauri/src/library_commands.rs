@@ -58,6 +58,9 @@ pub async fn import_library(
 
 #[tauri::command]
 pub async fn remove_library(app: AppHandle, id: u32) -> Result<Vec<library::Item>, String> {
+    if let Ok(mut cache) = app.state::<Mutex<library::ReadCache>>().lock() {
+        cache.invalidate(id);
+    }
     run(app, move |library, _| library.remove(id)).await
 }
 
@@ -75,8 +78,13 @@ pub async fn list_library_chapters(
     app: AppHandle,
     id: u32,
 ) -> Result<library::ChapterList, String> {
+    let app_handle = app.clone();
     run(app, move |library, interpreter| {
-        library.chapters(id, interpreter.as_deref())
+        let cache_state = app_handle.state::<Mutex<library::ReadCache>>();
+        let mut cache = cache_state
+            .lock()
+            .map_err(|_| "Bộ đệm thư viện đang bận.")?;
+        library.chapters_cached(id, &mut cache, interpreter.as_deref())
     })
     .await
 }
@@ -87,8 +95,13 @@ pub async fn read_library_chapter(
     id: u32,
     chapter_index: usize,
 ) -> Result<library::ChapterContent, String> {
+    let app_handle = app.clone();
     run(app, move |library, interpreter| {
-        library.read_chapter(id, chapter_index, interpreter.as_deref())
+        let cache_state = app_handle.state::<Mutex<library::ReadCache>>();
+        let mut cache = cache_state
+            .lock()
+            .map_err(|_| "Bộ đệm thư viện đang bận.")?;
+        library.read_chapter_cached(id, chapter_index, &mut cache, interpreter.as_deref())
     })
     .await
 }

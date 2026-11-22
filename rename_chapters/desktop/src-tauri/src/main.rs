@@ -536,6 +536,7 @@ fn main() {
                 .ok()
                 .filter(|path| cfg!(windows) && path.is_file());
             app.manage(Mutex::new(Workspace::with_interpreter(bundled)));
+            app.manage(Mutex::new(novel_studio_core::library::ReadCache::default()));
             Ok(())
         })
         .plugin(tauri_plugin_dialog::init())

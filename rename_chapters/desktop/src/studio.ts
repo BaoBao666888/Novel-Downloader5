@@ -1,7 +1,14 @@
 import { invoke } from '@tauri-apps/api/core';
 
 export type SourceKind = 'txt' | 'zip';
-export type LibraryItem = { id: number; title: string; path: string; kind: SourceKind; size: number };
+export type LibraryItem = {
+  id: number;
+  title: string;
+  path: string;
+  kind: SourceKind;
+  size: number;
+  last_chapter?: number;
+};
 export type ReadingCursor = { offset: number; stamp: string };
 export type LibraryPage = { text: string; next: ReadingCursor | null };
 export type LibraryChapterMeta = { index: number; title: string; size: number };
