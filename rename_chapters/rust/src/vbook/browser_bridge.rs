@@ -135,6 +135,8 @@ fn handle_connection(
     expected_token: &str,
     backend: &dyn VBookBrowserBackend,
 ) -> Result<(), CoreError> {
+    // Trên Windows Winsock, TcpStream từ listener non-blocking kế thừa trạng thái non-blocking.
+    stream.set_nonblocking(false)?;
     let _ = stream.set_read_timeout(Some(Duration::from_secs(30)));
     let _ = stream.set_write_timeout(Some(Duration::from_secs(30)));
 

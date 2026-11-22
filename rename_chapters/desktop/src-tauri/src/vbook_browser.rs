@@ -614,6 +614,7 @@ fn handle_callback_conn(
     expected_token: &str,
     callbacks: &Arc<Mutex<HashMap<String, CallbackSlot>>>,
 ) -> Result<(), CoreError> {
+    stream.set_nonblocking(false)?;
     let _ = stream.set_read_timeout(Some(Duration::from_secs(5)));
     let mut reader = BufReader::new(stream.try_clone()?);
     let mut request_line = String::new();
