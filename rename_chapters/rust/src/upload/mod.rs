@@ -5,6 +5,7 @@
 //! qua các trait và kiểu dữ liệu thuần trong module này.
 
 pub mod engine;
+pub mod html;
 pub mod model;
 pub mod multipart;
 pub mod policy;
@@ -12,3 +13,4 @@ pub mod protocol;
 pub mod reconcile;
 pub mod recovery;
 pub mod store;
+pub mod verifier;
