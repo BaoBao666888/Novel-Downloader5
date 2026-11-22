@@ -157,6 +157,12 @@ pub struct VBookAiReply {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct VBookChatMessage {
+    pub role: String,
+    pub content: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct RunnerStatus {
     pub ready: bool,
     pub mock_mode: bool,
@@ -923,6 +929,286 @@ impl<'a> VBookRunnerService<'a> {
             text,
             model: selected_model.to_owned(),
         })
+    }
+
+    pub fn ai_chat_messages(
+        &self,
+        installed_id: &str,
+        messages: &[VBookChatMessage],
+        selected_model: &str,
+        executor: &mut dyn VBookScriptExecutor,
+    ) -> Result<VBookAiReply, CoreError> {
+        let vals: Vec<Value> = messages
+            .iter()
+            .map(|m| json!({ "role": m.role, "content": m.content }))
+            .collect();
+        self.ai_chat(installed_id, &vals, selected_model, executor)
+    }
+}
+
+/// Executor giả lập dùng cho kiểm thử offline/smoke trên exe thật khi bật `NOVEL_STUDIO_VBOOK_MOCK_RUNNER=1`.
+#[derive(Debug, Default)]
+pub struct MockVBookRunnerExecutor;
+
+impl VBookScriptExecutor for MockVBookRunnerExecutor {
+    fn run_script(
+        &mut self,
+        plugin_dir: &Path,
+        script_key: &str,
+        args: &[Value],
+        _config: &RunnerExecConfig,
+    ) -> Result<Value, CoreError> {
+        let plugin_raw =
+            std::fs::read_to_string(plugin_dir.join("plugin.json")).unwrap_or_default();
+        let plugin_val: Value = serde_json::from_str(&plugin_raw).unwrap_or(Value::Null);
+        let meta = plugin_val.get("metadata").and_then(Value::as_object);
+        let ext_name = meta
+            .and_then(|m| m.get("name"))
+            .and_then(Value::as_str)
+            .unwrap_or("Nguồn VBook")
+            .to_owned();
+        let ext_type = meta
+            .and_then(|m| m.get("type"))
+            .and_then(Value::as_str)
+            .unwrap_or("novel")
+            .to_ascii_lowercase();
+        let source = meta
+            .and_then(|m| m.get("source"))
+            .and_then(Value::as_str)
+            .filter(|s| !s.is_empty())
+            .unwrap_or("https://mock.example")
+            .trim_end_matches('/')
+            .to_owned();
+
+        let resp = match script_key {
+            "search" => {
+                let query = args.first().and_then(Value::as_str).unwrap_or("").trim();
+                let prefix = if query.is_empty() {
+                    ext_name.clone()
+                } else {
+                    format!("{query} · {ext_name}")
+                };
+                json!({
+                    "code": 0,
+                    "data": [
+                        {
+                            "name": format!("{prefix} - Mẫu 1"),
+                            "link": format!("{source}/item/1"),
+                            "description": format!("Kết quả mẫu ({ext_type})"),
+                            "host": source,
+                            "type": ext_type
+                        },
+                        {
+                            "name": format!("{prefix} - Mẫu 2"),
+                            "link": format!("{source}/item/2"),
+                            "description": "Mục mẫu thứ hai",
+                            "host": source,
+                            "type": ext_type
+                        }
+                    ],
+                    "data2": "2"
+                })
+            }
+            "detail" => {
+                let target = args.first().and_then(Value::as_str).unwrap_or("");
+                json!({
+                    "code": 0,
+                    "data": {
+                        "name": format!("{ext_name} · Chi tiết"),
+                        "author": "Tác giả Mẫu",
+                        "host": source,
+                        "detail": format!("<p>Chi tiết mẫu cho <b>{target}</b> (loại <i>{ext_type}</i>).</p>"),
+                        "ongoing": true,
+                        "genres": [ext_type, "Mock Loopback"],
+                        "type": ext_type
+                    }
+                })
+            }
+            "page" => {
+                let target = args.first().and_then(Value::as_str).unwrap_or("");
+                json!({"code": 0, "data": [target]})
+            }
+            "toc" => json!({
+                "code": 0,
+                "data": [
+                    { "name": "Mục 1: Khởi đầu", "url": format!("{source}/ep/1"), "host": source },
+                    { "name": "Mục 2: Tiếp diễn", "url": format!("{source}/ep/2"), "host": source }
+                ]
+            }),
+            "chap" => match ext_type.as_str() {
+                "comic" => json!({
+                    "code": 0,
+                    "data": [
+                        format!("{source}/pages/01.webp"),
+                        { "link": format!("{source}/pages/02.webp"), "headers": { "Referer": source } }
+                    ]
+                }),
+                "video" | "audio" => json!({
+                    "code": 0,
+                    "data": [
+                        {
+                            "title": if ext_type == "audio" { "Audio MP3 320k" } else { "Server HD 1080p" },
+                            "data": format!("{source}/stream/1"),
+                            "quality": if ext_type == "audio" { "320kbps" } else { "1080p" },
+                            "type": ext_type
+                        },
+                        {
+                            "title": "Server Dự Phòng",
+                            "data": format!("{source}/stream/2"),
+                            "quality": "720p",
+                            "type": ext_type
+                        }
+                    ]
+                }),
+                _ => json!({
+                    "code": 0,
+                    "data": format!("<p>Nội dung đọc thử từ <b>{ext_name}</b> (loại {ext_type}).</p><p>Mọi định dạng nội dung chuẩn đều chạy qua một pipeline Rust thống nhất.</p>"),
+                    "data2": "Mục 1: Khởi đầu"
+                }),
+            },
+            "track" => {
+                if ext_type == "audio" {
+                    json!({
+                        "code": 0,
+                        "data": {
+                            "type": "native",
+                            "title": "Track âm thanh mẫu",
+                            "data": format!("{source}/cdn/audio-1.mp3"),
+                            "mimeType": "audio/mpeg",
+                            "headers": { "Referer": source }
+                        }
+                    })
+                } else {
+                    json!({
+                        "code": 0,
+                        "data": {
+                            "type": "native",
+                            "title": "Luồng HLS 1080p",
+                            "data": format!("{source}/cdn/master.m3u8"),
+                            "mimeType": "application/x-mpegURL",
+                            "headers": { "Referer": source },
+                            "subtitles": [
+                                { "data": format!("{source}/sub/vi.vtt"), "type": "vtt", "label": "Tiếng Việt", "language": "vi" }
+                            ]
+                        }
+                    })
+                }
+            }
+            "voice" => json!({
+                "code": 0,
+                "data": [
+                    { "id": "vi-VN-Standard-A", "name": "Giọng Nữ Chuẩn", "language": "vi-VN" },
+                    { "id": "vi-VN-Wavenet-B", "name": "Giọng Nam Ấm", "language": "vi-VN" }
+                ]
+            }),
+            "tts" => {
+                json!({
+                    "code": 0,
+                    "data": "UklGRiQAAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQAAAAA=",
+                    "data2": "audio/wav"
+                })
+            }
+            "language" => json!({
+                "code": 0,
+                "data": [
+                    { "id": "zh", "name": "Tiếng Trung", "type": "from" },
+                    { "id": "vi", "name": "Tiếng Việt", "type": "to" },
+                    { "id": "en", "name": "English" }
+                ]
+            }),
+            "model" => json!({
+                "code": 0,
+                "data": [
+                    { "id": "fast", "name": "Nhanh (Fast)" },
+                    { "id": "quality", "name": "Chất lượng cao" }
+                ]
+            }),
+            "style" => json!({
+                "code": 0,
+                "data": [
+                    { "id": "hanviet", "name": "Hán Việt / Tiên hiệp" },
+                    { "id": "natural", "name": "Tự nhiên" }
+                ]
+            }),
+            "translate" => {
+                let text = args.first().and_then(Value::as_str).unwrap_or("");
+                let from = args.get(1).and_then(Value::as_str).unwrap_or("auto");
+                let to = args.get(2).and_then(Value::as_str).unwrap_or("vi");
+                json!({
+                    "code": 0,
+                    "data": {
+                        "text": format!("[Dịch {from}->{to}] {text}"),
+                        "segments": []
+                    }
+                })
+            }
+            "chatStream" | "chat" => {
+                let model = args.get(1).and_then(Value::as_str).unwrap_or("default");
+                let raw_msgs = args.first().and_then(Value::as_str).unwrap_or("[]");
+                let msgs: Vec<Value> = serde_json::from_str(raw_msgs).unwrap_or_default();
+                let last = msgs
+                    .last()
+                    .and_then(|m| m.get("content"))
+                    .and_then(Value::as_str)
+                    .unwrap_or("");
+                json!({
+                    "code": 0,
+                    "data": format!("[AI Mock · {model}] Đã nhận: {last}")
+                })
+            }
+            other => {
+                return Err(
+                    format!("MockVBookRunnerExecutor không hỗ trợ script `{other}`.").into(),
+                );
+            }
+        };
+        Ok(resp)
+    }
+}
+
+pub enum CoreVBookExecutor {
+    Mock(MockVBookRunnerExecutor),
+    Java(JavaVBookRunnerExecutor),
+}
+
+impl CoreVBookExecutor {
+    pub fn open(mock_mode: bool) -> Self {
+        if mock_mode {
+            Self::Mock(MockVBookRunnerExecutor)
+        } else {
+            Self::Java(JavaVBookRunnerExecutor)
+        }
+    }
+
+    pub fn probe_status(mock_mode: bool) -> RunnerStatus {
+        if mock_mode {
+            RunnerStatus {
+                ready: true,
+                mock_mode: true,
+                java_path: None,
+                jar_path: None,
+                message:
+                    "Đang chạy vbook_runner ở chế độ giả lập (NOVEL_STUDIO_VBOOK_MOCK_RUNNER=1)."
+                        .to_owned(),
+            }
+        } else {
+            JavaVBookRunnerExecutor::probe_status()
+        }
+    }
+}
+
+impl VBookScriptExecutor for CoreVBookExecutor {
+    fn run_script(
+        &mut self,
+        plugin_dir: &Path,
+        script_key: &str,
+        args: &[Value],
+        config: &RunnerExecConfig,
+    ) -> Result<Value, CoreError> {
+        match self {
+            Self::Mock(inner) => inner.run_script(plugin_dir, script_key, args, config),
+            Self::Java(inner) => inner.run_script(plugin_dir, script_key, args, config),
+        }
     }
 }
 

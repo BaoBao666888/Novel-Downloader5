@@ -4,6 +4,11 @@ use std::path::PathBuf;
 use novel_studio_core::vbook::model::{
     InstalledExtension, VBookBatchUpdateResult, VBookRefreshResult, VBookWorkspaceSnapshot,
 };
+use novel_studio_core::vbook::runner::{
+    CoreVBookExecutor, RunnerStatus, VBookAiReply, VBookChapterContent, VBookChatMessage,
+    VBookDetail, VBookResolvedTrack, VBookRunnerService, VBookSearchPage, VBookTocItem,
+    VBookTranslateMeta, VBookTranslateResult, VBookTtsAudio, VBookTtsVoice,
+};
 use novel_studio_core::vbook::store::VBookExtensionStore;
 use tauri::{AppHandle, Manager, WebviewWindow};
 use tauri_plugin_dialog::DialogExt;
@@ -11,6 +16,22 @@ use tauri_plugin_dialog::DialogExt;
 use crate::winhttp_transport::open_desktop_vbook_transport;
 
 pub const VBOOK_DIR_ENV: &str = "NOVEL_STUDIO_VBOOK_DIR";
+pub const VBOOK_MOCK_RUNNER_ENV: &str = "NOVEL_STUDIO_VBOOK_MOCK_RUNNER";
+
+fn is_mock_runner_enabled() -> bool {
+    matches!(
+        std::env::var(VBOOK_MOCK_RUNNER_ENV)
+            .unwrap_or_default()
+            .trim()
+            .to_ascii_lowercase()
+            .as_str(),
+        "1" | "true" | "yes"
+    )
+}
+
+fn open_executor() -> CoreVBookExecutor {
+    CoreVBookExecutor::open(is_mock_runner_enabled())
+}
 
 fn resolve_vbook_dir(app: &AppHandle) -> Result<PathBuf, String> {
     if let Ok(raw) = std::env::var(VBOOK_DIR_ENV) {
@@ -239,6 +260,207 @@ pub async fn vbook_save_extension_config(
     .map_err(|err| err.to_string())?
 }
 
+#[tauri::command]
+pub async fn vbook_runner_status() -> Result<RunnerStatus, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        Ok(CoreVBookExecutor::probe_status(is_mock_runner_enabled()))
+    })
+    .await
+    .map_err(|err| err.to_string())?
+}
+
+#[tauri::command]
+pub async fn vbook_search(
+    app: AppHandle,
+    installed_id: String,
+    query: String,
+    page: Option<String>,
+) -> Result<VBookSearchPage, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        let store = open_store(&app)?;
+        let mut exec = open_executor();
+        VBookRunnerService::new(&store)
+            .search(&installed_id, &query, page.as_deref(), &mut exec)
+            .map_err(|err| err.to_string())
+    })
+    .await
+    .map_err(|err| err.to_string())?
+}
+
+#[tauri::command]
+pub async fn vbook_detail(
+    app: AppHandle,
+    installed_id: String,
+    url: String,
+) -> Result<VBookDetail, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        let store = open_store(&app)?;
+        let mut exec = open_executor();
+        VBookRunnerService::new(&store)
+            .detail(&installed_id, &url, &mut exec)
+            .map_err(|err| err.to_string())
+    })
+    .await
+    .map_err(|err| err.to_string())?
+}
+
+#[tauri::command]
+pub async fn vbook_toc(
+    app: AppHandle,
+    installed_id: String,
+    book_url: String,
+) -> Result<Vec<VBookTocItem>, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        let store = open_store(&app)?;
+        let mut exec = open_executor();
+        VBookRunnerService::new(&store)
+            .toc(&installed_id, &book_url, &mut exec)
+            .map_err(|err| err.to_string())
+    })
+    .await
+    .map_err(|err| err.to_string())?
+}
+
+#[tauri::command]
+pub async fn vbook_chap(
+    app: AppHandle,
+    installed_id: String,
+    chapter_url: String,
+    content_type_hint: Option<String>,
+) -> Result<VBookChapterContent, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        let store = open_store(&app)?;
+        let mut exec = open_executor();
+        VBookRunnerService::new(&store)
+            .chap(
+                &installed_id,
+                &chapter_url,
+                content_type_hint.as_deref(),
+                &mut exec,
+            )
+            .map_err(|err| err.to_string())
+    })
+    .await
+    .map_err(|err| err.to_string())?
+}
+
+#[tauri::command]
+pub async fn vbook_resolve_track(
+    app: AppHandle,
+    installed_id: String,
+    track_data: String,
+) -> Result<VBookResolvedTrack, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        let store = open_store(&app)?;
+        let mut exec = open_executor();
+        VBookRunnerService::new(&store)
+            .resolve_track(&installed_id, &track_data, &mut exec)
+            .map_err(|err| err.to_string())
+    })
+    .await
+    .map_err(|err| err.to_string())?
+}
+
+#[tauri::command]
+pub async fn vbook_tts_voices(
+    app: AppHandle,
+    installed_id: String,
+) -> Result<Vec<VBookTtsVoice>, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        let store = open_store(&app)?;
+        let mut exec = open_executor();
+        VBookRunnerService::new(&store)
+            .tts_voices(&installed_id, &mut exec)
+            .map_err(|err| err.to_string())
+    })
+    .await
+    .map_err(|err| err.to_string())?
+}
+
+#[tauri::command]
+pub async fn vbook_tts_synthesize(
+    app: AppHandle,
+    installed_id: String,
+    text: String,
+    voice_id: String,
+) -> Result<VBookTtsAudio, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        let store = open_store(&app)?;
+        let mut exec = open_executor();
+        VBookRunnerService::new(&store)
+            .tts_synthesize(&installed_id, &text, &voice_id, &mut exec)
+            .map_err(|err| err.to_string())
+    })
+    .await
+    .map_err(|err| err.to_string())?
+}
+
+#[tauri::command]
+pub async fn vbook_translate_meta(
+    app: AppHandle,
+    installed_id: String,
+) -> Result<VBookTranslateMeta, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        let store = open_store(&app)?;
+        let mut exec = open_executor();
+        VBookRunnerService::new(&store)
+            .translate_meta(&installed_id, &mut exec)
+            .map_err(|err| err.to_string())
+    })
+    .await
+    .map_err(|err| err.to_string())?
+}
+
+#[tauri::command]
+#[allow(clippy::too_many_arguments)]
+pub async fn vbook_translate_text(
+    app: AppHandle,
+    installed_id: String,
+    text: String,
+    from: String,
+    to: String,
+    source: String,
+    model: String,
+    style: String,
+) -> Result<VBookTranslateResult, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        let store = open_store(&app)?;
+        let mut exec = open_executor();
+        VBookRunnerService::new(&store)
+            .translate_text(
+                &installed_id,
+                &text,
+                &from,
+                &to,
+                &source,
+                &model,
+                &style,
+                &mut exec,
+            )
+            .map_err(|err| err.to_string())
+    })
+    .await
+    .map_err(|err| err.to_string())?
+}
+
+#[tauri::command]
+pub async fn vbook_ai_chat(
+    app: AppHandle,
+    installed_id: String,
+    messages: Vec<VBookChatMessage>,
+    selected_model: String,
+) -> Result<VBookAiReply, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        let store = open_store(&app)?;
+        let mut exec = open_executor();
+        VBookRunnerService::new(&store)
+            .ai_chat_messages(&installed_id, &messages, &selected_model, &mut exec)
+            .map_err(|err| err.to_string())
+    })
+    .await
+    .map_err(|err| err.to_string())?
+}
+
 #[cfg(test)]
 mod tests {
     use std::io::{Read, Write};
@@ -373,5 +595,98 @@ mod tests {
         }
         stop.store(1, Ordering::Relaxed);
         let _ = srv.join();
+    }
+
+    #[test]
+    fn desktop_mock_runner_executes_video_audio_tts_translate_and_ai() {
+        let _guard = ENV_GUARD.lock().expect("env lock");
+        let dir = tempfile::tempdir().expect("tempdir");
+        let store = VBookExtensionStore::new(dir.path()).expect("store");
+        unsafe {
+            std::env::set_var(VBOOK_MOCK_RUNNER_ENV, "1");
+        }
+
+        let status = CoreVBookExecutor::probe_status(is_mock_runner_enabled());
+        assert!(status.ready && status.mock_mode);
+        let mut exec = open_executor();
+        let svc = VBookRunnerService::new(&store);
+
+        let video_zip = make_stored_zip(&[(
+            "plugin.json",
+            br#"{"metadata":{"name":"Anime Mock","type":"video","version":1,"source":"https://video.example"},"script":{"search":"search.js","detail":"detail.js","toc":"toc.js","chap":"chap.js","track":"track.js"}}"#,
+        )]);
+        let video = store
+            .install_from_local_zip("anime.zip", &video_zip)
+            .expect("install video");
+        let search = svc
+            .search(&video.id, "tu tien", None, &mut exec)
+            .expect("search");
+        assert_eq!(search.items.len(), 2);
+        let detail = svc
+            .detail(&video.id, &search.items[0].link, &mut exec)
+            .expect("detail");
+        assert_eq!(detail.detail_type, "video");
+        let toc = svc.toc(&video.id, &detail.url, &mut exec).expect("toc");
+        let chap = svc
+            .chap(&video.id, &toc[0].url, None, &mut exec)
+            .expect("chap");
+        let VBookChapterContent::MediaTracks { tracks, .. } = chap else {
+            panic!("expected MediaTracks");
+        };
+        let resolved = svc
+            .resolve_track(&video.id, &tracks[0].data, &mut exec)
+            .expect("track");
+        assert!(resolved.data.ends_with("master.m3u8"));
+
+        let tts_zip = make_stored_zip(&[(
+            "plugin.json",
+            br#"{"metadata":{"name":"TTS Mock","type":"tts","version":1},"script":{"voice":"voice.js","tts":"tts.js"}}"#,
+        )]);
+        let tts = store
+            .install_from_local_zip("tts.zip", &tts_zip)
+            .expect("install tts");
+        let voices = svc.tts_voices(&tts.id, &mut exec).expect("voices");
+        let audio = svc
+            .tts_synthesize(&tts.id, "Xin chào", &voices[0].id, &mut exec)
+            .expect("tts");
+        assert_eq!(audio.mime_type, "audio/wav");
+
+        let tr_zip = make_stored_zip(&[(
+            "plugin.json",
+            br#"{"metadata":{"name":"Translate Mock","type":"translate","version":1},"script":{"language":"language.js","model":"model.js","style":"style.js","translate":"translate.js"}}"#,
+        )]);
+        let tr = store
+            .install_from_local_zip("tr.zip", &tr_zip)
+            .expect("install tr");
+        let meta = svc.translate_meta(&tr.id, &mut exec).expect("meta");
+        assert!(!meta.models.is_empty());
+        let tr_res = svc
+            .translate_text(&tr.id, "你好", "zh", "vi", "", "fast", "hanviet", &mut exec)
+            .expect("translate");
+        assert!(tr_res.text.contains("你好"));
+
+        let ai_zip = make_stored_zip(&[(
+            "plugin.json",
+            br#"{"metadata":{"name":"AI Mock","type":"ai","version":1},"script":{"chatStream":"chat.js"}}"#,
+        )]);
+        let ai = store
+            .install_from_local_zip("ai.zip", &ai_zip)
+            .expect("install ai");
+        let reply = svc
+            .ai_chat_messages(
+                &ai.id,
+                &[VBookChatMessage {
+                    role: "user".to_owned(),
+                    content: "Tóm tắt chương 1".to_owned(),
+                }],
+                "gpt-4o",
+                &mut exec,
+            )
+            .expect("ai chat");
+        assert!(reply.text.contains("Tóm tắt chương 1"));
+
+        unsafe {
+            std::env::remove_var(VBOOK_MOCK_RUNNER_ENV);
+        }
     }
 }
