@@ -1003,6 +1003,7 @@ export const vbookSaveExtensionConfig = (installedId: string, configJson: string
 export type VBookRunnerStatus = {
   ready: boolean;
   mock_mode: boolean;
+  browser_bridge_ready?: boolean;
   java_path: string | null;
   jar_path: string | null;
   message: string;
@@ -1179,6 +1180,16 @@ export const vbookAiChat = (
   messages: VBookChatMessage[],
   selectedModel: string,
 ) => invoke<VBookAiReply>('vbook_ai_chat', { installedId, messages, selectedModel });
+export const vbookSaveChapterToLibrary = (
+  bookTitle: string,
+  chapterTitle: string,
+  content: string,
+) =>
+  invoke<{ entries: LibraryItem[]; added: number }>('vbook_save_chapter_to_library', {
+    bookTitle,
+    chapterTitle,
+    content,
+  });
 
 const issueLabels: Record<Row['issues'][number], string> = {
   invalid_target: 'Tên đích không hợp lệ',

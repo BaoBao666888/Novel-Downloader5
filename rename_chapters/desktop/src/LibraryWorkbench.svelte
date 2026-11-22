@@ -198,6 +198,13 @@
 
   onMount(() => {
     void reload();
+    const onLibraryChanged = () => {
+      void reload();
+    };
+    window.addEventListener('novel-studio-library-changed', onLibraryChanged);
+    return () => {
+      window.removeEventListener('novel-studio-library-changed', onLibraryChanged);
+    };
   });
 
   function formatSize(bytes: number): string {

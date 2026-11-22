@@ -12,6 +12,7 @@
     vbookRemoveRepo,
     vbookResolveTrack,
     vbookRunnerStatus,
+    vbookSaveChapterToLibrary,
     vbookSaveExtensionConfig,
     vbookSearch,
     vbookToc,
@@ -85,6 +86,7 @@
   let exploreToc = $state<VBookTocItem[]>([]);
   let exploreChap = $state<VBookChapterContent | null>(null);
   let exploreChapTitle = $state('');
+  let exploreSavedNotice = $state('');
   let resolvedTrack = $state<VBookResolvedTrack | null>(null);
   let exploreError = $state('');
   let exploreBusy = $state(false);
@@ -548,6 +550,7 @@
     exploreToc = [];
     exploreChap = null;
     exploreChapTitle = '';
+    exploreSavedNotice = '';
     resolvedTrack = null;
     exploreError = '';
     exploreDialog?.showModal();
@@ -576,6 +579,7 @@
     exploreToc = [];
     exploreChap = null;
     exploreChapTitle = '';
+    exploreSavedNotice = '';
     resolvedTrack = null;
     try {
       const [detail, toc] = await Promise.all([
@@ -597,10 +601,29 @@
     exploreError = '';
     exploreChap = null;
     exploreChapTitle = entry.name;
+    exploreSavedNotice = '';
     resolvedTrack = null;
     try {
       const hint = exploreDetail?.detail_type || exploreTarget.ext_type;
       exploreChap = await vbookChap(exploreTarget.id, entry.url, hint);
+    } catch (cause) {
+      exploreError = String(cause);
+    } finally {
+      exploreBusy = false;
+    }
+  }
+
+  async function saveExploreChapterToLibrary() {
+    if (!exploreChap || exploreChap.kind !== 'novel' || exploreBusy) return;
+    exploreBusy = true;
+    exploreError = '';
+    exploreSavedNotice = '';
+    try {
+      const bookTitle = exploreDetail?.name || exploreTarget?.name || 'VBook';
+      const chapTitle = exploreChapTitle || exploreChap.title || 'Chương 1';
+      await vbookSaveChapterToLibrary(bookTitle, chapTitle, exploreChap.text);
+      exploreSavedNotice = `Đã lưu "${bookTitle} - ${chapTitle}" vào Thư viện.`;
+      window.dispatchEvent(new CustomEvent('novel-studio-library-changed'));
     } catch (cause) {
       exploreError = String(cause);
     } finally {
@@ -797,9 +820,15 @@
     {#if runnerStatus}
       <span
         class={runnerStatus.ready ? 'badge accent runner-badge' : 'badge warn runner-badge'}
-        title={runnerStatus.message}
+        title={`${runnerStatus.message}${runnerStatus.browser_bridge_ready ? ' · WebView2 Browser Bridge sẵn sàng' : ''}`}
       >
-        {runnerStatus.mock_mode ? 'Runner Mock' : runnerStatus.ready ? 'Runner sẵn sàng' : 'Chưa có Java 21 / runner'}
+        {runnerStatus.mock_mode
+          ? 'Runner Mock'
+          : runnerStatus.ready
+            ? runnerStatus.browser_bridge_ready
+              ? 'Runner + Bridge'
+              : 'Runner sẵn sàng'
+            : 'Chưa có Java 21 / runner'}
       </span>
     {/if}
     {#if activeTab === 'updates' && updates.length > 0}
@@ -1305,7 +1334,23 @@
 
       {#if exploreChap}
         <div class="chap-preview">
-          <h4>{exploreChapTitle || 'Nội dung chương / tập'}</h4>
+          <div class="chap-preview-head">
+            <h4>{exploreChapTitle || 'Nội dung chương / tập'}</h4>
+            {#if exploreChap.kind === 'novel' && exploreChap.text.trim().length > 0}
+              <button
+                id="vbook-save-to-library-btn"
+                class="button primary mini-action"
+                type="button"
+                onclick={saveExploreChapterToLibrary}
+                disabled={exploreBusy}
+              >
+                Lưu vào Thư viện
+              </button>
+            {/if}
+          </div>
+          {#if exploreSavedNotice}
+            <div class="vbook-banner" role="status">{exploreSavedNotice}</div>
+          {/if}
           {#if exploreChap.kind === 'novel'}
             <pre class="chap-text">{exploreChap.text}</pre>
           {:else if exploreChap.kind === 'comic'}
@@ -1817,6 +1862,19 @@
     align-items: center;
     justify-content: space-between;
     gap: 10px;
+  }
+
+  .chap-preview-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    flex-wrap: wrap;
+    margin-bottom: 8px;
+  }
+
+  .chap-preview-head h4 {
+    margin: 0;
   }
 
   .repo-check {
