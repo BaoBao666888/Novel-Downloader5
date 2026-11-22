@@ -12,5 +12,6 @@ mod split_session;
 pub mod text_tools;
 pub mod translate;
 pub mod upload;
+pub mod vbook;
 
 pub type CoreError = Box<dyn std::error::Error + Send + Sync>;
