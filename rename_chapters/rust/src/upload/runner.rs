@@ -223,6 +223,56 @@ fn sync_reconcile_to_job(job: &mut UploadJob, rec: &ReconcileRecord, now_ms: u64
     }
 }
 
+pub(crate) fn build_verify_input_for_job(
+    job: &UploadJob,
+    generation: String,
+) -> ScheduleVerifyInput {
+    let volumes = job
+        .volumes
+        .iter()
+        .map(|vol| ReconcileVolume {
+            key: vol.key.clone(),
+            name: vol.name.clone(),
+            count: vol.chapter_ids.len(),
+            append: vol.append,
+            note: vol.note.clone(),
+            received: vol.status.is_uploaded(),
+            confirmed_by_history: false,
+            attempted: vol.upload_attempted_at > 0 || vol.status.is_uploaded(),
+            history_before: vol.history_before.clone(),
+        })
+        .collect();
+
+    ScheduleVerifyInput {
+        id: job.id.clone(),
+        generation,
+        account: job.account.clone(),
+        book_id: job.book_id.clone(),
+        url: job
+            .published_url
+            .clone()
+            .filter(|s| !s.is_empty())
+            .unwrap_or_else(|| job.effective_book_url().to_owned()),
+        title: job.display_title().to_owned(),
+        title_cn: job
+            .metadata
+            .fields
+            .iter()
+            .find(|(k, _)| k == "titleCn")
+            .map(|(_, v)| v.clone())
+            .unwrap_or_default(),
+        mode: job.mode,
+        expected_count: expected_count(job),
+        baseline_count: job.baseline_count.unwrap_or(job.baseline.len()),
+        published: job.published_url.as_deref().is_some_and(|s| !s.is_empty()),
+        publication_attempted: job.publish_attempted_at > 0 || job.publish_accepted,
+        rejected: job.rejected,
+        failed_stage: job.failed_stage,
+        uploaded_at: job.uploaded_at,
+        volumes,
+    }
+}
+
 struct CoordinatorIo<'a> {
     coordinator: &'a UploadCoordinator,
     transport: &'a mut dyn UploadHttpTransport,
@@ -233,50 +283,7 @@ struct CoordinatorIo<'a> {
 
 impl CoordinatorIo<'_> {
     fn build_verify_input(&self, job: &UploadJob, generation: String) -> ScheduleVerifyInput {
-        let volumes = job
-            .volumes
-            .iter()
-            .map(|vol| ReconcileVolume {
-                key: vol.key.clone(),
-                name: vol.name.clone(),
-                count: vol.chapter_ids.len(),
-                append: vol.append,
-                note: vol.note.clone(),
-                received: vol.status.is_uploaded(),
-                confirmed_by_history: false,
-                attempted: vol.upload_attempted_at > 0 || vol.status.is_uploaded(),
-                history_before: vol.history_before.clone(),
-            })
-            .collect();
-
-        ScheduleVerifyInput {
-            id: job.id.clone(),
-            generation,
-            account: job.account.clone(),
-            book_id: job.book_id.clone(),
-            url: job
-                .published_url
-                .clone()
-                .filter(|s| !s.is_empty())
-                .unwrap_or_else(|| job.effective_book_url().to_owned()),
-            title: job.display_title().to_owned(),
-            title_cn: job
-                .metadata
-                .fields
-                .iter()
-                .find(|(k, _)| k == "titleCn")
-                .map(|(_, v)| v.clone())
-                .unwrap_or_default(),
-            mode: job.mode,
-            expected_count: expected_count(job),
-            baseline_count: job.baseline_count.unwrap_or(job.baseline.len()),
-            published: job.published_url.as_deref().is_some_and(|s| !s.is_empty()),
-            publication_attempted: job.publish_attempted_at > 0 || job.publish_accepted,
-            rejected: job.rejected,
-            failed_stage: job.failed_stage,
-            uploaded_at: job.uploaded_at,
-            volumes,
-        }
+        build_verify_input_for_job(job, generation)
     }
 }
 

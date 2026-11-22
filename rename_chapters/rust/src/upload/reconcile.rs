@@ -748,6 +748,10 @@ pub struct ScheduleVerifyInput {
     pub volumes: Vec<ReconcileVolume>,
 }
 
+pub(crate) fn is_valid_hex_book_id_str(id: &str) -> bool {
+    is_valid_hex_book_id(id)
+}
+
 fn is_valid_hex_book_id(id: &str) -> bool {
     id.len() == 24
         && id
@@ -1008,6 +1012,20 @@ impl VerificationLedger {
             row.combined_expected_count = row.combined_expected_count.max(max_expected);
         }
         Ok(due)
+    }
+
+    pub fn bump_due_now(&self, id: &str, now_ms: u64) -> Result<bool, CoreError> {
+        let _lock = self.lock()?;
+        let mut ledger = self.read_all()?;
+        let Some(row) = ledger.records.iter_mut().find(|row| row.id == id) else {
+            return Ok(false);
+        };
+        if row.status == JobStatus::Complete {
+            return Ok(false);
+        }
+        row.next_at = now_ms.max(1);
+        self.save_all(&ledger)?;
+        Ok(true)
     }
 
     /// Lưu kết quả đối chiếu theo kiểm tra `generation` và `combined_expected_count` chống ghi đè lạc hậu.
