@@ -1,13 +1,14 @@
 use std::fs;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use novel_studio_core::vbook::model::{
     InstalledExtension, VBookBatchUpdateResult, VBookRefreshResult, VBookWorkspaceSnapshot,
 };
 use novel_studio_core::vbook::runner::{
-    CoreVBookExecutor, RunnerStatus, VBookAiReply, VBookChapterContent, VBookChatMessage,
-    VBookDetail, VBookResolvedTrack, VBookRunnerService, VBookSearchPage, VBookTocItem,
-    VBookTranslateMeta, VBookTranslateResult, VBookTtsAudio, VBookTtsVoice,
+    CoreVBookExecutor, RunnerRuntimeConfig, RunnerStatus, VBookAiReply, VBookChapterContent,
+    VBookChatMessage, VBookDetail, VBookResolvedTrack, VBookRunnerService, VBookSearchPage,
+    VBookTocItem, VBookTranslateMeta, VBookTranslateResult, VBookTtsAudio, VBookTtsVoice,
+    load_runtime_config, save_runtime_config,
 };
 use novel_studio_core::vbook::store::VBookExtensionStore;
 use tauri::{AppHandle, Manager, WebviewWindow};
@@ -29,8 +30,17 @@ fn is_mock_runner_enabled() -> bool {
     )
 }
 
-fn open_executor() -> CoreVBookExecutor {
-    CoreVBookExecutor::open(is_mock_runner_enabled())
+fn load_custom_java_path(app: &AppHandle) -> Option<PathBuf> {
+    let dir = resolve_vbook_dir(app).ok()?;
+    let cfg = load_runtime_config(&dir).ok()?;
+    cfg.custom_java_path
+        .map(|raw| raw.trim().to_owned())
+        .filter(|s| !s.is_empty())
+        .map(PathBuf::from)
+}
+
+fn open_executor(app: &AppHandle) -> CoreVBookExecutor {
+    CoreVBookExecutor::open_with_java(is_mock_runner_enabled(), load_custom_java_path(app))
 }
 
 fn resolve_vbook_dir(app: &AppHandle) -> Result<PathBuf, String> {
@@ -261,9 +271,79 @@ pub async fn vbook_save_extension_config(
 }
 
 #[tauri::command]
-pub async fn vbook_runner_status() -> Result<RunnerStatus, String> {
+pub async fn vbook_runner_status(app: AppHandle) -> Result<RunnerStatus, String> {
     tauri::async_runtime::spawn_blocking(move || {
-        Ok(CoreVBookExecutor::probe_status(is_mock_runner_enabled()))
+        let custom_java = load_custom_java_path(&app);
+        Ok(CoreVBookExecutor::probe_status_with_java(
+            is_mock_runner_enabled(),
+            custom_java.as_deref(),
+        ))
+    })
+    .await
+    .map_err(|err| err.to_string())?
+}
+
+#[tauri::command]
+pub async fn vbook_get_runtime_config(app: AppHandle) -> Result<RunnerRuntimeConfig, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        let dir = resolve_vbook_dir(&app)?;
+        load_runtime_config(&dir).map_err(|err| err.to_string())
+    })
+    .await
+    .map_err(|err| err.to_string())?
+}
+
+#[tauri::command]
+pub async fn vbook_set_custom_java_path(
+    app: AppHandle,
+    path: Option<String>,
+) -> Result<RunnerStatus, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        let dir = resolve_vbook_dir(&app)?;
+        let saved = save_runtime_config(
+            &dir,
+            &RunnerRuntimeConfig {
+                custom_java_path: path,
+            },
+        )
+        .map_err(|err| err.to_string())?;
+        Ok(CoreVBookExecutor::probe_status_with_java(
+            is_mock_runner_enabled(),
+            saved.custom_java_path.as_deref().map(Path::new),
+        ))
+    })
+    .await
+    .map_err(|err| err.to_string())?
+}
+
+#[tauri::command]
+pub async fn vbook_pick_custom_java_path(
+    window: WebviewWindow,
+) -> Result<Option<RunnerStatus>, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        let picker = window
+            .dialog()
+            .file()
+            .set_parent(&window)
+            .set_title("Chọn tệp thực thi Java 21 (java.exe)");
+        #[cfg(windows)]
+        let picker = picker.add_filter("Java executable", &["exe"]);
+        let Some(picked) = picker.blocking_pick_file() else {
+            return Ok(None);
+        };
+        let path = picked.into_path().map_err(|err| err.to_string())?;
+        let dir = resolve_vbook_dir(window.app_handle())?;
+        let saved = save_runtime_config(
+            &dir,
+            &RunnerRuntimeConfig {
+                custom_java_path: Some(path.display().to_string()),
+            },
+        )
+        .map_err(|err| err.to_string())?;
+        Ok(Some(CoreVBookExecutor::probe_status_with_java(
+            is_mock_runner_enabled(),
+            saved.custom_java_path.as_deref().map(Path::new),
+        )))
     })
     .await
     .map_err(|err| err.to_string())?
@@ -278,7 +358,7 @@ pub async fn vbook_search(
 ) -> Result<VBookSearchPage, String> {
     tauri::async_runtime::spawn_blocking(move || {
         let store = open_store(&app)?;
-        let mut exec = open_executor();
+        let mut exec = open_executor(&app);
         VBookRunnerService::new(&store)
             .search(&installed_id, &query, page.as_deref(), &mut exec)
             .map_err(|err| err.to_string())
@@ -295,7 +375,7 @@ pub async fn vbook_detail(
 ) -> Result<VBookDetail, String> {
     tauri::async_runtime::spawn_blocking(move || {
         let store = open_store(&app)?;
-        let mut exec = open_executor();
+        let mut exec = open_executor(&app);
         VBookRunnerService::new(&store)
             .detail(&installed_id, &url, &mut exec)
             .map_err(|err| err.to_string())
@@ -312,7 +392,7 @@ pub async fn vbook_toc(
 ) -> Result<Vec<VBookTocItem>, String> {
     tauri::async_runtime::spawn_blocking(move || {
         let store = open_store(&app)?;
-        let mut exec = open_executor();
+        let mut exec = open_executor(&app);
         VBookRunnerService::new(&store)
             .toc(&installed_id, &book_url, &mut exec)
             .map_err(|err| err.to_string())
@@ -330,7 +410,7 @@ pub async fn vbook_chap(
 ) -> Result<VBookChapterContent, String> {
     tauri::async_runtime::spawn_blocking(move || {
         let store = open_store(&app)?;
-        let mut exec = open_executor();
+        let mut exec = open_executor(&app);
         VBookRunnerService::new(&store)
             .chap(
                 &installed_id,
@@ -352,7 +432,7 @@ pub async fn vbook_resolve_track(
 ) -> Result<VBookResolvedTrack, String> {
     tauri::async_runtime::spawn_blocking(move || {
         let store = open_store(&app)?;
-        let mut exec = open_executor();
+        let mut exec = open_executor(&app);
         VBookRunnerService::new(&store)
             .resolve_track(&installed_id, &track_data, &mut exec)
             .map_err(|err| err.to_string())
@@ -368,7 +448,7 @@ pub async fn vbook_tts_voices(
 ) -> Result<Vec<VBookTtsVoice>, String> {
     tauri::async_runtime::spawn_blocking(move || {
         let store = open_store(&app)?;
-        let mut exec = open_executor();
+        let mut exec = open_executor(&app);
         VBookRunnerService::new(&store)
             .tts_voices(&installed_id, &mut exec)
             .map_err(|err| err.to_string())
@@ -386,7 +466,7 @@ pub async fn vbook_tts_synthesize(
 ) -> Result<VBookTtsAudio, String> {
     tauri::async_runtime::spawn_blocking(move || {
         let store = open_store(&app)?;
-        let mut exec = open_executor();
+        let mut exec = open_executor(&app);
         VBookRunnerService::new(&store)
             .tts_synthesize(&installed_id, &text, &voice_id, &mut exec)
             .map_err(|err| err.to_string())
@@ -402,7 +482,7 @@ pub async fn vbook_translate_meta(
 ) -> Result<VBookTranslateMeta, String> {
     tauri::async_runtime::spawn_blocking(move || {
         let store = open_store(&app)?;
-        let mut exec = open_executor();
+        let mut exec = open_executor(&app);
         VBookRunnerService::new(&store)
             .translate_meta(&installed_id, &mut exec)
             .map_err(|err| err.to_string())
@@ -425,7 +505,7 @@ pub async fn vbook_translate_text(
 ) -> Result<VBookTranslateResult, String> {
     tauri::async_runtime::spawn_blocking(move || {
         let store = open_store(&app)?;
-        let mut exec = open_executor();
+        let mut exec = open_executor(&app);
         VBookRunnerService::new(&store)
             .translate_text(
                 &installed_id,
@@ -452,7 +532,7 @@ pub async fn vbook_ai_chat(
 ) -> Result<VBookAiReply, String> {
     tauri::async_runtime::spawn_blocking(move || {
         let store = open_store(&app)?;
-        let mut exec = open_executor();
+        let mut exec = open_executor(&app);
         VBookRunnerService::new(&store)
             .ai_chat_messages(&installed_id, &messages, &selected_model, &mut exec)
             .map_err(|err| err.to_string())
@@ -608,7 +688,7 @@ mod tests {
 
         let status = CoreVBookExecutor::probe_status(is_mock_runner_enabled());
         assert!(status.ready && status.mock_mode);
-        let mut exec = open_executor();
+        let mut exec = CoreVBookExecutor::open(is_mock_runner_enabled());
         let svc = VBookRunnerService::new(&store);
 
         let video_zip = make_stored_zip(&[(
@@ -688,5 +768,33 @@ mod tests {
         unsafe {
             std::env::remove_var(VBOOK_MOCK_RUNNER_ENV);
         }
+    }
+
+    #[test]
+    fn vbook_runtime_config_persists_custom_java_in_vbook_dir() {
+        let _guard = ENV_GUARD.lock().expect("env lock");
+        let dir = tempfile::tempdir().expect("tempdir");
+        let java_stub = dir
+            .path()
+            .join(if cfg!(windows) { "java.exe" } else { "java" });
+        std::fs::write(&java_stub, b"stub").expect("write stub");
+
+        let saved = save_runtime_config(
+            dir.path(),
+            &RunnerRuntimeConfig {
+                custom_java_path: Some(java_stub.display().to_string()),
+            },
+        )
+        .expect("save runtime config");
+        let loaded = load_runtime_config(dir.path()).expect("load runtime config");
+        assert_eq!(loaded, saved);
+        let status = CoreVBookExecutor::probe_status_with_java(
+            false,
+            loaded.custom_java_path.as_deref().map(Path::new),
+        );
+        assert_eq!(
+            status.java_path.as_deref(),
+            Some(java_stub.to_string_lossy().as_ref())
+        );
     }
 }

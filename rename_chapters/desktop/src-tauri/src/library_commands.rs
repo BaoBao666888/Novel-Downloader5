@@ -115,3 +115,14 @@ pub async fn read_library_chapter(
     })
     .await
 }
+
+#[tauri::command]
+pub async fn library_stats(
+    app: AppHandle,
+    refresh_stale: Option<bool>,
+) -> Result<library::LibraryStats, String> {
+    run(app, move |library, interpreter| {
+        library.stats_with_interpreter(refresh_stale.unwrap_or(false), interpreter.as_deref())
+    })
+    .await
+}
