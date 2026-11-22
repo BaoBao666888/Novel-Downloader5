@@ -12,6 +12,7 @@ use workspace::{
 };
 
 mod library_commands;
+mod upload_commands;
 mod workspace;
 
 fn state<'a>(
@@ -647,6 +648,19 @@ fn main() {
             library_commands::read_library,
             library_commands::list_library_chapters,
             library_commands::read_library_chapter,
+            upload_commands::list_upload_workspace,
+            upload_commands::choose_upload_folder,
+            upload_commands::scan_upload_folder,
+            upload_commands::create_upload_job,
+            upload_commands::schedule_upload_job,
+            upload_commands::link_upload_job,
+            upload_commands::cancel_upload_schedule,
+            upload_commands::delete_upload_job,
+            upload_commands::preview_upload_job_recovery,
+            upload_commands::export_upload_job_recovery,
+            upload_commands::pick_upload_backup_zip,
+            upload_commands::restore_upload_backup_zip,
+            upload_commands::cleanup_upload_storage,
             choose_merge_folder,
             choose_merge_output,
             refresh_merge,
