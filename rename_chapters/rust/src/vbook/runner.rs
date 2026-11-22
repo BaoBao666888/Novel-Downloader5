@@ -166,6 +166,8 @@ pub struct VBookChatMessage {
 pub struct RunnerStatus {
     pub ready: bool,
     pub mock_mode: bool,
+    #[serde(default)]
+    pub browser_bridge_ready: bool,
     pub java_path: Option<String>,
     pub jar_path: Option<String>,
     pub message: String,
@@ -215,6 +217,10 @@ pub fn save_runtime_config(
 pub struct RunnerExecConfig {
     pub storage_path: String,
     pub plugin_config: BTreeMap<String, Value>,
+    #[serde(default, skip_serializing_if = "String::is_empty")]
+    pub browser_bridge_url: String,
+    #[serde(default, skip_serializing_if = "String::is_empty")]
+    pub browser_bridge_token: String,
 }
 
 pub trait VBookScriptExecutor {
@@ -230,26 +236,51 @@ pub trait VBookScriptExecutor {
 #[derive(Debug, Default, Clone)]
 pub struct JavaVBookRunnerExecutor {
     custom_java_path: Option<PathBuf>,
+    browser_bridge_url: Option<String>,
+    browser_bridge_token: Option<String>,
 }
 
 impl JavaVBookRunnerExecutor {
     pub fn discover() -> Self {
         Self {
             custom_java_path: None,
+            browser_bridge_url: None,
+            browser_bridge_token: None,
         }
     }
 
     pub fn with_custom_java(custom_java: Option<PathBuf>) -> Self {
+        Self::with_runtime(custom_java, None, None)
+    }
+
+    pub fn with_runtime(
+        custom_java: Option<PathBuf>,
+        browser_bridge_url: Option<String>,
+        browser_bridge_token: Option<String>,
+    ) -> Self {
         Self {
             custom_java_path: custom_java,
+            browser_bridge_url: browser_bridge_url
+                .map(|s| s.trim().to_owned())
+                .filter(|s| !s.is_empty()),
+            browser_bridge_token: browser_bridge_token
+                .map(|s| s.trim().to_owned())
+                .filter(|s| !s.is_empty()),
         }
     }
 
     pub fn probe_status() -> RunnerStatus {
-        Self::probe_status_with_java(None)
+        Self::probe_status_with_runtime(None, false)
     }
 
     pub fn probe_status_with_java(custom_java: Option<&Path>) -> RunnerStatus {
+        Self::probe_status_with_runtime(custom_java, false)
+    }
+
+    pub fn probe_status_with_runtime(
+        custom_java: Option<&Path>,
+        browser_bridge_ready: bool,
+    ) -> RunnerStatus {
         let jar = find_runner_jar();
         let java = find_java_bin_with_custom(jar.as_deref(), custom_java);
         let ready = jar.is_some() && java.is_some();
@@ -270,6 +301,7 @@ impl JavaVBookRunnerExecutor {
         RunnerStatus {
             ready,
             mock_mode: false,
+            browser_bridge_ready,
             java_path: java.map(|p| p.display().to_string()),
             jar_path: jar.map(|p| p.display().to_string()),
             message,
@@ -291,8 +323,20 @@ impl VBookScriptExecutor for JavaVBookRunnerExecutor {
         let java = find_java_bin_with_custom(Some(&jar), self.custom_java_path.as_deref())
             .ok_or("Không tìm thấy Java 21+ (kiểm tra tools/jre/bin/java.exe hoặc Cài đặt).")?;
 
+        let mut merged_config = config.clone();
+        if merged_config.browser_bridge_url.is_empty()
+            && let Some(url) = &self.browser_bridge_url
+        {
+            merged_config.browser_bridge_url = url.clone();
+        }
+        if merged_config.browser_bridge_token.is_empty()
+            && let Some(token) = &self.browser_bridge_token
+        {
+            merged_config.browser_bridge_token = token.clone();
+        }
+
         let args_json = serde_json::to_string(args)?;
-        let config_json = serde_json::to_string(config)?;
+        let config_json = serde_json::to_string(&merged_config)?;
         let args_b64 = encode_base64(args_json.as_bytes());
         let config_b64 = encode_base64(config_json.as_bytes());
 
@@ -1247,26 +1291,48 @@ pub enum CoreVBookExecutor {
 
 impl CoreVBookExecutor {
     pub fn open(mock_mode: bool) -> Self {
-        Self::open_with_java(mock_mode, None)
+        Self::open_with_runtime(mock_mode, None, None, None)
     }
 
     pub fn open_with_java(mock_mode: bool, custom_java: Option<PathBuf>) -> Self {
+        Self::open_with_runtime(mock_mode, custom_java, None, None)
+    }
+
+    pub fn open_with_runtime(
+        mock_mode: bool,
+        custom_java: Option<PathBuf>,
+        browser_bridge_url: Option<String>,
+        browser_bridge_token: Option<String>,
+    ) -> Self {
         if mock_mode {
             Self::Mock(MockVBookRunnerExecutor)
         } else {
-            Self::Java(JavaVBookRunnerExecutor::with_custom_java(custom_java))
+            Self::Java(JavaVBookRunnerExecutor::with_runtime(
+                custom_java,
+                browser_bridge_url,
+                browser_bridge_token,
+            ))
         }
     }
 
     pub fn probe_status(mock_mode: bool) -> RunnerStatus {
-        Self::probe_status_with_java(mock_mode, None)
+        Self::probe_status_with_runtime(mock_mode, None, false)
     }
 
     pub fn probe_status_with_java(mock_mode: bool, custom_java: Option<&Path>) -> RunnerStatus {
+        Self::probe_status_with_runtime(mock_mode, custom_java, false)
+    }
+
+    pub fn probe_status_with_runtime(
+        mock_mode: bool,
+        custom_java: Option<&Path>,
+        browser_bridge_ready: bool,
+    ) -> RunnerStatus {
         if mock_mode {
             RunnerStatus {
                 ready: true,
                 mock_mode: true,
+                browser_bridge_ready,
                 java_path: None,
                 jar_path: None,
                 message:
@@ -1274,7 +1340,7 @@ impl CoreVBookExecutor {
                         .to_owned(),
             }
         } else {
-            JavaVBookRunnerExecutor::probe_status_with_java(custom_java)
+            JavaVBookRunnerExecutor::probe_status_with_runtime(custom_java, browser_bridge_ready)
         }
     }
 }
@@ -1324,6 +1390,8 @@ pub fn build_exec_config(ext: &InstalledExtension, storage_path: &Path) -> Runne
     RunnerExecConfig {
         storage_path: storage_path.display().to_string(),
         plugin_config,
+        browser_bridge_url: String::new(),
+        browser_bridge_token: String::new(),
     }
 }
 
@@ -1333,7 +1401,7 @@ pub fn unwrap_vbook_response(raw: &Value) -> Result<(Value, Option<String>), Cor
     };
     let is_code_error = obj
         .get("code")
-        .and_then(Value::as_i64)
+        .and_then(|v| v.as_i64().or_else(|| v.as_f64().map(|f| f as i64)))
         .is_some_and(|code| code != 0);
     let is_flag_error = obj
         .get("isSuccess")
