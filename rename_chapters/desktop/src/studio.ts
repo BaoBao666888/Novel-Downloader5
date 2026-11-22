@@ -29,12 +29,240 @@ export type LibraryChapterContent = {
 
 export const listLibrary = () => invoke<LibraryItem[]>('list_library');
 export const importLibrary = () => invoke<{ entries: LibraryItem[]; added: number } | null>('import_library');
+export const importLibraryPaths = (paths: string[]) =>
+  invoke<{ entries: LibraryItem[]; added: number }>('import_library_paths', { paths });
 export const removeLibrary = (id: number) => invoke<LibraryItem[]>('remove_library', { id });
 export const readLibrary = (id: number, cursor: ReadingCursor | null) =>
   invoke<LibraryPage>('read_library', { id, cursor });
 export const listLibraryChapters = (id: number) => invoke<LibraryChapterList>('list_library_chapters', { id });
 export const readLibraryChapter = (id: number, chapterIndex: number) =>
   invoke<LibraryChapterContent>('read_library_chapter', { id, chapterIndex });
+
+export type TranslationMode = 'server' | 'tm_translate_beta';
+
+export type TranslateBatchConfig = {
+  serverUrl: string;
+  maxChars: number;
+  delayMs: number;
+  retryCount: number;
+  retryBackoffMs: number;
+  timeoutSec: number;
+  targetLang: string;
+};
+
+export type NameSetState = {
+  sets: Record<string, Record<string, string>>;
+  active_set: string;
+  version: number;
+};
+
+export type VpSetState = {
+  entries: Record<string, string>;
+  version: number;
+};
+
+export type GlobalDictsState = {
+  name: Record<string, string>;
+  vp: Record<string, string>;
+  version: number;
+};
+
+export type BookNameHistoryRow = {
+  event_id: string;
+  book_id: string;
+  set_name: string;
+  action_type: string;
+  source_text: string;
+  target_text: string;
+  previous_target_text: string;
+  origin: string;
+  chapter_id: string;
+  created_at: string;
+};
+
+export type TranslatedChapterView = {
+  book_id: number;
+  chapter_index: number;
+  chapter_id: string;
+  title_raw: string;
+  title_translated: string;
+  raw_text: string;
+  translated_text: string;
+  translation_mode: string;
+  trans_sig: string;
+  unit_count: number;
+  name_hit_count: number;
+  active_set: string;
+  name_set_version: number;
+  cache_hit_count: number;
+  missing_count: number;
+};
+
+export type SourceCandidateScore = {
+  source: string;
+  score: number;
+};
+
+export type SelectionNameMapResult = {
+  selected_text: string;
+  source_candidate: string;
+  target_candidate: string;
+  match_type: string;
+  score: number;
+  source_context: string;
+  translated_context: string;
+  unit_start: number;
+  unit_end: number;
+  name_suggestions: string[];
+  candidates: SourceCandidateScore[];
+};
+
+export type SelectionSourceSegmentResult = {
+  selected_text: string;
+  source_candidate: string;
+  translated_candidate: string;
+  match_type: string;
+  source_context: string;
+  translated_context: string;
+  source_start: number;
+  source_end: number;
+  target_start: number;
+  target_end: number;
+  candidates: SourceCandidateScore[];
+};
+
+export type NameSuggestItem = {
+  index: number;
+  source_text: string;
+  han_viet: string;
+  google_translate_url: string;
+  google_search_url: string;
+};
+
+export type NameRightSuggestion = {
+  index: number;
+  source_text: string;
+  target_text: string;
+  origin: string;
+  score: number;
+};
+
+export type NameSuggestResponse = {
+  source_text: string;
+  han_viet_raw: string;
+  items: NameSuggestItem[];
+  right_items: NameRightSuggestion[];
+};
+
+export type TranslationCacheStats = {
+  translation_memory_count: number;
+  translation_unit_map_count: number;
+  chapter_cache_count: number;
+};
+
+export type ClearTranslationCacheOutcome = {
+  tm_deleted: number;
+  unit_map_deleted: number;
+  chapter_cache_deleted: number;
+};
+
+export const getTranslateServerConfig = () =>
+  invoke<TranslateBatchConfig>('get_translate_server_config');
+export const saveTranslateServerConfig = (config: TranslateBatchConfig) =>
+  invoke<TranslateBatchConfig>('save_translate_server_config', { config });
+export const getReaderNameSets = (bookId: number | null) =>
+  invoke<NameSetState>('get_reader_name_sets', { bookId });
+export const saveReaderNameSets = (request: {
+  book_id: number | null;
+  sets: Record<string, Record<string, string>>;
+  active_set?: string | null;
+  bump_version?: boolean;
+  origin?: string | null;
+  chapter_index?: number | null;
+}) => invoke<NameSetState>('save_reader_name_sets', { request });
+export const updateReaderNameEntry = (request: {
+  book_id: number | null;
+  source: string;
+  target: string;
+  set_name?: string | null;
+  delete?: boolean;
+  chapter_index?: number | null;
+  origin?: string | null;
+}) => invoke<NameSetState>('update_reader_name_entry', { request });
+export const importReaderNameSetText = (
+  bookId: number | null,
+  setName: string | null,
+  rawText: string,
+  replace: boolean,
+) => invoke<NameSetState>('import_reader_name_set_text', { bookId, setName, rawText, replace });
+export const exportReaderNameSetText = (bookId: number | null, setName: string | null) =>
+  invoke<string>('export_reader_name_set_text', { bookId, setName });
+export const listReaderNameHistory = (bookId: number, limit?: number) =>
+  invoke<BookNameHistoryRow[]>('list_reader_name_history', { bookId, limit: limit ?? 100 });
+export const getReaderBookVpSet = (bookId: number) =>
+  invoke<VpSetState>('get_reader_book_vp_set', { bookId });
+export const updateReaderBookVpEntry = (
+  bookId: number,
+  source: string,
+  target: string,
+  del = false,
+) => invoke<VpSetState>('update_reader_book_vp_entry', { bookId, source, target, delete: del });
+export const getReaderGlobalDicts = () => invoke<GlobalDictsState>('get_reader_global_dicts');
+export const saveReaderGlobalDicts = (
+  name?: Record<string, string> | null,
+  vp?: Record<string, string> | null,
+) => invoke<GlobalDictsState>('save_reader_global_dicts', { name: name ?? null, vp: vp ?? null });
+export const translateLibraryChapter = (
+  bookId: number,
+  chapterIndex: number,
+  translationMode: TranslationMode = 'server',
+  forceReload = false,
+) =>
+  invoke<TranslatedChapterView>('translate_library_chapter', {
+    bookId,
+    chapterIndex,
+    translationMode,
+    forceReload,
+  });
+export const reloadReaderChapterTranslation = (
+  bookId: number,
+  chapterIndex: number,
+  translationMode: TranslationMode = 'server',
+) =>
+  invoke<TranslatedChapterView>('reload_reader_chapter_translation', {
+    bookId,
+    chapterIndex,
+    translationMode,
+  });
+export const mapReaderSelectionToName = (request: {
+  book_id: number;
+  chapter_index: number;
+  selected_text: string;
+  start_offset: number;
+  end_offset: number;
+  translation_mode: TranslationMode;
+  translated_text: string;
+}) => invoke<SelectionNameMapResult>('map_reader_selection_to_name', { request });
+export const mapReaderSelectionToSource = (request: {
+  book_id: number;
+  chapter_index: number;
+  selected_text: string;
+  start_offset: number;
+  end_offset: number;
+  translation_mode: TranslationMode;
+  translated_text: string;
+}) => invoke<SelectionSourceSegmentResult>('map_reader_selection_to_source', { request });
+export const suggestReaderName = (request: {
+  source_text: string;
+  book_id: number | null;
+  set_name?: string | null;
+  dict_type?: string;
+  scope?: string;
+}) => invoke<NameSuggestResponse>('suggest_reader_name', { request });
+export const getReaderTranslationCacheStats = () =>
+  invoke<TranslationCacheStats>('get_reader_translation_cache_stats');
+export const clearReaderTranslationCache = () =>
+  invoke<ClearTranslationCacheOutcome>('clear_reader_translation_cache');
 
 type Match = { num: string | null; title: string | null; source: string };
 

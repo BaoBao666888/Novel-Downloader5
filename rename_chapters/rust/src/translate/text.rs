@@ -1719,9 +1719,22 @@ print(json.dumps(out, ensure_ascii=False))
             ],
         }];
 
-        let root_dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+        let manifest_parent = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
             .parent()
-            .expect("rename_chapters root");
+            .expect("rename_chapters root")
+            .to_path_buf();
+        let cwd = std::env::current_dir().expect("cwd");
+        let candidates = [
+            manifest_parent.clone(),
+            cwd.clone(),
+            cwd.parent().map(|p| p.to_path_buf()).unwrap_or_default(),
+        ];
+        let root_dir = std::env::var_os("NOVEL_STUDIO_PYTHON_REFERENCE_ROOT")
+            .map(std::path::PathBuf::from)
+            .into_iter()
+            .chain(candidates)
+            .find(|p| p.join("reader_server.py").exists())
+            .unwrap_or(manifest_parent);
         let req = json!({
             "vi_samples": vi_samples,
             "trans_samples": trans_samples,

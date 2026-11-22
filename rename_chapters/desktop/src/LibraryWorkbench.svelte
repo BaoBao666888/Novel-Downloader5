@@ -1,27 +1,58 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import {
+    clearReaderTranslationCache,
+    exportReaderNameSetText,
+    getReaderBookVpSet,
+    getReaderGlobalDicts,
+    getReaderNameSets,
+    getReaderTranslationCacheStats,
+    getTranslateServerConfig,
     importLibrary,
+    importReaderNameSetText,
     listLibrary,
     listLibraryChapters,
+    listReaderNameHistory,
+    mapReaderSelectionToName,
     readLibrary,
     readLibraryChapter,
+    reloadReaderChapterTranslation,
     removeLibrary,
+    saveReaderGlobalDicts,
+    saveReaderNameSets,
+    saveTranslateServerConfig,
+    suggestReaderName,
+    translateLibraryChapter,
+    updateReaderBookVpEntry,
+    updateReaderNameEntry,
+    type BookNameHistoryRow,
+    type GlobalDictsState,
     type LibraryChapterContent,
     type LibraryChapterList,
     type LibraryItem,
     type LibraryPage,
+    type NameRightSuggestion,
+    type NameSetState,
+    type NameSuggestItem,
     type ReadingCursor,
+    type SelectionNameMapResult,
+    type TranslateBatchConfig,
+    type TranslatedChapterView,
+    type TranslationCacheStats,
+    type TranslationMode,
   } from './studio';
 
   let books = $state<LibraryItem[]>([]);
   let selected = $state<number | null>(null);
   let query = $state('');
   let readMode = $state<'chapter' | 'page'>('chapter');
+  let viewLang = $state<'raw' | 'trans'>('raw');
+  let translateMode = $state<TranslationMode>('server');
 
   // Chapter reader state
   let toc = $state<LibraryChapterList | null>(null);
   let chapter = $state<LibraryChapterContent | null>(null);
+  let translatedView = $state<TranslatedChapterView | null>(null);
   let tocOpen = $state(false);
   let tocQuery = $state('');
 
@@ -29,12 +60,71 @@
   let page = $state<LibraryPage | null>(null);
   let cursors = $state<Array<ReadingCursor | null>>([null]);
 
-  let pending = $state<'load' | 'import' | 'read' | 'remove' | null>('load');
+  // Selection & Edit Name V3 state
+  let selectionSnapshot = $state<{
+    text: string;
+    startOffset: number;
+    endOffset: number;
+  } | null>(null);
+  let selectionMapped = $state<SelectionNameMapResult | null>(null);
+  let selectionSourceInput = $state('');
+  let selectionTargetInput = $state('');
+  let mappingBusy = $state(false);
+
+  // Name & Dictionary Dialog state
+  let dictType = $state<'name' | 'vp'>('name');
+  let dictScope = $state<'book' | 'global'>('book');
+  let nameSetState = $state<NameSetState>({
+    sets: { 'Mặc định': {} },
+    active_set: 'Mặc định',
+    version: 1,
+  });
+  let bookVpEntries = $state<Record<string, string>>({});
+  let globalDicts = $state<GlobalDictsState>({ name: {}, vp: {}, version: 1 });
+  let nameHistory = $state<BookNameHistoryRow[]>([]);
+  let nameTab = $state<'entries' | 'bulk' | 'history' | 'server'>('entries');
+  let entryFilter = $state('');
+  let formSource = $state('');
+  let formTarget = $state('');
+  let bulkText = $state('');
+  let bulkReplace = $state(false);
+  let newSetName = $state('');
+
+  // Hán-Việt & Dictionary Suggestion state
+  let suggestOrigin = $state<'selection' | 'manager'>('selection');
+  let suggestSource = $state('');
+  let suggestHvRaw = $state('');
+  let suggestLeftItems = $state<NameSuggestItem[]>([]);
+  let suggestRightItems = $state<NameRightSuggestion[]>([]);
+  let suggestBusy = $state(false);
+
+  // Server Config & Cache Stats
+  let serverConfig = $state<TranslateBatchConfig>({
+    serverUrl: 'https://dichngay.com/translate/text',
+    maxChars: 9000,
+    delayMs: 250,
+    retryCount: 2,
+    retryBackoffMs: 700,
+    timeoutSec: 60,
+    targetLang: 'vi',
+  });
+  let cacheStats = $state<TranslationCacheStats>({
+    translation_memory_count: 0,
+    translation_unit_map_count: 0,
+    chapter_cache_count: 0,
+  });
+
+  let pending = $state<'load' | 'import' | 'read' | 'translate' | 'remove' | 'save' | null>('load');
   let catalogError = $state('');
   let readError = $state('');
   let message = $state('');
+
   let reader: HTMLDivElement;
+  let chapterTextNode = $state<HTMLDivElement | null>(null);
   let removeDialog: HTMLDialogElement;
+  let selectionNameDialog: HTMLDialogElement;
+  let nameManagerDialog: HTMLDialogElement;
+  let nameSuggestDialog: HTMLDialogElement;
 
   const current = $derived(books.find((book) => book.id === selected));
   const visible = $derived(
@@ -47,6 +137,52 @@
     return list.filter((ch) => ch.title.toLowerCase().includes(q) || String(ch.index + 1) === q);
   });
   const hasChapters = $derived((toc?.chapters.length ?? 0) > 0);
+  const displayedChapterTitle = $derived.by(() => {
+    if (!chapter) return '';
+    if (viewLang === 'trans' && translatedView && translatedView.chapter_index === chapter.index) {
+      return translatedView.title_translated || chapter.title;
+    }
+    return chapter.title;
+  });
+  const displayedChapterText = $derived.by(() => {
+    if (!chapter) return '';
+    if (viewLang === 'trans' && translatedView && translatedView.chapter_index === chapter.index) {
+      return translatedView.translated_text || chapter.text;
+    }
+    return chapter.text;
+  });
+
+  const activeDictEntries = $derived.by((): Record<string, string> => {
+    if (dictScope === 'global') {
+      return dictType === 'vp' ? globalDicts.vp : globalDicts.name;
+    }
+    if (dictType === 'vp') {
+      return bookVpEntries;
+    }
+    return nameSetState.sets[nameSetState.active_set] ?? {};
+  });
+
+  const filteredDictRows = $derived.by(() => {
+    const entries = Object.entries(activeDictEntries);
+    const q = entryFilter.trim().toLowerCase();
+    if (!q) return entries;
+    return entries.filter(
+      ([src, tgt]) => src.toLowerCase().includes(q) || tgt.toLowerCase().includes(q),
+    );
+  });
+
+  const selectionExistingMeta = $derived.by(() => {
+    const src = selectionSourceInput.trim();
+    if (!src) return null;
+    const bookMap = nameSetState.sets[nameSetState.active_set] ?? {};
+    if (Object.prototype.hasOwnProperty.call(bookMap, src)) {
+      return { scope: 'book' as const, setName: nameSetState.active_set, target: bookMap[src] };
+    }
+    if (Object.prototype.hasOwnProperty.call(globalDicts.name, src)) {
+      return { scope: 'global' as const, setName: 'Name chung', target: globalDicts.name[src] };
+    }
+    return null;
+  });
 
   onMount(() => {
     void reload();
@@ -80,8 +216,78 @@
     }
   }
 
+  function currentScrollRatio(): number {
+    if (!reader) return 0;
+    const max = reader.scrollHeight - reader.clientHeight;
+    if (max <= 0) return 0;
+    return Math.max(0, Math.min(1, reader.scrollTop / max));
+  }
+
+  function restoreScrollRatio(ratio: number) {
+    if (!reader) return;
+    const bounded = Math.max(0, Math.min(1, Number.isFinite(ratio) ? ratio : 0));
+    requestAnimationFrame(() => {
+      if (!reader) return;
+      const max = Math.max(0, reader.scrollHeight - reader.clientHeight);
+      reader.scrollTop = Math.round(max * bounded);
+    });
+  }
+
+  function countUnicodeChars(str: string): number {
+    return Array.from(str).length;
+  }
+
+  function captureChapterSelection() {
+    if (!chapterTextNode || readMode !== 'chapter' || !chapter) {
+      selectionSnapshot = null;
+      return;
+    }
+    const sel = window.getSelection();
+    if (!sel || sel.rangeCount === 0 || sel.isCollapsed) {
+      selectionSnapshot = null;
+      return;
+    }
+    const range = sel.getRangeAt(0);
+    if (!chapterTextNode.contains(range.commonAncestorContainer)) {
+      selectionSnapshot = null;
+      return;
+    }
+    const rawSelected = sel.toString().trim();
+    if (!rawSelected || rawSelected.length > 360) {
+      selectionSnapshot = null;
+      return;
+    }
+    try {
+      const preRange = document.createRange();
+      preRange.selectNodeContents(chapterTextNode);
+      preRange.setEnd(range.startContainer, range.startOffset);
+      const startOffset = countUnicodeChars(preRange.toString());
+      const selectedChars = countUnicodeChars(range.toString());
+      const endOffset = startOffset + Math.max(1, selectedChars);
+      selectionSnapshot = {
+        text: rawSelected,
+        startOffset,
+        endOffset,
+      };
+    } catch {
+      selectionSnapshot = {
+        text: rawSelected,
+        startOffset: 0,
+        endOffset: countUnicodeChars(rawSelected),
+      };
+    }
+  }
+
   function onReaderKeydown(event: KeyboardEvent) {
     if (pending !== null || selected === null) return;
+    if (
+      selectionNameDialog?.open ||
+      nameManagerDialog?.open ||
+      nameSuggestDialog?.open ||
+      removeDialog?.open
+    ) {
+      return;
+    }
     if (event.altKey && event.key === 'ArrowLeft') {
       event.preventDefault();
       if (readMode === 'chapter' && chapter && chapter.index > 0) {
@@ -133,11 +339,41 @@
     }
   }
 
+  async function refreshBookDictionaries(bookId: number | null) {
+    try {
+      const [ns, gd, cfg, stats] = await Promise.all([
+        getReaderNameSets(bookId),
+        getReaderGlobalDicts(),
+        getTranslateServerConfig(),
+        getReaderTranslationCacheStats(),
+      ]);
+      nameSetState = ns;
+      globalDicts = gd;
+      serverConfig = cfg;
+      cacheStats = stats;
+      if (bookId !== null) {
+        const [vp, hist] = await Promise.all([
+          getReaderBookVpSet(bookId),
+          listReaderNameHistory(bookId, 80),
+        ]);
+        bookVpEntries = vp.entries;
+        nameHistory = hist;
+      } else {
+        bookVpEntries = {};
+        nameHistory = [];
+      }
+    } catch {
+      // ignore dictionary preload failure
+    }
+  }
+
   async function openBook(id: number) {
     if (pending) return;
     selected = id;
     toc = null;
     chapter = null;
+    translatedView = null;
+    selectionSnapshot = null;
     page = null;
     cursors = [null];
     tocOpen = false;
@@ -145,6 +381,7 @@
     readError = '';
     pending = 'read';
     try {
+      await refreshBookDictionaries(id);
       const list = await listLibraryChapters(id);
       toc = list;
       if (list.chapters.length > 0) {
@@ -152,6 +389,10 @@
         const target = Math.min(savedChapterIndex(id), list.chapters.length - 1);
         chapter = await readLibraryChapter(id, target);
         persistChapterIndex(id, target);
+        if (viewLang === 'trans') {
+          translatedView = await translateLibraryChapter(id, target, translateMode, false);
+          cacheStats = await getReaderTranslationCacheStats();
+        }
         if (reader) reader.scrollTop = 0;
       } else if (list.kind === 'zip') {
         readMode = 'chapter';
@@ -169,21 +410,444 @@
     }
   }
 
-  async function openChapter(index: number) {
+  async function openChapter(index: number, preserveRatio = 0) {
     if (selected === null || pending) return;
     pending = 'read';
     readError = '';
+    selectionSnapshot = null;
     try {
       chapter = await readLibraryChapter(selected, index);
       readMode = 'chapter';
       persistChapterIndex(selected, index);
       tocOpen = false;
-      if (reader) reader.scrollTop = 0;
+      if (viewLang === 'trans') {
+        translatedView = await translateLibraryChapter(selected, index, translateMode, false);
+        cacheStats = await getReaderTranslationCacheStats();
+      }
+      restoreScrollRatio(preserveRatio);
     } catch (cause) {
       readError = String(cause);
     } finally {
       pending = null;
     }
+  }
+
+  async function switchViewLang(nextLang: 'raw' | 'trans') {
+    if (pending !== null || !chapter || selected === null) return;
+    const ratio = currentScrollRatio();
+    viewLang = nextLang;
+    selectionSnapshot = null;
+    if (nextLang === 'trans') {
+      if (!translatedView || translatedView.chapter_index !== chapter.index || translatedView.translation_mode !== translateMode) {
+        pending = 'translate';
+        readError = '';
+        try {
+          translatedView = await translateLibraryChapter(selected, chapter.index, translateMode, false);
+          cacheStats = await getReaderTranslationCacheStats();
+        } catch (cause) {
+          readError = String(cause);
+        } finally {
+          pending = null;
+        }
+      }
+    }
+    restoreScrollRatio(ratio);
+  }
+
+  async function onTranslateModeChange() {
+    if (viewLang === 'trans' && selected !== null && chapter && pending === null) {
+      const ratio = currentScrollRatio();
+      pending = 'translate';
+      readError = '';
+      try {
+        translatedView = await translateLibraryChapter(selected, chapter.index, translateMode, false);
+        cacheStats = await getReaderTranslationCacheStats();
+        restoreScrollRatio(ratio);
+      } catch (cause) {
+        readError = String(cause);
+      } finally {
+        pending = null;
+      }
+    }
+  }
+
+  async function reloadCurrentChapterTranslation() {
+    if (selected === null || !chapter || pending !== null) return;
+    const ratio = currentScrollRatio();
+    pending = 'translate';
+    readError = '';
+    try {
+      viewLang = 'trans';
+      translatedView = await reloadReaderChapterTranslation(selected, chapter.index, translateMode);
+      cacheStats = await getReaderTranslationCacheStats();
+      restoreScrollRatio(ratio);
+    } catch (cause) {
+      readError = String(cause);
+    } finally {
+      pending = null;
+    }
+  }
+
+  async function retranslatePreservingRatio() {
+    if (selected === null || !chapter) return;
+    const ratio = currentScrollRatio();
+    if (viewLang === 'trans') {
+      translatedView = await translateLibraryChapter(selected, chapter.index, translateMode, false);
+      cacheStats = await getReaderTranslationCacheStats();
+      restoreScrollRatio(ratio);
+    }
+  }
+
+  async function openSelectionEditNameModal() {
+    if (selected === null || !chapter) return;
+    const snap = selectionSnapshot;
+    selectionMapped = null;
+    selectionSourceInput = '';
+    selectionTargetInput = snap?.text ?? '';
+    selectionNameDialog.showModal();
+
+    if (!snap || !snap.text) return;
+    mappingBusy = true;
+    try {
+      const mapped = await mapReaderSelectionToName({
+        book_id: selected,
+        chapter_index: chapter.index,
+        selected_text: snap.text,
+        start_offset: snap.startOffset,
+        end_offset: snap.endOffset,
+        translation_mode: translateMode,
+        translated_text: viewLang === 'trans' ? displayedChapterText : chapter.text,
+      });
+      selectionMapped = mapped;
+      if (mapped.source_candidate) {
+        selectionSourceInput = mapped.source_candidate;
+      }
+      if (mapped.target_candidate) {
+        selectionTargetInput = mapped.target_candidate;
+      }
+    } catch (cause) {
+      readError = String(cause);
+    } finally {
+      mappingBusy = false;
+    }
+  }
+
+  async function saveSelectionName(event: SubmitEvent) {
+    event.preventDefault();
+    if (selected === null || !chapter || pending !== null) return;
+    const src = selectionSourceInput.trim();
+    const tgt = selectionTargetInput.trim();
+    if (!src || !tgt) return;
+
+    pending = 'save';
+    readError = '';
+    try {
+      const meta = selectionExistingMeta;
+      if (meta && meta.scope === 'global') {
+        const nextGlobal = { ...globalDicts.name, [src]: tgt };
+        globalDicts = await saveReaderGlobalDicts(nextGlobal, null);
+      } else {
+        nameSetState = await updateReaderNameEntry({
+          book_id: selected,
+          source: src,
+          target: tgt,
+          set_name: nameSetState.active_set,
+          delete: false,
+          chapter_index: chapter.index,
+          origin: 'reader_selection',
+        });
+      }
+      selectionNameDialog.close();
+      selectionSnapshot = null;
+      await refreshBookDictionaries(selected);
+      await retranslatePreservingRatio();
+    } catch (cause) {
+      readError = String(cause);
+    } finally {
+      pending = null;
+    }
+  }
+
+  async function deleteSelectionName() {
+    if (selected === null || !chapter || pending !== null) return;
+    const src = selectionSourceInput.trim();
+    if (!src) return;
+    pending = 'save';
+    readError = '';
+    try {
+      const meta = selectionExistingMeta;
+      if (meta && meta.scope === 'global') {
+        const nextGlobal = { ...globalDicts.name };
+        delete nextGlobal[src];
+        globalDicts = await saveReaderGlobalDicts(nextGlobal, null);
+      } else {
+        nameSetState = await updateReaderNameEntry({
+          book_id: selected,
+          source: src,
+          target: '',
+          set_name: nameSetState.active_set,
+          delete: true,
+          chapter_index: chapter.index,
+          origin: 'reader_selection',
+        });
+      }
+      selectionNameDialog.close();
+      selectionSnapshot = null;
+      await refreshBookDictionaries(selected);
+      await retranslatePreservingRatio();
+    } catch (cause) {
+      readError = String(cause);
+    } finally {
+      pending = null;
+    }
+  }
+
+  async function openNameManager() {
+    await refreshBookDictionaries(selected);
+    bulkText = await exportReaderNameSetText(
+      dictScope === 'book' ? selected : null,
+      nameSetState.active_set,
+    ).catch(() => '');
+    nameManagerDialog.showModal();
+  }
+
+  async function saveManagerSingleEntry(event: SubmitEvent) {
+    event.preventDefault();
+    const src = formSource.trim();
+    const tgt = formTarget.trim();
+    if (!src || !tgt || pending !== null) return;
+    pending = 'save';
+    readError = '';
+    try {
+      if (dictScope === 'global') {
+        if (dictType === 'vp') {
+          globalDicts = await saveReaderGlobalDicts(null, { ...globalDicts.vp, [src]: tgt });
+        } else {
+          globalDicts = await saveReaderGlobalDicts({ ...globalDicts.name, [src]: tgt }, null);
+        }
+      } else if (dictType === 'vp' && selected !== null) {
+        const vp = await updateReaderBookVpEntry(selected, src, tgt, false);
+        bookVpEntries = vp.entries;
+      } else {
+        nameSetState = await updateReaderNameEntry({
+          book_id: selected,
+          source: src,
+          target: tgt,
+          set_name: nameSetState.active_set,
+          delete: false,
+          chapter_index: chapter?.index ?? null,
+          origin: 'reader_edit',
+        });
+      }
+      formSource = '';
+      formTarget = '';
+      await refreshBookDictionaries(selected);
+      await retranslatePreservingRatio();
+    } catch (cause) {
+      readError = String(cause);
+    } finally {
+      pending = null;
+    }
+  }
+
+  async function removeManagerEntry(src: string) {
+    if (pending !== null) return;
+    pending = 'save';
+    readError = '';
+    try {
+      if (dictScope === 'global') {
+        if (dictType === 'vp') {
+          const next = { ...globalDicts.vp };
+          delete next[src];
+          globalDicts = await saveReaderGlobalDicts(null, next);
+        } else {
+          const next = { ...globalDicts.name };
+          delete next[src];
+          globalDicts = await saveReaderGlobalDicts(next, null);
+        }
+      } else if (dictType === 'vp' && selected !== null) {
+        const vp = await updateReaderBookVpEntry(selected, src, '', true);
+        bookVpEntries = vp.entries;
+      } else {
+        nameSetState = await updateReaderNameEntry({
+          book_id: selected,
+          source: src,
+          target: '',
+          set_name: nameSetState.active_set,
+          delete: true,
+          chapter_index: chapter?.index ?? null,
+          origin: 'reader_edit',
+        });
+      }
+      await refreshBookDictionaries(selected);
+      await retranslatePreservingRatio();
+    } catch (cause) {
+      readError = String(cause);
+    } finally {
+      pending = null;
+    }
+  }
+
+  async function switchActiveNameSet(nextSet: string) {
+    if (pending !== null) return;
+    pending = 'save';
+    try {
+      nameSetState = await saveReaderNameSets({
+        book_id: selected,
+        sets: nameSetState.sets,
+        active_set: nextSet,
+        bump_version: false,
+        origin: 'reader_set_switch',
+        chapter_index: chapter?.index ?? null,
+      });
+      await refreshBookDictionaries(selected);
+      await retranslatePreservingRatio();
+    } catch (cause) {
+      readError = String(cause);
+    } finally {
+      pending = null;
+    }
+  }
+
+  async function createNewNameSet() {
+    const trimmed = newSetName.trim();
+    if (!trimmed || pending !== null) return;
+    if (nameSetState.sets[trimmed]) {
+      newSetName = '';
+      return;
+    }
+    pending = 'save';
+    try {
+      const nextSets = { ...nameSetState.sets, [trimmed]: {} };
+      nameSetState = await saveReaderNameSets({
+        book_id: selected,
+        sets: nextSets,
+        active_set: trimmed,
+        bump_version: false,
+        origin: 'reader_set_add',
+        chapter_index: chapter?.index ?? null,
+      });
+      newSetName = '';
+      await refreshBookDictionaries(selected);
+      await retranslatePreservingRatio();
+    } catch (cause) {
+      readError = String(cause);
+    } finally {
+      pending = null;
+    }
+  }
+
+  async function deleteCurrentNameSet() {
+    const keys = Object.keys(nameSetState.sets);
+    if (keys.length <= 1 || pending !== null) return;
+    pending = 'save';
+    try {
+      const nextSets = { ...nameSetState.sets };
+      delete nextSets[nameSetState.active_set];
+      const nextActive = Object.keys(nextSets)[0] || 'Mặc định';
+      nameSetState = await saveReaderNameSets({
+        book_id: selected,
+        sets: nextSets,
+        active_set: nextActive,
+        bump_version: false,
+        origin: 'reader_set_delete',
+        chapter_index: chapter?.index ?? null,
+      });
+      await refreshBookDictionaries(selected);
+      await retranslatePreservingRatio();
+    } catch (cause) {
+      readError = String(cause);
+    } finally {
+      pending = null;
+    }
+  }
+
+  async function applyBulkNameText(event: SubmitEvent) {
+    event.preventDefault();
+    if (!bulkText.trim() || pending !== null) return;
+    pending = 'save';
+    readError = '';
+    try {
+      nameSetState = await importReaderNameSetText(
+        selected,
+        nameSetState.active_set,
+        bulkText,
+        bulkReplace,
+      );
+      await refreshBookDictionaries(selected);
+      await retranslatePreservingRatio();
+      nameTab = 'entries';
+    } catch (cause) {
+      readError = String(cause);
+    } finally {
+      pending = null;
+    }
+  }
+
+  async function saveServerSettings(event: SubmitEvent) {
+    event.preventDefault();
+    if (pending !== null) return;
+    pending = 'save';
+    try {
+      serverConfig = await saveTranslateServerConfig(serverConfig);
+    } catch (cause) {
+      readError = String(cause);
+    } finally {
+      pending = null;
+    }
+  }
+
+  async function clearAllTranslationMemory() {
+    if (pending !== null) return;
+    pending = 'save';
+    try {
+      await clearReaderTranslationCache();
+      cacheStats = await getReaderTranslationCacheStats();
+      translatedView = null;
+    } catch (cause) {
+      readError = String(cause);
+    } finally {
+      pending = null;
+    }
+  }
+
+  async function openNameSuggestFrom(origin: 'selection' | 'manager') {
+    const src = (origin === 'selection' ? selectionSourceInput : formSource).trim();
+    if (!src) return;
+    suggestOrigin = origin;
+    suggestSource = src;
+    suggestLeftItems = [];
+    suggestRightItems = [];
+    suggestHvRaw = '';
+    suggestBusy = true;
+    nameSuggestDialog.showModal();
+    try {
+      const res = await suggestReaderName({
+        source_text: src,
+        book_id: selected,
+        set_name: nameSetState.active_set,
+        dict_type: dictType,
+        scope: dictScope,
+      });
+      suggestHvRaw = res.han_viet_raw;
+      suggestLeftItems = res.items;
+      suggestRightItems = res.right_items;
+    } catch (cause) {
+      readError = String(cause);
+    } finally {
+      suggestBusy = false;
+    }
+  }
+
+  function pickSuggestion(sourceText: string, targetText: string) {
+    if (suggestOrigin === 'selection') {
+      if (sourceText) selectionSourceInput = sourceText;
+      if (targetText) selectionTargetInput = targetText;
+    } else {
+      if (sourceText) formSource = sourceText;
+      if (targetText) formTarget = targetText;
+    }
+    nameSuggestDialog.close();
   }
 
   async function loadPage(nextCursors: Array<ReadingCursor | null>) {
@@ -223,6 +887,7 @@
       selected = null;
       toc = null;
       chapter = null;
+      translatedView = null;
       page = null;
       tocOpen = false;
       readError = '';
@@ -239,12 +904,20 @@
 
 <section class="heading">
   <div>
-    <h1>Thư viện</h1>
-    <p>Lưu và đọc truyện từ tệp TXT hoặc gói ZIP theo mục lục chương, giữ nguyên tệp gốc trên máy.</p>
+    <h1>Thư viện &amp; Dịch thuật</h1>
+    <p>
+      Đọc TXT / ZIP theo mục lục chương, dịch trực tiếp qua DichNgay / TM Translate Beta với
+      Translation Memory và sửa Name riêng theo ngữ cảnh bôi đen (Edit Name V3).
+    </p>
   </div>
-  <button class="button primary" type="button" disabled={pending !== null} onclick={addBooks}>
-    {pending === 'import' ? 'Đang mở…' : 'Thêm TXT / ZIP'}
-  </button>
+  <div class="heading-actions">
+    <button class="button" type="button" disabled={pending !== null} onclick={openNameManager}>
+      Name riêng ({Object.keys(nameSetState.sets[nameSetState.active_set] ?? {}).length})
+    </button>
+    <button class="button primary" type="button" disabled={pending !== null} onclick={addBooks}>
+      {pending === 'import' ? 'Đang mở…' : 'Thêm TXT / ZIP'}
+    </button>
+  </div>
 </section>
 
 <div class="workspace">
@@ -308,20 +981,78 @@
     {/if}
   </aside>
 
-  <section class="proof reader" aria-label="Khung đọc" aria-busy={pending === 'read'}>
+  <section
+    class="proof reader"
+    aria-label="Khung đọc"
+    aria-busy={pending === 'read' || pending === 'translate'}
+  >
     {#if current}
       <header class="proof-head">
         <div class="reader-title-group">
           <h2>{current.title}</h2>
           {#if readMode === 'chapter' && chapter}
             <p class="summary num-stat">
-              {chapter.title} · Chương {chapter.index + 1}/{chapter.total_chapters} · {chapter.encoding}
+              {displayedChapterTitle} · Chương {chapter.index + 1}/{chapter.total_chapters} · {chapter.encoding}
+              {#if viewLang === 'trans' && translatedView}
+                · {translatedView.unit_count} cụm · Bộ: {translatedView.active_set} (v{translatedView.name_set_version})
+              {/if}
             </p>
           {:else if readMode === 'page' && page}
             <p class="summary num-stat">Chế độ đọc theo trang · Trang {cursors.length}</p>
           {/if}
         </div>
         <div class="proof-actions">
+          {#if readMode === 'chapter' && chapter}
+            <div class="lang-segmented" role="group" aria-label="Chế độ ngôn ngữ">
+              <button
+                type="button"
+                class="seg-btn"
+                class:active={viewLang === 'raw'}
+                disabled={pending !== null}
+                onclick={() => switchViewLang('raw')}
+              >
+                RAW
+              </button>
+              <button
+                type="button"
+                class="seg-btn"
+                class:active={viewLang === 'trans'}
+                disabled={pending !== null}
+                onclick={() => switchViewLang('trans')}
+              >
+                {pending === 'translate' ? 'Đang dịch…' : 'DỊCH'}
+              </button>
+            </div>
+            <select
+              class="mode-select"
+              aria-label="Chế độ dịch"
+              bind:value={translateMode}
+              disabled={pending !== null}
+              onchange={onTranslateModeChange}
+            >
+              <option value="server">DichNgay Server</option>
+              <option value="tm_translate_beta">TM Translate Beta</option>
+            </select>
+            {#if viewLang === 'trans'}
+              <button
+                class="button subtle"
+                type="button"
+                disabled={pending !== null}
+                title="Xóa cache dịch của chương này và dịch lại"
+                onclick={reloadCurrentChapterTranslation}
+              >
+                Tải lại chương
+              </button>
+            {/if}
+            <button
+              class="button subtle"
+              type="button"
+              disabled={pending !== null}
+              onclick={openNameManager}
+            >
+              Name riêng
+            </button>
+          {/if}
           {#if hasChapters}
             <button
               class="button subtle"
@@ -353,6 +1084,32 @@
           </button>
         </div>
       </header>
+    {/if}
+
+    {#if selectionSnapshot && readMode === 'chapter' && chapter}
+      <div class="selection-bar" role="region" aria-label="Thao tác đoạn bôi đen">
+        <span class="selection-preview">
+          Đã bôi đen: <strong>“{selectionSnapshot.text}”</strong>
+          <small class="num-stat">({selectionSnapshot.startOffset}–{selectionSnapshot.endOffset})</small>
+        </span>
+        <div class="selection-actions">
+          <button
+            type="button"
+            class="button primary"
+            disabled={pending !== null}
+            onclick={openSelectionEditNameModal}
+          >
+            Sửa Name theo đoạn chọn
+          </button>
+          <button
+            type="button"
+            class="button subtle"
+            onclick={() => (selectionSnapshot = null)}
+          >
+            Đóng
+          </button>
+        </div>
+      </div>
     {/if}
 
     {#if readError}
@@ -396,28 +1153,39 @@
       </div>
     {/if}
 
-    <!-- svelte-ignore a11y_no_noninteractive_tabindex (The scrollable reading region needs keyboard focus.) -->
-    <div class="proof-body reading-body" bind:this={reader} role="region" tabindex="0" aria-label="Nội dung trang">
+    <!-- svelte-ignore a11y_no_noninteractive_tabindex, a11y_no_noninteractive_element_interactions (The scrollable reading region needs keyboard focus and text selection detection.) -->
+    <div
+      class="proof-body reading-body"
+      bind:this={reader}
+      role="region"
+      tabindex="0"
+      aria-label="Nội dung trang"
+      onmouseup={captureChapterSelection}
+      onkeyup={captureChapterSelection}
+    >
       {#if readMode === 'chapter' && chapter}
         <article class="reading-page">
-          <h3 class="chapter-heading">{chapter.title}</h3>
+          <h3 class="chapter-heading">{displayedChapterTitle}</h3>
           {#if chapter.truncated}
             <p class="notice">Chương vượt quá 2 MB, đang hiển thị phần đầu.</p>
           {/if}
-          <div class="chapter-text">{chapter.text}</div>
+          <div class="chapter-text" bind:this={chapterTextNode}>{displayedChapterText}</div>
         </article>
       {:else if readMode === 'page' && page?.text}
         <div class="reading-page">{page.text}</div>
       {:else if !readError}
         <div class="empty">
           <div class="paper" aria-hidden="true"><span></span><span></span><span></span></div>
-          {#if pending === 'read'}
-            <h3>Đang mở truyện…</h3>
+          {#if pending === 'read' || pending === 'translate'}
+            <h3>{pending === 'translate' ? 'Đang dịch chương truyện…' : 'Đang mở truyện…'}</h3>
           {:else if page}
             <h3>Tệp không có nội dung</h3>
           {:else}
             <h3>{books.length ? 'Chọn một truyện để đọc' : 'Thêm TXT hoặc ZIP để bắt đầu đọc'}</h3>
-            <p>Tệp ZIP được đọc trực tiếp từng chương theo mục lục, không cần giải nén ra đĩa.</p>
+            <p>
+              Hỗ trợ đọc RAW hoặc DỊCH trực tiếp, tự động tra Translation Memory và bôi đen văn bản
+              để sửa Name riêng theo ngữ cảnh (Edit Name V3).
+            </p>
           {/if}
         </div>
       {/if}
@@ -427,6 +1195,9 @@
       <footer class="proof-footer">
         <span class="num-stat" aria-live="polite">
           Chương {chapter.index + 1} / {chapter.total_chapters}
+          {#if viewLang === 'trans' && translatedView}
+            · TM hit {translatedView.cache_hit_count}/{translatedView.cache_hit_count + translatedView.missing_count}
+          {/if}
         </span>
         <div class="proof-actions">
           <button
@@ -473,6 +1244,454 @@
   </section>
 </div>
 
+<!-- Dialog 1: Edit Name V3 từ đoạn bôi đen -->
+<dialog bind:this={selectionNameDialog} class="modal-box" aria-labelledby="sel-name-title">
+  <form onsubmit={saveSelectionName}>
+    <header class="modal-head">
+      <h2 id="sel-name-title">Sửa Name riêng theo đoạn chọn</h2>
+      <button type="button" class="button subtle" onclick={() => selectionNameDialog.close()}>
+        Đóng
+      </button>
+    </header>
+    <p class="modal-hint">
+      {#if mappingBusy}
+        Đang đối chiếu vị trí đoạn chọn với bảng Unit Map…
+      {:else if selectionMapped?.source_candidate}
+        Đã khớp <strong>{selectionMapped.match_type}</strong> (độ tin cậy {(selectionMapped.score * 100).toFixed(0)}%) · Bộ đang dùng: <strong>{nameSetState.active_set}</strong>
+      {:else}
+        Nhập hoặc chọn cụm chữ Hán gốc để gán tên tiếng Việt.
+      {/if}
+    </p>
+
+    {#if selectionMapped?.name_suggestions?.length}
+      <div class="chip-row" aria-label="Gợi ý cụm gốc trong câu">
+        {#each selectionMapped.name_suggestions as sug (sug)}
+          <button
+            type="button"
+            class="chip-btn"
+            class:active={selectionSourceInput === sug}
+            onclick={() => (selectionSourceInput = sug)}
+          >
+            {sug}
+          </button>
+        {/each}
+      </div>
+    {/if}
+
+    <div class="field-grid">
+      <label class="field-label">
+        <span>Tên gốc (Tiếng Trung)</span>
+        <input
+          type="text"
+          required
+          placeholder="Ví dụ: 萧炎"
+          bind:value={selectionSourceInput}
+        />
+      </label>
+      <label class="field-label">
+        <span>Tên dịch (Tiếng Việt)</span>
+        <div class="input-with-btn">
+          <input
+            type="text"
+            required
+            placeholder="Ví dụ: Tiêu Viêm"
+            bind:value={selectionTargetInput}
+          />
+          <button
+            type="button"
+            class="button"
+            disabled={!selectionSourceInput.trim()}
+            onclick={() => openNameSuggestFrom('selection')}
+          >
+            Gợi ý Hán-Việt
+          </button>
+        </div>
+      </label>
+    </div>
+
+    {#if selectionMapped?.source_context}
+      <div class="context-card">
+        <div><small>Ngữ cảnh gốc:</small> <span>{selectionMapped.source_context}</span></div>
+        <div><small>Ngữ cảnh dịch:</small> <span>{selectionMapped.translated_context}</span></div>
+      </div>
+    {/if}
+
+    <div class="dialog-actions">
+      {#if selectionExistingMeta}
+        <button
+          type="button"
+          class="button"
+          disabled={pending !== null}
+          onclick={deleteSelectionName}
+        >
+          Xóa khỏi {selectionExistingMeta.setName}
+        </button>
+      {/if}
+      <button type="button" class="button" onclick={() => selectionNameDialog.close()}>Hủy</button>
+      <button type="submit" class="button primary" disabled={pending !== null}>
+        {selectionExistingMeta ? 'Cập nhật & Dịch lại' : 'Lưu Name & Dịch lại'}
+      </button>
+    </div>
+  </form>
+</dialog>
+
+<!-- Dialog 2: Quản lý Name riêng / VP / Lịch sử / Server DichNgay -->
+<dialog bind:this={nameManagerDialog} class="modal-box modal-wide" aria-labelledby="name-mgr-title">
+  <header class="modal-head">
+    <div>
+      <h2 id="name-mgr-title">Name riêng &amp; Từ điển dịch thuật</h2>
+      <p class="modal-hint">
+        Scope hiện tại: <strong>{current ? current.title : 'Toàn cục'}</strong> · Bộ đang áp dụng:
+        <strong>{nameSetState.active_set}</strong> (v{nameSetState.version})
+      </p>
+    </div>
+    <button type="button" class="button subtle" onclick={() => nameManagerDialog.close()}>
+      Đóng
+    </button>
+  </header>
+
+  <div class="tab-strip" role="tablist">
+    <button
+      type="button"
+      class="tab-btn"
+      class:active={nameTab === 'entries'}
+      onclick={() => (nameTab = 'entries')}
+    >
+      Danh sách từ ({Object.keys(activeDictEntries).length})
+    </button>
+    <button
+      type="button"
+      class="tab-btn"
+      class:active={nameTab === 'bulk'}
+      onclick={() => (nameTab = 'bulk')}
+    >
+      Nhập / Xuất nhanh
+    </button>
+    <button
+      type="button"
+      class="tab-btn"
+      class:active={nameTab === 'history'}
+      onclick={() => (nameTab = 'history')}
+    >
+      Lịch sử ({nameHistory.length})
+    </button>
+    <button
+      type="button"
+      class="tab-btn"
+      class:active={nameTab === 'server'}
+      onclick={() => (nameTab = 'server')}
+    >
+      Server &amp; Cache ({cacheStats.translation_memory_count} TM)
+    </button>
+  </div>
+
+  {#if nameTab === 'entries'}
+    <div class="dict-toolbar">
+      <label class="inline-field">
+        <span>Loại từ điển</span>
+        <select bind:value={dictType}>
+          <option value="name">Name (Tên riêng)</option>
+          <option value="vp">VietPhrase (Cụm từ)</option>
+        </select>
+      </label>
+      <label class="inline-field">
+        <span>Phạm vi</span>
+        <select bind:value={dictScope}>
+          <option value="book">Theo truyện đang mở</option>
+          <option value="global">Dùng chung toàn cục</option>
+        </select>
+      </label>
+      {#if dictScope === 'book' && dictType === 'name'}
+        <label class="inline-field">
+          <span>Bộ Name</span>
+          <select
+            value={nameSetState.active_set}
+            onchange={(e) => switchActiveNameSet((e.currentTarget as HTMLSelectElement).value)}
+          >
+            {#each Object.keys(nameSetState.sets) as sName (sName)}
+              <option value={sName}>{sName}</option>
+            {/each}
+          </select>
+        </label>
+        <div class="set-add-inline">
+          <input
+            type="text"
+            placeholder="Tên bộ mới…"
+            bind:value={newSetName}
+          />
+          <button
+            type="button"
+            class="button"
+            disabled={!newSetName.trim() || pending !== null}
+            onclick={createNewNameSet}
+          >
+            + Tạo bộ
+          </button>
+          {#if Object.keys(nameSetState.sets).length > 1}
+            <button
+              type="button"
+              class="button subtle"
+              disabled={pending !== null}
+              onclick={deleteCurrentNameSet}
+            >
+              Xóa bộ
+            </button>
+          {/if}
+        </div>
+      {/if}
+    </div>
+
+    <form class="entry-add-bar" onsubmit={saveManagerSingleEntry}>
+      <input
+        type="text"
+        required
+        placeholder="Tên gốc tiếng Trung (VD: 萧炎)"
+        bind:value={formSource}
+      />
+      <input
+        type="text"
+        required
+        placeholder="Tên dịch tiếng Việt (VD: Tiêu Viêm)"
+        bind:value={formTarget}
+      />
+      <button
+        type="button"
+        class="button"
+        disabled={!formSource.trim()}
+        onclick={() => openNameSuggestFrom('manager')}
+      >
+        Gợi ý
+      </button>
+      <button type="submit" class="button primary" disabled={pending !== null}>
+        Lưu mục
+      </button>
+    </form>
+
+    <div class="table-filter-bar">
+      <input
+        type="search"
+        placeholder="Lọc theo chữ Hán hoặc nghĩa tiếng Việt…"
+        bind:value={entryFilter}
+      />
+      <span class="num-stat">{filteredDictRows.length} mục</span>
+    </div>
+
+    <div class="dict-table-wrap">
+      <table class="dict-table">
+        <thead>
+          <tr>
+            <th>Tên gốc</th>
+            <th>Tên dịch</th>
+            <th>Thao tác</th>
+          </tr>
+        </thead>
+        <tbody>
+          {#each filteredDictRows as [src, tgt] (src)}
+            <tr>
+              <td class="cjk-cell">{src}</td>
+              <td>{tgt}</td>
+              <td class="action-cell">
+                <button
+                  type="button"
+                  class="button subtle"
+                  onclick={() => {
+                    formSource = src;
+                    formTarget = tgt;
+                  }}
+                >
+                  Sửa
+                </button>
+                <button
+                  type="button"
+                  class="button subtle"
+                  disabled={pending !== null}
+                  onclick={() => removeManagerEntry(src)}
+                >
+                  Xóa
+                </button>
+              </td>
+            </tr>
+          {:else}
+            <tr>
+              <td colspan="3" class="empty-cell">Chưa có mục nào trong bộ từ điển này.</td>
+            </tr>
+          {/each}
+        </tbody>
+      </table>
+    </div>
+  {:else if nameTab === 'bulk'}
+    <form class="bulk-form" onsubmit={applyBulkNameText}>
+      <p class="modal-hint">
+        Mỗi dòng một cặp theo định dạng <code>Tên_gốc=Tên_dịch</code> (tương thích hoàn toàn với TM
+        Translate và Reader Server).
+      </p>
+      <textarea
+        rows="10"
+        placeholder="萧炎=Tiêu Viêm&#10;药老=Dược Lão"
+        bind:value={bulkText}
+      ></textarea>
+      <div class="bulk-controls">
+        <label class="checkbox-label">
+          <input type="checkbox" bind:checked={bulkReplace} />
+          <span>Thay thế toàn bộ bộ hiện tại (bỏ chọn nếu chỉ muốn gộp thêm)</span>
+        </label>
+        <button type="submit" class="button primary" disabled={pending !== null}>
+          Áp dụng danh sách
+        </button>
+      </div>
+    </form>
+  {:else if nameTab === 'history'}
+    <div class="dict-table-wrap">
+      <table class="dict-table">
+        <thead>
+          <tr>
+            <th>Thao tác</th>
+            <th>Bộ</th>
+            <th>Tên gốc</th>
+            <th>Tên dịch mới</th>
+            <th>Trước đó</th>
+          </tr>
+        </thead>
+        <tbody>
+          {#each nameHistory as item (item.event_id)}
+            <tr>
+              <td><span class="kind-tag">{item.action_type}</span></td>
+              <td>{item.set_name}</td>
+              <td class="cjk-cell">{item.source_text || '—'}</td>
+              <td>{item.target_text || '—'}</td>
+              <td>{item.previous_target_text || '—'}</td>
+            </tr>
+          {:else}
+            <tr>
+              <td colspan="5" class="empty-cell">Chưa có lịch sử chỉnh sửa Name riêng cho truyện này.</td>
+            </tr>
+          {/each}
+        </tbody>
+      </table>
+    </div>
+  {:else if nameTab === 'server'}
+    <form class="server-form" onsubmit={saveServerSettings}>
+      <div class="field-grid">
+        <label class="field-label">
+          <span>Endpoint DichNgay Server</span>
+          <input type="text" required bind:value={serverConfig.serverUrl} />
+        </label>
+        <label class="field-label">
+          <span>Số ký tự tối đa mỗi batch (500–9000)</span>
+          <input type="number" min="500" max="9000" bind:value={serverConfig.maxChars} />
+        </label>
+      </div>
+      <div class="cache-card">
+        <div>
+          <strong>Bộ nhớ dịch (Translation Memory)</strong>
+          <p class="modal-hint num-stat">
+            {cacheStats.translation_memory_count} câu đã lưu · {cacheStats.chapter_cache_count} chương đã cache · {cacheStats.translation_unit_map_count} dòng Unit Map
+          </p>
+        </div>
+        <button
+          type="button"
+          class="button"
+          disabled={pending !== null}
+          onclick={clearAllTranslationMemory}
+        >
+          Xóa toàn bộ Cache dịch
+        </button>
+      </div>
+      <div class="dialog-actions">
+        <button type="submit" class="button primary" disabled={pending !== null}>
+          Lưu cấu hình Server
+        </button>
+      </div>
+    </form>
+  {/if}
+</dialog>
+
+<!-- Dialog 3: Popup Gợi ý Hán-Việt viết hoa tăng dần & Từ điển (TM Translate flow) -->
+<dialog bind:this={nameSuggestDialog} class="modal-box modal-wide" aria-labelledby="suggest-title">
+  <header class="modal-head">
+    <div>
+      <h2 id="suggest-title">Gợi ý Name — {suggestSource}</h2>
+      <p class="modal-hint">
+        {#if suggestBusy}
+          Đang lấy âm Hán-Việt từ DichNgay (tl=hv)…
+        {:else}
+          Âm Hán-Việt gốc: <strong>{suggestHvRaw}</strong> · Bấm vào 1 dòng để chọn ngay.
+        {/if}
+      </p>
+    </div>
+    <button type="button" class="button subtle" onclick={() => nameSuggestDialog.close()}>
+      Đóng
+    </button>
+  </header>
+
+  <div class="suggest-split">
+    <div class="suggest-col">
+      <h3>Biến thể Hán-Việt viết hoa tăng dần</h3>
+      <table class="dict-table">
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>Gốc</th>
+            <th>Hán-Việt</th>
+          </tr>
+        </thead>
+        <tbody>
+          {#each suggestLeftItems as row (row.index)}
+            <tr
+              class="clickable-row"
+              onclick={() => pickSuggestion(row.source_text, row.han_viet)}
+            >
+              <td class="num-stat">{row.index}</td>
+              <td class="cjk-cell">{row.source_text}</td>
+              <td><strong>{row.han_viet}</strong></td>
+            </tr>
+          {:else}
+            <tr>
+              <td colspan="3" class="empty-cell">
+                {suggestBusy ? 'Đang tải…' : 'Không có gợi ý Hán-Việt.'}
+              </td>
+            </tr>
+          {/each}
+        </tbody>
+      </table>
+    </div>
+
+    <div class="suggest-col">
+      <h3>Gợi ý từ Name / VietPhrase</h3>
+      <table class="dict-table">
+        <thead>
+          <tr>
+            <th>Tên gợi ý</th>
+            <th>Nguồn</th>
+            <th>Chọn</th>
+          </tr>
+        </thead>
+        <tbody>
+          {#each suggestRightItems as row (row.index)}
+            <tr>
+              <td><strong>{row.target_text}</strong></td>
+              <td><span class="kind-tag">{row.origin}</span></td>
+              <td>
+                <button
+                  type="button"
+                  class="button subtle"
+                  onclick={() => pickSuggestion(row.source_text, row.target_text)}
+                >
+                  Dùng
+                </button>
+              </td>
+            </tr>
+          {:else}
+            <tr>
+              <td colspan="3" class="empty-cell">Chưa có mục trùng trong từ điển.</td>
+            </tr>
+          {/each}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</dialog>
+
 <dialog bind:this={removeDialog} aria-labelledby="remove-book-title">
   <h2 id="remove-book-title">Bỏ khỏi thư viện?</h2>
   <p>{current?.title}. Tệp gốc vẫn ở vị trí hiện tại trên máy.</p>
@@ -483,6 +1702,7 @@
 </dialog>
 
 <style>
+  .heading-actions { display: flex; align-items: center; gap: 10px; flex-wrap: nowrap; flex-shrink: 0; }
   .shelf { min-width: 0; padding: 0; overflow: hidden; }
   .shelf-head { display: grid; gap: 12px; padding: 16px; }
   .shelf-items { margin: 0; padding: 0; list-style: none; max-height: 46vh; overflow: auto; }
@@ -517,6 +1737,34 @@
   .reader-title-group { min-width: 0; }
   .reader h2 { overflow-wrap: anywhere; }
   .reader .notice .button, .shelf .notice .button { margin-top: 8px; }
+
+  .lang-segmented {
+    display: inline-flex; align-items: center; padding: 2px;
+    border-radius: var(--radius-sm); background: var(--inset); border: 1px solid var(--line);
+  }
+  .seg-btn {
+    border: 0; background: transparent; color: var(--muted); font-weight: 600; font-size: 12px;
+    padding: 4px 10px; border-radius: calc(var(--radius-sm) - 2px); cursor: pointer;
+    transition: background-color var(--motion-fast) var(--ease-out), color var(--motion-fast) var(--ease-out);
+  }
+  .seg-btn.active {
+    background: var(--accent); color: #fff;
+  }
+  .mode-select {
+    width: auto !important;
+    min-width: 154px;
+    min-height: 30px !important;
+    padding: 2px 26px 2px 10px !important;
+    font-size: 12.5px !important;
+  }
+
+  .selection-bar {
+    display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap;
+    padding: 8px 14px; background: var(--selection); border-bottom: 1px solid var(--line);
+    font-size: 13px;
+  }
+  .selection-preview { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .selection-actions { display: flex; align-items: center; gap: 8px; }
 
   .toc-panel {
     border-bottom: 1px solid var(--line);
@@ -562,4 +1810,93 @@
     border-bottom: 1px solid var(--line);
   }
   .chapter-text { white-space: pre-wrap; }
+
+  .modal-box {
+    width: min(560px, calc(100vw - 28px));
+    max-height: 86vh;
+    overflow: auto;
+  }
+  .modal-box.modal-wide {
+    width: min(820px, calc(100vw - 28px));
+  }
+  .modal-head {
+    display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; margin-bottom: 8px;
+  }
+  .modal-head h2 { margin: 0; font-size: 18px; }
+  .modal-hint { margin: 4px 0 12px; color: var(--muted); font-size: 13px; }
+
+  .chip-row { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 12px; }
+  .chip-btn {
+    border: 1px solid var(--line); background: var(--inset); color: var(--ink);
+    border-radius: 999px; padding: 3px 10px; font-size: 12.5px; cursor: pointer;
+  }
+  .chip-btn.active {
+    background: var(--selection); color: var(--accent); border-color: var(--accent); font-weight: 600;
+  }
+
+  .field-grid { display: grid; gap: 10px; margin-bottom: 12px; }
+  .field-label { display: grid; gap: 4px; font-size: 13px; font-weight: 600; }
+  .input-with-btn { display: grid; grid-template-columns: 1fr auto; gap: 8px; }
+
+  .context-card {
+    display: grid; gap: 4px; padding: 9px 12px; margin-bottom: 12px;
+    border-radius: var(--radius-sm); background: var(--inset); border: 1px solid var(--line);
+    font-size: 12.5px;
+  }
+  .context-card small { color: var(--muted); font-weight: 600; }
+
+  .tab-strip {
+    display: flex; gap: 6px; flex-wrap: wrap; border-bottom: 1px solid var(--line);
+    padding-bottom: 8px; margin-bottom: 12px;
+  }
+  .tab-btn {
+    border: 1px solid transparent; background: transparent; color: var(--muted);
+    padding: 5px 11px; border-radius: var(--radius-sm); font-size: 13px; font-weight: 600; cursor: pointer;
+  }
+  .tab-btn.active {
+    background: var(--selection); color: var(--accent); border-color: color-mix(in srgb, var(--accent) 30%, var(--line));
+  }
+
+  .dict-toolbar {
+    display: flex; flex-wrap: wrap; align-items: flex-end; gap: 10px; margin-bottom: 10px;
+  }
+  .inline-field { display: grid; gap: 4px; font-size: 12px; color: var(--muted); }
+  .set-add-inline { display: flex; align-items: center; gap: 6px; }
+  .set-add-inline input { width: 130px; }
+
+  .entry-add-bar {
+    display: grid; grid-template-columns: 1fr 1fr auto auto; gap: 8px; margin-bottom: 10px;
+  }
+  .table-filter-bar {
+    display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 8px;
+  }
+  .table-filter-bar input { flex: 1; }
+  .table-filter-bar span { font-size: 12px; color: var(--muted); }
+
+  .dict-table-wrap {
+    max-height: 280px; overflow: auto; border: 1px solid var(--line); border-radius: var(--radius-sm);
+  }
+  .dict-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  .dict-table th, .dict-table td {
+    padding: 7px 10px; border-bottom: 1px solid var(--line); text-align: start;
+  }
+  .dict-table th { background: var(--inset); font-size: 12px; color: var(--muted); position: sticky; top: 0; }
+  .cjk-cell { font-weight: 600; }
+  .action-cell { display: flex; gap: 6px; }
+  .empty-cell { text-align: center !important; color: var(--muted); padding: 18px !important; }
+
+  .bulk-form, .server-form { display: grid; gap: 10px; }
+  .bulk-form textarea { width: 100%; font-family: Consolas, monospace; font-size: 13px; padding: 8px; }
+  .bulk-controls { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
+  .checkbox-label { display: flex; align-items: center; gap: 6px; font-size: 13px; }
+
+  .cache-card {
+    display: flex; align-items: center; justify-content: space-between; gap: 12px;
+    padding: 10px 12px; border-radius: var(--radius-sm); background: var(--inset); border: 1px solid var(--line);
+  }
+
+  .suggest-split { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .suggest-col h3 { font-size: 13px; margin: 0 0 6px; color: var(--muted); }
+  .clickable-row { cursor: pointer; }
+  .clickable-row:hover { background: var(--selection); }
 </style>

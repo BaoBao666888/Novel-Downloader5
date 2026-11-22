@@ -589,9 +589,9 @@ mod tests {
             let mut body = vec![0u8; content_len];
             reader.read_exact(&mut body).unwrap();
             let body_str = String::from_utf8(body).unwrap();
-            assert!(body_str.contains("萧炎"));
+            assert!(body_str.contains("__TM_NAME_0__"));
 
-            let resp_body = r#"{"data":{"content":"[\"Tiêu Viêm nhìn bầu trời.\"]"}}"#;
+            let resp_body = r#"{"data":{"content":"[\"__TM_NAME_0__ nhìn bầu trời.\"]"}}"#;
             let resp = format!(
                 "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{}",
                 resp_body.len(),
