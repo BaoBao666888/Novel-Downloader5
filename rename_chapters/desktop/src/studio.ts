@@ -1,14 +1,33 @@
 import { invoke } from '@tauri-apps/api/core';
 
-export type LibraryItem = { id: number; title: string; path: string };
+export type SourceKind = 'txt' | 'zip';
+export type LibraryItem = { id: number; title: string; path: string; kind: SourceKind; size: number };
 export type ReadingCursor = { offset: number; stamp: string };
 export type LibraryPage = { text: string; next: ReadingCursor | null };
+export type LibraryChapterMeta = { index: number; title: string; size: number };
+export type LibraryChapterList = {
+  book_id: number;
+  kind: SourceKind;
+  encoding: string;
+  chapters: LibraryChapterMeta[];
+};
+export type LibraryChapterContent = {
+  index: number;
+  title: string;
+  text: string;
+  encoding: string;
+  total_chapters: number;
+  truncated: boolean;
+};
 
 export const listLibrary = () => invoke<LibraryItem[]>('list_library');
 export const importLibrary = () => invoke<{ entries: LibraryItem[]; added: number } | null>('import_library');
 export const removeLibrary = (id: number) => invoke<LibraryItem[]>('remove_library', { id });
 export const readLibrary = (id: number, cursor: ReadingCursor | null) =>
   invoke<LibraryPage>('read_library', { id, cursor });
+export const listLibraryChapters = (id: number) => invoke<LibraryChapterList>('list_library_chapters', { id });
+export const readLibraryChapter = (id: number, chapterIndex: number) =>
+  invoke<LibraryChapterContent>('read_library_chapter', { id, chapterIndex });
 
 type Match = { num: string | null; title: string | null; source: string };
 

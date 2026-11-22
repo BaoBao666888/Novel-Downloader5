@@ -574,7 +574,9 @@ fn main() {
             library_commands::list_library,
             library_commands::import_library,
             library_commands::remove_library,
-            library_commands::read_library
+            library_commands::read_library,
+            library_commands::list_library_chapters,
+            library_commands::read_library_chapter
         ])
         .run(tauri::generate_context!())
         .expect("failed to start Novel Studio");
