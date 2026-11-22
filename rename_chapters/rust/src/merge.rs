@@ -192,7 +192,7 @@ pub fn execute_merge(
     })
 }
 
-fn decode_text(raw: &[u8]) -> Result<String, CoreError> {
+pub(crate) fn decode_text(raw: &[u8]) -> Result<String, CoreError> {
     if let Some(rest) = raw.strip_prefix(b"\xef\xbb\xbf") {
         let s = std::str::from_utf8(rest).map_err(|_| "UTF-8 không hợp lệ")?;
         return Ok(s.replace("\r\n", "\n").replace('\r', "\n"));

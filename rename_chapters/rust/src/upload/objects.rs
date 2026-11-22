@@ -5,6 +5,8 @@ use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::{SystemTime, UNIX_EPOCH};
 
+use serde::{Deserialize, Serialize};
+
 use crate::CoreError;
 use crate::upload::model::{ChapterRef, UploadJob};
 use crate::upload::multipart::{CreditPosition, apply_upload_credit, normalize_credit_text};
@@ -179,7 +181,8 @@ impl ObjectStore {
     }
 }
 
-#[derive(Debug, Clone, Default, PartialEq, Eq)]
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct SweepResult {
     pub files: usize,
     pub bytes: u64,

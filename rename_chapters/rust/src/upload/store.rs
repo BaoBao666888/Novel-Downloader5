@@ -77,7 +77,8 @@ impl Default for PersistedUploadState {
     }
 }
 
-#[derive(Debug, Clone, Default, PartialEq, Eq)]
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct CrashRecoveryReport {
     pub uncertain_ids: Vec<String>,
     pub failed_ids: Vec<String>,
@@ -190,6 +191,44 @@ impl UploadStore {
             compact_job_metadata(job);
         }
         Ok(state.jobs)
+    }
+
+    pub fn load_schedules(&self) -> Result<Vec<ScheduleRow>, CoreError> {
+        let _lock = self.lock()?;
+        self.read_schedules()
+    }
+
+    pub fn remove_job(&self, id: &str) -> Result<Vec<UploadJob>, CoreError> {
+        let _lock = self.lock()?;
+        let expected_owner = format!("scheduled:{id}");
+        if self.lease.current().as_deref() == Some(expected_owner.as_str()) {
+            return Err("Công việc đang chạy, hãy dừng trước khi xóa.".into());
+        }
+        let mut rows = self.read_schedules()?;
+        if rows.iter().any(|row| row.id == id && row.running) {
+            return Err("Công việc đã bắt đầu. Chờ gửi và đối chiếu xong.".into());
+        }
+
+        let current = self.read_state()?.jobs;
+        if !current.iter().any(|job| job.id == id) {
+            return Err("Công việc không tồn tại.".into());
+        }
+        let remaining: Vec<UploadJob> =
+            current.iter().filter(|job| job.id != id).cloned().collect();
+        validate_removal(&current, &remaining)?;
+
+        let prev_len = rows.len();
+        rows.retain(|row| row.id != id);
+        if rows.len() != prev_len {
+            self.save_schedules(&rows)?;
+        }
+
+        self.save_state(&PersistedUploadState {
+            schema: UPLOAD_SCHEMA_VERSION,
+            jobs: remaining.clone(),
+        })?;
+        self.schedule_epoch.fetch_add(1, Ordering::SeqCst);
+        Ok(remaining)
     }
 
     pub fn save_jobs(&self, incoming: Vec<UploadJob>) -> Result<Vec<UploadJob>, CoreError> {
@@ -845,5 +884,38 @@ mod tests {
         let restored = store.restore_jobs_safely(vec![armed]).expect("restore ok");
         assert_eq!(restored[0].status, JobStatus::Planned);
         assert!(restored[0].scheduled_at.is_none());
+    }
+
+    #[test]
+    fn remove_job_enforces_links_leases_and_clears_schedules() {
+        let dir = tempdir().expect("tempdir");
+        let store = UploadStore::new(dir.path().to_path_buf());
+
+        let p = planned_job("parent");
+        let mut child = planned_job("child");
+        child.metadata.fields = vec![("titleVi".into(), "Truyện khác".into())];
+        store.save_jobs(vec![p, child]).expect("save");
+
+        store
+            .schedule_job("parent", 120_000, 10_000, false)
+            .expect("schedule parent");
+        assert_eq!(store.load_schedules().expect("scheds").len(), 1);
+
+        store
+            .link_job("child", "parent", 15_000, true)
+            .expect("link child");
+        assert!(store.remove_job("parent").is_err());
+
+        let child_set: HashSet<String> = ["child".into()].into_iter().collect();
+        store.cancel_schedules(&child_set).expect("cancel child");
+
+        assert!(store.lease().acquire("scheduled:parent"));
+        assert!(store.remove_job("parent").is_err());
+        store.lease().release("scheduled:parent");
+
+        let remaining = store.remove_job("parent").expect("remove parent");
+        assert_eq!(remaining.len(), 1);
+        assert_eq!(remaining[0].id, "child");
+        assert!(store.load_schedules().expect("scheds empty").is_empty());
     }
 }
