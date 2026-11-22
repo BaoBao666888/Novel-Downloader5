@@ -13,12 +13,10 @@
   } from './studio';
 
   type Props = {
-    python: string;
-    onPickPython: () => Promise<void>;
     parentBusy: boolean;
   };
 
-  let { python, onPickPython, parentBusy }: Props = $props();
+  let { parentBusy }: Props = $props();
 
   const PAGE_SIZE = 40;
 
@@ -168,8 +166,8 @@
 
 <section class="heading">
   <div>
-    <h1>Giải nén &amp; Xem tệp nén</h1>
-    <p>Quét danh sách chương trong tệp .zip, xem trước nội dung (tự nhận diện UTF-8/GB18030) và giải nén an toàn, giữ trọn tên có dấu “…”.</p>
+    <h1>Giải nén ZIP</h1>
+    <p>Chọn tệp cần lấy ra từ ZIP.</p>
   </div>
   <button class="button primary" type="button" onclick={pickArchive} disabled={isBusy}>
     {busy === 'file' ? 'Đang mở…' : archiveFile ? 'Đổi tệp .zip' : 'Chọn tệp .zip'}
@@ -183,14 +181,14 @@
   </div>
   <div class="folder-line">
     <span class="folder-label">Thư mục giải nén</span>
-    <span class="folder-path" title={outputDir}>{outputDir || 'Tự động tạo <tên_zip>_extracted'}</span>
+    <span class="folder-path" title={outputDir}>{outputDir || 'Cạnh tệp ZIP'}</span>
     <button
       type="button"
       class="inline-action"
       onclick={pickOutputDir}
       disabled={!archiveFile || isBusy}
     >
-      {busy === 'outdir' ? 'Đang mở…' : 'Đổi đích…'}
+      {busy === 'outdir' ? 'Đang mở…' : 'Đổi thư mục…'}
     </button>
   </div>
 </div>
@@ -201,12 +199,12 @@
     <fieldset disabled={isBusy}>
       <label class="checkbox-field">
         <input type="checkbox" bind:checked={onlyTxt} onchange={() => (page = 0)} />
-        <span>Chỉ hiển thị tệp .txt</span>
+        <span>Chỉ hiện tệp TXT</span>
       </label>
 
       <label class="checkbox-field">
         <input type="checkbox" bind:checked={overwrite} />
-        <span>Cho phép ghi đè tệp đã tồn tại</span>
+        <span>Thay thế tệp trùng tên</span>
       </label>
 
       {#if preview}
@@ -216,7 +214,7 @@
           <div><span>Tổng dung lượng</span><strong>{formatBytes(preview.info.total_size)}</strong></div>
           {#if preview.info.blocked_count > 0}
             <div class="warn-stat">
-              <span>Bị chặn (không an toàn)</span>
+              <span>Không thể giải nén</span>
               <strong>{preview.info.blocked_count}</strong>
             </div>
           {/if}
@@ -236,15 +234,9 @@
       onclick={runInspect}
       disabled={!archiveFile || isBusy}
     >
-      {busy === 'inspect' ? 'Đang quét…' : 'Quét lại tệp nén'}
+      {busy === 'inspect' ? 'Đang mở…' : 'Đọc lại ZIP'}
     </button>
 
-    <div class="runtime">
-      <span>Python · {python || 'Mặc định'}</span>
-      <button type="button" class="runtime-button" onclick={onPickPython} disabled={isBusy}>
-        Chọn Python…
-      </button>
-    </div>
   </aside>
 
   <section class="proof" aria-label="Danh sách tệp trong gói nén" aria-busy={isBusy}>
@@ -253,7 +245,7 @@
         <h2>Nội dung tệp nén</h2>
         {#if preview}
           <p class="summary">
-            {preview.info.safe_count} mục an toàn · {selected.size} đang chọn
+            {preview.info.safe_count} tệp có thể giải nén · {selected.size} đang chọn
             {#if preview.info.blocked_count > 0}
               · {preview.info.blocked_count} bị chặn
             {/if}
@@ -378,7 +370,6 @@
             <h3>Đang giải nén các tệp đã chọn…</h3>
           {:else if !archiveFile}
             <h3>Chọn tệp .zip chứa truyện</h3>
-            <p>Hỗ trợ giải nén đủ tệp chứa dấu “…” trong tên, tự nhận diện tên tiếng Trung (UTF-8/GB18030) và chặn đường dẫn “..”.</p>
           {:else}
             <h3>Không có mục nào khớp bộ lọc</h3>
           {/if}
@@ -405,10 +396,7 @@
 <dialog class="line-confirmation" bind:this={previewDialog} aria-labelledby="entry-preview-title">
   {#if entryPreview}
     <h2 id="entry-preview-title">{entryPreview.display_name}</h2>
-    <p>
-      Bảng mã phát hiện: <strong>{entryPreview.encoding}</strong>
-      {#if entryPreview.truncated} · Đang hiển thị 16 KB đầu tiên{/if}
-    </p>
+    {#if entryPreview.truncated}<p>Đang xem phần đầu của tệp.</p>{/if}
     <pre class="archive-preview-body">{entryPreview.text}</pre>
   {/if}
   <div class="dialog-actions">
@@ -420,7 +408,7 @@
   <h2 id="extract-confirm-title">Giải nén {selected.size} tệp?</h2>
   <p title={outputDir}>Thư mục đích: <strong>{outputDir}</strong></p>
   {#if overwrite}
-    <p class="row-error">Cảnh báo: Tệp trùng tên trong thư mục đích sẽ bị ghi đè.</p>
+    <p class="row-error">Tệp trùng tên sẽ được thay thế.</p>
   {/if}
   <div class="dialog-actions">
     <button type="button" class="button" onclick={() => confirmDialog.close()}>Hủy</button>

@@ -164,7 +164,7 @@
 <section class="heading">
   <div>
     <h1>Ghép tệp TXT</h1>
-    <p>Gộp nhiều tệp chương .txt trong thư mục thành một tệp duy nhất theo thứ tự tự nhiên, không ghi đè ngoài ý muốn.</p>
+    <p>Gộp các chương theo thứ tự đã chọn.</p>
   </div>
   <button class="button primary" type="button" onclick={pickFolder} disabled={isBusy}>
     {busy === 'folder' ? 'Đang mở…' : preview ? 'Đổi thư mục' : 'Chọn thư mục'}
@@ -248,7 +248,7 @@
         <h2>Thứ tự ghép chương</h2>
         {#if preview}
           <p class="summary">
-            {chosenOrdered.length} / {ordered.length} tệp sẽ được ghép thành một tệp UTF-8
+            {chosenOrdered.length} / {ordered.length} tệp đã chọn
           </p>
         {/if}
       </div>
@@ -368,7 +368,6 @@
           <div class="paper" aria-hidden="true"><span></span><span></span><span></span></div>
           {#if !preview}
             <h3>Chọn thư mục chứa các chương .txt</h3>
-            <p>Các tệp được tự động sắp xếp tự nhiên (2.txt trước 10.txt) và chạy thuần Rust.</p>
           {:else if ordered.length === 0}
             <h3>Thư mục chưa có tệp .txt nào</h3>
           {:else}

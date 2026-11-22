@@ -10,6 +10,7 @@ pub mod rename;
 pub mod rename_apply;
 pub mod split;
 mod split_session;
+mod text_encoding;
 pub mod text_tools;
 pub mod translate;
 pub mod upload;

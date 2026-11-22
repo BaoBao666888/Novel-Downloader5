@@ -190,10 +190,10 @@
   const anyRunActive = $derived(Boolean(liveProgress?.active || runtime?.activeRun?.active));
 
   const sessionPillLabel = $derived.by(() => {
-    if (runtime?.verifiedAccount) return `Phiên: ${runtime.verifiedAccount}`;
-    if (sessionStatus?.configured && sessionStatus.readable) return `Phiên DPAPI (${sessionStatus.masked})`;
-    if (sessionStatus?.configured) return 'Phiên lỗi giải mã';
-    return 'Chưa nối phiên';
+    if (runtime?.verifiedAccount) return runtime.verifiedAccount;
+    if (sessionStatus?.configured && sessionStatus.readable) return "Đã lưu đăng nhập";
+    if (sessionStatus?.configured) return 'Không đọc được phiên đã lưu';
+    return 'Chưa đăng nhập';
   });
 
   const eligibleParents = $derived.by(() => {
@@ -745,12 +745,7 @@
 </script>
 
 <section class="heading">
-  <div>
-    <h1>Đăng tải &amp; Khôi phục</h1>
-    <p>
-      Quản lý kế hoạch đăng truyện, giữ nguyên tệp gốc, truyền stream UTF-8 BOM an toàn, đối chiếu server và sao lưu ZIP sạch.
-    </p>
-  </div>
+  <h1>Đăng tải</h1>
   <div class="proof-actions heading-actions">
     <button
       class="button session-pill"
@@ -762,17 +757,17 @@
       <span class="session-dot" aria-hidden="true"></span>
       <span>{sessionPillLabel}</span>
       {#if runtime?.mockMode}
-        <span class="badge accent">Mock</span>
+        <span class="badge accent">Thử nghiệm</span>
       {/if}
     </button>
     <button
       class="button"
       type="button"
-      title="Nhập gói ZIP sao lưu công việc"
+      title="Mở bản sao lưu"
       onclick={pickAndInspectBackup}
       disabled={isBusy}
     >
-      {busy === 'import' ? 'Đang mở…' : 'Nhập ZIP'}
+      {busy === 'import' ? 'Đang mở…' : 'Mở bản sao lưu'}
     </button>
     <button class="button primary" type="button" onclick={openCreateDialog} disabled={isBusy}>
       Tạo công việc
@@ -783,12 +778,12 @@
 {#if showCrashBanner && crashRecovery}
   <div class="notice error crash-banner" role="alert">
     <div>
-      <strong>Phục hồi sau sự cố:</strong>
+      <strong>Đăng tải bị gián đoạn.</strong>
       {#if crashRecovery.uncertainIds.length > 0}
-        Đã chuyển {crashRecovery.uncertainIds.length} công việc từng gửi dữ liệu sang <em>Cần kiểm tra</em> (khóa tự retry để tránh đăng trùng).
+        {crashRecovery.uncertainIds.length} công việc cần kiểm tra trước khi gửi lại.
       {/if}
       {#if crashRecovery.failedIds.length > 0}
-        Đã chuyển {crashRecovery.failedIds.length} công việc chưa gửi sang <em>Tạm dừng</em>.
+        {crashRecovery.failedIds.length} công việc đã tạm dừng trước khi gửi.
       {/if}
     </div>
     <button type="button" class="mini-btn" onclick={() => (recoveryDismissed = true)}>Đã hiểu</button>
@@ -871,10 +866,10 @@
     {#if snapshot}
       <div class="shelf-foot">
         <div class="stat-box">
-          <div><span>Lịch hẹn / liên kết</span><strong class="num-stat">{snapshot.schedules.length}</strong></div>
-          <div><span>Sổ đối chiếu</span><strong class="num-stat">{snapshot.ledgerCount}</strong></div>
+          <div><span>Lịch hẹn</span><strong class="num-stat">{snapshot.schedules.length}</strong></div>
+          <div><span>Lần kiểm tra</span><strong class="num-stat">{snapshot.ledgerCount}</strong></div>
           <div>
-            <span>Kho đối tượng cục bộ</span>
+            <span>Tệp đã lưu trên máy</span>
             <strong class="num-stat">{snapshot.storage.objectFiles} tệp · {formatBytes(snapshot.storage.objectBytes)}</strong>
           </div>
         </div>
@@ -937,7 +932,7 @@
 
       {#if selectedJob.status === 'uncertain' || selectedJob.needsReconcile}
         <p class="notice error" role="alert">
-          <strong>Cần đối chiếu trước khi gửi lại:</strong> Không tự động retry request ghi vì đã đánh dấu có tương tác với server. Hãy dùng <em>Đối chiếu ngay</em> hoặc sao lưu ZIP trước khi thao tác tiếp.
+          Bấm <strong>Đối chiếu ngay</strong> để kiểm tra chương nào đã lên trang trước khi gửi lại.
         </p>
       {/if}
 
@@ -994,7 +989,7 @@
               {#if selectedJob.scheduledAt}
                 Hẹn: {formatTimestamp(selectedJob.scheduledAt)}
               {:else if selectedJob.afterJobId}
-                Nối tiếp sau: <code>{selectedJob.afterJobId}</code>
+                Sau {jobs.find((job) => job.id === selectedJob?.afterJobId)?.title || "công việc đã hẹn"}
               {:else}
                 Chưa đặt lịch
               {/if}
@@ -1102,11 +1097,11 @@
       <footer class="proof-footer">
         <span>
           {#if activeRunForSelected}
-            Đang truyền stream multipart (UTF-8 BOM trên đường truyền)…
+            Đang gửi chương…
           {:else if selectedJob.status === 'uncertain'}
-            Đã khóa gửi tự động cho tới khi đối chiếu với server
+            Cần kiểm tra trước khi gửi lại.
           {:else if selectedJob.status === 'waiting'}
-            Đã tải xong bước gửi · có thể bấm Đối chiếu ngay để kiểm tra server
+            Đã gửi xong. Bấm Đối chiếu ngay để kiểm tra.
           {:else if selectedJob.scheduleBlockReason && !selectedJob.canSchedule}
             {selectedJob.scheduleBlockReason}
           {:else}
@@ -1166,7 +1161,7 @@
         <div class="paper" aria-hidden="true"><span></span><span></span><span></span></div>
         <h3>Quản lý công việc Upload &amp; Khôi phục</h3>
         <p>
-          Tạo công việc mới từ thư mục tệp .txt (giữ nguyên file gốc), cấu hình phiên đăng nhập DPAPI hoặc nhập lại từ gói ZIP sao lưu.
+          Tạo công việc hoặc mở một bản sao lưu.
         </p>
       </div>
     {/if}
@@ -1210,7 +1205,7 @@
 
 <dialog class="wide-dialog" bind:this={createDialog} aria-labelledby="create-job-title">
   <h2 id="create-job-title">Tạo công việc đăng tải mới</h2>
-  <p>Tệp gốc trên đĩa được giữ nguyên; hệ thống tạo bản sao UTF-8 an toàn trong kho cục bộ.</p>
+  <p>App dùng bản sao của các chương để đăng.</p>
 
   {#if createError}
     <p role="alert" class="notice error modal-notice">{createError}</p>
@@ -1418,14 +1413,13 @@
 </dialog>
 
 <dialog class="wide-dialog" bind:this={exportDialog} aria-labelledby="export-recovery-title">
-  <h2 id="export-recovery-title">Xem trước gói sao lưu &amp; Lấy lại dữ liệu</h2>
+  <h2 id="export-recovery-title">Sao lưu công việc</h2>
   {#if recoveryReport}
     <p>
       {recoveryReport.title} · Còn {recoveryReport.availableChapters} chương
       {#if recoveryReport.missingChapters > 0}
         · Thiếu {recoveryReport.missingChapters} chương
       {/if}
-      · Đã loại bỏ cookie/CSRF/token nhạy cảm.
     </p>
     <pre class="archive-preview-body">{recoveryReport.text}</pre>
     {#if exportResultPath}
@@ -1435,13 +1429,13 @@
   <div class="dialog-actions">
     <button type="button" class="button" onclick={() => exportDialog?.close()}>Đóng</button>
     <button type="button" class="button primary" onclick={exportRecoveryZip} disabled={isBusy || !recoveryReport}>
-      {busy === 'export' ? 'Đang xuất ZIP…' : 'Xuất tệp ZIP…'}
+      {busy === 'export' ? 'Đang xuất ZIP…' : 'Lưu bản sao…'}
     </button>
   </div>
 </dialog>
 
 <dialog bind:this={importDialog} aria-labelledby="import-backup-title">
-  <h2 id="import-backup-title">Khôi phục công việc từ ZIP sao lưu</h2>
+  <h2 id="import-backup-title">Khôi phục bản sao lưu</h2>
   {#if backupInspection}
     <p>
       <strong>{backupInspection.report.title}</strong> · {backupInspection.report.volumes.length} quyển ·
@@ -1472,9 +1466,9 @@
   <p>
     {selectedJob?.title}.
     {#if selectedJob?.writeAttempted}
-      Công việc này từng gửi dữ liệu lên server. Nên xuất sao lưu ZIP trước khi xóa khỏi danh sách.
+      Công việc đã gửi lên trang. Bạn có thể lưu bản sao trước khi xóa.
     {:else}
-      Công việc sẽ bị xóa khỏi hàng đợi cục bộ; tệp nguồn ban đầu trên máy vẫn giữ nguyên.
+      Chỉ xóa công việc trong danh sách.
     {/if}
   </p>
   <div class="dialog-actions">

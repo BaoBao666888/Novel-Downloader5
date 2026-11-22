@@ -1720,7 +1720,6 @@
   <div class="modal-head">
     <div>
       <h2 id="library-stats-title">{t('stats.title')}</h2>
-      <p class="modal-hint">{t('stats.subtitle')}</p>
     </div>
     <button
       id="library-stats-refresh-btn"
@@ -1769,7 +1768,6 @@
         </span>
       </div>
     </div>
-    <p class="field-help">{t('stats.elapsed', { ms: libraryStats.elapsed_ms })}</p>
   {/if}
 
   <div class="dialog-actions">

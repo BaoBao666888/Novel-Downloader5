@@ -245,8 +245,7 @@ impl Workspace {
             .archive_file
             .as_ref()
             .ok_or("Hãy chọn tệp nén .zip trước.")?;
-        let (plan, info) =
-            archive::inspect(file, self.interpreter.as_deref()).map_err(|err| err.to_string())?;
+        let (plan, info) = archive::inspect(file).map_err(|err| err.to_string())?;
         let output_dir = self
             .archive_output_dir
             .clone()
@@ -270,8 +269,7 @@ impl Workspace {
             .as_ref()
             .filter(|(id, _)| *id == revision)
             .ok_or("Danh sách tệp nén đã hết hiệu lực. Hãy quét lại.")?;
-        archive::preview_entry(plan, entry_index, self.interpreter.as_deref())
-            .map_err(|err| err.to_string())
+        archive::preview_entry(plan, entry_index).map_err(|err| err.to_string())
     }
 
     pub fn extract_archive(
@@ -289,14 +287,7 @@ impl Workspace {
             .archive_output_dir
             .clone()
             .unwrap_or_else(|| archive::default_extract_dir(&plan.archive_path));
-        archive::extract(
-            plan,
-            &output_dir,
-            &indices,
-            overwrite,
-            self.interpreter.as_deref(),
-        )
-        .map_err(|err| err.to_string())
+        archive::extract(plan, &output_dir, &indices, overwrite).map_err(|err| err.to_string())
     }
 
     pub fn select_merge_folder(&mut self, folder: PathBuf) -> Result<MergePreview, String> {

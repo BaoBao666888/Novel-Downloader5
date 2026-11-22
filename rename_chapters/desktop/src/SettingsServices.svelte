@@ -37,7 +37,7 @@
       session = await saveUploadSessionCookie(cookie);
       cookie = '';
       runtime = await getUploadRuntimeStatus();
-      notice = 'Đã lưu phiên Wikidich bằng Windows DPAPI.';
+      notice = 'Đã lưu đăng nhập Wikidich.';
     });
   }
 
@@ -75,9 +75,9 @@
   {#if error}<p class="notice error" role="alert">{error}</p>{/if}
   {#if notice}<p class="notice" role="status">{notice}</p>{/if}
   {#if group === 'account'}
-    <p class="field-help">Phiên này dùng cho Works và Đăng tải. Windows DPAPI mã hóa cookie đã lưu.</p>
+    <p class="field-help">Dùng chung cho Wikidich và Đăng tải.</p>
     <div class="stat-box">
-      <div><span>Phiên trên máy</span><strong>{session?.configured ? (session.readable ? 'Đã lưu' : 'Lỗi giải mã') : 'Chưa lưu'}</strong></div>
+      <div><span>Phiên trên máy</span><strong>{session?.configured ? (session.readable ? 'Đã lưu' : 'Không đọc được') : 'Chưa lưu'}</strong></div>
       <div><span>Tài khoản đã xác thực</span><strong>{runtime?.verifiedAccount || 'Chưa kiểm tra'}</strong></div>
     </div>
     <label class="settings-field">

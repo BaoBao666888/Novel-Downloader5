@@ -438,7 +438,7 @@
     <div hidden={mode !== 'text'}><TextToolsWorkbench {python} onPickPython={pickPython} parentBusy={busy !== null} /></div>
   {/if}
   {#if visited.has('archive')}
-    <div hidden={mode !== 'archive'}><ArchiveWorkbench {python} onPickPython={pickPython} parentBusy={busy !== null} /></div>
+    <div hidden={mode !== 'archive'}><ArchiveWorkbench parentBusy={busy !== null} /></div>
   {/if}
   {#if visited.has('merge')}
     <div hidden={mode !== 'merge'}><MergeWorkbench parentBusy={busy !== null} /></div>
