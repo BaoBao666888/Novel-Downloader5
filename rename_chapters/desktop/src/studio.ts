@@ -867,11 +867,15 @@ export const runDueUploadVerifications = () =>
 
 export type VBookExtensionType =
   | 'novel'
-  | 'comic'
   | 'chinese_novel'
+  | 'comic'
   | 'video'
+  | 'audio'
+  | 'tts'
   | 'translate'
   | 'ai'
+  | 'forum'
+  | 'news'
   | 'unknown';
 
 export type ExtensionRepo = {
@@ -995,6 +999,160 @@ export const vbookTogglePinExtension = (installedId: string, pinned: boolean) =>
   invoke<VBookWorkspaceSnapshot>('vbook_toggle_pin_extension', { installedId, pinned });
 export const vbookSaveExtensionConfig = (installedId: string, configJson: string) =>
   invoke<InstalledExtension>('vbook_save_extension_config', { installedId, configJson });
+
+export type VBookRunnerStatus = {
+  ready: boolean;
+  mock_mode: boolean;
+  java_path: string | null;
+  jar_path: string | null;
+  message: string;
+};
+
+export type VBookSearchItem = {
+  name: string;
+  link: string;
+  cover: string;
+  description: string;
+  host: string;
+  item_type: string;
+};
+
+export type VBookSearchPage = {
+  items: VBookSearchItem[];
+  next: string | null;
+};
+
+export type VBookDetail = {
+  name: string;
+  cover: string;
+  host: string;
+  author: string;
+  description: string;
+  detail_html: string;
+  detail_text: string;
+  ongoing: boolean | null;
+  genres: string[];
+  detail_type: string;
+  format: string;
+  url: string;
+};
+
+export type VBookTocItem = {
+  name: string;
+  url: string;
+  host: string;
+  pay: boolean;
+  item_type: string;
+  index: number;
+};
+
+export type VBookMediaImage = {
+  url: string;
+  headers: Record<string, string>;
+};
+
+export type VBookTrackEntry = {
+  title: string;
+  data: string;
+  quality: string;
+  track_type: string;
+  subtitles: unknown[];
+  raw: unknown;
+};
+
+export type VBookChapterContent =
+  | { kind: 'novel'; html: string; text: string; title: string }
+  | { kind: 'comic'; images: VBookMediaImage[] }
+  | { kind: 'media_tracks'; media_kind: string; tracks: VBookTrackEntry[] }
+  | { kind: 'raw'; data: unknown };
+
+export type VBookResolvedTrack = {
+  data: string;
+  title: string;
+  track_type: string;
+  mime_type: string;
+  headers: Record<string, string>;
+  subtitles: unknown[];
+  audios: unknown[];
+  lyrics: unknown[];
+  time_skip: unknown[];
+  raw: unknown;
+};
+
+export type VBookTtsVoice = {
+  id: string;
+  name: string;
+  language: string;
+};
+
+export type VBookTtsAudio = {
+  base64_data: string;
+  mime_type: string;
+  byte_len: number;
+};
+
+export type VBookTranslateOption = {
+  id: string;
+  name: string;
+  direction: string;
+  description: string;
+};
+
+export type VBookTranslateMeta = {
+  languages: VBookTranslateOption[];
+  models: VBookTranslateOption[];
+  styles: VBookTranslateOption[];
+};
+
+export type VBookTranslateResult = {
+  text: string;
+  segments: unknown[];
+};
+
+export type VBookChatMessage = {
+  role: string;
+  content: string;
+};
+
+export type VBookAiReply = {
+  text: string;
+  model: string;
+};
+
+export const vbookRunnerStatus = () => invoke<VBookRunnerStatus>('vbook_runner_status');
+export const vbookSearch = (installedId: string, query: string, page: string | null = null) =>
+  invoke<VBookSearchPage>('vbook_search', { installedId, query, page });
+export const vbookDetail = (installedId: string, url: string) =>
+  invoke<VBookDetail>('vbook_detail', { installedId, url });
+export const vbookToc = (installedId: string, bookUrl: string) =>
+  invoke<VBookTocItem[]>('vbook_toc', { installedId, bookUrl });
+export const vbookChap = (
+  installedId: string,
+  chapterUrl: string,
+  contentTypeHint: string | null = null,
+) => invoke<VBookChapterContent>('vbook_chap', { installedId, chapterUrl, contentTypeHint });
+export const vbookResolveTrack = (installedId: string, trackData: string) =>
+  invoke<VBookResolvedTrack>('vbook_resolve_track', { installedId, trackData });
+export const vbookTtsVoices = (installedId: string) =>
+  invoke<VBookTtsVoice[]>('vbook_tts_voices', { installedId });
+export const vbookTtsSynthesize = (installedId: string, text: string, voiceId: string) =>
+  invoke<VBookTtsAudio>('vbook_tts_synthesize', { installedId, text, voiceId });
+export const vbookTranslateMeta = (installedId: string) =>
+  invoke<VBookTranslateMeta>('vbook_translate_meta', { installedId });
+export const vbookTranslateText = (
+  installedId: string,
+  text: string,
+  from: string,
+  to: string,
+  source: string,
+  model: string,
+  style: string,
+) => invoke<VBookTranslateResult>('vbook_translate_text', { installedId, text, from, to, source, model, style });
+export const vbookAiChat = (
+  installedId: string,
+  messages: VBookChatMessage[],
+  selectedModel: string,
+) => invoke<VBookAiReply>('vbook_ai_chat', { installedId, messages, selectedModel });
 
 const issueLabels: Record<Row['issues'][number], string> = {
   invalid_target: 'Tên đích không hợp lệ',

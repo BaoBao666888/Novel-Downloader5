@@ -2,14 +2,25 @@
   import { onMount } from 'svelte';
   import {
     vbookAddRepo,
+    vbookAiChat,
+    vbookChap,
+    vbookDetail,
     vbookGetSnapshot,
     vbookInstallFromUrl,
     vbookPickAndInstallLocalZip,
     vbookRefreshRepos,
     vbookRemoveRepo,
+    vbookResolveTrack,
+    vbookRunnerStatus,
     vbookSaveExtensionConfig,
+    vbookSearch,
+    vbookToc,
     vbookTogglePinExtension,
     vbookToggleRepo,
+    vbookTranslateMeta,
+    vbookTranslateText,
+    vbookTtsSynthesize,
+    vbookTtsVoices,
     vbookUninstallExtension,
     vbookUpdateAll,
     vbookUpdateExtension,
@@ -17,6 +28,17 @@
     type ExtensionRepo,
     type ExtensionUpdate,
     type InstalledExtension,
+    type VBookAiReply,
+    type VBookChapterContent,
+    type VBookDetail,
+    type VBookResolvedTrack,
+    type VBookRunnerStatus,
+    type VBookSearchItem,
+    type VBookTocItem,
+    type VBookTranslateMeta,
+    type VBookTranslateResult,
+    type VBookTtsAudio,
+    type VBookTtsVoice,
     type VBookWorkspaceSnapshot,
   } from './studio';
 
@@ -31,6 +53,7 @@
   let { parentBusy = false }: Props = $props();
 
   let snapshot = $state<VBookWorkspaceSnapshot | null>(null);
+  let runnerStatus = $state<VBookRunnerStatus | null>(null);
   let activeTab = $state<TabId>('installed');
   let busy = $state<string | null>(null);
   let error = $state('');
@@ -52,15 +75,51 @@
   let configTarget = $state<InstalledExtension | null>(null);
   let configDraft = $state<Record<string, string | number | boolean>>({});
 
+  // Modal Khám phá (novel / chinese_novel / comic / video / audio / forum / news)
+  let exploreDialog = $state<HTMLDialogElement | undefined>(undefined);
+  let exploreTarget = $state<InstalledExtension | null>(null);
+  let exploreQuery = $state('');
+  let exploreResults = $state<VBookSearchItem[]>([]);
+  let exploreNext = $state<string | null>(null);
+  let exploreDetail = $state<VBookDetail | null>(null);
+  let exploreToc = $state<VBookTocItem[]>([]);
+  let exploreChap = $state<VBookChapterContent | null>(null);
+  let exploreChapTitle = $state('');
+  let resolvedTrack = $state<VBookResolvedTrack | null>(null);
+  let exploreError = $state('');
+  let exploreBusy = $state(false);
+
+  // Modal Thử Engine (tts / translate / ai)
+  let engineDialog = $state<HTMLDialogElement | undefined>(undefined);
+  let engineTarget = $state<InstalledExtension | null>(null);
+  let engineError = $state('');
+  let engineBusy = $state(false);
+  // TTS
+  let ttsVoices = $state<VBookTtsVoice[]>([]);
+  let ttsVoiceId = $state('');
+  let ttsInput = $state('Xin chào đạo hữu, đây là đoạn đọc thử nghiệm từ Novel Studio.');
+  let ttsResult = $state<VBookTtsAudio | null>(null);
+  // Translate
+  let translateMeta = $state<VBookTranslateMeta | null>(null);
+  let trFrom = $state('');
+  let trTo = $state('vi');
+  let trModel = $state('');
+  let trStyle = $state('');
+  let trInput = $state('你好，道友！');
+  let trResult = $state<VBookTranslateResult | null>(null);
+  // AI
+  let aiModels = $state<string[]>([]);
+  let aiModel = $state('');
+  let aiPrompt = $state('Tóm tắt ngắn vai trò của nguồn mở rộng VBook.');
+  let aiReply = $state<VBookAiReply | null>(null);
+
   let isBusy = $derived(parentBusy || busy !== null);
   let repos: ExtensionRepo[] = $derived(snapshot?.repos ?? []);
   let updates: ExtensionUpdate[] = $derived(snapshot?.updates ?? []);
   let installed: InstalledExtension[] = $derived(snapshot?.installed ?? []);
   let catalog: CatalogExtensionView[] = $derived(snapshot?.catalog ?? []);
 
-  let updateByInstalledId = $derived(
-    new Map(updates.map((u) => [u.installed_id, u])),
-  );
+  let updateByInstalledId = $derived(new Map(updates.map((u) => [u.installed_id, u])));
 
   let filteredInstalled = $derived.by(() => {
     const q = installedSearch.trim().toLowerCase();
@@ -107,58 +166,81 @@
     if (!configTarget) return [];
     const schema = configTarget.config_schema ?? {};
     const keys = Array.from(
-      new Set([
-        ...Object.keys(schema),
-        ...Object.keys(configTarget.user_config ?? {}),
-      ]),
+      new Set([...Object.keys(schema), ...Object.keys(configTarget.user_config ?? {})]),
     );
-    return keys.map((key) => {
-      const raw = schema[key];
-      const obj =
-        raw && typeof raw === 'object' && !Array.isArray(raw)
-          ? (raw as Record<string, unknown>)
-          : {};
-      const formatRaw = String(obj.format ?? obj.type ?? 'text').toLowerCase();
-      const label = String(obj.prompt ?? obj.title ?? obj.name ?? key);
-      const options = Array.isArray(obj.items)
-        ? obj.items.map((item) => String(item))
-        : Array.isArray(obj.options)
-          ? obj.options.map((item) => String(item))
-          : null;
-      const defaultValue = obj.default ?? '';
-      return {
-        key,
-        label,
-        format: options
-          ? ('select' as const)
-          : formatRaw === 'switch' || formatRaw === 'boolean' || formatRaw === 'bool'
+    return keys
+      .map((key) => {
+        const raw = schema[key];
+        const obj =
+          raw && typeof raw === 'object' && !Array.isArray(raw)
+            ? (raw as Record<string, unknown>)
+            : null;
+        const modeRaw = obj ? String(obj.mode ?? '').toLowerCase() : '';
+        if (modeRaw === 'database') return null;
+
+        const formatRaw = obj ? String(obj.format ?? obj.type ?? 'text').toLowerCase() : typeof raw;
+        const label = obj ? String(obj.title ?? obj.prompt ?? obj.name ?? key) : key;
+        const subtitle = obj && obj.subtitle ? String(obj.subtitle) : '';
+        const options =
+          obj && Array.isArray(obj.values)
+            ? obj.values.map((item) => String(item))
+            : obj && Array.isArray(obj.items)
+              ? obj.items.map((item) => String(item))
+              : obj && Array.isArray(obj.options)
+                ? obj.options.map((item) => String(item))
+                : null;
+        const defaultValue = obj ? (obj.default ?? '') : (raw ?? '');
+        const fieldKind =
+          modeRaw === 'toggle' || formatRaw === 'switch' || formatRaw === 'boolean' || formatRaw === 'bool'
             ? ('boolean' as const)
-            : formatRaw === 'number'
-              ? ('number' as const)
-              : ('text' as const),
-        options,
-        defaultValue,
-      };
-    });
+            : modeRaw === 'select' || (options !== null && modeRaw !== 'list')
+              ? ('select' as const)
+              : modeRaw === 'list'
+                ? ('list' as const)
+                : formatRaw === 'number'
+                  ? ('number' as const)
+                  : ('text' as const);
+        return {
+          key,
+          label,
+          subtitle,
+          format: fieldKind,
+          options,
+          defaultValue,
+        };
+      })
+      .filter((f): f is NonNullable<typeof f> => f !== null);
   });
 
   function typeLabel(raw: string): string {
     switch (raw) {
       case 'novel':
         return 'Tiểu thuyết';
-      case 'comic':
-        return 'Truyện tranh';
       case 'chinese_novel':
         return 'Tiểu thuyết Trung';
+      case 'comic':
+        return 'Truyện tranh';
       case 'video':
         return 'Video';
+      case 'audio':
+        return 'Âm thanh / Podcast';
+      case 'tts':
+        return 'TTS';
       case 'translate':
         return 'Dịch thuật';
       case 'ai':
-        return 'AI';
+        return 'Trợ lý AI';
+      case 'forum':
+        return 'Diễn đàn';
+      case 'news':
+        return 'Tin tức';
       default:
         return 'Khác';
     }
+  }
+
+  function isEngineType(raw: string): boolean {
+    return raw === 'tts' || raw === 'translate' || raw === 'ai';
   }
 
   function initials(name: string): string {
@@ -179,7 +261,9 @@
     busy = 'load';
     error = '';
     try {
-      snapshot = await vbookGetSnapshot();
+      const [snap, status] = await Promise.all([vbookGetSnapshot(), vbookRunnerStatus()]);
+      snapshot = snap;
+      runnerStatus = status;
     } catch (cause) {
       error = String(cause);
     } finally {
@@ -216,10 +300,7 @@
     error = '';
     notice = '';
     try {
-      const ext = await vbookInstallFromUrl(
-        view.remote.path,
-        view.installed_id ?? null,
-      );
+      const ext = await vbookInstallFromUrl(view.remote.path, view.installed_id ?? null);
       snapshot = await vbookGetSnapshot();
       notice = view.update_available
         ? `Đã cập nhật ${ext.name} lên v${ext.version} (giữ nguyên cấu hình).`
@@ -379,22 +460,42 @@
     }
   }
 
+  function parseListDraft(raw: unknown): string {
+    if (Array.isArray(raw)) return raw.map((x) => String(x)).join('\n');
+    if (typeof raw === 'string') {
+      const trimmed = raw.trim();
+      if (trimmed.startsWith('[')) {
+        try {
+          const parsed = JSON.parse(trimmed);
+          if (Array.isArray(parsed)) return parsed.map((x) => String(x)).join('\n');
+        } catch {
+          // fallback raw lines
+        }
+      }
+      return raw;
+    }
+    return '';
+  }
+
   function openConfigDialog(ext: InstalledExtension) {
     configTarget = ext;
     const nextDraft: Record<string, string | number | boolean> = {};
     const schema = ext.config_schema ?? {};
-    const keys = Array.from(
-      new Set([...Object.keys(schema), ...Object.keys(ext.user_config ?? {})]),
-    );
+    const keys = Array.from(new Set([...Object.keys(schema), ...Object.keys(ext.user_config ?? {})]));
     for (const key of keys) {
       const userVal = ext.user_config?.[key];
       const raw = schema[key];
       const schemaObj =
         raw && typeof raw === 'object' && !Array.isArray(raw)
           ? (raw as Record<string, unknown>)
-          : {};
-      const val = userVal !== undefined ? userVal : (schemaObj.default ?? '');
-      if (typeof val === 'boolean' || typeof val === 'number' || typeof val === 'string') {
+          : null;
+      const modeRaw = schemaObj ? String(schemaObj.mode ?? '').toLowerCase() : '';
+      const val = userVal !== undefined ? userVal : schemaObj ? (schemaObj.default ?? '') : (raw ?? '');
+      if (modeRaw === 'list') {
+        nextDraft[key] = parseListDraft(val);
+      } else if (modeRaw === 'toggle') {
+        nextDraft[key] = val === true || String(val).toLowerCase() === 'true';
+      } else if (typeof val === 'boolean' || typeof val === 'number' || typeof val === 'string') {
         nextDraft[key] = val;
       } else {
         nextDraft[key] = JSON.stringify(val ?? '');
@@ -412,19 +513,22 @@
       const payload: Record<string, unknown> = {};
       for (const field of configFields) {
         const val = configDraft[field.key];
-        if (field.format === 'number') {
+        if (field.format === 'boolean') {
+          payload[field.key] = val ? 'true' : 'false';
+        } else if (field.format === 'list') {
+          const rows = String(val ?? '')
+            .split('\n')
+            .map((line) => line.trim())
+            .filter(Boolean);
+          payload[field.key] = JSON.stringify(rows);
+        } else if (field.format === 'number') {
           const num = Number(val);
-          payload[field.key] = Number.isFinite(num) ? num : 0;
-        } else if (field.format === 'boolean') {
-          payload[field.key] = Boolean(val);
+          payload[field.key] = Number.isFinite(num) ? String(num) : String(val ?? '0');
         } else {
           payload[field.key] = String(val ?? '');
         }
       }
-      const updated = await vbookSaveExtensionConfig(
-        configTarget.id,
-        JSON.stringify(payload),
-      );
+      const updated = await vbookSaveExtensionConfig(configTarget.id, JSON.stringify(payload));
       snapshot = await vbookGetSnapshot();
       configDialog?.close();
       notice = `Đã lưu cấu hình cho ${updated.name}.`;
@@ -434,13 +538,210 @@
       busy = null;
     }
   }
+
+  function openExploreDialog(ext: InstalledExtension) {
+    exploreTarget = ext;
+    exploreQuery = '';
+    exploreResults = [];
+    exploreNext = null;
+    exploreDetail = null;
+    exploreToc = [];
+    exploreChap = null;
+    exploreChapTitle = '';
+    resolvedTrack = null;
+    exploreError = '';
+    exploreDialog?.showModal();
+  }
+
+  async function runExploreSearch(pageToken: string | null = null) {
+    if (!exploreTarget || exploreBusy) return;
+    exploreBusy = true;
+    exploreError = '';
+    try {
+      const res = await vbookSearch(exploreTarget.id, exploreQuery, pageToken);
+      exploreResults = pageToken ? [...exploreResults, ...res.items] : res.items;
+      exploreNext = res.next;
+    } catch (cause) {
+      exploreError = String(cause);
+    } finally {
+      exploreBusy = false;
+    }
+  }
+
+  async function openExploreItem(item: VBookSearchItem) {
+    if (!exploreTarget || exploreBusy) return;
+    exploreBusy = true;
+    exploreError = '';
+    exploreDetail = null;
+    exploreToc = [];
+    exploreChap = null;
+    exploreChapTitle = '';
+    resolvedTrack = null;
+    try {
+      const [detail, toc] = await Promise.all([
+        vbookDetail(exploreTarget.id, item.link),
+        vbookToc(exploreTarget.id, item.link),
+      ]);
+      exploreDetail = detail;
+      exploreToc = toc;
+    } catch (cause) {
+      exploreError = String(cause);
+    } finally {
+      exploreBusy = false;
+    }
+  }
+
+  async function openExploreChap(entry: VBookTocItem) {
+    if (!exploreTarget || exploreBusy || entry.item_type === 'section') return;
+    exploreBusy = true;
+    exploreError = '';
+    exploreChap = null;
+    exploreChapTitle = entry.name;
+    resolvedTrack = null;
+    try {
+      const hint = exploreDetail?.detail_type || exploreTarget.ext_type;
+      exploreChap = await vbookChap(exploreTarget.id, entry.url, hint);
+    } catch (cause) {
+      exploreError = String(cause);
+    } finally {
+      exploreBusy = false;
+    }
+  }
+
+  async function runResolveTrack(trackData: string) {
+    if (!exploreTarget || exploreBusy) return;
+    exploreBusy = true;
+    exploreError = '';
+    resolvedTrack = null;
+    try {
+      resolvedTrack = await vbookResolveTrack(exploreTarget.id, trackData);
+    } catch (cause) {
+      exploreError = String(cause);
+    } finally {
+      exploreBusy = false;
+    }
+  }
+
+  async function openEngineDialog(ext: InstalledExtension) {
+    engineTarget = ext;
+    engineError = '';
+    ttsVoices = [];
+    ttsVoiceId = '';
+    ttsResult = null;
+    translateMeta = null;
+    trResult = null;
+    aiModels = [];
+    aiModel = '';
+    aiReply = null;
+    engineDialog?.showModal();
+
+    if (ext.ext_type === 'tts') {
+      await loadTtsVoices();
+    } else if (ext.ext_type === 'translate') {
+      await loadTranslateMeta();
+    } else if (ext.ext_type === 'ai') {
+      const modelSchema = ext.config_schema?.model as Record<string, unknown> | undefined;
+      const vals = Array.isArray(modelSchema?.values) ? modelSchema.values.map(String) : [];
+      aiModels = vals;
+      aiModel = String(ext.user_config?.model ?? modelSchema?.default ?? vals[0] ?? '');
+    }
+  }
+
+  async function loadTtsVoices() {
+    if (!engineTarget || engineBusy) return;
+    engineBusy = true;
+    engineError = '';
+    try {
+      ttsVoices = await vbookTtsVoices(engineTarget.id);
+      if (ttsVoices.length > 0 && !ttsVoiceId) {
+        ttsVoiceId = ttsVoices[0].id;
+      }
+    } catch (cause) {
+      engineError = String(cause);
+    } finally {
+      engineBusy = false;
+    }
+  }
+
+  async function runTtsSynthesize() {
+    if (!engineTarget || engineBusy || !ttsVoiceId) return;
+    engineBusy = true;
+    engineError = '';
+    ttsResult = null;
+    try {
+      ttsResult = await vbookTtsSynthesize(engineTarget.id, ttsInput, ttsVoiceId);
+    } catch (cause) {
+      engineError = String(cause);
+    } finally {
+      engineBusy = false;
+    }
+  }
+
+  async function loadTranslateMeta() {
+    if (!engineTarget || engineBusy) return;
+    engineBusy = true;
+    engineError = '';
+    try {
+      translateMeta = await vbookTranslateMeta(engineTarget.id);
+      const fromLang = translateMeta.languages.find((l) => l.direction === 'from' || l.direction === '');
+      const toLang = translateMeta.languages.find((l) => l.id === 'vi' || l.direction === 'to' || l.direction === '');
+      trFrom = fromLang?.id ?? '';
+      trTo = toLang?.id ?? 'vi';
+      trModel = translateMeta.models[0]?.id ?? '';
+      trStyle = translateMeta.styles[0]?.id ?? '';
+    } catch (cause) {
+      engineError = String(cause);
+    } finally {
+      engineBusy = false;
+    }
+  }
+
+  async function runTranslateTest() {
+    if (!engineTarget || engineBusy) return;
+    engineBusy = true;
+    engineError = '';
+    trResult = null;
+    try {
+      trResult = await vbookTranslateText(
+        engineTarget.id,
+        trInput,
+        trFrom,
+        trTo,
+        'chapterContent',
+        trModel,
+        trStyle,
+      );
+    } catch (cause) {
+      engineError = String(cause);
+    } finally {
+      engineBusy = false;
+    }
+  }
+
+  async function runAiTest() {
+    if (!engineTarget || engineBusy || !aiPrompt.trim()) return;
+    engineBusy = true;
+    engineError = '';
+    aiReply = null;
+    try {
+      aiReply = await vbookAiChat(
+        engineTarget.id,
+        [{ role: 'user', content: aiPrompt.trim() }],
+        aiModel,
+      );
+    } catch (cause) {
+      engineError = String(cause);
+    } finally {
+      engineBusy = false;
+    }
+  }
 </script>
 
 <section class="heading">
   <div>
     <h1>Nguồn mở rộng VBook</h1>
     <p>
-      Cài đặt từ kho hoặc gói ZIP chuẩn vbook-beta, cập nhật khi có phiên bản lớn hơn và giữ nguyên cấu hình người dùng.
+      Hỗ trợ đầy đủ Tiểu thuyết, Truyện tranh, Video, Âm thanh, TTS, Dịch thuật, Trợ lý AI, Diễn đàn &amp; Tin tức theo chuẩn vbook-beta.
     </p>
   </div>
   <div class="proof-actions heading-actions">
@@ -492,11 +793,21 @@
       Kho nguồn <span class="tab-count num">{catalog.length}</span>
     </button>
   </div>
-  {#if activeTab === 'updates' && updates.length > 0}
-    <button class="button primary" type="button" onclick={updateAll} disabled={isBusy}>
-      {busy === 'update-all' ? 'Đang cập nhật…' : `Cập nhật tất cả (${updates.length})`}
-    </button>
-  {/if}
+  <div class="tabbar-end">
+    {#if runnerStatus}
+      <span
+        class={runnerStatus.ready ? 'badge accent runner-badge' : 'badge warn runner-badge'}
+        title={runnerStatus.message}
+      >
+        {runnerStatus.mock_mode ? 'Runner Mock' : runnerStatus.ready ? 'Runner sẵn sàng' : 'Chưa có Java 21 / runner'}
+      </span>
+    {/if}
+    {#if activeTab === 'updates' && updates.length > 0}
+      <button class="button primary" type="button" onclick={updateAll} disabled={isBusy}>
+        {busy === 'update-all' ? 'Đang cập nhật…' : `Cập nhật tất cả (${updates.length})`}
+      </button>
+    {/if}
+  </div>
 </div>
 
 <section class="vbook-panel">
@@ -604,6 +915,15 @@
               <p class="ext-desc">{ext.description}</p>
             {/if}
             <div class="ext-foot">
+              {#if isEngineType(ext.ext_type)}
+                <button class="mini-btn accent-btn" type="button" onclick={() => openEngineDialog(ext)} disabled={isBusy}>
+                  Thử Engine
+                </button>
+              {:else}
+                <button class="mini-btn accent-btn" type="button" onclick={() => openExploreDialog(ext)} disabled={isBusy}>
+                  Khám phá
+                </button>
+              {/if}
               <button class="mini-btn" type="button" onclick={() => togglePin(ext)} disabled={isBusy}>
                 {ext.pinned ? 'Bỏ ghim' : 'Ghim'}
               </button>
@@ -832,6 +1152,9 @@
     {#each configFields as field (field.key)}
       <div class="config-row">
         <label for={`cfg-${field.key}`}>{field.label}</label>
+        {#if field.subtitle}
+          <span class="field-sub">{field.subtitle}</span>
+        {/if}
         {#if field.format === 'boolean'}
           <input
             id={`cfg-${field.key}`}
@@ -853,6 +1176,16 @@
               <option value={opt}>{opt}</option>
             {/each}
           </select>
+        {:else if field.format === 'list'}
+          <textarea
+            id={`cfg-${field.key}`}
+            class="cfg-textarea"
+            rows="3"
+            value={String(configDraft[field.key] ?? '')}
+            oninput={(e) => {
+              configDraft = { ...configDraft, [field.key]: (e.currentTarget as HTMLTextAreaElement).value };
+            }}
+          ></textarea>
         {:else if field.format === 'number'}
           <input
             id={`cfg-${field.key}`}
@@ -886,6 +1219,277 @@
   </div>
 </dialog>
 
+<dialog id="vbook-explore-dialog" class="vbook-dialog wide-dialog" bind:this={exploreDialog}>
+  <h3>
+    Khám phá: {exploreTarget?.name ?? ''}
+    {#if exploreTarget}
+      <span class="badge muted">{typeLabel(exploreTarget.ext_type)}</span>
+    {/if}
+  </h3>
+
+  <div class="repo-form-row">
+    <input
+      id="vbook-explore-query"
+      type="search"
+      bind:value={exploreQuery}
+      placeholder="Nhập từ khóa tìm kiếm trên nguồn…"
+      aria-label="Từ khóa tìm kiếm trên nguồn"
+    />
+    <button class="button primary" type="button" onclick={() => runExploreSearch(null)} disabled={exploreBusy}>
+      {exploreBusy ? 'Đang chạy…' : 'Tìm kiếm'}
+    </button>
+  </div>
+
+  {#if exploreError}
+    <div class="vbook-banner warn runner-err" role="alert">{exploreError}</div>
+  {/if}
+
+  <div class="explore-grid">
+    <div class="explore-col">
+      <h4>Kết quả (<span class="num">{exploreResults.length}</span>)</h4>
+      {#if exploreResults.length === 0}
+        <p class="muted-hint">Bấm Tìm kiếm để chạy script <code>search.js</code> trên nguồn.</p>
+      {:else}
+        <ul class="explore-list">
+          {#each exploreResults as item (item.link)}
+            <li>
+              <button type="button" class="explore-item-btn" onclick={() => openExploreItem(item)} disabled={exploreBusy}>
+                <strong>{item.name}</strong>
+                <span>{item.description || item.link}</span>
+              </button>
+            </li>
+          {/each}
+        </ul>
+        {#if exploreNext}
+          <button class="mini-btn" type="button" onclick={() => runExploreSearch(exploreNext)} disabled={exploreBusy}>
+            Tải thêm…
+          </button>
+        {/if}
+      {/if}
+    </div>
+
+    <div class="explore-col">
+      {#if exploreDetail}
+        <div class="detail-box">
+          <strong>{exploreDetail.name}</strong>
+          <div class="ext-meta">
+            {#if exploreDetail.author}<span>{exploreDetail.author}</span>{/if}
+            {#if exploreDetail.genres.length > 0}<span>· {exploreDetail.genres.join(', ')}</span>{/if}
+          </div>
+          {#if exploreDetail.detail_text}
+            <p class="ext-desc">{exploreDetail.detail_text}</p>
+          {/if}
+        </div>
+      {/if}
+
+      <h4>Mục lục (<span class="num">{exploreToc.length}</span>)</h4>
+      {#if exploreToc.length === 0}
+        <p class="muted-hint">Chọn một mục kết quả để nạp <code>detail.js</code> và <code>toc.js</code>.</p>
+      {:else}
+        <ul class="explore-list">
+          {#each exploreToc as ch (ch.index)}
+            <li>
+              <button
+                type="button"
+                class="explore-item-btn"
+                onclick={() => openExploreChap(ch)}
+                disabled={exploreBusy || ch.item_type === 'section'}
+              >
+                <strong>{ch.name}</strong>
+                <span>{ch.url}</span>
+              </button>
+            </li>
+          {/each}
+        </ul>
+      {/if}
+
+      {#if exploreChap}
+        <div class="chap-preview">
+          <h4>{exploreChapTitle || 'Nội dung chương / tập'}</h4>
+          {#if exploreChap.kind === 'novel'}
+            <pre class="chap-text">{exploreChap.text}</pre>
+          {:else if exploreChap.kind === 'comic'}
+            <p class="muted-hint num">Truyện tranh gồm {exploreChap.images.length} khung ảnh:</p>
+            <ul class="explore-list">
+              {#each exploreChap.images as img, idx (idx)}
+                <li>
+                  <span class="repo-url num">{idx + 1}. {img.url}</span>
+                </li>
+              {/each}
+            </ul>
+          {:else if exploreChap.kind === 'media_tracks'}
+            <p class="muted-hint">Chọn nguồn phát để chạy <code>track.js</code>:</p>
+            <div class="track-list">
+              {#each exploreChap.tracks as tr (tr.data)}
+                <div class="track-row">
+                  <span>{tr.title} {#if tr.quality}({tr.quality}){/if}</span>
+                  <button
+                    class="button primary mini-action"
+                    type="button"
+                    onclick={() => runResolveTrack(tr.data)}
+                    disabled={exploreBusy}
+                  >
+                    Giải mã phát
+                  </button>
+                </div>
+              {/each}
+            </div>
+            {#if resolvedTrack}
+              <div class="resolved-box">
+                <div class="ext-name-row">
+                  <span class="badge accent">{resolvedTrack.track_type}</span>
+                  {#if resolvedTrack.mime_type}<span class="badge muted">{resolvedTrack.mime_type}</span>{/if}
+                </div>
+                <p class="repo-url">{resolvedTrack.data}</p>
+                {#if resolvedTrack.subtitles.length > 0}
+                  <p class="muted-hint num">Phụ đề: {resolvedTrack.subtitles.length} kênh</p>
+                {/if}
+              </div>
+            {/if}
+          {:else}
+            <pre class="chap-text">{JSON.stringify(exploreChap.data, null, 2)}</pre>
+          {/if}
+        </div>
+      {/if}
+    </div>
+  </div>
+
+  <div class="dialog-actions">
+    <button class="button" type="button" onclick={() => exploreDialog?.close()}>Đóng</button>
+  </div>
+</dialog>
+
+<dialog id="vbook-engine-dialog" class="vbook-dialog" bind:this={engineDialog}>
+  <h3>
+    Thử Engine: {engineTarget?.name ?? ''}
+    {#if engineTarget}
+      <span class="badge muted">{typeLabel(engineTarget.ext_type)}</span>
+    {/if}
+  </h3>
+
+  {#if engineError}
+    <div class="vbook-banner warn runner-err" role="alert">{engineError}</div>
+  {/if}
+
+  {#if engineTarget?.ext_type === 'tts'}
+    <div class="config-fields">
+      <div class="config-row">
+        <label for="tts-voice-select">Giọng đọc (<span class="num">{ttsVoices.length}</span>)</label>
+        <div class="repo-form-row">
+          <select id="tts-voice-select" bind:value={ttsVoiceId} disabled={engineBusy}>
+            {#each ttsVoices as v (v.id)}
+              <option value={v.id}>{v.name} ({v.language})</option>
+            {/each}
+          </select>
+          <button class="button" type="button" onclick={loadTtsVoices} disabled={engineBusy}>Nạp giọng</button>
+        </div>
+      </div>
+      <div class="config-row">
+        <label for="tts-text-input">Đoạn văn tổng hợp</label>
+        <textarea id="tts-text-input" class="cfg-textarea" rows="3" bind:value={ttsInput}></textarea>
+      </div>
+      {#if ttsResult}
+        <div class="resolved-box">
+          <div class="ext-name-row">
+            <span class="badge accent">{ttsResult.mime_type}</span>
+            <span class="badge num">{ttsResult.byte_len} bytes</span>
+          </div>
+          <p class="muted-hint">Base64 đầu ra sẵn sàng phát: {ttsResult.base64_data.slice(0, 48)}…</p>
+        </div>
+      {/if}
+    </div>
+    <div class="dialog-actions">
+      <button class="button" type="button" onclick={() => engineDialog?.close()}>Đóng</button>
+      <button class="button primary" type="button" onclick={runTtsSynthesize} disabled={engineBusy || !ttsVoiceId}>
+        {engineBusy ? 'Đang chạy…' : 'Tổng hợp giọng nói'}
+      </button>
+    </div>
+  {:else if engineTarget?.ext_type === 'translate'}
+    <div class="config-fields">
+      <div class="repo-form-row">
+        <select bind:value={trFrom} aria-label="Ngôn ngữ nguồn" disabled={engineBusy}>
+          <option value="">Tự nhận diện</option>
+          {#each translateMeta?.languages ?? [] as lang (lang.id)}
+            <option value={lang.id}>{lang.name}</option>
+          {/each}
+        </select>
+        <select bind:value={trTo} aria-label="Ngôn ngữ đích" disabled={engineBusy}>
+          {#each translateMeta?.languages ?? [] as lang (lang.id)}
+            <option value={lang.id}>{lang.name}</option>
+          {/each}
+        </select>
+      </div>
+      {#if (translateMeta?.models.length ?? 0) > 0 || (translateMeta?.styles.length ?? 0) > 0}
+        <div class="repo-form-row">
+          {#if (translateMeta?.models.length ?? 0) > 0}
+            <select bind:value={trModel} aria-label="Model dịch" disabled={engineBusy}>
+              {#each translateMeta?.models ?? [] as m (m.id)}
+                <option value={m.id}>{m.name}</option>
+              {/each}
+            </select>
+          {/if}
+          {#if (translateMeta?.styles.length ?? 0) > 0}
+            <select bind:value={trStyle} aria-label="Phong cách dịch" disabled={engineBusy}>
+              {#each translateMeta?.styles ?? [] as s (s.id)}
+                <option value={s.id}>{s.name}</option>
+              {/each}
+            </select>
+          {/if}
+        </div>
+      {/if}
+      <div class="config-row">
+        <label for="tr-input">Văn bản thử nghiệm</label>
+        <textarea id="tr-input" class="cfg-textarea" rows="3" bind:value={trInput}></textarea>
+      </div>
+      {#if trResult}
+        <div class="resolved-box">
+          <strong>Kết quả dịch</strong>
+          <p class="chap-text">{trResult.text}</p>
+        </div>
+      {/if}
+    </div>
+    <div class="dialog-actions">
+      <button class="button" type="button" onclick={() => engineDialog?.close()}>Đóng</button>
+      <button class="button primary" type="button" onclick={runTranslateTest} disabled={engineBusy || !trInput.trim()}>
+        {engineBusy ? 'Đang dịch…' : 'Dịch thử'}
+      </button>
+    </div>
+  {:else if engineTarget?.ext_type === 'ai'}
+    <div class="config-fields">
+      {#if aiModels.length > 0}
+        <div class="config-row">
+          <label for="ai-model-select">Model</label>
+          <select id="ai-model-select" bind:value={aiModel} disabled={engineBusy}>
+            {#each aiModels as m (m)}
+              <option value={m}>{m}</option>
+            {/each}
+          </select>
+        </div>
+      {/if}
+      <div class="config-row">
+        <label for="ai-prompt-input">Câu hỏi thử nghiệm</label>
+        <textarea id="ai-prompt-input" class="cfg-textarea" rows="3" bind:value={aiPrompt}></textarea>
+      </div>
+      {#if aiReply}
+        <div class="resolved-box">
+          <strong>Phản hồi AI</strong>
+          <p class="chap-text">{aiReply.text}</p>
+        </div>
+      {/if}
+    </div>
+    <div class="dialog-actions">
+      <button class="button" type="button" onclick={() => engineDialog?.close()}>Đóng</button>
+      <button class="button primary" type="button" onclick={runAiTest} disabled={engineBusy || !aiPrompt.trim()}>
+        {engineBusy ? 'Đang gửi…' : 'Gửi AI'}
+      </button>
+    </div>
+  {:else}
+    <div class="dialog-actions">
+      <button class="button" type="button" onclick={() => engineDialog?.close()}>Đóng</button>
+    </div>
+  {/if}
+</dialog>
+
 <style>
   .heading-actions {
     flex-shrink: 0;
@@ -917,6 +1521,11 @@
     color: var(--warning);
   }
 
+  .runner-err {
+    margin-top: 12px;
+    margin-bottom: 0;
+  }
+
   .vbook-tabbar {
     display: flex;
     flex-wrap: wrap;
@@ -924,6 +1533,18 @@
     justify-content: space-between;
     gap: 10px;
     margin-bottom: 14px;
+  }
+
+  .tabbar-end {
+    display: inline-flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .runner-badge {
+    padding: 4px 10px;
+    font-size: 12px;
   }
 
   .vbook-tabs {
@@ -997,7 +1618,7 @@
   .vbook-filters select {
     width: auto;
     flex: 0 1 auto;
-    max-width: 180px;
+    max-width: 190px;
     min-height: 36px;
     padding: 6px 10px;
     border-radius: var(--radius-sm);
@@ -1146,21 +1767,34 @@
 
   .vbook-dialog {
     width: min(560px, calc(100vw - 24px));
+    max-height: calc(100vh - 36px);
+    overflow: auto;
+  }
+
+  .vbook-dialog.wide-dialog {
+    width: min(860px, calc(100vw - 24px));
   }
 
   .vbook-dialog h3 {
     margin: 0;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
     font: 600 18px/1.3 Cambria, "Times New Roman", serif;
   }
 
   .repo-form-row {
     display: flex;
+    flex-wrap: wrap;
     gap: 8px;
     margin-top: 12px;
   }
 
-  .repo-form-row input {
-    flex: 1 1 auto;
+  .repo-form-row input,
+  .repo-form-row select {
+    width: auto;
+    flex: 1 1 180px;
     min-width: 0;
     min-height: 36px;
     padding: 6px 10px;
@@ -1227,7 +1861,7 @@
 
   .config-row {
     display: grid;
-    gap: 6px;
+    gap: 4px;
   }
 
   .config-row label {
@@ -1235,7 +1869,15 @@
     font-weight: 600;
   }
 
+  .field-sub,
+  .muted-hint {
+    font-size: 12px;
+    color: var(--muted);
+    margin: 0;
+  }
+
   .cfg-input,
+  .cfg-textarea,
   .config-row select {
     min-height: 36px;
     padding: 6px 10px;
@@ -1245,8 +1887,113 @@
     color: var(--ink);
   }
 
-  @media (max-width: 680px) {
+  .explore-grid {
+    display: grid;
+    grid-template-columns: minmax(220px, 0.9fr) minmax(0, 1.3fr);
+    gap: 14px;
+    margin-top: 14px;
+  }
+
+  .explore-col {
+    display: grid;
+    align-content: start;
+    gap: 10px;
+    padding: 12px;
+    border-radius: var(--radius-md);
+    border: 1px solid var(--line);
+    background: var(--inset);
+    min-width: 0;
+  }
+
+  .explore-col h4 {
+    margin: 0;
+    font-size: 13.5px;
+    font-weight: 650;
+  }
+
+  .explore-list {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    max-height: 190px;
+    overflow: auto;
+    display: grid;
+    gap: 6px;
+  }
+
+  .explore-list li {
+    border: none;
+    padding: 0;
+  }
+
+  .explore-item-btn {
+    width: 100%;
+    text-align: left;
+    display: grid;
+    gap: 2px;
+    padding: 8px 10px;
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--line);
+    background: var(--sheet-elevated);
+    color: var(--ink);
+  }
+
+  .explore-item-btn:hover:not(:disabled) {
+    background: var(--selection);
+    border-color: var(--line-strong);
+  }
+
+  .explore-item-btn span {
+    font-size: 11.5px;
+    color: var(--muted);
+    overflow-wrap: anywhere;
+  }
+
+  .detail-box,
+  .chap-preview,
+  .resolved-box {
+    display: grid;
+    gap: 6px;
+    padding: 10px 12px;
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--line);
+    background: var(--sheet);
+  }
+
+  .chap-text {
+    margin: 0;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+    font-family: inherit;
+    font-size: 13px;
+    line-height: 1.5;
+    max-height: 180px;
+    overflow: auto;
+  }
+
+  .track-list {
+    display: grid;
+    gap: 6px;
+  }
+
+  .track-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    padding: 6px 8px;
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--line);
+    background: var(--inset);
+    font-size: 12.5px;
+  }
+
+  @media (max-width: 720px) {
     .ext-grid {
+      grid-template-columns: 1fr;
+    }
+    .explore-grid {
       grid-template-columns: 1fr;
     }
   }
