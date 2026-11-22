@@ -36,7 +36,10 @@ pub fn run(
 
         command.creation_flags(CREATE_NO_WINDOW);
     }
-    command.args(["-I", "-B", "-c", script]).args(args);
+    // The adapter protocol is UTF-8 even when Windows redirects pipes using a legacy code page.
+    command
+        .args(["-I", "-B", "-X", "utf8", "-c", script])
+        .args(args);
 
     let output = match input {
         Some(input) => {
@@ -62,4 +65,19 @@ pub fn run(
         return Err(format!("Python thoát với {}: {}", output.status, stderr.trim()).into());
     }
     Ok(output.stdout)
+}
+
+#[cfg(test)]
+mod tests {
+    #[test]
+    fn json_uses_utf8_for_both_pipes() {
+        let text = "Chương mới 第1章 📝";
+        let output: String = super::json(
+            "import json, sys; print(json.dumps(json.load(sys.stdin), ensure_ascii=False))",
+            text,
+            None,
+        )
+        .unwrap();
+        assert_eq!(output, text);
+    }
 }
