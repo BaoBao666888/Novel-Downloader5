@@ -45,13 +45,14 @@
 
   type Props = {
     parentBusy?: boolean;
+    onUseTitles?: (titles: string[]) => boolean;
   };
 
   type TabId = 'updates' | 'installed' | 'catalog';
 
   const CATALOG_PAGE_SIZE = 40;
 
-  let { parentBusy = false }: Props = $props();
+  let { parentBusy = false, onUseTitles }: Props = $props();
 
   let snapshot = $state<VBookWorkspaceSnapshot | null>(null);
   let runnerStatus = $state<VBookRunnerStatus | null>(null);
@@ -84,6 +85,19 @@
   let exploreNext = $state<string | null>(null);
   let exploreDetail = $state<VBookDetail | null>(null);
   let exploreToc = $state<VBookTocItem[]>([]);
+  let firstTitle = $state<number | undefined>(1);
+  let lastTitle = $state<number | undefined>(undefined);
+  const titleRows = $derived(
+    exploreToc.filter((item) => item.item_type !== 'section')
+      .map((item) => ({ index: item.index, title: item.name.replace(/\s+/g, ' ').trim() }))
+      .filter((item) => item.title)
+  );
+  const titlePositions = $derived(new Map(titleRows.map((item, index) => [item.index, index + 1])));
+  const canUseTitles = $derived(
+    firstTitle !== undefined && lastTitle !== undefined &&
+    Number.isInteger(firstTitle) && Number.isInteger(lastTitle) &&
+    firstTitle >= 1 && firstTitle <= lastTitle && lastTitle <= titleRows.length
+  );
   let exploreChap = $state<VBookChapterContent | null>(null);
   let exploreChapTitle = $state('');
   let exploreSavedNotice = $state('');
@@ -588,11 +602,20 @@
       ]);
       exploreDetail = detail;
       exploreToc = toc;
+      firstTitle = 1;
+      lastTitle = titleRows.length;
     } catch (cause) {
       exploreError = String(cause);
     } finally {
       exploreBusy = false;
     }
+  }
+
+  function useChapterTitles(event: SubmitEvent) {
+    event.preventDefault();
+    if (!canUseTitles || firstTitle === undefined || lastTitle === undefined) return;
+    const titles = titleRows.slice(firstTitle - 1, lastTitle).map((item) => item.title);
+    if (onUseTitles?.(titles)) exploreDialog?.close();
   }
 
   async function openExploreChap(entry: VBookTocItem) {
@@ -1307,6 +1330,24 @@
       {#if exploreToc.length === 0}
         <p class="muted-hint">Chọn truyện để xem mục lục.</p>
       {:else}
+        {#if onUseTitles && titleRows.length > 0}
+          <details class="toc-titles">
+            <summary>Dùng tiêu đề để đổi tên</summary>
+            <form class="toc-range" onsubmit={useChapterTitles}>
+              <label>
+                Từ mục
+                <input type="number" min="1" max={titleRows.length} bind:value={firstTitle} required />
+              </label>
+              <label>
+                Đến mục
+                <input type="number" min="1" max={titleRows.length} bind:value={lastTitle} required />
+              </label>
+              <button class="mini-btn" type="submit" disabled={!canUseTitles || parentBusy || exploreBusy}>
+                Sang Đổi tên
+              </button>
+            </form>
+          </details>
+        {/if}
         <ul class="explore-list">
           {#each exploreToc as ch (ch.index)}
             <li>
@@ -1316,7 +1357,12 @@
                 onclick={() => openExploreChap(ch)}
                 disabled={exploreBusy || ch.item_type === 'section'}
               >
-                <strong>{ch.name}</strong>
+                <strong>
+                  {#if titlePositions.has(ch.index)}
+                    <small class="toc-position">{titlePositions.get(ch.index)}.</small>
+                  {/if}
+                  {ch.name}
+                </strong>
                 <span>{ch.url}</span>
               </button>
             </li>
@@ -1959,6 +2005,34 @@
     margin: 0;
     font-size: 13.5px;
     font-weight: 650;
+  }
+
+  .toc-titles summary {
+    cursor: pointer;
+    font-size: 0.85rem;
+  }
+
+  .toc-range {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: end;
+    gap: 8px;
+    margin-block: 8px;
+  }
+
+  .toc-range label {
+    display: grid;
+    gap: 4px;
+    font-size: 0.8rem;
+  }
+
+  .toc-range input {
+    inline-size: 5.5rem;
+  }
+
+  .toc-position {
+    opacity: 0.72;
+    font-variant-numeric: tabular-nums;
   }
 
   .explore-list {

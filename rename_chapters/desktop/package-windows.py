@@ -1,6 +1,5 @@
 """Build a Windows installer from the shared WSL build tree."""
 
-import argparse
 import fcntl
 import hashlib
 import io
@@ -76,22 +75,21 @@ def require_runner():
     print("Staged vBook runner is ready.")
 
 
-def package_windows(with_private_runner):
+def package_windows():
     metadata = json.loads(subprocess.check_output(
         ["cargo", "metadata", "--locked", "--no-deps", "--format-version", "1"],
         cwd=TAURI,
     ))
     target_dir = Path(metadata["target_directory"])
     target_dir.mkdir(parents=True, exist_ok=True)
-    # Tauri writes both flavors to the same filename before we rename the installer.
+    # Tauri uses a single NSIS output file for this build tree.
     with (target_dir / ".novel-studio-package.lock").open("a+b") as lock:
         fcntl.flock(lock, fcntl.LOCK_EX)
-        build_installer(with_private_runner, target_dir / TARGET / "release/bundle/nsis")
+        build_installer(target_dir / TARGET / "release/bundle/nsis")
 
 
-def build_installer(with_private_runner, output):
-    if with_private_runner:
-        require_runner()
+def build_installer(output):
+    require_runner()
     stage_runtime()
 
     app = json.loads((TAURI / "tauri.conf.json").read_text(encoding="utf-8"))
@@ -103,18 +101,14 @@ def build_installer(with_private_runner, output):
         check=True,
     )
 
-    bundle = ["tauri", "bundle", *common, "--no-binary-patching"]
-    if with_private_runner:
-        overlay = {"bundle": {"resources": {RUNNER_RESOURCE: "vbook_runner.jar"}}}
-        bundle.extend(["--config", json.dumps(overlay)])
+    overlay = {"bundle": {"resources": {RUNNER_RESOURCE: "vbook_runner.jar"}}}
+    bundle = ["tauri", "bundle", *common, "--no-binary-patching", "--config", json.dumps(overlay)]
     subprocess.run(bundle, cwd=TAURI.parent, check=True)
-    flavor = "private" if with_private_runner else "public"
-    artifact = output / f"{base_name}-{flavor}-setup.exe"
-    (output / f"{base_name}-setup.exe").replace(artifact)
+    artifact = output / f"{base_name}-setup.exe"
+    if not artifact.is_file():
+        raise RuntimeError("The Windows installer was not produced")
     print(f"Installer: {artifact}")
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--with-private-runner", action="store_true")
-    package_windows(parser.parse_args().with_private_runner)
+    package_windows()

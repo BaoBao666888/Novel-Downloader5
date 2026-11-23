@@ -1153,6 +1153,7 @@ export type LibraryStats = {
 };
 
 export const vbookRunnerStatus = () => invoke<VBookRunnerStatus>('vbook_runner_status');
+export const vbookInstallJava = () => invoke<VBookRunnerStatus | null>('vbook_install_java');
 export const vbookGetRuntimeConfig = () =>
   invoke<VBookRunnerRuntimeConfig>('vbook_get_runtime_config');
 export const vbookSetCustomJavaPath = (path: string | null) =>

@@ -59,6 +59,7 @@ fn open_executor_with_java(
     app: &AppHandle,
     custom_java: Option<PathBuf>,
 ) -> (CoreVBookExecutor, bool) {
+    let custom_java = custom_java.or_else(crate::windows_runtime::local_java);
     let (bridge_url, bridge_token, bridge_ready) = bridge_runtime_info(app);
     let local_runner_dir = app
         .path()
@@ -73,6 +74,47 @@ fn open_executor_with_java(
     )
     .with_local_runner_dir(local_runner_dir);
     (executor, bridge_ready)
+}
+
+#[tauri::command]
+pub async fn vbook_install_java(window: WebviewWindow) -> Result<Option<RunnerStatus>, String> {
+    #[cfg(windows)]
+    {
+        use tauri_plugin_dialog::{MessageDialogButtons, MessageDialogResult};
+
+        tauri::async_runtime::spawn_blocking(move || {
+            let app = window.app_handle();
+            let (executor, bridge_ready) = open_executor_with_java(app, load_custom_java_path(app));
+            let status = executor.status(bridge_ready);
+            if status.jar_path.is_none() || status.java_path.is_some() {
+                return Ok(Some(status));
+            }
+            let answer = window
+                .dialog()
+                .message("Tải Java 21 từ Eclipse Adoptium vào thư mục ứng dụng để mở nguồn VBook?")
+                .title("Tải Java 21")
+                .parent(&window)
+                .buttons(MessageDialogButtons::OkCancelCustom(
+                    "Tải Java".to_owned(),
+                    "Để sau".to_owned(),
+                ))
+                .blocking_show_with_result();
+            if answer != MessageDialogResult::Custom("Tải Java".to_owned()) {
+                return Ok(None);
+            }
+            crate::windows_runtime::install(crate::windows_runtime::Runtime::Java)
+                .map_err(|err| format!("Không tải được Java 21. {err}"))?;
+            let (executor, bridge_ready) = open_executor_with_java(app, load_custom_java_path(app));
+            Ok(Some(executor.status(bridge_ready)))
+        })
+        .await
+        .map_err(|err| err.to_string())?
+    }
+    #[cfg(not(windows))]
+    {
+        let _ = window;
+        Err("Tải Java tự động hiện dùng trên Windows.".into())
+    }
 }
 
 pub fn resolve_vbook_dir(app: &AppHandle) -> Result<PathBuf, String> {

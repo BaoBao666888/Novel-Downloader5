@@ -7,7 +7,7 @@
       "runtime/python-3.14.10/": "runtime/python/"
     },
     "windows": {
-      "webviewInstallMode": { "type": "downloadBootstrapper" },
+      "webviewInstallMode": { "type": "skip" },
       "nsis": { "installMode": "currentUser" }
     }
   }

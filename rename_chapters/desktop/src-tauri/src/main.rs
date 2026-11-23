@@ -23,6 +23,7 @@ mod vbook_browser;
 mod vbook_commands;
 mod wiki_browser;
 mod wiki_commands;
+mod windows_runtime;
 mod winhttp_transport;
 mod workspace;
 
@@ -676,6 +677,11 @@ async fn apply_merge(
 }
 
 fn main() {
+    #[cfg(windows)]
+    if !windows_runtime::prepare_webview2() {
+        return;
+    }
+
     tauri::Builder::default()
         .setup(|app| {
             let bundled = app
@@ -816,6 +822,7 @@ fn main() {
             vbook_commands::vbook_get_runtime_config,
             vbook_commands::vbook_set_custom_java_path,
             vbook_commands::vbook_pick_custom_java_path,
+            vbook_commands::vbook_install_java,
             vbook_commands::vbook_save_chapter_to_library,
             vbook_commands::vbook_search,
             vbook_commands::vbook_detail,

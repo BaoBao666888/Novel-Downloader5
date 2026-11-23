@@ -62,13 +62,3 @@ jobs:
 
       - name: Build the desktop development executable
         run: cargo +1.91.1 build --locked --manifest-path src-tauri/Cargo.toml --features custom-protocol
-
-      - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
-        with:
-          name: novel-studio-desktop-dev-windows-x64
-          path: |
-            LICENSE
-            rename_chapters/desktop/README.md
-            rename_chapters/desktop/src-tauri/target/debug/novel-studio-desktop.exe
-          if-no-files-found: error
-          retention-days: 7

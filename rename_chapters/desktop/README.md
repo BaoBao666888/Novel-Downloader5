@@ -30,6 +30,8 @@ Thanh điều hướng gồm **Thư viện**, **Biên tập** và **Tệp**. Tro
 
 Trong **Thư viện**, dùng **Thêm truyện** để mở TXT hoặc ZIP. Bấm **Tùy chọn** để chỉnh cỡ chữ, giãn dòng, khổ và màu trang. Dùng F11 để chuyển toàn màn hình và Esc để thoát. Có thể chia sẻ thư viện ở chế độ chỉ đọc trong **Cài đặt → Dịch vụ web**.
 
+Trong VBook, mở mục lục truyện và chọn **Dùng tiêu đề để đổi tên**. Chọn phạm vi theo số thứ tự ở mục lục rồi chuyển sang màn Đổi tên để kiểm tra danh sách và xem trước.
+
 Trong `Công cụ văn bản`, chọn một TXT để đánh số lại, áp mục lục hoặc Tìm & thay thế. Tìm & thay thế hỗ trợ văn bản thường, regex, khớp cả từ và phân biệt hoa thường. Trong regex, dùng `$1` cho nhóm bắt thứ nhất và `$$` cho một dấu đô la. Trước khi lưu, đối chiếu các đoạn theo số dòng. App lưu bản sao `.bak` cạnh tệp và cho hoàn tác lần lưu gần nhất trong phiên.
 
 
@@ -38,13 +40,14 @@ Trong `Công cụ văn bản`, chọn một TXT để đánh số lại, áp m�
 Giữ checkout Git ở vị trí hiện tại. Từ root của checkout, trong WSL, đồng bộ đầu vào build vào thư mục Linux riêng. Cần `cargo-xwin`, `llvm-rc`, NSIS 3.13 với `makensis` native Linux, Python 3 và Node.js. Bộ NSIS phải có cả headers, plugins và stubs cùng phiên bản. Dùng lại Rust, Windows SDK và npm cache đã có trong WSL.
 
 ```sh
-python3 rename_chapters/desktop/sync-wsl-build.py ~/novel-studio-build
+python3 rename_chapters/desktop/sync-wsl-build.py ~/novel-studio-build \
+  --runner-jar /path/to/local/vbook_runner.jar
 cd ~/novel-studio-build/rename_chapters/desktop
 npm ci --prefer-offline
 npm run package:windows
 ```
 
-Lệnh sync chép các file build cần và giữ cache. `npm run package:windows` tạo bộ cài public. Thư viện, biên tập và quản lý kho VBook dùng được ngay. Mở nguồn và tải chương qua extension VBook cần runner local và Java 21.
+Lệnh sync chép các file build cần và giữ cache. Chọn JAR local ở lần đầu, hoặc khi cần cập nhật runner. `npm run package:windows` tạo một bộ cài đầy đủ có JAR. Mã nguồn public và CI build được khi thiếu JAR.
 
 Chạy Cargo từ `rename_chapters/rust` hoặc `rename_chapters/desktop/src-tauri` trong cùng thư mục WSL. Cấu hình `rename_chapters/.cargo/config.toml` dùng chung `desktop/src-tauri/target` cho cả hai gói. Cargo vẫn tự tách output theo nền tảng và debug/release trong thư mục này. Dùng debug cho test và release để đóng gói. Có thể đối chiếu `target_directory` và `build_directory` bằng `cargo metadata --offline --no-deps --format-version 1`. [Cấu hình cache của Cargo](https://doc.rust-lang.org/cargo/reference/build-cache.html)
 
@@ -54,10 +57,8 @@ Bản cài x64 nằm tại `src-tauri/target/x86_64-pc-windows-msvc/release/bund
 
 ## Bộ chạy VBook local
 
-Sau khi cài bản public, tạo thư mục `%LOCALAPPDATA%\io.github.baobao666888.novelstudio\private` rồi đặt `vbook_runner.jar` vào đó. Mở lại Cài đặt để kiểm tra bộ chạy. Nếu Java chưa được nhận diện, chọn Java 21 trong Cài đặt. Chỉ dùng JAR từ nguồn tin cậy.
+Nếu tự build exe từ mã nguồn, tạo thư mục `%LOCALAPPDATA%\io.github.baobao666888.novelstudio\private` rồi đặt `vbook_runner.jar` vào đó. Mở lại Cài đặt để kiểm tra bộ chạy. Nếu Java chưa được nhận diện, chọn Java 21 trong Cài đặt. Chỉ dùng JAR từ nguồn tin cậy.
 
-Để tạo bộ cài local đã kèm JAR, chạy sync với `--runner-jar /path/to/local/vbook_runner.jar` rồi chạy `npm run package:windows:private` trong thư mục build WSL. Bộ cài có hậu tố `-private-setup.exe`. Lệnh public chỉ đóng gói tài nguyên public kể cả khi thư mục WSL còn JAR đã dàn dựng. [Tài nguyên đóng gói của Tauri](https://v2.tauri.app/develop/resources/)
-
-NSIS cài theo tài khoản Windows hiện tại. Nếu máy thiếu WebView2, bộ cài tải runtime WebView2 và cần Internet ở bước đó. Sau khi cài, app chạy Python được bố trí sẵn tại `runtime/python/python.exe` trong thư mục cài; không giải nén Python ra vùng tạm mỗi lần mở app. Vẫn có thể chọn Python khác trong phiên bằng hộp thoại. [CPython](https://www.python.org/downloads/release/python-31410/) · [Windows Installer của Tauri](https://v2.tauri.app/distribute/windows-installer/)
+NSIS cài theo tài khoản Windows hiện tại. Khi mở app trên máy thiếu WebView2, hộp thoại Windows xin phép tải bản Microsoft Fixed Version vào `runtime/webview2`. Nếu thiếu Java, dùng **Cài đặt → Môi trường chạy → Tải Java 21** để xác nhận tải Temurin vào `runtime/java`. Cần quyền ghi vào thư mục ứng dụng. Nếu từ chối WebView2, app đóng và hỏi lại ở lần mở sau. Sau khi cài, app chạy Python được bố trí sẵn tại `runtime/python/python.exe` trong thư mục cài; không giải nén Python ra vùng tạm mỗi lần mở app. Vẫn có thể chọn Python khác trong phiên bằng hộp thoại. [CPython](https://www.python.org/downloads/release/python-31410/) · [Windows Installer của Tauri](https://v2.tauri.app/distribute/windows-installer/)
 
 Build setup này là bản build local. Ký phân phối, nâng cấp và updater là các bước riêng.

@@ -12,7 +12,7 @@
   import WikiWorkbench from './WikiWorkbench.svelte';
   import {
     applyFirstLine, applyRename, chooseFolder, choosePython, previewFirstLine, previewRename, rowStatus,
-    undoFirstLine, vbookGetRuntimeConfig, vbookPickCustomJavaPath, vbookRunnerStatus, vbookSetCustomJavaPath,
+    undoFirstLine, vbookGetRuntimeConfig, vbookInstallJava, vbookPickCustomJavaPath, vbookRunnerStatus, vbookSetCustomJavaPath,
     type LinePreview, type LineResult, type Outcome, type Preview, type Row, type VBookRunnerStatus,
   } from './studio';
   import {
@@ -61,6 +61,7 @@
   let filenameRegexes = $state('');
   let contentRegexes = $state('');
   let customTitles = $state('');
+  let renameOptionsOpen = $state(false);
   let query = $state('');
   let preview = $state<Preview | null>(null);
   let selected = $state(new Set<string>());
@@ -146,6 +147,24 @@
     }
   }
 
+  async function installJava() {
+    if (settingsBusy) return;
+    settingsBusy = true;
+    settingsError = '';
+    settingsNotice = '';
+    try {
+      const next = await vbookInstallJava();
+      if (next) {
+        runtimeStatus = next;
+        if (next.ready) settingsNotice = t('settings.java_installed');
+      }
+    } catch (cause) {
+      settingsError = String(cause);
+    } finally {
+      settingsBusy = false;
+    }
+  }
+
   async function saveCustomJava(pathOverride?: string | null) {
     if (settingsBusy) return;
     settingsBusy = true;
@@ -221,6 +240,18 @@
     if (preview) needsPreview = true;
     clearPreview();
     error = '';
+  }
+
+  function useOnlineTitles(titles: string[]) {
+    if (busy || !titles.length) return false;
+    if (customTitles.trim() && !window.confirm('Thay danh sách tiêu đề đang nhập?')) return false;
+    changeArea('edit');
+    changeEditTool('rename');
+    customTitles = titles.join('\n');
+    renameOptionsOpen = true;
+    changedRules();
+    void tick().then(() => document.getElementById('custom-titles')?.focus());
+    return true;
   }
 
   function insertToken(token: string) {
@@ -426,7 +457,9 @@
       onFullscreenChange={(enabled) => (readerFullscreen = enabled)} onTranslationSettings={() => showSettings('translation')} /></div>
   {/if}
   {#if visited.has('vbook')}
-    <div hidden={mode !== 'vbook'}><VBookExtensionsWorkbench parentBusy={busy !== null} /></div>
+    <div hidden={mode !== 'vbook'}>
+      <VBookExtensionsWorkbench parentBusy={busy !== null} onUseTitles={useOnlineTitles} />
+    </div>
   {/if}
   {#if visited.has('wiki')}
     <div hidden={mode !== 'wiki'}><WikiWorkbench onAccountSettings={() => showSettings('account')} /></div>
@@ -589,6 +622,13 @@
       {/if}
     </div>
     <p class="field-help">{t('settings.runtime_note')}</p>
+    {#if runtimeStatus?.jar_path && !runtimeStatus.java_path}
+      <div class="settings-path-actions">
+        <button class="button primary" type="button" onclick={installJava} disabled={settingsBusy}>
+          {settingsBusy ? t('settings.java_wait') : t('settings.java_get')}
+        </button>
+      </div>
+    {/if}
     <div class="settings-field">
       <label for="studio-custom-java-input">{t('settings.java_custom_label')}</label>
       <div class="settings-path-row">
@@ -675,7 +715,7 @@
           <option value="filename">Tên file</option>
         </select>
 
-        <details>
+        <details bind:open={renameOptionsOpen}>
           <summary>Tuỳ chọn nâng cao</summary>
           <label for="regex-filename">Regex tên file</label>
           <textarea id="regex-filename" rows="2" bind:value={filenameRegexes} oninput={changedRules}

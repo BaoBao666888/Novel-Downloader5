@@ -58,13 +58,3 @@ jobs:
 
       - name: Check rename preview parity
         run: python -B tests/rename_parity.py target/debug/novel-studio-core.exe
-
-      - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
-        with:
-          name: novel-studio-core-dev-windows-x64
-          path: |
-            LICENSE
-            rename_chapters/rust/README.md
-            rename_chapters/rust/target/debug/novel-studio-core.exe
-          if-no-files-found: error
-          retention-days: 7

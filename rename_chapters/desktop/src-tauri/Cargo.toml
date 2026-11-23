@@ -21,7 +21,7 @@ tauri-plugin-dialog = "2"
 tempfile = "3"
 
 [target.'cfg(windows)'.dependencies]
-windows-sys = { version = "0.61", features = ["Win32_Foundation", "Win32_Networking_WinHttp", "Win32_Security_Cryptography"] }
+windows-sys = { version = "0.61", features = ["Win32_Foundation", "Win32_Networking_WinHttp", "Win32_Security_Cryptography", "Win32_UI_WindowsAndMessaging"] }
 
 [features]
 custom-protocol = ["tauri/custom-protocol"]
