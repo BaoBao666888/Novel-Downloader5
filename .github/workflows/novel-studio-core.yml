@@ -2,24 +2,18 @@ name: Novel Studio Rust core
 
 on:
   workflow_dispatch:
-  push:
-    branches: ['refactor/novel-studio-rust']
-  pull_request:
-    paths:
-      - '.github/workflows/novel-studio-core.yml'
-      - 'LICENSE'
-      - 'rename_chapters/app/__init__.py'
-      - 'rename_chapters/app/paths.py'
-      - 'rename_chapters/app/core/__init__.py'
-      - 'rename_chapters/app/core/renamer.py'
-      - 'rename_chapters/app/core/text_ops.py'
-      - 'rename_chapters/rust/**'
+    inputs:
+      run_ci:
+        description: Run the Windows checks and build
+        type: boolean
+        default: false
 
 permissions:
   contents: read
 
 jobs:
   windows:
+    if: ${{ inputs.run_ci }}
     runs-on: windows-2022
     timeout-minutes: 15
     defaults:

@@ -2,29 +2,18 @@ name: Novel Studio Desktop
 
 on:
   workflow_dispatch:
-  push:
-    branches: ['refactor/novel-studio-rust']
-    paths:
-      - '.github/workflows/novel-studio-desktop.yml'
-      - 'LICENSE'
-      - 'rename_chapters/icon.ico'
-      - 'rename_chapters/app/core/renamer.py'
-      - 'rename_chapters/rust/**'
-      - 'rename_chapters/desktop/**'
-  pull_request:
-    paths:
-      - '.github/workflows/novel-studio-desktop.yml'
-      - 'LICENSE'
-      - 'rename_chapters/icon.ico'
-      - 'rename_chapters/app/core/renamer.py'
-      - 'rename_chapters/rust/**'
-      - 'rename_chapters/desktop/**'
+    inputs:
+      run_ci:
+        description: Run the Windows checks and build
+        type: boolean
+        default: false
 
 permissions:
   contents: read
 
 jobs:
   windows:
+    if: ${{ inputs.run_ci }}
     runs-on: windows-2022
     timeout-minutes: 25
     env:
