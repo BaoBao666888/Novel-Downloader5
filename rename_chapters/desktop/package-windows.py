@@ -1,9 +1,12 @@
-"""Stage a verified CPython embeddable distribution for the Windows installer."""
+"""Build a Windows installer from the shared WSL build tree."""
 
+import argparse
+import fcntl
 import hashlib
 import io
 import json
 from pathlib import Path
+import subprocess
 from tempfile import TemporaryDirectory
 import urllib.request
 from zipfile import ZipFile
@@ -14,6 +17,8 @@ SHA256 = "90905e64a840557d8c1bc4f5b74db3d7ee85e3ffb217611cac1c7813acea4159"
 ARCHIVE = f"python-{VERSION}-embed-amd64.zip"
 URL = f"https://www.python.org/ftp/python/{VERSION}/{ARCHIVE}"
 TAURI = Path(__file__).resolve().parent / "src-tauri"
+TARGET = "x86_64-pc-windows-msvc"
+RUNNER_RESOURCE = "runtime/vbook_runner.jar"
 
 
 def verified_archive(cache):
@@ -57,7 +62,7 @@ def stage_runtime():
 
 
 def require_runner():
-    runner = TAURI / "runtime/vbook_runner.jar"
+    runner = TAURI / RUNNER_RESOURCE
     if not runner.is_file():
         raise RuntimeError("Stage vbook_runner.jar using sync-wsl-build.py --runner-jar before packaging.")
     with ZipFile(runner) as archive:
@@ -71,6 +76,45 @@ def require_runner():
     print("Staged vBook runner is ready.")
 
 
-if __name__ == "__main__":
-    require_runner()
+def package_windows(with_private_runner):
+    metadata = json.loads(subprocess.check_output(
+        ["cargo", "metadata", "--locked", "--no-deps", "--format-version", "1"],
+        cwd=TAURI,
+    ))
+    target_dir = Path(metadata["target_directory"])
+    target_dir.mkdir(parents=True, exist_ok=True)
+    # Tauri writes both flavors to the same filename before we rename the installer.
+    with (target_dir / ".novel-studio-package.lock").open("a+b") as lock:
+        fcntl.flock(lock, fcntl.LOCK_EX)
+        build_installer(with_private_runner, target_dir / TARGET / "release/bundle/nsis")
+
+
+def build_installer(with_private_runner, output):
+    if with_private_runner:
+        require_runner()
     stage_runtime()
+
+    app = json.loads((TAURI / "tauri.conf.json").read_text(encoding="utf-8"))
+    base_name = f'{app["productName"]}_{app["version"]}_x64'
+    common = ["--target", TARGET, "--config", "src-tauri/tauri.nsis.conf.json"]
+    subprocess.run(
+        ["tauri", "build", *common, "--runner", "cargo-xwin", "--no-bundle", "--", "--locked"],
+        cwd=TAURI.parent,
+        check=True,
+    )
+
+    bundle = ["tauri", "bundle", *common, "--no-binary-patching"]
+    if with_private_runner:
+        overlay = {"bundle": {"resources": {RUNNER_RESOURCE: "vbook_runner.jar"}}}
+        bundle.extend(["--config", json.dumps(overlay)])
+    subprocess.run(bundle, cwd=TAURI.parent, check=True)
+    flavor = "private" if with_private_runner else "public"
+    artifact = output / f"{base_name}-{flavor}-setup.exe"
+    (output / f"{base_name}-setup.exe").replace(artifact)
+    print(f"Installer: {artifact}")
+
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--with-private-runner", action="store_true")
+    package_windows(parser.parse_args().with_private_runner)

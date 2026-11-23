@@ -4,8 +4,7 @@
     "active": true,
     "targets": ["nsis"],
     "resources": {
-      "runtime/python-3.14.10/": "runtime/python/",
-      "runtime/vbook_runner.jar": "vbook_runner.jar"
+      "runtime/python-3.14.10/": "runtime/python/"
     },
     "windows": {
       "webviewInstallMode": { "type": "downloadBootstrapper" },

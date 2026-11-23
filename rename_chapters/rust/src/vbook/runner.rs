@@ -236,17 +236,14 @@ pub trait VBookScriptExecutor {
 #[derive(Debug, Default, Clone)]
 pub struct JavaVBookRunnerExecutor {
     custom_java_path: Option<PathBuf>,
+    local_runner_dir: Option<PathBuf>,
     browser_bridge_url: Option<String>,
     browser_bridge_token: Option<String>,
 }
 
 impl JavaVBookRunnerExecutor {
     pub fn discover() -> Self {
-        Self {
-            custom_java_path: None,
-            browser_bridge_url: None,
-            browser_bridge_token: None,
-        }
+        Self::with_runtime(None, None, None)
     }
 
     pub fn with_custom_java(custom_java: Option<PathBuf>) -> Self {
@@ -260,6 +257,7 @@ impl JavaVBookRunnerExecutor {
     ) -> Self {
         Self {
             custom_java_path: custom_java,
+            local_runner_dir: None,
             browser_bridge_url: browser_bridge_url
                 .map(|s| s.trim().to_owned())
                 .filter(|s| !s.is_empty()),
@@ -281,8 +279,12 @@ impl JavaVBookRunnerExecutor {
         custom_java: Option<&Path>,
         browser_bridge_ready: bool,
     ) -> RunnerStatus {
-        let jar = find_runner_jar();
-        let java = find_java_bin_with_custom(jar.as_deref(), custom_java);
+        Self::with_custom_java(custom_java.map(Path::to_path_buf)).status(browser_bridge_ready)
+    }
+
+    fn status(&self, browser_bridge_ready: bool) -> RunnerStatus {
+        let jar = find_runner_jar_in(self.local_runner_dir.as_deref());
+        let java = find_java_bin_with_custom(jar.as_deref(), self.custom_java_path.as_deref());
         let ready = jar.is_some() && java.is_some();
         let message = match (&java, &jar) {
             (Some(_), Some(_)) => "Java 21 & vbook_runner sẵn sàng.".to_owned(),
@@ -290,13 +292,7 @@ impl JavaVBookRunnerExecutor {
                 "Chưa tìm thấy Java 21+ (hãy chọn đường dẫn java.exe trong Cài đặt hoặc tải JRE)."
                     .to_owned()
             }
-            (Some(_), None) => {
-                "Chưa tìm thấy vbook_runner.jar (đặt trong tools/vbook_runner hoặc biến NOVEL_STUDIO_VBOOK_RUNNER_JAR)."
-                    .to_owned()
-            }
-            (None, None) => {
-                "Chưa có Java 21+ và vbook_runner.jar để chạy extension JS thật.".to_owned()
-            }
+            (_, None) => "Cần thêm bộ chạy VBook để mở nguồn.".to_owned(),
         };
         RunnerStatus {
             ready,
@@ -317,9 +313,8 @@ impl VBookScriptExecutor for JavaVBookRunnerExecutor {
         args: &[Value],
         config: &RunnerExecConfig,
     ) -> Result<Value, CoreError> {
-        let jar = find_runner_jar().ok_or(
-            "Không tìm thấy vbook_runner.jar (kiểm tra tools/vbook_runner/vbook_runner.jar).",
-        )?;
+        let jar = find_runner_jar_in(self.local_runner_dir.as_deref())
+            .ok_or("Cần thêm bộ chạy VBook để mở nguồn.")?;
         let java = find_java_bin_with_custom(Some(&jar), self.custom_java_path.as_deref())
             .ok_or("Không tìm thấy Java 21+ (kiểm tra tools/jre/bin/java.exe hoặc Cài đặt).")?;
 
@@ -385,10 +380,21 @@ impl VBookScriptExecutor for JavaVBookRunnerExecutor {
 }
 
 pub fn find_runner_jar() -> Option<PathBuf> {
+    find_runner_jar_in(None)
+}
+
+fn find_runner_jar_in(local_dir: Option<&Path>) -> Option<PathBuf> {
     if let Ok(raw) = env::var(ENV_VBOOK_RUNNER_JAR) {
         let path = PathBuf::from(raw.trim());
         if path.is_file() {
             return Some(path);
+        }
+    }
+
+    if let Some(dir) = local_dir {
+        let runner = dir.join("vbook_runner.jar");
+        if runner.is_file() {
+            return Some(runner);
         }
     }
 
@@ -1328,8 +1334,20 @@ impl CoreVBookExecutor {
         custom_java: Option<&Path>,
         browser_bridge_ready: bool,
     ) -> RunnerStatus {
-        if mock_mode {
-            RunnerStatus {
+        Self::open_with_java(mock_mode, custom_java.map(Path::to_path_buf))
+            .status(browser_bridge_ready)
+    }
+
+    pub fn with_local_runner_dir(mut self, local_runner_dir: Option<PathBuf>) -> Self {
+        if let Self::Java(runner) = &mut self {
+            runner.local_runner_dir = local_runner_dir;
+        }
+        self
+    }
+
+    pub fn status(&self, browser_bridge_ready: bool) -> RunnerStatus {
+        match self {
+            Self::Mock(_) => RunnerStatus {
                 ready: true,
                 mock_mode: true,
                 browser_bridge_ready,
@@ -1338,9 +1356,8 @@ impl CoreVBookExecutor {
                 message:
                     "Đang chạy vbook_runner ở chế độ giả lập (NOVEL_STUDIO_VBOOK_MOCK_RUNNER=1)."
                         .to_owned(),
-            }
-        } else {
-            JavaVBookRunnerExecutor::probe_status_with_runtime(custom_java, browser_bridge_ready)
+            },
+            Self::Java(runner) => runner.status(browser_bridge_ready),
         }
     }
 }
@@ -1854,5 +1871,32 @@ mod tests {
             status.java_path.as_deref(),
             Some(fake_java.to_string_lossy().as_ref())
         );
+    }
+
+    #[test]
+    fn local_runner_laid_down_after_startup_is_detected() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let java = dir.path().join("test-java");
+        std::fs::write(&java, b"java fixture").expect("write Java fixture");
+        let executor = CoreVBookExecutor::open_with_java(false, Some(java))
+            .with_local_runner_dir(Some(dir.path().to_path_buf()));
+        let before = executor.status(false);
+
+        let jar = dir.path().join("vbook_runner.jar");
+        std::fs::write(&jar, b"JAR fixture").expect("write JAR fixture");
+        let path_override = env::var(ENV_VBOOK_RUNNER_JAR)
+            .ok()
+            .map(|raw| PathBuf::from(raw.trim()))
+            .filter(|path| path.is_file());
+        let expected = path_override.as_deref().unwrap_or(&jar);
+        let after = executor.status(false);
+        assert!(after.ready);
+        assert_eq!(
+            after.jar_path.as_deref(),
+            Some(expected.to_string_lossy().as_ref())
+        );
+
+        std::fs::remove_file(jar).expect("remove JAR fixture");
+        assert_eq!(executor.status(false), before);
     }
 }

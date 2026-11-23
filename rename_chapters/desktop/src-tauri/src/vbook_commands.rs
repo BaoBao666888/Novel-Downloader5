@@ -1,5 +1,5 @@
 use std::fs;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 
 use novel_studio_core::library;
 use novel_studio_core::vbook::model::{
@@ -52,13 +52,27 @@ fn bridge_runtime_info(app: &AppHandle) -> (Option<String>, Option<String>, bool
 }
 
 fn open_executor(app: &AppHandle) -> CoreVBookExecutor {
-    let (bridge_url, bridge_token, _) = bridge_runtime_info(app);
-    CoreVBookExecutor::open_with_runtime(
+    open_executor_with_java(app, load_custom_java_path(app)).0
+}
+
+fn open_executor_with_java(
+    app: &AppHandle,
+    custom_java: Option<PathBuf>,
+) -> (CoreVBookExecutor, bool) {
+    let (bridge_url, bridge_token, bridge_ready) = bridge_runtime_info(app);
+    let local_runner_dir = app
+        .path()
+        .app_local_data_dir()
+        .ok()
+        .map(|dir| dir.join("private"));
+    let executor = CoreVBookExecutor::open_with_runtime(
         is_mock_runner_enabled(),
-        load_custom_java_path(app),
+        custom_java,
         bridge_url,
         bridge_token,
     )
+    .with_local_runner_dir(local_runner_dir);
+    (executor, bridge_ready)
 }
 
 pub fn resolve_vbook_dir(app: &AppHandle) -> Result<PathBuf, String> {
@@ -291,13 +305,8 @@ pub async fn vbook_save_extension_config(
 #[tauri::command]
 pub async fn vbook_runner_status(app: AppHandle) -> Result<RunnerStatus, String> {
     tauri::async_runtime::spawn_blocking(move || {
-        let custom_java = load_custom_java_path(&app);
-        let (_, _, bridge_ready) = bridge_runtime_info(&app);
-        Ok(CoreVBookExecutor::probe_status_with_runtime(
-            is_mock_runner_enabled(),
-            custom_java.as_deref(),
-            bridge_ready,
-        ))
+        let (executor, bridge_ready) = open_executor_with_java(&app, load_custom_java_path(&app));
+        Ok(executor.status(bridge_ready))
     })
     .await
     .map_err(|err| err.to_string())?
@@ -327,12 +336,9 @@ pub async fn vbook_set_custom_java_path(
             },
         )
         .map_err(|err| err.to_string())?;
-        let (_, _, bridge_ready) = bridge_runtime_info(&app);
-        Ok(CoreVBookExecutor::probe_status_with_runtime(
-            is_mock_runner_enabled(),
-            saved.custom_java_path.as_deref().map(Path::new),
-            bridge_ready,
-        ))
+        let (executor, bridge_ready) =
+            open_executor_with_java(&app, saved.custom_java_path.map(PathBuf::from));
+        Ok(executor.status(bridge_ready))
     })
     .await
     .map_err(|err| err.to_string())?
@@ -362,12 +368,11 @@ pub async fn vbook_pick_custom_java_path(
             },
         )
         .map_err(|err| err.to_string())?;
-        let (_, _, bridge_ready) = bridge_runtime_info(window.app_handle());
-        Ok(Some(CoreVBookExecutor::probe_status_with_runtime(
-            is_mock_runner_enabled(),
-            saved.custom_java_path.as_deref().map(Path::new),
-            bridge_ready,
-        )))
+        let (executor, bridge_ready) = open_executor_with_java(
+            window.app_handle(),
+            saved.custom_java_path.map(PathBuf::from),
+        );
+        Ok(Some(executor.status(bridge_ready)))
     })
     .await
     .map_err(|err| err.to_string())?
@@ -622,6 +627,7 @@ pub async fn vbook_ai_chat(
 mod tests {
     use std::io::{Read, Write};
     use std::net::TcpListener;
+    use std::path::Path;
     use std::sync::{
         Arc, Mutex,
         atomic::{AtomicUsize, Ordering},

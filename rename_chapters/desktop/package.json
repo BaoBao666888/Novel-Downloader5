@@ -8,7 +8,8 @@
     "check": "svelte-check --tsconfig ./tsconfig.json",
     "build": "vite build",
     "tauri": "tauri",
-    "package:windows": "python3 prepare-python-runtime.py && tauri build --runner cargo-xwin --target x86_64-pc-windows-msvc --bundles nsis --config src-tauri/tauri.nsis.conf.json -- --locked"
+    "package:windows": "python3 package-windows.py",
+    "package:windows:private": "python3 package-windows.py --with-private-runner"
   },
   "dependencies": {
     "@tauri-apps/api": "^2.12.5",

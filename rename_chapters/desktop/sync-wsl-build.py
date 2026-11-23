@@ -6,6 +6,7 @@ import json
 from pathlib import Path
 import shutil
 import subprocess
+from tempfile import TemporaryDirectory
 
 
 PREFIX = "rename_chapters/"
@@ -14,7 +15,7 @@ FILES = {"LICENSE", *(PREFIX + name for name in (
     "app/core/renamer.py", "app/core/text_ops.py", "rust/Cargo.toml", "rust/Cargo.lock",
     "desktop/.gitignore", "desktop/README.md", "desktop/index.html", "desktop/package.json",
     "desktop/package-lock.json", "desktop/tsconfig.json", "desktop/vite.config.ts",
-    "desktop/prepare-python-runtime.py", "desktop/sync-wsl-build.py",
+    "desktop/package-windows.py", "desktop/sync-wsl-build.py",
     "desktop/src-tauri/Cargo.toml", "desktop/src-tauri/Cargo.lock", "desktop/src-tauri/build.rs",
     "desktop/src-tauri/tauri.conf.json", "desktop/src-tauri/tauri.nsis.conf.json",
 ))}
@@ -80,5 +81,8 @@ if __name__ == "__main__":
         staged = dest / PREFIX / "desktop/src-tauri/runtime/vbook_runner.jar"
         staged.parent.mkdir(parents=True, exist_ok=True)
         if not staged.exists() or not filecmp.cmp(jar, staged, shallow=False):
-            shutil.copy2(jar, staged)
+            with TemporaryDirectory(dir=staged.parent) as temp:
+                pending = Path(temp) / staged.name
+                shutil.copy2(jar, pending)
+                pending.replace(staged)
         print("Staged vbook_runner.jar from the selected local artifact.")
